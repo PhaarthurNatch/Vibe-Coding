@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hex Tactics: v49.0 Stable</title>
+    <style>
+        /* --- CORE --- */
+        :root { 
+            --bg: #0f172a; --hud-bg: #1e293b; --border: #334155;
+            --c-blue: #3b82f6; --c-red: #ef4444; --c-green: #10b981; --c-yellow: #f59e0b;
+            --c-dark: #334155;
+            --act-blue: #3b82f6; --act-red: #ef4444; --act-green: #10b981; --act-yellow: #f59e0b;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; overflow: hidden; user-select: none; touch-action: none; }
+        .screen { display: none; width: 100vw; height: 100vh; flex-direction: column; align-items: center; justify-content: center; }
+        .screen.active { display: flex; }
+
+        /* UI */
+        .btn-3d { border: none; border-radius: 12px; padding: 12px; font-weight: bold; color: white; cursor: pointer; transition: transform 0.1s; border-bottom: 4px solid rgba(0,0,0,0.4); text-align: center; display: flex; justify-content: center; align-items: center; width: 100%; box-sizing: border-box; font-size: 1em; }
+        .btn-3d:active { border-bottom-width: 0px; transform: translateY(3px); }
+        .btn-3d.disabled { opacity: 0.4; pointer-events: none; filter: grayscale(1); background: #475569 !important; border-color: #334155 !important; }
+        .setup-container { background: var(--hud-bg); padding: 25px; border-radius: 20px; width: 90%; max-width: 450px; border-bottom: 6px solid #000; max-height: 85vh; overflow-y: auto; }
+        .player-row { display: grid; grid-template-columns: 50px 1fr 0.7fr 1fr auto; gap: 8px; margin-bottom: 12px; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px; }
+        .mini-token-container { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--team-color); overflow: hidden; background: #000; }
+        .mini-token-container img { width: 100%; height: 100%; object-fit: cover; }
+        .input-3d { background: #0f172a; border: 2px solid var(--border); border-radius: 8px; padding: 10px; color: white; width: 100%; box-sizing: border-box; outline: none; }
+
+        /* MAPA */
+        #game-view { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); }
+        #map-layer { position: absolute; top: 0; left: 0; transform-origin: center center; will-change: transform; transition: transform 0.05s linear; }
+        
+        .hex { position: absolute; width: 60px; height: 70px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); background: rgba(255,255,255,0.05); z-index: 1; }
+        .hex::after { content: ''; position: absolute; width: 58px; height: 68px; background: rgba(30, 41, 59, 0.3); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); z-index: 1; }
+        
+        .hex.valid-move { background: var(--act-blue) !important; z-index: 5; } 
+        .hex.in-range { background: rgba(255, 50, 50, 0.5) !important; box-shadow: inset 0 0 15px #ff0000; z-index: 4; }
+        .hex.valid-target { 
+            background: rgba(255, 0, 0, 0.9) !important; z-index: 6; 
+            box-shadow: 0 0 30px 10px #ff0000, inset 0 0 20px #ffffff;
+            border: 4px solid white; animation: pulseCritical 0.5s infinite alternate;
+        }
+        @keyframes pulseCritical { from { transform: scale(1); filter: brightness(1); } to { transform: scale(1.1); filter: brightness(1.5); } }
+
+        /* --- HD-2D SPRITE SYSTEM --- */
+        .token-container { 
+            position: absolute; width: 64px; height: 96px; 
+            z-index: 20; transition: left 0.2s linear, top 0.2s linear; 
+            pointer-events: none; transform-origin: bottom center; 
+        }
+        .token-base {
+            position: absolute; bottom: 0; left: 4px; width: 56px; height: 64px;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            background: rgba(30, 41, 59, 0.8); border: 2px solid var(--team-color);
+            z-index: 1; filter: drop-shadow(0 0 8px var(--team-color));
+        }
+        .token-sprite {
+            position: absolute; bottom: 15px; left: -18px; width: 100px; height: 100px;
+            z-index: 5; pointer-events: auto;
+            display: flex; justify-content: center; align-items: flex-end;
+            filter: drop-shadow(0 8px 4px rgba(0,0,0,0.6));
+            transform-origin: bottom center;
+            animation: idleAnim 2s infinite ease-in-out;
+            image-rendering: pixelated; 
+        }
+        .token-sprite img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+        @keyframes idleAnim { 0%, 100% { transform: scaleY(1) translateY(0); } 50% { transform: scaleY(0.96) translateY(2px); } }
+        
+        /* ANIMACIONES DE COMBATE ESTABLES */
+        .anim-attack .token-sprite { animation: attackAnim 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; }
+        @keyframes attackAnim { 
+            0% { transform: translate(0, 0) scale(1); } 
+            50% { transform: translate(20px, -20px) scale(1.3) rotate(5deg); } 
+            100% { transform: translate(0, 0) scale(1); } 
+        }
+
+        .anim-hit .token-sprite { animation: hitAnim 0.4s steps(1) !important; }
+        @keyframes hitAnim { 
+            0%, 100% { filter: brightness(1); transform: translate(0,0); }
+            20% { filter: brightness(4); transform: translate(-6px, 0); }
+            40% { filter: brightness(1); transform: translate(6px, 0); }
+            60% { filter: brightness(4); transform: translate(-6px, 0); }
+            80% { filter: brightness(1); transform: translate(6px, 0); }
+        }
+
+        .token-container.active-turn .token-base { box-shadow: 0 0 20px var(--team-color), inset 0 0 10px white; animation: activeBase 1s infinite alternate; }
+        @keyframes activeBase { from { opacity: 0.8; } to { opacity: 1; } }
+        .token-name { position: absolute; bottom: -22px; width: 140px; left: 50%; transform: translateX(-50%); text-align: center; font-size: 0.8em; font-weight: bold; color: white; text-shadow: 0 1px 2px black; z-index: 60; pointer-events: none; background: rgba(0,0,0,0.7); border-radius: 10px; padding: 2px 6px; border: 1px solid #334155; }
+
+        /* --- VFX: VISUAL EFFECTS & TRAILS --- */
+        .vfx-container { position: absolute; top: 0; left: 0; width: 60px; height: 70px; z-index: 100; pointer-events: none; display: flex; justify-content: center; align-items: center; }
+        
+        /* SLASH (Espada) */
+        .vfx-slash { width: 120%; height: 10px; background: white; box-shadow: 0 0 10px white; transform: rotate(-45deg); animation: vfxSlash 0.2s ease-out forwards; opacity: 0; }
+        @keyframes vfxSlash { 0% { opacity: 1; transform: translate(-30px, -30px) rotate(-45deg) scale(0.5); } 50% { opacity: 1; transform: translate(0,0) rotate(-45deg) scale(1.5); } 100% { opacity: 0; transform: translate(30px, 30px) rotate(-45deg) scale(1); } }
+
+        /* DAGGER (Cruz Blanca) */
+        .vfx-dagger { width: 100%; height: 100%; position: relative; animation: vfxFade 0.3s forwards; }
+        .vfx-dagger::before, .vfx-dagger::after { content:''; position: absolute; top: 50%; left: 50%; width: 120%; height: 6px; background: white; box-shadow: 0 0 10px white; transform: translate(-50%, -50%) rotate(45deg); }
+        .vfx-dagger::after { transform: translate(-50%, -50%) rotate(-45deg); }
+        @keyframes vfxFade { from { opacity: 1; transform: scale(0.5); } to { opacity: 0; transform: scale(1.5); } }
+
+        /* PIERCE (Arco) */
+        .vfx-pierce { width: 20px; height: 20px; background: radial-gradient(circle, white 0%, transparent 70%); box-shadow: 0 0 20px white; border-radius: 50%; animation: vfxPierce 0.3s ease-out forwards; }
+        @keyframes vfxPierce { 0% { transform: scale(3); opacity: 0.5; } 100% { transform: scale(0); opacity: 1; } }
+
+        /* MAGIC (Explosion) */
+        .vfx-magic { width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--vfx-color); box-shadow: 0 0 20px var(--vfx-color); animation: vfxMagic 0.5s ease-out forwards; opacity: 0; }
+        @keyframes vfxMagic { 0% { transform: scale(0); opacity: 1; border-width: 20px; } 100% { transform: scale(2); opacity: 0; border-width: 0px; } }
+
+
+        /* STATUS & DMG */
+        .status-container { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10; }
+        .state-icon { position: absolute; font-size: 1em; z-index: 30; text-shadow: 0 0 3px black; }
+        .slot-tr { top: 0px; right: -10px; } .slot-tl { top: 0px; left: -10px; } .slot-mid { top: -10px; left: 20px; }
+        
+        .float-dmg { 
+            position: absolute; 
+            color: white; font-weight: 900; font-size: 2.4em; 
+            text-shadow: 2px 2px 0 #000, 0 0 10px red; pointer-events: none; z-index: 2000; 
+            animation: splashAnim 1s ease-out forwards; white-space: nowrap; 
+        }
+        .float-dmg.crit { font-size: 3.2em; color: #ffb700; text-shadow: 3px 3px 0 #000, 0 0 20px #ff4500; z-index: 2001; }
+        @keyframes splashAnim { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-100% + var(--ty))) scale(1); } }
+
+        /* MENU & HUD */
+        .action-popup { display: none; flex-direction: column; gap: 6px; background: var(--hud-bg); border: 2px solid var(--border); padding: 8px; border-radius: 12px; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.9); min-width: 160px; max-width: 210px; animation: popIn 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); touch-action: pan-y; font-size: 0.85em; }
+        .action-popup.docked { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); }
+        .action-popup.floating { position: absolute; transform-origin: bottom left; transform: scale(0.85); }
+        .action-popup.active { display: flex; }
+        .popup-header { text-align: center; border-bottom: 2px solid var(--border); padding-bottom: 5px; margin-bottom: 4px; font-size: 1.1em; }
+        .popup-body { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; padding-right: 4px; overscroll-behavior: contain; }
+        .popup-btn { text-align: left; background: var(--c-dark); border-color: var(--hud-bg); padding: 8px; font-size: 1em; flex-shrink: 0; border-radius: 8px; }
+        .popup-btn.move { background: var(--act-blue); border-color: var(--act-blue-d); }
+        .popup-btn.skill { background: #6366f1; border-color: #4338ca; }
+        .popup-btn.cure { background: var(--act-green); border-color: var(--act-green-d); }
+        .popup-btn.end-turn { background: var(--act-yellow); border-color: var(--act-yellow-d); color: #000; text-align: center; margin-top: 6px; }
+        .confirm-row { display: flex; gap: 8px; margin-top: 4px; }
+        .confirm-yes { background: var(--act-green); border-bottom: 4px solid var(--act-green-d); flex:1; padding: 8px; }
+        .confirm-no { background: var(--act-red); border-bottom: 4px solid var(--act-red-d); flex:1; padding: 8px; }
+
+        #top-bar { position: fixed; top: 0; left: 0; width: 100%; background: rgba(15, 23, 42, 0.9); border-bottom: 1px solid var(--border); padding: 10px; text-align: center; z-index: 200; backdrop-filter: blur(5px); font-size: 1.1em; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; align-items: center; box-sizing: border-box; }
+        #btn-back-menu { background: none; border: none; font-size: 1.5em; cursor: pointer; margin-right: 15px; padding: 5px; border-radius: 50%; transition: background 0.2s; color: white; display: flex; align-items: center; justify-content: center; }
+        #btn-back-menu:active { background: rgba(255,255,255,0.2); }
+        #top-bar-text { flex-grow: 1; text-align: center; margin-right: 35px; }
+        #hud-turn-info { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; border-bottom: 5px solid #000; border-radius: 50px; padding: 8px 25px 8px 10px; display: flex; align-items: center; gap: 10px; z-index: 100; box-shadow: 0 10px 30px rgba(0,0,0,0.7); cursor: pointer; transition: transform 0.1s; }
+        #hud-turn-info:active { transform: translateX(-50%) scale(0.95); }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 24px; border-bottom: 3px solid #0f172a; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--act-green); }
+        input:checked + .slider:before { transform: translateX(24px); }
+        @keyframes popIn { from{opacity:0; transform: scale(0.8);} to{opacity:1; transform: scale(1);} }
+    </style>
+</head>
+<body>
+
+    <div id="screen-setup" class="screen active">
+        <h1 style="color: var(--act-red); text-shadow: 0 4px 0 #500707; font-size: 3.5em; margin-bottom: 15px;">HEX TACTICS</h1>
+        <div class="setup-container">
+            <div class="config-row" style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px;">
+                <span style="font-weight:bold">🔥 Fuego Amigo</span>
+                <label class="switch"><input type="checkbox" id="chk-friendly-fire"><span class="slider"></span></label>
+            </div>
+            <div id="players-list"></div>
+            <button id="btn-add" class="btn-3d" style="background:var(--c-dark); margin-top: 10px;">+ Añadir Jugador</button>
+            <button id="btn-start" class="btn-3d" style="background:var(--act-green); margin-top:20px;">⚔️ EMPEZAR BATALLA</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div id="top-bar">
+            <button id="btn-back-menu" title="Volver al menú">⬅️</button>
+            <span id="top-bar-text">Iniciando...</span>
+        </div>
+        <div id="game-view">
+            <div id="map-layer"></div>
+            <div id="action-popup" class="action-popup">
+                <div class="popup-header" id="pop-head"></div>
+                <div class="popup-body" id="pop-body"></div>
+            </div>
+        </div>
+        <div id="hud-turn-info"></div>
+        <div id="hud-hint"></div>
+    </div>
+
+<script>
+    const CONFIG = { HEX_W: 60, HEX_H: 70, ZOOM_MIN: 0.25, ZOOM_MAX: 2, DEFAULT_SCALE: 0.8, TAP_DELAY: 300 };
+    const SPAWN_POINTS = [{q:0,r:-7}, {q:0,r:7}, {q:7,r:-7}, {q:-7,r:7}, {q:7,r:0}, {q:-7,r:0}];
+
+    const STATUS_REGISTRY = {
+        bleed:  { icon: '🩸', name: 'Sangrado', color: '#ef4444', slot: 'slot-mid', medicine: 'Vendar' },
+        burn:   { icon: '🔥', name: 'Quemado',  color: '#f97316', slot: 'slot-br', medicine: 'Apagar' },
+        freeze: { icon: '❄️', name: 'Congelado',color: '#38bdf8', slot: 'slot-bl', medicine: 'Calentar' },
+        shock:  { icon: '⚡', name: 'Electro.', color: '#facc15', slot: 'slot-tr', medicine: 'Descargar' },
+        charge: { icon: '✨', name: 'Conc.',    color: '#c084fc', slot: 'slot-tr' },
+        defend: { icon: '🛡️', name: 'Bloqueo',  color: '#94a3b8', slot: 'slot-tl' }
+    };
+
+    // SPRITES PIXELEADOS ORIGINALES (SVG DATA URIs)
+    const IMAGES = {
+        caballero: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%239ca3af' d='M10 4h12v8h-12z'/%3E%3Cpath fill='%231f2937' d='M14 6h4v4h-4z'/%3E%3Cpath fill='%232563eb' d='M8 12h16v14h-16z'/%3E%3Cpath fill='%2360a5fa' d='M12 14h8v8h-8z'/%3E%3Cpath fill='%234b5563' d='M4 14h4v10h-4z'/%3E%3Cpath fill='%23d1d5db' d='M24 10h4v14h-4z'/%3E%3C/svg%3E",
+        ranger: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23166534' d='M10 4h12v8h-12z'/%3E%3Cpath fill='%2315803d' d='M8 12h16v16h-16z'/%3E%3Cpath fill='%23fcd34d' d='M12 6h8v4h-8z'/%3E%3Cpath fill='%2378350f' d='M6 10h2v16h-2zM24 10h2v16h-2z'/%3E%3Cpath fill='%2392400e' d='M6 12h20v2h-20z'/%3E%3C/svg%3E",
+        rogue: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23111827' d='M10 6h12v6h-12z'/%3E%3Cpath fill='%23ef4444' d='M10 10h12v3h-12z'/%3E%3Cpath fill='%231f2937' d='M8 12h16v14h-16z'/%3E%3Cpath fill='%239ca3af' d='M4 16h6v4h-6zM22 16h6v4h-6z'/%3E%3C/svg%3E",
+        mago: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%235b21b6' d='M8 2h16v8h-16z'/%3E%3Cpath fill='%234c1d95' d='M4 8h24v2h-24z'/%3E%3Cpath fill='%237c3aed' d='M8 10h16v18h-16z'/%3E%3Cpath fill='%23fbbf24' d='M26 6h2v20h-2z'/%3E%3Cpath fill='%2360a5fa' d='M25 4h4v4h-4z'/%3E%3C/svg%3E"
+    };
+
+    const CLASSES = {
+        ranger: { name: "Ranger", img: IMAGES.ranger, hp: 90, speed: 6, def: 0, attacks: 1, skills: [{id:'arrow', name:"Arco Largo", minRange:3, range:4, dice:10, fx:'pierce'}, {id:'dagger', name:"Daga", range:1, dice:4, fx:'dagger'}] },
+        caballero: { name: "Caballero", img: IMAGES.caballero, hp: 140, speed: 3, def: 2, attacks: 1, skills: [{id:'sword', name:"Espada", range:1, dice:6, fx:'slash'}, {id:'shield', name:"Escudo", type:'self'}] },
+        rogue: { name: "Pícaro", img: IMAGES.rogue, hp: 80, speed: 4, def: 1, attacks: 2, skills: [{id:'dagger', name:"Daga Veloz", range:1, dice:4, hits:2, fx:'dagger'}] },
+        mago: { name: "Mago", img: IMAGES.mago, hp: 70, speed: 3, def: 0, attacks: 1, skills: [{id:'charge', name:"Concentrar", type:'charge'}, {id:'fire', name:"Bola Fuego", type:'cast', range:5, dice:20, statusEffect:'burn', fx:'magic', color:'#f97316'}, {id:'ice', name:"Ventisca", type:'cast', range:5, dice:20, statusEffect:'freeze', fx:'magic', color:'#38bdf8'}, {id:'shock', name:"Rayo", type:'cast', range:5, dice:20, statusEffect:'shock', fx:'magic', color:'#facc15'}] }
+    };
+
+    let players = [], grid = {}, turnIdx = 0, selectedMode = null, pendingAction = null; 
+    let viewX=0, viewY=0, scale=CONFIG.DEFAULT_SCALE;
+    let isDragging=false, startX=0, startY=0, draggingThreshold=false, initialPinchDist=null;
+    let popupTargetId = null;
+    let popupSource = 'docked';
+    let isOverviewMode = false;
+
+    function getTeamColor(teamId) { const hue = ((teamId - 1) * 137.508) % 360; return `hsl(${hue}, 75%, 50%)`; }
+    function getDist(q1, r1, q2, r2) { return (Math.abs(q1 - q2) + Math.abs(q1 + r1 - q2 - r2) + Math.abs(r1 - r2)) / 2; }
+    function resetHighlights() { document.querySelectorAll('.hex').forEach(h => h.classList.remove('valid-move','valid-target','in-range')); }
+    function closePopup() { document.getElementById('action-popup').classList.remove('active'); popupTargetId = null; }
+    function resetSelections() { selectedMode = null; resetHighlights(); closePopup(); }
+
+    function returnToSetup() {
+        if(confirm("¿Volver al menú principal? Se perderá el progreso actual.")) {
+            location.reload(); 
+        }
+    }
+
+    function showText(q, r, txt, cls='') {
+        const cell = grid[`${q},${r}`]; if(!cell) return;
+        const el = document.createElement('div'); el.className = 'float-dmg '+cls; el.innerText = txt; 
+        el.style.setProperty('--tx', `${(Math.random()-0.5)*80}px`);
+        el.style.setProperty('--ty', `-100px`);
+        el.style.left = (cell.x + 10) + 'px'; el.style.top = (cell.y + 10) + 'px';
+        document.getElementById('map-layer').appendChild(el); setTimeout(()=>el.remove(), 1500);
+    }
+
+    function createBtn(txt, cb, typeClass='') {
+        const b = document.createElement('button'); b.className = 'btn-3d popup-btn ' + typeClass;
+        b.innerHTML = txt; b.onclick = (e) => { e.stopPropagation(); cb(); };
+        return b;
+    }
+
+    function triggerAnim(p, type) {
+        const el = document.querySelector(`#tok-${p.id} .token-sprite`);
+        if(!el) return;
+        el.classList.remove('anim-attack', 'anim-hit');
+        void el.offsetWidth;
+        if(type === 'attack') el.classList.add('anim-attack');
+        else if(type === 'hit') el.classList.add('anim-hit');
+        setTimeout(() => { el.classList.remove('anim-attack', 'anim-hit'); }, 500);
+    }
+
+    /* --- VFX SPAWNER --- */
+    function spawnVfx(t, fxType, color) {
+        const cell = grid[`${t.q},${t.r}`];
+        if(!cell) return;
+        const vfx = document.createElement('div');
+        vfx.className = 'vfx-container';
+        vfx.style.left = cell.x + 'px'; vfx.style.top = cell.y + 'px';
+        
+        let inner = '';
+        if(fxType === 'slash') inner = `<div class="vfx-slash"></div>`;
+        else if(fxType === 'dagger') inner = `<div class="vfx-dagger"></div>`;
+        else if(fxType === 'pierce') inner = `<div class="vfx-pierce"></div>`;
+        else if(fxType === 'magic') {
+            inner = `<div class="vfx-magic"></div>`;
+            vfx.style.setProperty('--vfx-color', color || '#fff');
+        }
+        
+        vfx.innerHTML = inner;
+        document.getElementById('map-layer').appendChild(vfx);
+        setTimeout(() => vfx.remove(), 600);
+    }
+
+    function updateTransform() { 
+        const map = document.getElementById('map-layer');
+        if(map) map.style.transform=`translate(${viewX}px,${viewY}px) scale(${scale})`; 
+        updatePopupPosition();
+    }
+
+    function updatePopupPosition() {
+        const pop = document.getElementById('action-popup');
+        if(!pop || !pop.classList.contains('active') || popupSource === 'docked' || popupTargetId === null) {
+            if(popupSource === 'docked') { pop.style.left = ''; pop.style.top = ''; }
+            return;
+        }
+        let tX = 0, tY = 0;
+        if(typeof popupTargetId === 'number') {
+            const p = players.find(pl => pl.id === popupTargetId);
+            if(p && grid[`${p.q},${p.r}`]) { tX = grid[`${p.q},${p.r}`].x; tY = grid[`${p.q},${p.r}`].y; }
+        } else {
+            const cell = grid[popupTargetId]; if(cell) { tX = cell.x; tY = cell.y; }
+        }
+        let screenX = (tX * scale) + viewX + (60 * scale);
+        let screenY = (tY * scale) + viewY - (20 * scale);
+        const popRect = pop.getBoundingClientRect();
+        const margin = 10;
+        if (screenX + popRect.width + margin > window.innerWidth) screenX = (tX * scale) + viewX - popRect.width - (60 * scale);
+        if (screenY + popRect.height + margin > window.innerHeight) screenY = window.innerHeight - popRect.height - margin;
+        if(screenX < margin) screenX = margin; if(screenY < margin) screenY = margin;
+        pop.style.left = screenX + 'px'; pop.style.top = screenY + 'px'; pop.style.bottom = 'auto'; pop.style.transform = 'none';
+    }
+
+    function focusCamera(p, resetZoom = false) {
+        if(!grid[`${p.q},${p.r}`]) return;
+        if(resetZoom) scale = CONFIG.DEFAULT_SCALE;
+        viewX = (window.innerWidth / 2) - (grid[`${p.q},${p.r}`].x * scale);
+        viewY = (window.innerHeight / 2) - (grid[`${p.q},${p.r}`].y * scale);
+        isOverviewMode = false;
+        updateTransform();
+    }
+
+    function renderToken(p) {
+        let t = document.getElementById('tok-'+p.id);
+        if(!t) {
+            t = document.createElement('div'); t.id='tok-'+p.id; t.className='token-container';
+            t.innerHTML = `
+                <div class="token-name">${p.name}</div>
+                <div class="token-base"></div>
+                <div class="token-sprite"><img src="${p.cls.img}" /></div>
+                <div class="status-container"></div>
+            `;
+            t.onpointerup = (e) => onTokenClick(e, p); document.getElementById('map-layer').appendChild(t);
+        }
+        if(grid[`${p.q},${p.r}`]) { t.style.left = (grid[`${p.q},${p.r}`].x + 2) + 'px'; t.style.top = (grid[`${p.q},${p.r}`].y + 3) + 'px'; }
+        t.style.setProperty('--team-color', getTeamColor(p.team)); 
+        t.style.display = p.hp <= 0 ? 'none' : 'block';
+        t.className = `token-container ${p.id===turnIdx ? 'active-turn' : ''}`;
+        
+        let sHtml = '';
+        if(p.charging) sHtml += `<div class="state-icon slot-tr">${STATUS_REGISTRY.charge.icon}</div>`;
+        if(p.defending) sHtml += `<div class="state-icon slot-tl">${STATUS_REGISTRY.defend.icon}</div>`;
+        p.statuses.forEach(sId => { 
+            if(STATUS_REGISTRY[sId]) {
+                let extra = ''; if(sId === 'freeze') extra = `<span style="font-size:0.7em">x${p.freezeDuration}</span>`;
+                sHtml += `<div class="state-icon ${STATUS_REGISTRY[sId].slot}">${STATUS_REGISTRY[sId].icon}${extra}</div>`;
+            }
+        });
+        if(p.bleedStacks > 0) sHtml += `<div class="state-icon slot-mid">${STATUS_REGISTRY.bleed.icon}x${p.bleedStacks}</div>`;
+        t.querySelector('.status-container').innerHTML = sHtml;
+    }
+
+    function updateHudPill(p) {
+        const hud = document.getElementById('hud-turn-info');
+        const color = getTeamColor(p.team);
+        hud.innerHTML = `
+            <div style="width:35px; height:35px; border-radius:50%; background:${color}; border:2px solid #fff; overflow:hidden; display:flex; justify-content:center; align-items:center;">
+                <img src="${p.cls.img}" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+            <span style="color:${color}; font-weight:bold; font-size:1.1em; margin-left: 5px;">${p.name}</span>
+        `;
+        hud.onclick = (e) => {
+            e.stopPropagation();
+            if (!isOverviewMode) {
+                scale = 0.3; 
+                viewX = (window.innerWidth / 2) * (1 - scale);
+                viewY = (window.innerHeight / 2) * (1 - scale);
+                updateTransform();
+                isOverviewMode = true;
+            } else {
+                focusCamera(p, true);
+            }
+        };
+        document.getElementById('top-bar-text').innerHTML = `<span style="color:${color}">Turno de ${p.name}</span>`;
+    }
+
+    function showPopup(p, mode, source="floating", confirmText="") {
+        const pop = document.getElementById('action-popup');
+        const head = document.getElementById('pop-head');
+        const body = document.getElementById('pop-body');
+        
+        popupSource = source; 
+        popupTargetId = p.id !== undefined ? p.id : popupTargetId; 
+        resetHighlights();
+        
+        pop.classList.remove('docked', 'floating'); pop.classList.add(source);
+        head.innerHTML = ''; body.innerHTML = '';
+
+        if(mode === 'confirm') {
+            head.innerHTML = `<b>Confirmar</b>`;
+            body.innerHTML = `<div style="text-align:center; padding: 10px">${confirmText}</div><div style="display:flex; gap:10px;"><button class="btn-3d confirm-no" onclick="resetSelections()">✘</button><button class="btn-3d confirm-yes" onclick="executePending()">✔</button></div>`;
+        } else {
+            let sIcons = p.statuses.map(s => {
+                let ic = STATUS_REGISTRY[s] ? STATUS_REGISTRY[s].icon : '';
+                if(s === 'freeze') ic += `x${p.freezeDuration}`;
+                return ic;
+            }).join(' ');
+            if(p.bleedStacks > 0) sIcons += ` 🩸x${p.bleedStacks}`;
+            if(p.charging) sIcons += ' ✨'; if(p.defending) sIcons += ' 🛡️';
+
+            head.innerHTML = `
+                <div style="color:${getTeamColor(p.team)}; font-size: 1.1em;"><b>${p.name}</b></div>
+                <small>HP: ${Math.floor(p.hp)}/${p.maxHp} | MP: ${p.mp} | ATK: ${p.attacks}</small>
+                <div style="font-size:1em; margin-top:3px">${sIcons || '➖'}</div>
+            `;
+
+            if(p.id === turnIdx) {
+                if(p.statuses.includes('freeze')) {
+                    if(!p.breakAttempted) body.appendChild(createBtn(`❄️ Romper Hielo (1 ATK) [T:${p.freezeDuration}]`, () => tryBreakFreeze(p), 'skill'));
+                    else body.appendChild(createBtn("❌ Ya intentado", () => {}, 'disabled'));
+                } else {
+                    if(p.mp > 0) body.appendChild(createBtn(`Mover (${p.mp} MP)`, () => setMode('move'), 'move'));
+                    p.statuses.forEach(sId => {
+                        const reg = STATUS_REGISTRY[sId];
+                        if(!reg || !reg.medicine) return;
+                        const cost = sId === 'shock' ? "(TODO EL MP)" : "(1 ATK)";
+                        const btn = createBtn(`${reg.icon} ${reg.medicine} ${cost}`, () => { pendingAction = { type: 'cure', sub: sId }; showPopup(p, 'confirm', popupSource, `¿Usar ${reg.medicine}?`); }, 'cure');
+                        if((sId === 'shock' && p.mp <= 0) || (sId !== 'shock' && p.attacks <= 0)) btn.classList.add('disabled');
+                        body.appendChild(btn);
+                    });
+                    if(p.bleedStacks > 0) {
+                        const bBtn = createBtn(`🩹 Vendar Sangre (1 ATK)`, () => { pendingAction = { type: 'cure', sub: 'bleed' }; showPopup(p, 'confirm', popupSource, "¿Vendar herida?"); }, 'cure');
+                        if(p.attacks <= 0) bBtn.classList.add('disabled'); body.appendChild(bBtn);
+                    }
+                    p.cls.skills.forEach(sk => {
+                        const b = createBtn(sk.name, () => (sk.type === 'charge' || sk.type === 'self') ? (pendingAction={type:'instant', sk}, showPopup(p, 'confirm', popupSource, `¿Usar ${sk.name}?`)) : setMode('skill', sk), 'skill');
+                        
+                        if(sk.type === 'cast') {
+                            if(!p.canCast) b.classList.add('disabled');
+                        } 
+                        else if(p.attacks <= 0 && sk.type !== 'charge') {
+                            b.classList.add('disabled');
+                        }
+                        
+                        if(sk.type === 'charge' && p.attacks <= 0) b.classList.add('disabled');
+
+                        body.appendChild(b);
+                    });
+                }
+                body.appendChild(createBtn("⏳ Terminar Turno", () => endTurn(), 'end-turn'));
+            }
+        }
+        pop.classList.add('active');
+        if(source === 'floating') updatePopupPosition();
+    }
+
+    function startTurn(idx) {
+        turnIdx = idx; const p = players[turnIdx];
+        if(!p || p.hp <= 0) return endTurn();
+
+        p.mp = p.speed; p.attacks = p.cls.attacks; 
+        p.defending = false; 
+        
+        p.canCast = p.charging; 
+        p.charging = false; 
+
+        p.breakAttempted = false;
+
+        focusCamera(p); updateHudPill(p);
+
+        if(p.statuses.includes('freeze')) {
+            p.freezeDuration--;
+            if(p.freezeDuration <= 0) { p.statuses = p.statuses.filter(s => s !== 'freeze'); showText(p.q, p.r, "❄️ DERRETIDO", "c-blue"); }
+        }
+        if(p.statuses.includes('burn')) { let d = 1+Math.floor(Math.random()*4); p.hp -= d; showText(p.q, p.r, `🔥 -${d}`, 'c-red'); }
+        if(p.statuses.includes('shock')) { let l = 1+Math.floor(Math.random()*4); p.mp = Math.max(0, p.mp-l); showText(p.q, p.r, `⚡ -${l} MP`, 'c-yellow'); }
+        if(p.bleedStacks > 0) { p.hp -= p.bleedStacks; showText(p.q, p.r, `🩸 -${p.bleedStacks}`, 'c-red'); }
+
+        if(p.hp <= 0) { showText(p.q, p.r, "💀"); setTimeout(endTurn, 1000); return; }
+        renderToken(p); resetSelections(); 
+    }
+
+    function executePending() {
+        const p = players[turnIdx]; const action = pendingAction; pendingAction = null; closePopup();
+        if(!action) return;
+        
+        triggerAnim(p, 'attack'); 
+
+        if(action.type === 'move') { p.q = action.q; p.r = action.r; p.mp -= action.cost; }
+        else if(action.type === 'skill') { 
+            p.attacks--; 
+            executeAttack(p, action.target, action.sk); 
+        }
+        else if(action.type === 'instant') { 
+            p.attacks--; 
+            if(action.sk.type === 'charge') p.charging = true; 
+            else p.defending = true; 
+        }
+        else if(action.type === 'cure') { 
+            p.attacks--; 
+            if(action.sub === 'shock') p.mp = 0; else if(action.sub === 'bleed') { p.bleedStacks = 0; }
+            p.statuses = p.statuses.filter(s => s !== action.sub);
+            showText(p.q, p.r, "¡Curado!", "c-green"); 
+        }
+        renderToken(p); updateHudPill(p); resetSelections();
+    }
+
+    function executeAttack(p, t, sk) {
+        if(sk.type === 'cast') { 
+            p.canCast = false; 
+        }
+        
+        let hits = sk.hits || 1; 
+        let anyCrit = false;
+
+        for(let i=0; i<hits; i++) {
+            setTimeout(() => {
+                let dieMax = sk.dice || 6;
+                let roll = Math.floor(Math.random() * dieMax) + 1;
+                let isCrit = (roll === dieMax); // CRITICO GENERAL SI SALE MAX
+
+                if(isCrit) anyCrit = true; 
+
+                let d = Math.max(0, roll - (Number(t.cls.def) + (t.defending ? 4 : 0)));
+                t.hp -= d;
+                
+                // VFX
+                spawnVfx(t, sk.fx || 'slash', sk.color);
+                
+                showText(t.q, t.r, isCrit ? `CRIT! ${roll}` : `${roll}`, isCrit ? 'crit' : '');
+                triggerAnim(t, 'hit');
+
+                // SANGRADO SOLO SI ES DAGA (d4) Y ES CRITICO (4)
+                if(isCrit && sk.dice === 4) {
+                    t.bleedStacks++;
+                    setTimeout(() => showText(t.q, t.r, "🩸 Sangrado", "c-red"), 200); 
+                }
+
+                if(t.hp <= 0) { showText(t.q, t.r, "💀"); } 
+
+                if(sk.statusEffect && !t.statuses.includes(sk.statusEffect)) {
+                    t.statuses.push(sk.statusEffect);
+                    if(sk.statusEffect === 'freeze') {
+                        t.freezeDuration = Math.floor(Math.random()*4)+1;
+                        showText(t.q, t.r, `❄️ x${t.freezeDuration} T.`);
+                    }
+                }
+                renderToken(t); 
+            }, i * 400); 
+        }
+
+        if(t.charging) { t.charging = false; setTimeout(()=>showText(t.q, t.r, "¡Interrumpido!"), 500); }
+
+        setTimeout(() => {
+            if(anyCrit) { 
+                p.attacks++; 
+                showText(p.q, p.r, "+1 ATK", "c-blue");
+                renderToken(p); updateHudPill(p);
+            }
+        }, hits * 400);
+        
+        renderToken(p); updateHudPill(p);
+    }
+
+    function tryBreakFreeze(p) {
+        p.breakAttempted = true;
+        const roll = Math.floor(Math.random()*4)+1;
+        p.attacks--; 
+        if(roll === 4) { 
+            p.statuses = p.statuses.filter(s => s !== 'freeze'); 
+            p.attacks++; 
+            showText(p.q, p.r, "¡ROTO!", "c-green"); 
+        }
+        else { showText(p.q, p.r, `Fallo: ${roll}`, "c-red"); }
+        showPopup(p, 'main', popupSource); 
+        renderToken(p); updateHudPill(p);
+    }
+
+    function endTurn() { startTurn((turnIdx + 1) % players.length); }
+
+    function onTokenClick(e, p) {
+        if(draggingThreshold) return; e.stopPropagation();
+        if(selectedMode && selectedMode.type === 'skill' && p.id !== turnIdx) {
+            if(getDist(players[turnIdx].q, players[turnIdx].r, p.q, p.r) <= 5) { 
+                pendingAction = { type: 'skill', target: p, sk: selectedMode.sk }; 
+                popupTargetId = p.id;
+                showPopup(p, 'confirm', popupSource, `¿Atacar a ${p.name}?`); return; 
+            }
+        }
+        showPopup(p, 'main', 'floating'); 
+    }
+
+    function onHexClick(e, q, r) {
+        if(draggingThreshold) return;
+        if(selectedMode && selectedMode.type === 'move') {
+            const p = players[turnIdx]; const d = getDist(p.q, p.r, q, r);
+            if(!players.find(x => x.q===q && x.r===r && x.hp>0) && d <= p.mp) { 
+                pendingAction = { type: 'move', q, r, cost: d }; 
+                popupTargetId = `${q},${r}`;
+                showPopup(p, 'confirm', popupSource, `¿Mover aquí (-${d} MP)?`); return; 
+            }
+        }
+        resetSelections();
+    }
+
+    function setMode(mode, sk=null) {
+        const p = players[turnIdx]; 
+        closePopup(); 
+        selectedMode = { type: mode, sk }; 
+        resetHighlights();
+        
+        // AUTO-ZOOM TACTICO
+        scale = 0.5;
+        viewX = (window.innerWidth / 2) - (grid[`${p.q},${p.r}`].x * scale);
+        viewY = (window.innerHeight / 2) - (grid[`${p.q},${p.r}`].y * scale);
+        updateTransform();
+
+        if(mode === 'move') {
+            for(let k in grid) if(getDist(p.q, p.r, grid[k].q, grid[k].r) <= p.mp) grid[k].el.classList.add('valid-move');
+        } else {
+            const min = sk.minRange || 0;
+            const max = sk.range;
+            for(let k in grid) {
+                const d = getDist(p.q, p.r, grid[k].q, grid[k].r);
+                if(d >= min && d <= max) grid[k].el.classList.add('in-range');
+            }
+            players.forEach(t => {
+                const d = getDist(p.q, p.r, t.q, t.r);
+                if(t.hp > 0 && t.id !== p.id && d >= min && d <= max) grid[`${t.q},${t.r}`].el.classList.add('valid-target');
+            });
+        }
+    }
+
+    /* SETUP */
+    function addPlayerRow() {
+        const list = document.getElementById('players-list');
+        const d = document.createElement('div'); d.className='player-row';
+        d.innerHTML = `<div class="mini-token-container"><img class="mini-token-img"></div>
+            <input class="input-3d" value="Jugador ${list.children.length + 1}">
+            <select class="input-3d ts"></select>
+            <select class="input-3d cs"></select>
+            <button class="btn-3d btn-del-row" style="background:var(--c-red); border-bottom:3px solid var(--c-red-d); width:35px; padding:0">×</button>`;
+        const ts = d.querySelector('.ts'); const cs = d.querySelector('.cs');
+        updateTeamOptions(); 
+        for(let k in CLASSES) cs.innerHTML += `<option value="${k}">${CLASSES[k].name}</option>`;
+        ts.addEventListener('change', () => updateRowPreview(d));
+        cs.addEventListener('change', () => updateRowPreview(d));
+        d.querySelector('.btn-del-row').addEventListener('click', () => { d.remove(); updateTeamOptions(); });
+        list.appendChild(d);
+        const index = list.children.length; updateTeamOptions(); ts.value = index; 
+        updateRowPreview(d);
+    }
+
+    function updateTeamOptions() {
+        const allRows = document.querySelectorAll('.player-row');
+        const total = allRows.length || 1; 
+        allRows.forEach(row => {
+            const select = row.querySelector('.ts');
+            const currentVal = select.value;
+            select.innerHTML = '';
+            for(let i=1; i<=total; i++) select.innerHTML += `<option value="${i}">Eq ${i}</option>`;
+            if(currentVal && currentVal <= total) select.value = currentVal; else select.value = 1;
+            updateRowPreview(row);
+        });
+    }
+
+    function updateRowPreview(row) {
+        const teamVal = row.querySelector('.ts').value; const classVal = row.querySelector('.cs').value;
+        row.querySelector('.mini-token-container').style.setProperty('--team-color', getTeamColor(teamVal));
+        if(CLASSES[classVal]) row.querySelector('.mini-token-img').src = CLASSES[classVal].img;
+    }
+
+    function startGame() {
+        const rows = document.querySelectorAll('.player-row');
+        if(rows.length < 2) return alert("Mínimo 2 jugadores");
+        players = Array.from(rows).map((row, i) => {
+            const c = CLASSES[row.querySelector('.cs').value];
+            const spawn = SPAWN_POINTS[i % SPAWN_POINTS.length];
+            return { 
+                id:i, name:row.querySelector('input').value, team:parseInt(row.querySelector('.ts').value), 
+                cls:c, hp:Number(c.hp), maxHp:Number(c.hp), icon: `<img src="${c.img}"/>`, mp:c.speed, speed:c.speed, attacks:c.attacks, 
+                q:spawn.q, r:spawn.r, statuses:[], breakAttempted:false, freezeDuration:0, charging:false, defending:false, bleedStacks:0 
+            };
+        });
+        document.getElementById('screen-setup').classList.remove('active');
+        document.getElementById('screen-game').classList.add('active');
+        initBoard(); startTurn(0);
+    }
+
+    function initBoard() {
+        const layer = document.getElementById('map-layer'); layer.innerHTML = ''; grid = {};
+        const CX = window.innerWidth/2, CY = window.innerHeight/2;
+        for(let q=-7; q<=7; q++) {
+            for(let r=Math.max(-7,-q-7); r<=Math.min(7,-q+7); r++) {
+                const hex = document.createElement('div'); hex.className = 'hex';
+                const x = 60*(1.5*q), y = 70*(Math.sqrt(3)/2*q + Math.sqrt(3)*r);
+                hex.style.left = (CX+x)+'px'; hex.style.top = (CY+y)+'px';
+                hex.onpointerup = (e) => onHexClick(e, q, r);
+                layer.appendChild(hex); grid[`${q},${r}`] = { q, r, x:CX+x, y:CY+y, el:hex };
+            }
+        }
+        players.forEach(p => renderToken(p));
+        initCamera();
+    }
+
+    function initCamera() {
+        const v = document.getElementById('game-view');
+        const pop = document.getElementById('action-popup');
+        ['touchstart', 'touchmove', 'touchend'].forEach(evt => { pop.addEventListener(evt, e => e.stopPropagation(), {passive: false}); });
+        v.addEventListener('mousedown', e => { isDragging = false; draggingThreshold = false; startX = e.clientX - viewX; startY = e.clientY - viewY; });
+        window.addEventListener('mousemove', e => { if(e.buttons === 1) { draggingThreshold = true; viewX = e.clientX - startX; viewY = e.clientY - startY; updateTransform(); } });
+        window.addEventListener('mouseup', e => { if(!draggingThreshold && (e.target.id === 'game-view' || e.target.id === 'map-layer')) resetSelections(); });
+        v.addEventListener('touchstart', e => { 
+            if(e.touches.length === 1) { startX = e.touches[0].clientX - viewX; startY = e.touches[0].clientY - viewY; isDragging = true; draggingThreshold = false; } 
+            else if (e.touches.length === 2) { isDragging = false; initialPinchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
+        }, { passive: false });
+        v.addEventListener('touchmove', e => { 
+            e.preventDefault();
+            if(e.touches.length === 2 && initialPinchDist) {
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                zoom((dist - initialPinchDist) * 0.005); initialPinchDist = dist;
+            } else if(isDragging && e.touches.length === 1) { 
+                if(Math.abs(e.touches[0].clientX - (viewX + startX)) > 5) draggingThreshold = true;
+                viewX = e.touches[0].clientX - startX; viewY = e.touches[0].clientY - startY; updateTransform(); 
+            } 
+        }, { passive: false });
+        v.addEventListener('touchend', e => { isDragging = false; initialPinchDist = null; if(!draggingThreshold && e.changedTouches.length === 1 && (e.target.id === 'game-view' || e.target.id === 'map-layer')) resetSelections(); });
+        v.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY > 0 ? -0.1 : 0.1); }, { passive: false });
+    }
+
+    function zoom(d) { scale = Math.max(0.25, Math.min(2, scale+d)); updateTransform(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('btn-add').onclick = addPlayerRow;
+        document.getElementById('btn-start').onclick = startGame;
+        document.getElementById('btn-back-menu').onclick = returnToSetup;
+        addPlayerRow(); addPlayerRow();
+    });
+
+</script>
+</body>
+</html>
+
+Esta version utilizaremos. Partamos de esta versión 
