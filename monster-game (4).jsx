@@ -1536,17 +1536,7 @@ const BattleArena = ({ battleState, onEnd }) => {
             style={{ left: f.x - 35, top: f.y - 35, transform: `scaleX(${f.facing})` }}
           >
             <MonsterSprite monster={f.monster} size={70} showEmoji={true} isInBattle={true} fighter={f} />
-            
-            {/* Emoji reaction */}
-            {f.triggerEmoji && f.emojiUntil > now && (
-              <div 
-                className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl animate-bounce"
-                style={{ transform: `scaleX(${f.facing})` }}
-              >
-                {f.triggerEmoji}
-              </div>
-            )}
-            
+
             {/* Dodge effect */}
             {f.state === 'dodging' && (
               <div className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-50" />
