@@ -11,6 +11,12 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   (agrandadas) y se sortea si le salen partes nuevas; las cantidades sólo suben. Crece recién al volver al menú,
   con una animación a pantalla completa donde le van apareciendo las partes nuevas (si le toca crecer varias etapas,
   crecen una tras otra dentro de la misma animación).
+- **Variedad (monstruos nuevos)**: orejas (gato, redondas, conejo blandas, aleta) que se mueven solas; antenas elásticas
+  (bolita, luz que pulsa, hoja); cabezas corazón/hexágono/hongo/frijol; bocas con lengua que se mueve, mandíbulas que se abren
+  y cierran, bigotes; pupilas corazón/diamante/espiral que gira; astas y cuernos de carnero; alas de mariposa, fuego que titila
+  y hoja; colas con corazón, horquilla, aguijón que brilla o mechón; pinzas que chasquean al golpear y tentáculos que ondulan;
+  garras de ave y botas. Colores: paletas pastel, neón, oscura (ojos que brillan), tierra, metálica (oro/plata) y caramelo,
+  cuerpo de dos tonos y dibujos (rayas, degradado, manchas grandes). Los monstruos antiguos conservan su aspecto.
 - **Partes "floaty"**: cada parte es un nodo con resorte que sigue a su padre con retraso; al recibir golpes se sacuden y al morir caen como ragdoll.
 - **Stats salen del cuerpo**: vida, fuerza, disparo, defensa, velocidad, peso (regula el knockback) y esquiva.
 - **IA**: primero ataca al más cercano; el daño recibido se acumula como odio y, cuando el odio hacia alguien pasa un umbral, va por él aunque esté lejos ("¡grr!"); al fijarlo se mueve sobre un eje de lock-in que gira lento.
