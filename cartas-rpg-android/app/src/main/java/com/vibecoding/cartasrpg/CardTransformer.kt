@@ -40,10 +40,13 @@ object CardTransformer {
         }
 
         val stats = buildStats(card, typeLower)
-        val traits = card.keywords.map { translateKeyword(it) }.distinct().take(5)
+        // Las habilidades explicadas en la descripción no se repiten como rasgos.
+        val traits = card.keywords.filterNot { AbilityInterpreter.hasExplanation(it) }
+            .map { translateKeyword(it) }.distinct().take(5)
 
-        val rawText = if (card.printedText != null && card.lang != "en") card.printedText else card.oracleText
-        val effect = cleanText(rawText)
+        // Descripción generada a partir de lo que hace la carta (siempre desde el texto
+        // Oracle en inglés); nunca se muestra el texto original.
+        val effect = AbilityInterpreter.describe(card, category).joinToString("\n")
 
         return RpgCard(
             category = category,
@@ -53,7 +56,7 @@ object CardTransformer {
             stats = stats,
             traits = traits,
             effect = effect,
-            flavor = card.flavorText?.trim(),
+            flavor = null,
             hook = hookFor(category, title),
             artist = card.artist,
             source = card.setName,
@@ -168,46 +171,15 @@ object CardTransformer {
         }
     }
 
-    /** Limpia la jerga del juego de cartas para que el texto sirva en cualquier sistema. */
-    fun cleanText(text: String): String {
-        var s = text.replace(Regex("\\s*\\([^)]*\\)"), "") // texto recordatorio
-        s = s.replace("{T}", "Agotar").replace("{Q}", "Reactivar")
-        s = Regex("(\\{[^}]+\\})+").replace(s) { m -> energyCost(m.value) }
-        val replacements = listOf(
-            "el campo de batalla" to "la escena",
-            "campo de batalla" to "escena",
-            "maná" to "energía",
-            "the battlefield" to "the scene",
-            "mana" to "energy",
-        )
-        for ((from, to) in replacements) s = s.replace(from, to, ignoreCase = true)
-        return s.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-    }
-
-    private fun energyCost(symbols: String): String {
-        var total = 0
-        var hasX = false
-        Regex("\\{([^}]+)\\}").findAll(symbols).forEach { m ->
-            val sym = m.groupValues[1]
-            when {
-                sym.toIntOrNull() != null -> total += sym.toInt()
-                sym == "X" || sym == "Y" -> hasX = true
-                else -> total += 1
-            }
-        }
-        return when {
-            hasX && total > 0 -> "Energía X+$total"
-            hasX -> "Energía X"
-            total == 0 -> "Sin coste"
-            else -> "Energía $total"
-        }
-    }
-
-    private fun translateKeyword(k: String): String {
+    fun translateKeyword(k: String): String {
         KEYWORDS[k.lowercase()]?.let { return it }
         if (k.lowercase().endsWith("walk")) return "Sigiloso"
         return k
     }
+
+    /** Traduce un subtipo (inglés, sin distinguir mayúsculas) o null si no se conoce. */
+    fun subtypeEs(word: String): String? =
+        SUBTYPES.entries.firstOrNull { it.key.equals(word, ignoreCase = true) }?.value
 
     private fun hookFor(category: Category, name: String): String {
         val pool = HOOKS[category] ?: HOOKS.getValue(Category.ITEM)

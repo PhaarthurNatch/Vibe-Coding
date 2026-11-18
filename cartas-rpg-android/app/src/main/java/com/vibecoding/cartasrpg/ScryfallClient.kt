@@ -9,29 +9,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/** Datos de una carta tal como vienen de Scryfall (ya simplificados). */
-data class MtgCard(
-    val name: String,
-    val printedName: String?,
-    val typeLine: String,
-    val printedTypeLine: String?,
-    val oracleText: String,
-    val printedText: String?,
-    val flavorText: String?,
-    val power: String?,
-    val toughness: String?,
-    val loyalty: String?,
-    val cmc: Double,
-    val colors: List<String>,
-    val rarity: String,
-    val keywords: List<String>,
-    val artist: String?,
-    val setName: String,
-    val artUrl: String?,
-    val scryfallUri: String,
-    val lang: String,
-)
-
 object ScryfallClient {
     private const val API = "https://api.scryfall.com"
     private const val USER_AGENT = "ForjaDeCartasRPG/1.0 (Android)"

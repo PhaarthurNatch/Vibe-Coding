@@ -7,7 +7,7 @@
     <string name="save">💾 Guardar</string>
     <string name="share">📤 Compartir</string>
     <string name="open_scryfall">🔗 Scryfall</string>
-    <string name="spanish">Preferir textos en español (cuando existan)</string>
+    <string name="spanish">Preferir nombres en español (cuando existan)</string>
     <string name="categories">Elige una categoría</string>
     <string name="legal">Datos e imágenes proporcionados por Scryfall. Magic: The Gathering y sus ilustraciones son propiedad de Wizards of the Coast y de sus artistas. Esta app es contenido de fans no oficial, no afiliado ni respaldado por Wizards of the Coast ni por Scryfall. Solo para uso personal.</string>
 </resources>

@@ -10,8 +10,8 @@ listas para imprimir).
 2. La carta aparece al momento. Tócala para generar otra de la misma categoría.
 3. **💾 Guardar** la deja en `Imágenes/CartasRPG`; **📤 Compartir** la envía a
    otra app; **🔗 Scryfall** abre la carta original.
-4. Activa *Preferir textos en español* para buscar impresiones en español
-   (si no existe, usa la versión en inglés).
+4. Activa *Preferir nombres en español* para usar el nombre impreso en español
+   cuando exista.
 
 ## Categorías
 | Botón | Qué busca en Scryfall |
@@ -37,10 +37,15 @@ En modo aleatorio la categoría se deduce automáticamente del tipo de la carta.
 - **Fuerza / resistencia** → *Ofensiva* y *Aguante* en escala verbal
   (Débil, Media, Fuerte, Temible, Colosal) con el número como referencia.
 - **Colores** → *Afinidad*: Luz, Mente, Sombra, Fuego, Naturaleza, Artificio…
-- **Habilidades clave** → *Rasgos* (Vuela, Toque letal, Arrollador…).
-- **Texto de reglas** sin texto recordatorio; los costes de maná pasan a
-  "Energía N" y {T} a "Agotar".
-- **Texto de ambientación** y un **gancho de aventura** generado.
+- **Descripción generada**: la app lee lo que hace la carta en Magic y lo
+  reescribe como efectos de rol genéricos en español. Por ejemplo, "deals 3 damage
+  to any target" se convierte en *Inflige daño moderado a un objetivo*, y "Create two
+  1/1 Soldier tokens" en *Invoca a 2 aliados (soldado)*. Los disparadores pasan
+  a *Al entrar en escena…*, *Cada vez que ataca…*, y los costes a *Como acción…*,
+  *Sacrificándolo…*.
+- **Habilidades clave** explicadas (Vuela, Toque letal, Arrollador…).
+- **No se muestra el texto original** de la carta (ni reglas ni ambientación).
+- Un **gancho de aventura** generado.
 - Créditos del ilustrador y de la edición en el pie.
 
 ## Descargar / compilar el APK
