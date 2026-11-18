@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Monster Brawl">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 <title>Monster Brawl</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -113,6 +117,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .top .title{text-align:left;margin:0}
+.instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
@@ -163,7 +168,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
+  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
   <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button><button data-page="3">Criadero</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateX(-25%)">
   <div class="page">
@@ -3065,6 +3070,21 @@ function loop(now) {
   if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().napUntil || cur().heartAt || save.breeding || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
+// ---------- Web app instalable (GitHub Pages) ----------
+// Funciona sin internet gracias a sw.js. En el link de prueba (dentro de claude.ai) no se instala nada.
+const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !inFrame) navigator.serviceWorker.register('sw.js').catch(() => { });
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!inFrame) $('btnInstall').hidden = false; }); // Android/Chrome
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOS && !standalone && !inFrame && location.protocol === 'https:') $('btnInstall').hidden = false; // iPhone: se instala desde Safari
+$('btnInstall').onclick = async () => {
+  if (installEvt) { installEvt.prompt(); const r = await installEvt.userChoice.catch(() => null); if (r && r.outcome === 'accepted') $('btnInstall').hidden = true; installEvt = null; return; }
+  ask('Para instalar Monster Brawl en tu iPhone: toca el botón Compartir de Safari (el cuadrado con la flecha hacia arriba) y elige "Agregar a pantalla de inicio".', { ok: 'Entendido', cancel: null });
+};
+addEventListener('appinstalled', () => { $('btnInstall').hidden = true; });
+
 if (adoptLocked()) { homePage = 0; $('track').style.transform = 'translateX(0%)'; document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.page === '0')); }
 renderHome();
 checkGrowth();

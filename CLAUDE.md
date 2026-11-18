@@ -15,7 +15,11 @@ El jugador cría, entrena y moldea la personalidad de sus monstruos; los combate
 
 - Todo el juego está en **un solo archivo**: `monster-brawl/index.html` (HTML + CSS + JS en canvas, sin dependencias ni build).
 - `monster-brawl/README.md`: resumen de funcionalidades para personas.
-- Pensado para empaquetarse después como app con Capacitor (pendiente).
+- **Web app instalable (PWA)** publicada en GitHub Pages desde `main` (carpeta raíz; `.nojekyll`): **https://phaarthurnatch.github.io/Vibe-Coding/monster-brawl/**
+  (el dueño activa Pages una vez en Settings → Pages → Deploy from a branch → `main` / root). Archivos: `manifest.webmanifest`, `sw.js` (red primero para la página,
+  copia guardada sin internet; subir `CACHE` si cambian íconos u otros archivos fijos), `icons/` (monstruo semilla 1334173269, generado con el propio juego).
+  Botón "Instalar" arriba: en Android usa el aviso del navegador; en iPhone explica Compartir → "Agregar a pantalla de inicio". No aparece dentro de claude.ai.
+- Se descartó subir a tiendas; Capacitor (APK para Android) queda como opción futura.
 - Página publicada (Artifact privado del dueño) para probar en el celular: **https://claude.ai/artifact/5PSe9xvkZVHRRoQdiyMWBs**
   Hay que actualizar **ese mismo link**, no crear uno nuevo (ver "Publicar").
 
