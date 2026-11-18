@@ -41,8 +41,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .bar{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:4px;background:var(--acc)}
 .parts{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
-.tabs{display:flex;justify-content:center;gap:6px;margin:4px 0 6px}
-.tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 10px;border-radius:999px;letter-spacing:.3px}
+.tabs{display:flex;justify-content:center;gap:2px;margin:4px 0 6px}
+.tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:12.5px;padding:7px 8px;white-space:nowrap;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .tabs button.locked{opacity:.5}
 .tabs button.glow{color:#ffd36b;animation:tabglow 1.6s ease-in-out infinite} /* Entrenar con puntos por gastar */
@@ -2221,13 +2221,12 @@ const breedOpen = () => !!save.breedUnlocked;
 function checkBreedUnlock() {
   const tb = document.querySelector('.tabs button[data-page="3"]');
   if (!save.breedUnlocked && scene === 'home' && !growAnim && (awakenedCount() >= 2 || save.breeding)) {
-    save.breedUnlocked = true; persist();
+    save.breedUnlocked = true; persist(); renderBreed(true);
     setTimeout(async () => { if (await ask('¡Criadero desbloqueado! Ya tienes 2 monstruos Awakened: ahora puedes cruzarlos para tener crías.', { ok: 'Ver Criadero', cancel: 'Después' })) setPage(3); }, 400);
   }
   tb.classList.toggle('locked', !breedOpen()); tb.textContent = breedOpen() ? 'Criadero' : '🔒 Criadero';
 }
 function setPage(n) {
-  if (n === 3 && !breedOpen()) { ask(`El Criadero se desbloquea cuando tengas 2 monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Ahora tienes ${awakenedCount()}.`, { ok: 'Entendido', cancel: null }); return; }
   if (adoptLocked() && n !== 0) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; adoptEgg.sq = 0.1; if (homePage === 0) return; n = 0; }
   homePage = n; $('track').style.transform = `translateX(${-25 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
@@ -2245,7 +2244,7 @@ addEventListener('pointerup', e => {
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, dt = performance.now() - swipe.t, onMon = swipe.touch; swipe = null;
   if (onMon && (onMon.grab || dt > 800 || Math.max(Math.abs(dx), Math.abs(dy)) < 100)) return; // tomado, o caricia (frotar corto o lento)
   if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-    const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, breedOpen() ? 3 : 2);
+    const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 3);
     if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
   } else if (homePage === 1 && Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5 && save.monsters.length > 1) {
     swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
@@ -2382,6 +2381,14 @@ function makeChild(A, B) {
 }
 function renderBreed(thumbs) {
   const Bd = save.breeding, body = $('bdBody');
+  if (!breedOpen()) { // se puede ver la página, pero está bloqueada hasta tener 2 Awakened
+    const n = awakenedCount();
+    $('bdSub').textContent = '🔒 Bloqueado';
+    body.innerHTML = `<div class="tsec"><div class="thead">Criadero bloqueado <span class="pill">${Math.min(n, 2)}/2</span></div>
+      <p class="adoptTxt">Se desbloquea cuando tengas <b>2 monstruos Awakened</b> (Nv. ${STAGE_LV.awakened}+).<br>Ahora tienes ${n}.</p>
+      <p class="tdesc">Aquí podrás cruzar dos Awakened para tener crías que heredan partes, colores y personalidad de sus padres.</p></div>`;
+    return;
+  }
   if (Bd) {
     const left = Bd.readyAt - Date.now();
     $('bdSub').textContent = left > 0 ? `Incubando · ${mmss(left)}` : `Faltan ${Bd.rec.need - Bd.rec.taps} toques`;
