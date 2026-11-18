@@ -16,6 +16,12 @@ const { chromium, devices } = require('playwright');
   }
   await p.waitForSelector('#dialog.on', { timeout: 5000 }); await p.click('#dlgYes'); await p.waitForTimeout(300);
   console.log('nació:', await p.textContent('#mName'), '|', await p.innerText('#mSub'));
+  // el Home tiene que quedar centrado (también al volver a abrir el juego)
+  const offCenter = () => p.evaluate(() => { const r = document.getElementById('showArea').getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - innerWidth / 2); });
+  if (await offCenter() > 5) errs.push('el Home no está centrado tras nacer');
+  await p.reload(); await p.waitForTimeout(400);
+  if (await offCenter() > 5) errs.push('el Home no está centrado al abrir el juego');
+  if (errs.length) { console.log(errs.join('; ')); await b.close(); process.exit(1); }
   await p.click('[data-mode="1v1"]'); await p.waitForTimeout(500);
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });

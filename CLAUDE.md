@@ -23,7 +23,8 @@ El jugador cría, entrena y moldea la personalidad de sus monstruos; los combate
 
 1. Editar `monster-brawl/index.html`.
 2. Probar en un navegador headless con Playwright (Chromium ya viene instalado en el entorno; `require('playwright')` funciona).
-   - Prueba rápida: `node monster-brawl/tools/smoke.js` (abre el juego como iPhone 13, hace nacer un huevo y juega una pelea; debe terminar con `no errors`).
+   - Prueba rápida: `node monster-brawl/tools/smoke.js` (abre el juego como iPhone 13, hace nacer un huevo, revisa que el Home quede centrado al abrir y juega una pelea; debe terminar con `no errors`).
+   - Si cambia la cantidad de páginas del menú, actualizar también el `translateX` inicial de `#track` en el HTML (ya pasó: quedó en 3 páginas y el Home salía corrido).
    - Para equilibrio: escribir simulaciones con `page.evaluate` usando las clases del juego directamente (ejemplo abajo).
    - Las capturas de pantalla y scripts temporales van en el scratchpad, **nunca en el repo**.
 3. Commit + push a la rama de trabajo. Mensajes de commit en inglés; terminar con las líneas de atribución que pida el entorno.
@@ -94,9 +95,16 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
+- **Peso por etapa** (`WEIGHT_SCALE`): los adultos llegaban casi todos al tope 3,5; ahora su peso se escala (×0,885, tope 4,2) para que el promedio siga ~3,3
+  pero haya adultos livianos (~2,6) y pesados (~4,1). Las otras etapas no cambian. `st.mass` es el peso sin escalar ni tope (lo usa el vuelo).
 - **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
-  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light`, compensa que perdió las cadenas).
-  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
+  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light` 0,5; era 2 antes del peso por etapa y dejaba a los livianos en 67%).
+  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Con el peso por etapa: livianos ~48% / medios ~48–52% / pesados ~51–54% en 1v1. `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
+- **Vuelo de los alados** (`FLY`, `flyer`): según la carga alar (`st.mass` sin tope / tamaño de alas; el peso normal casi siempre está en el máximo 3,5)
+  los pesados (alas chicas para su cuerpo) **saltan alto** hacia su objetivo, con un salto algo lento (gravedad ×`leapG` 0,7; `startLeap`, estado `leap`) y los livianos **flotan para alejarse** ~2–2,8 s a altura `floatZ` (`floatT`) cuando el rival está encima, cada ~9–13 s (mientras flotan retroceden y disparan hacia abajo si pueden).
+  En el aire (z > `airZ`) no se puede golpear ni ser golpeado cuerpo a cuerpo, no esquivan, no chocan con los del suelo; los disparos suben o bajan
+  hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo. Al volar (saltar o flotar) aletean más rápido y con ~2,5× más recorrido (`flapK`, y la punta del ala más firme con `boost`).
+  Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   El Criadero (150) es el gasto de monedas para el juego avanzado.
@@ -106,9 +114,10 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Acariciar o lanzar NO cambia la personalidad** (decisión del dueño). Acariciar lo deja feliz 1 minuto en el menú. Perder un corazón (que lo noqueen, aunque su equipo gane) lo deja triste 1 minuto (`sadUntil`); acariciarlo le quita esa tristeza. Con 1 corazón o menos queda **machacado** (no triste): cara cansada, curitas en la cabeza y ojo morado (`battered`, sólo en el menú).
 - **Ultimate (Awakened):** equipable y cambiable desde Entrenar (ahí **sólo** aparecen las desbloqueadas). Al despertar trae una de regalo (`starterUlt`); las demás se **compran en la Tienda** por 150 monedas
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
-  Una por pelea, se recarga al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
+  Se recarga **20 s después de usarla** (`ULT_RECHARGE_S`, en segundos reales; el botón muestra "RECARGA Ns") y al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
   Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
-  El jugador elige cuándo la usa: apenas pueda / como remate / para salvarse.
+  **Tus monstruos la lanzan sólo cuando aprietas el botón ULTIMATE** abajo de la arena (`ultBar`, `setupUltBar`/`updateUltBar`, `ultRequest`; uno por monstruo tuyo con ultimate,
+  desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Entrenar; los **rivales** siguen decidiendo solos (`ultMode` al azar).
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 

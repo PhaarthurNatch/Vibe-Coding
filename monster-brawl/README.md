@@ -38,9 +38,9 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
   Cambia con ejercicios (monedas) y según cómo pelea.
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
-- **Ultimate (Awakened)**: se equipa y se cambia cuando quieras desde Entrenar. Al despertar trae una de regalo; las demás
+- **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Entrenar. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
-  al otro lado), Bala gigante (atraviesa todo en línea recta; apunta adelantándose), Escudo de hierro (40% menos daño 10 s), Supervelocidad (se mueve y
+  al otro lado), Bala gigante (atraviesa todo en línea recta; apunta adelantándose), Escudo de hierro (no recibe daño 10 s), Supervelocidad (se mueve y
   ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
   Se usa una por pelea (con carga previa y acercamiento de cámara) y se recarga al empezar cada pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
