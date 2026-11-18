@@ -759,7 +759,7 @@ class Monster {
       while (this.auraAcc > 1) {
         this.auraAcc--;
         this.aura.push({ x: this.gx + (Math.random() - 0.5) * w * 2, y: this.gy - this.z - Math.random() * 10 * s, vy: -(50 + Math.random() * 50) * s * (this.auraBoost > 0 ? 1.8 : 1),
-          life: 1 + Math.random() * 0.9, max: 1.9, r: (0.8 + Math.random() * 1.4) * s, col: this.auraCols[Math.floor(Math.random() * 3)], front: Math.random() < 0.5, ph: Math.random() * TAU });
+          life: 1 + Math.random() * 0.9, max: 1.9, r: (0.45 + Math.random() * 0.8) * s, col: this.auraCols[Math.floor(Math.random() * 3)], front: Math.random() < 0.5, ph: Math.random() * TAU });
       }
     }
     for (const q of this.aura) { q.y += q.vy * dt; q.x += Math.sin(this.t * 3 + q.ph) * 12 * dt * s; q.life -= dt; }
@@ -770,7 +770,7 @@ class Monster {
       if (q.front !== front) continue;
       const a = clamp(q.life / 0.6, 0, 1) * this.alpha;
       ctx.fillStyle = q.col;
-      ctx.globalAlpha = a * 0.25; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 2, 0, TAU); ctx.fill();
+      ctx.globalAlpha = a * 0.25; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 1.8, 0, TAU); ctx.fill();
       ctx.globalAlpha = a * 0.9; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill();
     }
     ctx.globalAlpha = this.alpha;
