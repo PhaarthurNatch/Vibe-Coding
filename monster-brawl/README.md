@@ -32,6 +32,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Rivales de otras etapas**: el rival puede ser de cualquier etapa; mientras más lejos de la tuya, menos probable
   (misma etapa ~82-89%, vecina ~6%, a 2 etapas ~2,5%, a 3 ~1%, a 4 ~0,5%). Su fuerza se ajusta para que la pelea quede
   pareja (calibrado con simulaciones: todas las combinaciones quedan entre ~40% y 60% de victorias).
+- **Muerte súbita**: desde los 60 s de pelea (de juego) el daño va subiendo poco a poco, así las peleas siempre terminan con un K.O.
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
 
 ## Llevarlo a Android / iPhone

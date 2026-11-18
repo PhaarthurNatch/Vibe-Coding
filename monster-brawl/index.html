@@ -247,6 +247,8 @@ function ultTypeOf(g, train) {
   return ULT_KEYS.map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
+// Peleas largas: desde OT_START s de juego empieza la muerte súbita (el daño sube poco a poco) para que siempre termine con un K.O.
+const OT_START = 60, OT_RAMP = 12, HARD_LIMIT = 300;
 const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 const HATE_THRESHOLD = 0.12; // odio (daño recibido) que debe acumular, como fracción de su vida máx., antes de importar
 const HATE_WEIGHT = 14;       // pasado el umbral, cada punto de odio "acerca" al enemigo 14 unidades
@@ -1340,7 +1342,8 @@ class Battle {
   text(m, str, col, big) { const h = m.nodes[m.ix.head]; this.texts.push({ x: m.gx + (Math.random() - 0.5) * 16, y: h.y - m.g.head.h * m.s * 0.6, str, col, life: 0.9, big }); }
 
   hit(a, t, pow, dir, kind) {
-    const dmg = Math.max(1, pow * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? 0.5 : 1));
+    const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
+    const dmg = Math.max(1, pow * ot * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? 0.5 : 1));
     a.hitsN++; t.hitsN++;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1;
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg);
@@ -1449,13 +1452,15 @@ class Battle {
     for (const t of this.texts) { t.y -= 45 * dt; t.life -= dt; }
     this.texts = this.texts.filter(t => t.life > 0);
     this.shake *= Math.exp(-dt * 10);
+    if (this.banner) { this.banner.t += dt; if (this.banner.t > 2.4) this.banner = null; }
     // partes del cuerpo
     for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
     // fin
     if (!this.over) {
+      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
-      if (alive.size <= 1 || this.time > 90) {
-        this.over = true;
+      if (alive.size <= 1 || this.time > HARD_LIMIT) {
+        this.over = true; this.timedOut = alive.size > 1;
         // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
@@ -2009,6 +2014,15 @@ function startBattle(mode, team) {
   scene = 'battle';
 }
 
+function drawBanner(b) {
+  const a = clamp(b.t / 0.2, 0, 1) * clamp((2.4 - b.t) / 0.4, 0, 1), y = H * 0.42, sc = 1 + (1 - clamp(b.t / 0.25, 0, 1)) * 0.5;
+  ctx.globalAlpha = a; ctx.textAlign = 'center';
+  ctx.save(); ctx.translate(W / 2, y); ctx.scale(sc, sc);
+  ctx.font = '900 36px system-ui'; ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(b.text, 0, 0); ctx.fillStyle = '#ff6b6b'; ctx.fillText(b.text, 0, 0);
+  ctx.restore();
+  ctx.font = '700 16px system-ui'; ctx.lineWidth = 4; ctx.strokeText(b.sub, W / 2, y + 28); ctx.fillStyle = '#fff'; ctx.fillText(b.sub, W / 2, y + 28);
+  ctx.globalAlpha = 1;
+}
 function drawCineOverlay(c) {
   const e = cineE(c.t), m = c.m;
   const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.75);
@@ -2170,7 +2184,7 @@ function finishBattle() {
   });
   wakeUp();
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
-  $('resTitle').textContent = nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
+  $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
   $('resText').innerHTML = lines.join('<br><br>');
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
@@ -2243,6 +2257,7 @@ function loop(now) {
     battle.draw(ctx);
     ctx.restore();
     if (battle.cine) drawCineOverlay(battle.cine);
+    if (battle.banner) drawBanner(battle.banner);
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
