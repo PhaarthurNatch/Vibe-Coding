@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#1A1611</color>
+    <color name="panel">#2B2118</color>
+    <color name="gold">#E0A84A</color>
+    <color name="text">#F4ECD8</color>
+    <color name="muted">#A89A80</color>
+    <color name="ic_launcher_background">#2B2118</color>
+</resources>
