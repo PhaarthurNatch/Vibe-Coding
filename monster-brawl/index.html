@@ -110,6 +110,30 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ultpill{margin-left:auto;font-size:10px;font-weight:900;padding:2px 6px;border-radius:6px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600;letter-spacing:.5px}
 .ultinfo{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
 .ultinfo b{color:var(--acc)}
+.tsec{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.tsec:last-child{border-bottom:0;padding-bottom:0}
+.thead{font-weight:800;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pill{font-size:11px;padding:3px 9px;border-radius:999px;background:var(--panel2);color:var(--muted);font-weight:800}
+.pill.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
+.tdesc{font-size:11px;color:var(--muted);margin:0;line-height:1.4}
+.trow .tdesc{grid-column:1}
+.axis{display:grid;grid-template-columns:76px 1fr 76px;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.axis span:last-child{text-align:right}
+.axis b{color:var(--text)}
+.axtrack{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(90,169,255,.35),rgba(255,255,255,.12),rgba(255,122,90,.35))}
+.axtrack i{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--acc);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+.drills{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.dbtn small{font-weight:600;color:var(--muted);font-size:10px}
+.ums{display:flex;gap:6px}
+.ums .btn{flex:1;font-size:12px;padding:9px 4px}
+.ums .btn.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
+.respec{align-self:center;font-size:12px;padding:8px 12px}
+.persona,.detbtn,.det{grid-column:1/-1}
+.persona{margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.persona b{color:var(--text)}
+.detbtn{background:none;box-shadow:none;color:var(--muted);font-size:11px;text-decoration:underline;padding:2px}
+.det{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;opacity:.85}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -506,22 +530,53 @@ function calcStats(g, level = 1, train = null) {
   const dodge = clamp(0.12 + wingP * 0.08 + speed / 1000 - weight * 0.025 + (g.tail.count ? 0.03 : 0) + (g.ears ? 0.02 : 0), 0.08, 0.5);
   const lv = 1 + (level - 1) * 0.07;
   const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
-  if (train) for (const t of TRAIN) if (train[t.k]) t.apply(st, train[t.k]);
+  if (train) for (const t of PTS) if (train[t.k]) t.apply(st, Math.min(PTS_MAX, train[t.k]));
   return st;
 }
 
-// Entrenamiento: cada nivel suma esto (máx. TRAIN_MAX niveles por stat)
-const TRAIN_MAX = 10;
-const trainCost = l => 20 + 15 * l;
-const TRAIN = [
-  { k: 'hp', name: 'Vida', desc: '+6% vida', apply: (st, n) => st.hp = Math.round(st.hp * (1 + 0.06 * n)) },
-  { k: 'melee', name: 'Fuerza', desc: '+6% golpe', apply: (st, n) => st.melee *= 1 + 0.06 * n },
-  { k: 'ranged', name: 'Disparo', desc: '+7% disparo', apply: (st, n) => { if (st.ranged > 0) st.ranged *= 1 + 0.07 * n; } },
-  { k: 'defense', name: 'Defensa', desc: '+2.5 defensa', apply: (st, n) => st.defense += 2.5 * n },
-  { k: 'speed', name: 'Velocidad', desc: '+6 velocidad', apply: (st, n) => st.speed = clamp(st.speed + 6 * n, 40, 250) },
-  { k: 'weight', name: 'Peso', desc: '+0.12 peso, menos knockback', apply: (st, n) => st.weight = clamp(st.weight + 0.12 * n, 0.5, 4.8) },
-  { k: 'dodge', name: 'Esquiva', desc: '+1.5% esquiva', apply: (st, n) => st.dodge = clamp(st.dodge + 0.015 * n, 0.08, 0.62) },
+// ----- Entrenamiento por puntos: 4 stats, 2 puntos por nivel para repartir -----
+const PTS_PER_LEVEL = 2, PTS_MAX = 20, RESPEC_COST = 50;
+const ptsTotal = lvl => 2 + (lvl - 1) * PTS_PER_LEVEL;
+const ptsUsed = pts => Object.values(pts || {}).reduce((a, b) => a + b, 0);
+const PTS = [
+  { k: 'pow', name: 'Poder', desc: '+6% daño de golpe y disparo', apply: (st, n) => { st.melee *= 1 + 0.06 * n; st.ranged *= 1 + 0.06 * n; } },
+  { k: 'end', name: 'Aguante', desc: '+5% vida y +1,5 defensa', apply: (st, n) => { st.hp = Math.round(st.hp * (1 + 0.05 * n)); st.defense += 1.5 * n; } },
+  { k: 'agi', name: 'Agilidad', desc: '+4 velocidad y +1% esquiva', apply: (st, n) => { st.speed = clamp(st.speed + 4 * n, 40, 260); st.dodge = clamp(st.dodge + 0.01 * n, 0.08, 0.62); } },
+  { k: 'tec', name: 'Técnica', desc: 'ataca más seguido (-3%) y llega más lejos', apply: (st, n) => { st.meleeCd *= Math.pow(0.97, n); st.rangedCd *= Math.pow(0.97, n); st.reach *= 1 + 0.03 * n; st.range = Math.min(500, st.range + 8 * n); } },
 ];
+const trainCost = l => 20 + 15 * l; // (sistema anterior: sólo para devolver monedas)
+function randomPts(level) { const p = {}; for (let i = ptsTotal(level); i > 0; i--) { const k = PTS[Math.floor(Math.random() * 4)].k; if ((p[k] || 0) < PTS_MAX) p[k] = (p[k] || 0) + 1; } return p; }
+
+// El cuerpo cambia con los puntos (sólo lo visual; los stats ya incluyen el entrenamiento)
+function bodyFromTraining(g, pts) {
+  if (!pts || !ptsUsed(pts)) return g;
+  const c = JSON.parse(JSON.stringify(g)), P = k => Math.min(PTS_MAX, pts[k] || 0);
+  const pow = 1 + Math.min(0.45, P('pow') * 0.025), end = 1 + Math.min(0.3, P('end') * 0.016);
+  const agiL = 1 + Math.min(0.25, P('agi') * 0.014), agiS = 1 - Math.min(0.12, P('agi') * 0.007), tec = 1 + Math.min(0.22, P('tec') * 0.012);
+  c.arms.thick *= pow; c.legs.thick *= 1 + (pow - 1) * 0.5; if (c.shoulders.size > 0) c.shoulders.size *= pow;   // Poder: brazos y hombros
+  for (const sg of [c.torso.upper, c.torso.mid, c.torso.lower]) if (sg) sg.w *= end * agiS;                       // Aguante: más ancho / Agilidad: más fino
+  if (c.blob) { c.head.w *= end * agiS; c.torso.upper.w = c.head.w; }
+  c.legs.upper *= agiL; c.legs.lower *= agiL;                                                                    // Agilidad: piernas largas
+  c.eyes.size *= tec;                                                                                             // Técnica: ojos atentos
+  return c;
+}
+
+// ----- Personalidad: 3 ejes de -1 a 1 -----
+const TEMPER = [
+  { k: 'agr', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' },
+  { k: 'terco', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' },
+  { k: 'valor', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' },
+];
+const DRILLS = [ // ejercicios (monedas) que empujan la personalidad
+  { k: 'agr', d: 1, name: 'Sparring' }, { k: 'agr', d: -1, name: 'Tiro a distancia' },
+  { k: 'terco', d: 1, name: 'Ejercicio de foco' }, { k: 'terco', d: -1, name: 'Lectura del combate' },
+  { k: 'valor', d: 1, name: 'Prueba de valor' }, { k: 'valor', d: -1, name: 'Ejercicio de cautela' },
+];
+const DRILL_COST = 15, DRILL_STEP = 0.1;
+const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
+function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: r.f(-0.3, 0.3), terco: r.f(-0.3, 0.3), valor: r.f(-0.3, 0.3) }; }
+const temperLabel = (k, v) => { const t = TEMPER.find(x => x.k === k); return v > 0.25 ? t.pos : v < -0.25 ? t.neg : null; };
+function adjustTemper(rec, k, d) { if (!rec.temper) rec.temper = randomTemper(rec.seed); rec.temper[k] = clamp(rec.temper[k] + d, -1, 1); }
 
 function makeCols(P, fl) {
   const H = (c, dl = 0, a = 1) => hsl(c, dl + fl, a);
@@ -607,7 +662,7 @@ class Monster {
     this.g = genGenome(rec.seed, rec.stage || 'adult', rec.legacy, (rec.gen || 0) >= 3);
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
-    this.st = calcStats(this.g, this.level, rec.train);
+    this.st = calcStats(this.g, this.level, rec.pts);
     if (rec.powerMul) { const k = rec.powerMul; this.st.hp = Math.round(this.st.hp * k); this.st.melee *= k; this.st.ranged *= k; } // rival de otra etapa, equilibrado
     this.hp = this.st.hp;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
@@ -617,14 +672,21 @@ class Monster {
     this.target = null; this.targetTimer = 0; this.lockAx = { x: 1, y: 0 };
     this.damageFrom = new Map(); this.kills = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
-    this.kiter = this.st.ranged > this.st.melee * 0.6; this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
+    this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
+    // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
+    const rp = this.st.ranged > 0 ? clamp(this.st.ranged / (this.st.melee * 0.6) - 1, -1, 1) : -2;
+    this.kiter = this.st.ranged > 0 && rp - this.tp.agr * 1.2 > 0;
+    this.scaredHp = SCARED_HP * (1 - this.tp.valor * 0.7); // los valientes se asustan mucho más tarde
+    this.dmgM = 0; this.dmgR = 0; this.switches = 0; this.minHpF = 1; this.backoff = 0; this.berserkSaid = false;
+    this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
     this.desired = { x: 0, y: 0 }; this.atkDir = { x: 1, y: 0 }; this.atkArm = null; this.strikeExt = 0; this.hitSet = new Set();
     this.walkPh = Math.random() * TAU; this.t = Math.random() * 10; this.look = { x: 0, y: 0 }; this.lookAt = null;
     this.blinkT = 2 + Math.random() * 3; this.blink = 0; this.mouthOpen = 0; this.hurtT = 0;
     this.emo = 'neutral'; this.emoT = 0; this.emoP = 0; this.emoNext = null; this.baseEmo = null; this.winEmo = null;
     this.dead = false; this.deadT = 0; this.alpha = 1;
     this.awakened = rec.stage === 'awakened';
-    this.ultType = ultTypeOf(this.g, rec.train);
+    this.ultType = ultTypeOf(this.g, rec.pts);
+    this.g = bodyFromTraining(this.g, rec.pts); // el entrenamiento se nota en el cuerpo
     this.ultReady = this.awakened; // se recarga al empezar cada pelea (una por pelea)
     this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0 };
     this.aura = []; this.auraAcc = 0; this.auraBoost = 0;
@@ -783,7 +845,7 @@ class Monster {
     if (this.sleep) return 'sleep';
     if (this.emoT > 0) return this.emo;
     if (this.winEmo) return this.winEmo;
-    if (this.hp / this.st.hp < SCARED_HP) return 'scared';
+    if (this.hp / this.st.hp < (this.scaredHp ?? SCARED_HP)) return this.tp && this.tp.valor > 0.2 ? 'angry' : 'scared';
     return this.baseEmo || 'neutral';
   }
   setEmo(e, dur, prio = 1, next = null) {
@@ -921,6 +983,8 @@ class Monster {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt;
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
+    if (this.backoff > 0) this.backoff -= dt;
+    if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
     this.strafeT -= dt; if (this.strafeT < 0) { this.strafe *= -1; this.strafeT = 1.5 + Math.random() * 2; }
     for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.04 * dt)); // el odio se olvida lento
 
@@ -930,19 +994,26 @@ class Monster {
     const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
     if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; return; }
     if (!this.target || this.target.dead || this.targetTimer <= 0) {
-      const thr = this.st.hp * HATE_THRESHOLD;
-      let best = null, bs = Infinity, nearest = null, nd = Infinity;
+      const tc = this.tp.terco, thr = this.st.hp * HATE_THRESHOLD * (1 + tc * 0.8);
+      let best = null, bs = Infinity, nearest = null, nd = Infinity, why = '';
       for (const e of enemies) {
         const d = Math.hypot(e.x - this.x, e.y - this.y);
         if (d < nd) { nd = d; nearest = e; }
-        let sc = d - Math.max(0, (this.damageFrom.get(e.id) || 0) - thr) * HATE_WEIGHT;
-        if (e === this.target) sc -= 60; // lock-in: le cuesta cambiar
-        if (sc < bs) { bs = sc; best = e; }
+        const hate = Math.max(0, (this.damageFrom.get(e.id) || 0) - thr) * HATE_WEIGHT;
+        // Oportunista: prefiere al más débil y al que ataca a su compañero
+        const opp = tc < 0 ? (1 - e.hp / e.st.hp) * 200 * -tc + (e.target && e.target !== this ? 70 * -tc : 0) : 0; // el débil o el distraído
+        let sc = d - hate - opp;
+        if (e === this.target) sc -= 60 * (1 + tc); // lock-in: al Terco le cuesta mucho más cambiar
+        if (sc < bs) { bs = sc; best = e; why = opp > hate ? 'opp' : 'hate'; }
       }
       if (best !== this.target) {
         const prev = this.target;
         this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
-        if (prev && best !== nearest) { B.text(this, '¡grr!', '#ff7a7a'); this.setEmo('angry', 1.4, 3); } // cambió de objetivo por odio
+        if (prev) this.switches++;
+        if (prev && best !== nearest) {
+          if (why === 'opp') { B.text(this, '¡ahora!', '#ffe08a'); this.setEmo('focus', 1.2, 3); } // oportunista
+          else { B.text(this, '¡grr!', '#ff7a7a'); this.setEmo('angry', 1.4, 3); }                  // por odio
+        }
       }
       this.targetTimer = 0.6;
     }
@@ -958,7 +1029,7 @@ class Monster {
       case 'strike':
         this.strikeExt = clamp(1 - this.stT / 0.14, 0, 1);
         this.checkMelee(B);
-        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; }
+        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; if (this.tp.agr < -0.25) this.backoff = 0.6 * -this.tp.agr; }
         break;
       case 'ultcharge':
         if (this.stT <= 0) { if (!B.cine && !B.over) B.startUlt(this); else this.stT = 0.1; }
@@ -978,8 +1049,11 @@ class Monster {
     this.lockAx.x = Math.cos(na); this.lockAx.y = Math.sin(na);
     const ax = this.lockAx.x, ay = this.lockAx.y, px = -ay, py = ax;
     const reachD = this.r + T.r + this.st.reach * 0.85;
-    const pref = this.kiter ? Math.min(this.st.range * 0.7, 230) : reachD * 0.9;
-    const fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
+    const pref = this.kiter ? Math.min(this.st.range * 0.7, 230) * (1 - this.tp.agr * 0.25) : reachD * 0.9;
+    let fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
+    if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
+    const lowHp = this.hp / this.st.hp < this.scaredHp;
+    if (lowHp && this.tp.valor < -0.2 && d < 240) fwd = -1; // Prudente con poca vida: se aleja
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -998,7 +1072,10 @@ class Monster {
     this.desired = ml > 0.05 ? { x: mx / ml * spd * Math.min(1, ml), y: my / ml * spd * Math.min(1, ml) } : { x: 0, y: 0 };
 
     // ¿Es momento de la ultimate? (suficientes golpes en la pelea y poca vida)
-    if (this.ultReady && !B.cine && !B.over && this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP
+    const ultNow = this.ultMode === 'ready' ? this.hitsN >= 3
+      : this.ultMode === 'finisher' ? this.hitsN >= 3 && T.hp / T.st.hp <= 0.4
+      : this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP;
+    if (this.ultReady && !B.cine && !B.over && ultNow
       && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8))) {
       this.state = 'ultcharge'; this.stT = ULT_CHARGE_S; this.desired = { x: 0, y: 0 }; // se queda quieto juntando energía
       this.auraBoost = ULT_CHARGE_S + 2; this.setEmo('focus', ULT_CHARGE_S + 0.3, 5);
@@ -1056,7 +1133,7 @@ class Monster {
   incoming(att, dir, B) {
     if (this.dead || this.dodgeCd > 0 || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
     this.dodgeCd = 0.35;
-    if (Math.random() >= Math.min(0.9, this.st.dodge * (this.buffs.dodge > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1))) return;
+    if (Math.random() >= Math.min(0.9, this.st.dodge * (this.buffs.dodge > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1) * (this.tp.valor < -0.2 && this.hp / this.st.hp < this.scaredHp ? 1 + -this.tp.valor * 0.35 : 1))) return;
     this.dodgeCd = 1.1;
     let px = -dir.y, py = dir.x;
     const cx = ARENA_W / 2 - this.x, cy = ARENA_D / 2 - this.y;
@@ -1550,10 +1627,11 @@ class Battle {
 
   hit(a, t, pow, dir, kind) {
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
-    const allA = a.buffs.all > 0 ? ULT_ALL_MUL : 1, allT = t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1; // potenciado tras su ultimate
+    const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
     const dmg = Math.max(1, pow * ot * allA * allT * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? 0.5 : 1));
     a.hitsN++; t.hitsN++;
-    t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1;
+    if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
+    t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
@@ -1789,11 +1867,13 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 3 };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 3, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed; if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
+      if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
+      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save'; if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -1892,6 +1972,17 @@ let scene = 'home', show = null, egg = null, battle = null, growAnim = null, las
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 addEventListener('resize', resize); resize();
 
+const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
+  ['Poder', st => Math.max(st.melee, st.ranged * 1.3), 60],
+  ['Aguante', st => st.hp * (1 + st.defense / 40), 600],
+  ['Agilidad', st => st.speed * 0.6 + st.dodge * 150, 200],
+  ['Técnica', st => 60 / st.meleeCd + st.reach * 0.6, 160],
+];
+let detailOpen = false;
+function personaText(rec) {
+  const ls = TEMPER.map(t => temperLabel(t.k, (rec.temper || {})[t.k] || 0)).filter(Boolean);
+  return `Personalidad: <b>${ls.length ? ls.join(' · ') : 'equilibrada'}</b>`;
+}
 const STAT_DEF = [
   ['Vida', st => st.hp, 260, v => Math.round(v)],
   ['Fuerza', st => st.melee, 30, v => Math.round(v)],
@@ -1908,6 +1999,7 @@ function renderHome() {
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="1"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
   $('rest').hidden = !resting(rec);
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -1924,7 +2016,12 @@ function renderHome() {
   $('mName').textContent = rec.name;
   updateSub();
   const st = show.st;
-  $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
+  const row = (lb, v, mx, txt) => `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${txt}</span></div>`;
+  $('stats').innerHTML = MAIN_DEF.map(([lb, fn, mx]) => row(lb, fn(st), mx, Math.round(fn(st)))).join('')
+    + `<p class="persona">${personaText(rec)}</p>`
+    + `<button class="btn detbtn" id="detBtn">${detailOpen ? 'Ocultar detalle' : 'Ver detalle'}</button>`
+    + (detailOpen ? `<div class="det">${STAT_DEF.map(([lb, fn, mx, fmt]) => row(lb, fn(st), mx, fmt(fn(st)))).join('')}</div>` : '');
+  $('detBtn').onclick = () => { detailOpen = !detailOpen; renderHome(); };
   $('ultInfo').hidden = !show.awakened;
   if (show.awakened) $('ultInfo').innerHTML = `Ultimate: <b>${ULTS[show.ultType].name}</b> · ${ULTS[show.ultType].desc}`;
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
@@ -1970,33 +2067,55 @@ function renderTrain() {
   const rec = cur();
   $('tName').textContent = rec.stage === 'egg' ? 'Huevo misterioso' : rec.name;
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = '<p class="eggmsg">Primero tiene que nacer. Vuelve a la página del monstruo y toca el huevo.</p>'; $('tinfo').textContent = ''; return; }
-  rec.train = rec.train || {};
+  rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
-  const g = genGenome(rec.seed, rec.stage, rec.legacy, (rec.gen || 0) >= 3), st = calcStats(g, rec.level, rec.train);
-  $('tlist').innerHTML = TRAIN.map(t => {
-    const lv = rec.train[t.k] || 0, max = lv >= TRAIN_MAX, cost = trainCost(lv);
-    const def = STAT_DEF.find(d => d[0] === t.name), now = def[1](st);
-    const nx = max ? null : def[1](calcStats(g, rec.level, { ...rec.train, [t.k]: lv + 1 }));
-    const noRanged = t.k === 'ranged' && !st.ranged;
-    const val = noRanged ? 'no puede disparar' : `<b>${def[3](now)}</b>${nx == null ? '' : def[3](nx) !== def[3](now) ? ` <em>→ ${def[3](nx)}</em>` : ` <em>${t.desc}</em>`}`;
-    return `<div class="trow">
-      <div class="tl">${t.name} <span class="tv">${val}</span></div>
-      <button class="btn tbtn" data-train="${t.k}" ${max || noRanged || save.coins < cost ? 'disabled' : ''}>${max ? 'Máx.' : `<span class="ci"></span>${cost}`}</button>
-      <div class="pips">${Array.from({ length: TRAIN_MAX }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>
-    </div>`;
-  }).join('');
-  $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas · cada entrenamiento cuesta más que el anterior`;
-  document.querySelectorAll('[data-train]').forEach(b => b.onclick = () => trainStat(b.dataset.train));
+  const free = ptsTotal(rec.level) - ptsUsed(rec.pts);
+  let h = `<div class="tsec"><div class="thead">Puntos de entrenamiento <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'disponible' : 'disponibles'}</span></div>`;
+  h += PTS.map(t => { const n = rec.pts[t.k] || 0; return `<div class="trow">
+      <div class="tl">${t.name} <span class="tv"><b>${n}</b>/${PTS_MAX}</span></div>
+      <button class="btn tbtn" data-pt="${t.k}" ${!free || n >= PTS_MAX ? 'disabled' : ''}>+1</button>
+      <div class="tdesc">${t.desc}</div></div>`; }).join('');
+  h += `<p class="tdesc">Ganas ${PTS_PER_LEVEL} puntos por nivel. El cuerpo cambia según cómo lo entrenes.</p>`;
+  h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
+  h += `<div class="tsec"><div class="thead">Personalidad</div>`;
+  h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
+  const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
+  if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
+  h += `<p class="tdesc">Cambia con cómo lo crías: acariciarlo lo vuelve más valiente, lanzarlo más agresivo y sus peleas también lo marcan. O con ejercicios:</p>`;
+  h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k); return `<button class="btn dbtn" data-drill="${i}" ${save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}</small></button>`; }).join('')}</div></div>`;
+  h += `<div class="tsec"><div class="thead">Momento de la ultimate</div>`;
+  if (rec.stage === 'awakened') {
+    const um = rec.ultMode || 'save';
+    h += `<div class="ums">${Object.entries(ULT_MODES).map(([k, m]) => `<button class="btn ${um === k ? 'on' : ''}" data-um="${k}">${m.name}</button>`).join('')}</div><p class="tdesc">${ULT_MODES[um].desc}.</p>`;
+  } else h += `<p class="tdesc">Lo eliges cuando despierte (Nv. ${STAGE_LV.awakened}).</p>`;
+  h += `</div>`;
+  $('tlist').innerHTML = h;
+  $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas`;
+  document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
+  document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => doDrill(+b.dataset.drill));
+  document.querySelectorAll('[data-um]').forEach(b => b.onclick = () => { rec.ultMode = b.dataset.um; persist(); renderTrain(); });
+  $('respec').onclick = async () => {
+    if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
+    if (save.coins < RESPEC_COST) return;
+    save.coins -= RESPEC_COST; rec.pts = {}; persist(); renderHome(); renderTrain();
+  };
 }
-function trainStat(k) {
-  const rec = cur(), lv = (rec.train = rec.train || {})[k] || 0, cost = trainCost(lv);
-  if (save.coins < cost || lv >= TRAIN_MAX) return;
-  save.coins -= cost; rec.train[k] = lv + 1; persist();
-  const t = TRAIN.find(x => x.k === k);
-  renderHome(); renderTrain();
+function trainFx(label) {
   show.vz = 230; show.mouthOpen = 1; show.setEmo('angry', 0.5, 2, ['happy', 1.2]); // ¡esfuerzo! y luego contento
   for (const n of show.nodes) { n.vx += (Math.random() - 0.5) * 300; n.vy -= Math.random() * 200; }
-  fx.label = `+${t.name}`; fx.labelT = 1.6; burst(0, -50, 10, '#ffcf6e', 220, [2, 4]);
+  fx.label = label; fx.labelT = 1.6; burst(0, -50, 10, '#ffcf6e', 220, [2, 4]);
+}
+function addPoint(k) {
+  const rec = cur(), free = ptsTotal(rec.level) - ptsUsed(rec.pts);
+  if (free <= 0 || (rec.pts[k] || 0) >= PTS_MAX) return;
+  rec.pts[k] = (rec.pts[k] || 0) + 1; persist();
+  renderHome(); renderTrain(); trainFx(`+${PTS.find(t => t.k === k).name}`);
+}
+function doDrill(i) {
+  const rec = cur(), d = DRILLS[i], t = TEMPER.find(x => x.k === d.k);
+  if (save.coins < DRILL_COST) return;
+  save.coins -= DRILL_COST; adjustTemper(rec, d.k, d.d * DRILL_STEP); persist();
+  renderHome(); renderTrain(); trainFx(`más ${d.d > 0 ? t.pos : t.neg}`);
 }
 
 function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques · ${save.sel + 1}/${save.monsters.length}`; }
@@ -2132,7 +2251,7 @@ function release(t) {
   show.held = false;
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
   if (performance.now() - b[2] > 120) { show.vx = 0; show.vz = 0; } // estaba quieto: sólo lo sueltas
-  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); if (Math.hypot(show.vx, show.vz) > 450) { adjustTemper(cur(), 'agr', 0.012); persist(); } } // lo lanzas (lanzarlo lo vuelve más audaz)
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
 function pet(a, b) {
@@ -2144,7 +2263,7 @@ function pet(a, b) {
   if (!show.sleep) show.setEmo('love', 0.9, 2);
   show.lookAt = null;
   petAcc += d;
-  if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
+  if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); adjustTemper(cur(), 'valor', 0.004); persist(); } // las caricias le dan valor
 }
 
 // ---------- Rivales ----------
@@ -2153,9 +2272,12 @@ const STAGE_MIX_W = { 0: 80, 1: 6, 2: 2.5, 3: 1, 4: 0.5 };
 // Poder aproximado de un monstruo: cuánto aguanta × cuánto pega
 // Corrección por etapa medida con simulaciones (la fórmula no ve cosas como el alcance o el tamaño del cuerpo)
 const STAGE_FIX = { baby: 0.88, child: 1.08, teen: 1.1, adult: 0.9, awakened: 0.86 };
-// Ajuste extra para etapas lejanas (tu etapa>etapa del rival), calibrado con simulaciones hasta ~50% de victorias
-const PAIR_FIX = { 'baby>teen': 1.1, 'baby>adult': 0.9, 'baby>awakened': 0.92, 'child>adult': 0.8, 'child>awakened': 0.85, 'teen>baby': 0.92, 'teen>awakened': 0.88,
-  'adult>baby': 1.16, 'adult>child': 1.16, 'awakened>baby': 1.07, 'awakened>child': 1.27, 'awakened>teen': 0.96 };
+// Ajuste por par de etapas (tu etapa>etapa del rival), calibrado con simulaciones hasta ~50% de victorias
+const PAIR_FIX = {
+  'baby>child': 1.01, 'baby>teen': 0.97, 'baby>adult': 0.86, 'baby>awakened': 0.79, 'child>baby': 0.76,
+  'child>teen': 0.85, 'child>adult': 0.7, 'child>awakened': 0.67, 'teen>baby': 0.72, 'teen>child': 0.9,
+  'teen>adult': 0.78, 'teen>awakened': 0.67, 'adult>baby': 0.91, 'adult>child': 1.08, 'adult>teen': 0.99,
+  'adult>awakened': 0.76, 'awakened>baby': 0.97, 'awakened>child': 1.22, 'awakened>teen': 1.22, 'awakened>adult': 1.01 };
 function powerOf(st, awakened) {
   const ehp = st.hp / (1 - st.defense / (st.defense + 40)) / (1 - st.dodge * 0.6);
   const dps = st.melee / st.meleeCd + st.ranged / st.rangedCd * 0.8;
@@ -2176,10 +2298,12 @@ function makeFoe(ref, forceStage = null) {
     const nx = STAGE_ORDER[STAGE_ORDER.indexOf(stage) + 1];
     r.level = clamp(r.level, STAGE_LV[stage] || 1, nx ? STAGE_LV[nx] - 1 : 99);
   }
-  r.train = {}; for (let i = Math.floor(r.level * 1.2); i > 0; i--) { const t = TRAIN[Math.floor(Math.random() * TRAIN.length)].k; r.train[t] = Math.min(TRAIN_MAX, (r.train[t] || 0) + 1); }
+  r.pts = randomPts(r.level);
+  r.temper = { agr: Math.random() * 1.6 - 0.8, terco: Math.random() * 1.6 - 0.8, valor: Math.random() * 1.6 - 0.8 };
+  r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
   if (stage !== ref.stage) { // equilibrar: su poder queda parecido al de tu monstruo
-    const mine = powerOf(calcStats(genGenome(ref.seed, ref.stage, ref.legacy, (ref.gen || 0) >= 3), ref.level, ref.train), ref.stage === 'awakened') * STAGE_FIX[ref.stage];
-    const his = powerOf(calcStats(genGenome(r.seed, stage, false, true), r.level, r.train), stage === 'awakened') * STAGE_FIX[stage];
+    const mine = powerOf(calcStats(genGenome(ref.seed, ref.stage, ref.legacy, (ref.gen || 0) >= 3), ref.level, ref.pts), ref.stage === 'awakened') * STAGE_FIX[ref.stage];
+    const his = powerOf(calcStats(genGenome(r.seed, stage, false, true), r.level, r.pts), stage === 'awakened') * STAGE_FIX[stage];
     r.powerMul = clamp(mine / his * 1.12 * (PAIR_FIX[ref.stage + '>' + stage] || 1) * (0.92 + Math.random() * 0.16), 0.05, 20);
   }
   return new Monster(r);
@@ -2393,6 +2517,13 @@ function finishBattle() {
       else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
     }
     let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
+    // sus peleas moldean su personalidad
+    const ch = [], tw = (k, d, lbl) => { adjustTemper(rec, k, d); ch.push(lbl); };
+    if (pm.dmgM + pm.dmgR > 0) { if (pm.dmgR > pm.dmgM * 1.2) tw('agr', -0.03, 'más Cauto'); else if (pm.dmgM > pm.dmgR * 1.2) tw('agr', 0.03, 'más Agresivo'); }
+    if (!pm.dead && pm.minHpF < 0.25) tw('valor', 0.04, 'más Valiente'); else if (pm.dead) tw('valor', -0.03, 'más Prudente');
+    if (pm.switches >= 2) tw('terco', -0.03, 'más Oportunista'); else if (pm.switches === 0 && place === 1) tw('terco', 0.02, 'más Terco');
+    lifeTxt += (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>! +${ups * PTS_PER_LEVEL} puntos de entrenamiento` : '') + (ch.length ? `<br><small>Personalidad: ${ch.join(', ')}</small>` : '');
+    ups = 0;
     return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
   });
   wakeUp();
@@ -2479,6 +2610,7 @@ function loop(now) {
 }
 renderHome();
 checkGrowth();
+if (save.notice) { const n = save.notice; delete save.notice; persist(); ask(n, { ok: 'Entendido', cancel: null }); }
 requestAnimationFrame(loop);
 </script>
 </body>
