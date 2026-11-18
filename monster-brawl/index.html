@@ -112,7 +112,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="topbar">
     <button class="roundbtn" id="quit">✕</button>
     <div class="mode" id="modeLbl">1 vs 1</div>
-    <button class="roundbtn" id="speed">x1</button>
+    <button class="roundbtn" id="speed">x1.5</button>
   </div>
   <div class="spacer"></div>
   <div class="fighters" id="fighters"></div>
@@ -1222,7 +1222,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar' } = {}) {
   });
 }
 let W = 0, H = 0, DPR = 1;
-let scene = 'home', show = null, egg = null, battle = null, battleSpeed = 1, lastMode = '1v1', homeView = null;
+let scene = 'home', show = null, egg = null, battle = null, battleSpeed = 1.5, lastMode = '1v1', homeView = null;
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 addEventListener('resize', resize); resize();
@@ -1365,7 +1365,8 @@ function updateFighters() {
 
 function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
 $('quit').onclick = async () => { if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome(); };
-$('speed').onclick = () => { battleSpeed = battleSpeed === 1 ? 2 : battleSpeed === 2 ? 3 : 1; $('speed').textContent = 'x' + battleSpeed; };
+const SPEEDS = [1, 1.5, 2, 3]; // x1.5 es la velocidad por defecto
+$('speed').onclick = () => { battleSpeed = SPEEDS[(SPEEDS.indexOf(battleSpeed) + 1) % SPEEDS.length]; $('speed').textContent = 'x' + battleSpeed; };
 $('resHome').onclick = goHome;
 $('resAgain').onclick = () => startBattle(lastMode);
 
