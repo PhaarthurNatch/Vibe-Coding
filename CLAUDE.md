@@ -15,7 +15,11 @@ El jugador cría, entrena y moldea la personalidad de sus monstruos; los combate
 
 - Todo el juego está en **un solo archivo**: `monster-brawl/index.html` (HTML + CSS + JS en canvas, sin dependencias ni build).
 - `monster-brawl/README.md`: resumen de funcionalidades para personas.
-- Pensado para empaquetarse después como app con Capacitor (pendiente).
+- **Web app instalable (PWA)** publicada en GitHub Pages desde `main` (carpeta raíz; `.nojekyll`): **https://phaarthurnatch.github.io/Vibe-Coding/monster-brawl/**
+  (el dueño activa Pages una vez en Settings → Pages → Deploy from a branch → `main` / root). Archivos: `manifest.webmanifest`, `sw.js` (red primero para la página,
+  copia guardada sin internet; subir `CACHE` si cambian íconos u otros archivos fijos), `icons/` (monstruo semilla 1334173269, generado con el propio juego).
+  Botón "Instalar" arriba: en Android usa el aviso del navegador; en iPhone explica Compartir → "Agregar a pantalla de inicio". No aparece dentro de claude.ai.
+- Se descartó subir a tiendas; Capacitor (APK para Android) queda como opción futura.
 - Página publicada (Artifact privado del dueño) para probar en el celular: **https://claude.ai/artifact/5PSe9xvkZVHRRoQdiyMWBs**
   Hay que actualizar **ese mismo link**, no crear uno nuevo (ver "Publicar").
 
@@ -88,6 +92,13 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
   Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
+- **Pelea local por WiFi** (botón "📶 Pelea local" en el Home; módulo `LAN`): conexión directa WebRTC sin internet (sin servidores ICE; candidatos de la red local),
+  emparejada con **códigos QR** (`packSDP`/`unpackSDP` achican la conexión a ~100 caracteres; `drawQR` con qrcode-generator, lectura con `BarcodeDetector` o jsQR,
+  ambas bibliotecas van incrustadas al inicio del HTML con su licencia). El anfitrión crea y muestra su QR → el invitado toca Unirme y lo escanea → muestra su QR →
+  el anfitrión lo escanea. **El anfitrión simula** la pelea (`lanStartHost`; el monstruo del otro tiene `remoteCtl` y espera su botón) y manda el estado ~30/s
+  (`lanSnapshot`); **el invitado sólo dibuja** (`battle.puppet`, `lanApply`) y manda `{t:'u'}` al apretar ULTIMATE. Pelea amistosa (`lanFinish`): sin corazones ni premios;
+  revancha desde cualquiera de los dos. Prueba con dos páginas: `--disable-features=WebRtcHideLocalIpsWithMdns` y `lanGotCode(LAN.code)` en vez de la cámara.
+  Pendiente (etapa 4): la arena repartida en varias pantallas sobre la mesa.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
 - **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
