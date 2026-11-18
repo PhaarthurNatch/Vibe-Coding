@@ -1949,11 +1949,11 @@ function newRec(stage = 'egg') {
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && (s.monsters.length || s.adopting)) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
-      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [] }; }
+      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [], sel: 0, coins: 0, ults: [], adopting: newRec() }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -2086,8 +2086,10 @@ const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil >
 const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
-  if (homePage === 2) setTimeout(renderTrain);
   renderAdopt();
+  $('coins').textContent = save.coins;
+  if (!save.monsters.length) { show = null; egg = null; return; } // todavía no tiene monstruos: sólo la página Adoptar
+  if (homePage === 2) setTimeout(renderTrain);
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
@@ -2138,7 +2140,9 @@ $('btnHeal').onclick = () => {
 };
 // Páginas del menú: 0 = Adoptar, 1 = Home (el monstruo), 2 = Entrenar
 let homePage = 1;
+const adoptLocked = () => !!save.adopting || !save.monsters.length; // abriendo un huevo: no se sale de Adoptar hasta que nazca
 function setPage(n) {
+  if (adoptLocked() && n !== 0) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; adoptEgg.sq = 0.1; if (homePage === 0) return; n = 0; }
   homePage = n; $('track').style.transform = `translateX(${-100 / 3 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
   if (n === 2) renderTrain();
@@ -2253,7 +2257,10 @@ function tapEgg() {
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
   celebrate('¡Nació!');
-  // después de verlo nacer, le pones nombre (viene uno al azar sugerido)
+  nameNewborn(rec);
+}
+// después de verlo nacer, le pones nombre (viene uno al azar sugerido)
+function nameNewborn(rec) {
   setTimeout(async () => {
     const n = await ask('¡Nació tu monstruo! ¿Cómo se llamará?', { input: rec.name, ok: 'Listo', cancel: null, low: true });
     if (n && n.trim()) rec.name = n.trim().slice(0, 16);
@@ -2269,21 +2276,42 @@ $('prev').onclick = () => switchMonster(-1);
 $('next').onclick = () => switchMonster(1);
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
-// Página Adoptar: muestra el huevo que te llevarías; al adoptarlo pasa al Home para hacerlo nacer
-let adoptRec = newRec(), adoptEgg = new EggView(adoptRec);
+// Página Adoptar: muestra el huevo que te llevarías. Al adoptarlo se abre ahí mismo (tocándolo varias veces);
+// recién cuando nace pasa al Home y le pones nombre. La adopción en curso se guarda (save.adopting).
+let adoptRec = save.adopting || newRec(), adoptEgg = new EggView(adoptRec), hatching = false;
 function renderAdopt() {
-  const n = save.monsters.length, full = n >= MAX_MONSTERS;
-  $('aSub').textContent = `Tienes ${n}/${MAX_MONSTERS} monstruos`;
-  $('adoptTxt').innerHTML = full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
+  const n = save.monsters.length, full = n >= MAX_MONSTERS, mine = !!save.adopting;
+  $('aSub').textContent = mine ? `Faltan ${adoptRec.need - adoptRec.taps} toques` : `Tienes ${n}/${MAX_MONSTERS} monstruos`;
+  $('adoptTxt').innerHTML = mine ? (n ? '¡Es tuyo! Tócalo varias veces para que nazca.' : '¡Bienvenido! Este huevo es tuyo.<br>Tócalo varias veces para que nazca.')
+    : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
     : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
-  $('btnNew').disabled = full;
+  $('btnNew').hidden = mine; $('btnNew').disabled = full;
 }
 $('btnNew').onclick = () => {
-  if (save.monsters.length >= MAX_MONSTERS) return;
-  save.monsters.push(adoptRec); save.sel = save.monsters.length - 1; persist();
-  adoptRec = newRec(); adoptEgg = new EggView(adoptRec); // el siguiente huevo
-  renderHome(); setPage(1);
+  if (save.monsters.length >= MAX_MONSTERS || save.adopting) return;
+  save.adopting = adoptRec; persist(); renderAdopt();
+  adoptEgg.vz = 260; adoptEgg.sq = 0.15; fx.label = '¡Es tuyo!'; fx.labelT = 1.6;
 };
+function tapAdoptEgg() {
+  if (!save.adopting) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; return; } // aún no es tuyo: sólo bambolea
+  if (hatching) return;
+  const rec = adoptRec, E = adoptEgg; rec.taps++;
+  E.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); E.sq = 0.12;
+  burst(E.gx + (Math.random() - 0.5) * 30, -E.z - E.h * (0.4 + Math.random() * 0.4), 3, hsl(E.pal.body, 24), 160, [2, 3.5]);
+  if (rec.taps < rec.need) { persist(); renderAdopt(); return; }
+  // ¡nace! el cascarón estalla aquí y el bebé aparece en el Home
+  hatching = true;
+  burst(E.gx, -E.z - 35, 14, hsl(E.pal.body, 24), 300, [4, 8]); burst(E.gx, -E.z - 35, 6, hsl(E.pal.accent), 260, [3, 6]); fx.flash = 0.5;
+  setTimeout(() => {
+    rec.stage = 'baby'; delete rec.taps; delete rec.need; delete save.adopting;
+    save.monsters.push(rec); save.sel = save.monsters.length - 1;
+    adoptRec = newRec(); adoptEgg = new EggView(adoptRec); hatching = false; // el siguiente huevo para adoptar
+    persist(); renderHome(); setPage(1);
+    show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
+    celebrate('¡Nació!');
+    nameNewborn(rec);
+  }, 350);
+}
 $('btnFree').onclick = async () => {
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
   const m = show; // el monstruo se pone triste (y llora) mientras decides
@@ -2379,7 +2407,7 @@ cv.addEventListener('pointerup', e => {
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
-  else if (!touch.pet && touch.adopt) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; } // bambolea
+  else if (!touch.pet && touch.adopt) tapAdoptEgg(); // bambolea, o lo abre si ya es tuyo
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
@@ -2534,7 +2562,7 @@ function partNodes(M, key) {
 }
 function checkGrowth() {
   const elig = r => r && r.stage !== 'egg' && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
-  const rec = [cur(), ...save.monsters].find(elig);
+  const rec = [...(save.monsters.length ? [cur()] : []), ...save.monsters].find(elig);
   if (!rec || scene !== 'home') return false;
   // Si le toca crecer varias etapas, todas van en la misma animación, una tras otra
   const from = STAGE_ORDER.indexOf(rec.stage), to = STAGE_ORDER.indexOf(stageForLevel(rec.level));
@@ -2670,17 +2698,17 @@ function loop(now) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
-  if (scene === 'home' && (show || egg)) {
+  if (scene === 'home' && (show || egg || adoptLocked())) {
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) {
       acc -= STEP; fxStep(STEP);
       if (egg) egg.update(STEP);
-      else show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      else if (show) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
       adoptEgg.update(STEP); adoptEgg.homeStep(STEP, adoptBounds.halfW, adoptBounds.maxZ);
     }
     // Se dibuja en el área de la página que está más centrada (Adoptar muestra el huevo por adoptar)
     const areas = ['adoptArea', 'showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.left + q.width / 2 - W / 2);
-    const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onAdopt = r === areas[0];
+    const r = adoptLocked() && !show && !egg ? areas[0] : areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onAdopt = r === areas[0];
     const E = onAdopt ? adoptEgg : egg;
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
     const sz = E ? { w: E.w, h: E.h } : show.estSize();
@@ -2736,9 +2764,10 @@ function loop(now) {
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
-  if (scene === 'home' && ++frame % 20 === 0 && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
+  if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
+if (adoptLocked()) { homePage = 0; $('track').style.transform = 'translateX(0%)'; document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.page === '0')); }
 renderHome();
 checkGrowth();
 if (save.notice) { const n = save.notice; delete save.notice; persist(); ask(n, { ok: 'Entendido', cancel: null }); }

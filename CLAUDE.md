@@ -77,7 +77,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Al crecer conserva todas sus partes (agrandadas) y se sortean partes nuevas; las cantidades sólo suben.
   **Crece recién al volver al menú**, con animación a pantalla completa; si debe crecer varias etapas, todas van en la misma animación.
   "Otra pelea" sigue usando la etapa actual.
-- **Huevo:** se toca varias veces para que nazca y luego se le pone nombre.
+- **Huevo:** se adopta en la página Adoptar y **se abre ahí mismo** (tocándolo varias veces; mientras tanto no se puede salir de Adoptar, `adoptLocked`); al nacer pasa al Home y se le pone nombre. La adopción en curso se guarda en `save.adopting`. Una partida nueva empieza así (sin monstruos, en Adoptar). Los huevos que ya estaban en la lista de partidas antiguas siguen naciendo en el Home.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
 - **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
