@@ -65,7 +65,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #trainArea{flex:1 1 90px;min-height:90px}
 #adoptArea{flex:1 1 120px;min-height:120px}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
-.tpanel{min-height:0;overflow-y:auto;flex:0 1 auto}
+.tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
+#home .top,#home .tabs,#home .nav,#home .panel:not(.tpanel){touch-action:none} /* deslizar para cambiar de página sin que el navegador se lo robe */
 .tinfo{text-align:center;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.track{transition:none}}
 .xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
@@ -103,7 +104,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .mid{color:var(--acc)}
 .growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
 #growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
-.tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto}
+.tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto;touch-action:pan-y}
 .tpc{background:var(--panel2);border-radius:14px;padding:6px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;border:2px solid transparent;font-size:12px;color:var(--muted)}
 .tpc b{color:var(--text);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tpc canvas{width:72px;height:72px}
@@ -2087,14 +2088,21 @@ function setPage(n) {
   if (n === 0) renderAdopt();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
-// Deslizar con el dedo: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar)
-let swipe = null;
-addEventListener('pointerdown', e => { if (scene === 'home' && !touch && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY }; });
+// Deslizar con el dedo en cualquier parte: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar).
+// Sobre el monstruo también: un trazo largo y rápido cambia de página; frotar despacio es acariciar; si lo tienes tomado, no.
+let swipe = null, swipedAt = 0;
+addEventListener('pointerdown', e => { if (scene === 'home' && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY, t: performance.now(), touch, id: e.pointerId }; });
 addEventListener('pointerup', e => {
-  if (!swipe) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(clamp(homePage + (dx < 0 ? 1 : -1), 0, 2));
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, dt = performance.now() - swipe.t, onMon = swipe.touch; swipe = null;
+  if (onMon && (onMon.grab || dt > 800 || Math.abs(dx) < 100)) return; // tomado, o caricia (frotar corto o lento)
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 2);
+    if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
+  }
 });
 addEventListener('pointercancel', () => swipe = null);
+addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true); // un deslizamiento no aprieta botones
 
 function renderTrain() {
   const rec = cur();

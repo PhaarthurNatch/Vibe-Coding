@@ -68,7 +68,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 | `class Monster` | Esqueleto de nodos con resortes (partes "floaty"), `animate`, `rigStep`, IA en `think` (objetivo, eje de lock-in, ataques, esquiva, ultimate), dibujo de cada parte, expresiones (`face`, `setEmo`), aura |
 | `class Battle` | Paso de simulación, golpes (`hit`), proyectiles, ultimates (`startUlt` → cinemática → `execUlt`), muerte súbita, ranking final |
 | Guardado | `SAVE_KEY = 'monster_brawl_v1'` en localStorage, `newRec`, `loadSave` (incluye migraciones), `persist` |
-| UI | Menú con 3 páginas deslizables: Adoptar (izquierda: huevo por adoptar, `adoptRec`/`adoptEgg`, `renderAdopt`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar (derecha), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
+| UI | Menú con 3 páginas deslizables: Adoptar (izquierda: huevo por adoptar, `adoptRec`/`adoptEgg`, `renderAdopt`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar (derecha), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar; deslizar a los lados en cualquier parte cambia de página: sobre el monstruo sólo un trazo largo y rápido, y un deslizamiento no aprieta botones), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
 
 ## Reglas y decisiones de diseño vigentes (no revertir sin que el dueño lo pida)
 
