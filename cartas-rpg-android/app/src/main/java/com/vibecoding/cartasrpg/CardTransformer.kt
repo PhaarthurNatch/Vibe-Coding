@@ -47,23 +47,21 @@ object CardTransformer {
         }
 
         val stats = buildStats(card, typeLower, category)
+        val tier = tierOf(card, typeLower)
         // Las habilidades explicadas en la descripción no se repiten como rasgos.
-        val traits = card.keywords.filterNot { AbilityInterpreter.hasExplanation(it) }
+        val traits = card.keywords.filterNot { TableGuide.hasExplanation(it) }
             .map { translateKeyword(it) }.distinct().take(5)
 
-        // Descripción generada a partir de lo que hace la carta (siempre desde el texto
-        // Oracle en inglés); nunca se muestra el texto original.
-        val effect = AbilityInterpreter.describe(card, category).joinToString("\n")
 
         return RpgCard(
             category = category,
             title = title,
             subtitle = subtitle,
-            tier = tierOf(card, typeLower),
+            tier = tier,
             motive = motiveOf(card, category, typeLower),
             stats = stats,
             traits = traits,
-            effect = effect,
+            effect = TableGuide.describe(category, tier, stats, card.keywords).joinToString("\n"),
             flavor = null,
             hook = hookFor(category, title),
             artist = card.artist,
@@ -205,8 +203,12 @@ object CardTransformer {
 
     /** Motivación y enemigos naturales para criaturas y personajes (filosofía de los colores). */
     private fun motiveOf(card: MtgCard, category: Category, typeLower: String): String? {
-        if (category !in SENTIENT) return null
         val colors = card.colors.filter { it in COLOR_DRIVE }
+        if (category !in SENTIENT) {
+            // Objetos, lugares y magia: la filosofía del color se presenta como su esencia.
+            if (colors.isEmpty()) return null
+            return "Esencia: " + colors.joinToString("; ") { "${COLOR_NAMES.getValue(it)} (${COLOR_DRIVE.getValue(it)})" } + "."
+        }
         if (colors.isEmpty()) {
             return if ("artifact" in typeLower) "Impulso: cumplir el propósito para el que fue creado."
             else "Impulso: sobrevivir; no responde a ninguna causa."

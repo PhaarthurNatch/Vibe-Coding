@@ -16,8 +16,7 @@ listas para imprimir).
 ## Basado en guías de la comunidad
 La conversión se apoya en las ideas que más se repiten en las guías para usar
 cartas de Magic en partidas de rol, adaptadas para que valgan en cualquier sistema:
-- **"¿Qué hace la carta?"**: describir el efecto de forma sencilla y no copiar
-  las reglas (guías de conversión de hechizos, mentalidad de conversión de ICRPG).
+- **Habilidades clave como mecánicas de juego** (vuela, toque letal…).
 - **El coste de maná como base de la dificultad**, ajustado por fuerza y resistencia,
   ya que la media de ambas estima bien el coste. Volar suma medio punto y ser legendario, uno más.
 - **Rol táctico** según fuerza y resistencia: Atacante, Tanque, Hostigador,
@@ -61,13 +60,11 @@ En modo aleatorio la categoría se deduce automáticamente del tipo de la carta.
 - **Fuerza / resistencia** → *Ofensiva* y *Aguante* en escala verbal
   (Débil, Media, Fuerte, Temible, Colosal) con el número como referencia.
 - **Colores** → *Afinidad*: Luz, Mente, Sombra, Fuego, Naturaleza, Artificio…
-- **Descripción generada**: la app lee lo que hace la carta en Magic y lo
-  reescribe como efectos de rol genéricos en español. Por ejemplo, "deals 3 damage
-  to any target" se convierte en *Inflige daño moderado a un objetivo*, y "Create two
-  1/1 Soldier tokens" en *Invoca a 2 aliados (soldado)*. Los disparadores pasan
-  a *Al entrar en escena…*, *Cada vez que ataca…*, y los costes a *Como acción…*,
-  *Sacrificándolo…*.
-- **Habilidades clave** explicadas (Vuela, Toque letal, Arrollador…).
+- **Descripción basada en las guías de la comunidad**, sin traducir las reglas
+  de la carta: cómo usarla en mesa según la categoría (enemigo, PNJ, recompensa,
+  escenario o encuentro de terreno…), su rol táctico, la forma de uso de los
+  objetos y las habilidades clave convertidas en mecánicas.
+- **Motivación o esencia** según el círculo de colores.
 - **No se muestra el texto original** de la carta (ni reglas ni ambientación).
 - Un **gancho de aventura** generado.
 - Créditos del ilustrador y de la edición en el pie.
