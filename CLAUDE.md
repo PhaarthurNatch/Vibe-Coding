@@ -84,6 +84,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
   Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
+  En 2 vs 2 los rivales tienen +5% de vida y +5% de daño (`FOE_2V2`, `buffFoe`; el dueño sentía que siempre ganaba): en simulación tu equipo gana ~40% en vez de ~50%.
 - **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
   La pantalla se mantiene encendida durante los combates (Wake Lock).
