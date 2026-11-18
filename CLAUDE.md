@@ -69,7 +69,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 | `class Monster` | Esqueleto de nodos con resortes (partes "floaty"), `animate`, `rigStep`, IA en `think` (objetivo, eje de lock-in, ataques, esquiva, ultimate), dibujo de cada parte, expresiones (`face`, `setEmo`), aura |
 | `class Battle` | Paso de simulación, golpes (`hit`), proyectiles, ultimates (`startUlt` → cinemática → `execUlt`), muerte súbita, ranking final |
 | Guardado | `SAVE_KEY = 'monster_brawl_v1'` en localStorage, `newRec`, `loadSave` (incluye migraciones), `persist` |
-| UI | Menú con 3 páginas deslizables: Tienda (izquierda: huevo por adoptar y ultimates, `renderShopUlts`; `adoptRec`/`adoptEgg`, `renderAdopt`; se puede tocar para que bambolee o mantener para tomarlo y lanzarlo, `EggView.homeStep`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar (derecha), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar; en el Home deslizar arriba/abajo cambia de monstruo (`switchMonster`; arriba = siguiente; **no hay flechas**, el dueño las quitó); la pestaña Entrenar brilla dorada si el monstruo tiene puntos por gastar; deslizar a los lados en cualquier parte cambia de página: sobre el monstruo sólo un trazo largo y rápido, y un deslizamiento no aprieta botones), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
+| UI | Menú con 4 páginas deslizables (`homePage` 0–3): Tienda (izquierda: huevo por adoptar y ultimates, `renderShopUlts`; `adoptRec`/`adoptEgg`, `renderAdopt`; se puede tocar para que bambolee o mantener para tomarlo y lanzarlo, `EggView.homeStep`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar / Criadero (derecha del todo, `renderBreed`), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar; en el Home deslizar arriba/abajo cambia de monstruo (`switchMonster`; arriba = siguiente; **no hay flechas**, el dueño las quitó); la pestaña Entrenar brilla dorada si el monstruo tiene puntos por gastar; deslizar a los lados en cualquier parte cambia de página: sobre el monstruo sólo un trazo largo y rápido, y un deslizamiento no aprieta botones), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
 
 ## Reglas y decisiones de diseño vigentes (no revertir sin que el dueño lo pida)
 
@@ -78,6 +78,11 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Crece recién al volver al menú**, con animación a pantalla completa; si debe crecer varias etapas, todas van en la misma animación.
   "Otra pelea" sigue usando la etapa actual.
 - **Huevo:** se compra en la Tienda (página izquierda) por 60 monedas (`EGG_COST`; el primero de una partida nueva es gratis) y **se abre ahí mismo** (tocándolo varias veces; mientras tanto no se puede salir de Adoptar, `adoptLocked`); al nacer pasa al Home y se le pone nombre. La adopción en curso se guarda en `save.adopting`. Una partida nueva empieza así (sin monstruos, en Adoptar). Los huevos que ya estaban en la lista de partidas antiguas siguen naciendo en el Home.
+- **Criadero** (4.ª página): cruza **dos Awakened** por 150 monedas (`BREED_COST`). Los padres quedan **durmiendo 30 min** (`napUntil`, `napping`; no pelean, sin botón de curar)
+  y el huevo **incuba 1 hora** (`save.breeding = {rec, readyAt}`) antes de poder abrirlo a toques en el nido; al nacer pasa al Home. Un huevo a la vez.
+  Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
+  `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
+  Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
 - **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
@@ -94,7 +99,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
-  Pendiente (dueño): un gasto de monedas para el juego avanzado, p. ej. la cría.
+  El Criadero (150) es el gasto de monedas para el juego avanzado.
 - **Entrenamiento por puntos:** 2 puntos por nivel en Poder/Aguante/Agilidad/Técnica (máx. 20 c/u), reiniciar cuesta 50. El cuerpo cambia con los puntos.
   En el menú sólo se muestran esos 4 stats y la personalidad: **no hay "Ver detalle"** con vida/fuerza/peso/esquiva, etc. (el dueño lo pidió quitar).
 - **Personalidad** (3 ejes de −1 a 1): Agresivo↔Cauto, Terco↔Oportunista, Valiente↔Prudente. Cambia **sólo** con ejercicios (15 monedas, bloqueados si el eje ya está al máximo) y según cómo pelea.
@@ -128,7 +133,6 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
 ## Ideas pendientes / posibles siguientes pasos
 
 - Empaquetar con Capacitor para Android/iOS (y Wake Lock nativo).
-- Cría: cruzar dos monstruos para que el hijo herede partes.
 - Más ultimates (la biblioteca ya está pensada para crecer: agregar a `ULTS` + `ULT_KEYS` + su efecto en `execUlt`).
 - Sonido.
 - Si se quiere que la ultimate pese más: subir `ULT_ALL_MUL` o el daño de las ultimates de daño.
