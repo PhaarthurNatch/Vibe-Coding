@@ -37,9 +37,20 @@ object Adventure {
     )
 
     /** Crea la carta resumen a partir de las cinco cartas de rol. */
-    fun summary(cards: Map<Role, RpgCard>): RpgCard {
+    fun randomPremise() = Random.nextInt(PREMISES.size)
+    fun randomTwist() = Random.nextInt(TWISTS.size)
+
+    /**
+     * Crea la carta resumen. Se pasan la premisa y el giro elegidos para que, al cambiar
+     * una de las cinco cartas, el resumen mantenga la misma estructura con el nuevo nombre.
+     */
+    fun summary(
+        cards: Map<Role, RpgCard>,
+        premiseIndex: Int = randomPremise(),
+        twistIndex: Int = randomTwist(),
+    ): RpgCard {
         fun n(r: Role) = cards[r]?.title ?: "algo desconocido"
-        var premise = PREMISES[Random.nextInt(PREMISES.size)]
+        var premise = PREMISES[premiseIndex.mod(PREMISES.size)]
         premise = premise.replace("{threat}", n(Role.THREAT))
             .replace("{setting}", n(Role.SETTING))
             .replace("{treasure}", n(Role.TREASURE))
@@ -61,7 +72,7 @@ object Adventure {
             traits = emptyList(),
             effect = premise + "\n" + list,
             flavor = null,
-            hook = TWISTS[Random.nextInt(TWISTS.size)],
+            hook = TWISTS[twistIndex.mod(TWISTS.size)],
             hookLabel = "Giro",
             artist = threat?.artist,
             source = threat?.source ?: "",

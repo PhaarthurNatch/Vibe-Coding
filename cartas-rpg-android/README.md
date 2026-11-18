@@ -32,6 +32,8 @@ cartas de Magic en partidas de rol, adaptadas para que valgan en cualquier siste
 ## Funciones extra
 - 🗺️ **Aventura**: amenaza + escenario + botín + complicación + aliado, con una
   carta resumen que incluye la premisa y un giro.
+  Toca cualquiera de las 5 cartas para cambiarla por otra del mismo tipo; el
+  resumen se actualiza solo.
 - ◀ ▶ **Historial** de las últimas 15 cartas.
 - 🖨️ **Hoja A4** con las últimas 9 cartas en cuadrícula 3×3 con marcas de corte,
   a 300 ppp. Imprímela al 100 %.

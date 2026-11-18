@@ -25,8 +25,18 @@ import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
 
-    private class Entry(val card: RpgCard, val bitmap: Bitmap) {
+    private class Entry(val card: RpgCard, val bitmap: Bitmap, val art: Bitmap? = null) {
         var savedUri: Uri? = null
+        /** Aventura a la que pertenece (null si es una carta suelta). */
+        var group: AdventureGroup? = null
+        /** Rol dentro de la aventura (null en la carta resumen). */
+        var role: Adventure.Role? = null
+    }
+
+    /** Las cinco cartas de una aventura y su resumen, para poder cambiarlas al tocarlas. */
+    private class AdventureGroup(val premise: Int, val twist: Int) {
+        val cards = linkedMapOf<Adventure.Role, Entry>()
+        var summary: Entry? = null
     }
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -115,9 +125,7 @@ class MainActivity : Activity() {
         scryfallButton.setOnClickListener {
             current?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it.card.scryfallUri))) }
         }
-        cardImage.setOnClickListener {
-            current?.let { if (it.card.roleLabel == null) generate(it.card.category) }
-        }
+        cardImage.setOnClickListener { onCardTapped() }
         refreshControls()
     }
 
@@ -132,7 +140,59 @@ class MainActivity : Activity() {
         val mtg = ScryfallClient.randomCard(category, spanish)
         val rpg = CardTransformer.transform(mtg, category).let { if (roleLabel != null) it.copy(roleLabel = roleLabel) else it }
         val art = rpg.artUrl?.let { ScryfallClient.downloadBitmap(it) }
-        return Entry(rpg, CardRenderer.render(rpg, art))
+        return Entry(rpg, CardRenderer.render(rpg, art), art)
+    }
+
+    /** Tocar la carta: en una aventura cambia esa carta; si es suelta, genera otra igual. */
+    private fun onCardTapped() {
+        if (loading) return
+        val entry = current ?: return
+        val group = entry.group
+        val role = entry.role
+        when {
+            group != null && role != null -> rerollAdventureCard(entry, group, role)
+            group != null -> toast("Toca una de las 5 cartas de la aventura para cambiarla")
+            else -> generate(entry.card.category)
+        }
+    }
+
+    private fun rerollAdventureCard(old: Entry, group: AdventureGroup, role: Adventure.Role) {
+        setLoading(true)
+        status.text = "Buscando otra carta de ${role.label.lowercase()}…"
+        val spanish = spanishSwitch.isChecked
+        executor.execute {
+            try {
+                val fresh = buildCard(Adventure.categoryFor(role), spanish, old.card.roleLabel)
+                fresh.group = group
+                fresh.role = role
+                group.cards[role] = fresh
+                val summary = buildSummary(group)
+                post {
+                    replace(old, fresh)
+                    group.summary?.let { replace(it, summary, showIt = false) }
+                    group.summary = summary
+                    show(history.indexOf(fresh))
+                    status.text = "${role.emoji} ${role.label}: ${old.card.title} → ${fresh.card.title}. El resumen se actualizó."
+                }
+            } catch (e: Exception) {
+                post { status.text = "No se pudo cambiar la carta: ${e.message ?: "error de conexión"}" }
+            } finally {
+                post { setLoading(false) }
+            }
+        }
+    }
+
+    private fun buildSummary(group: AdventureGroup): Entry {
+        val card = Adventure.summary(group.cards.mapValues { it.value.card }, group.premise, group.twist)
+        val art = group.cards[Adventure.Role.THREAT]?.art
+        return Entry(card, CardRenderer.render(card, art), art).also { it.group = group }
+    }
+
+    private fun replace(old: Entry, new: Entry, showIt: Boolean = true) {
+        val i = history.indexOf(old)
+        if (i < 0) return
+        history[i] = new
+        if (showIt || i == index) show(i)
     }
 
     private fun generate(category: Category) {
@@ -160,21 +220,23 @@ class MainActivity : Activity() {
         executor.execute {
             try {
                 val roles = Adventure.Role.entries
-                val made = linkedMapOf<Adventure.Role, Entry>()
+                val group = AdventureGroup(Adventure.randomPremise(), Adventure.randomTwist())
                 roles.forEachIndexed { i, role ->
                     post { status.text = "Forjando aventura ${i + 1}/${roles.size}: ${role.label}…" }
                     val label = "${role.emoji} Aventura ${i + 1}/${roles.size} · ${role.label}"
-                    made[role] = buildCard(Adventure.categoryFor(role), spanish, label)
+                    val entry = buildCard(Adventure.categoryFor(role), spanish, label)
+                    entry.group = group
+                    entry.role = role
+                    group.cards[role] = entry
                     Thread.sleep(100) // Scryfall pide espaciar las peticiones.
                 }
-                val summary = Adventure.summary(made.mapValues { it.value.card })
-                val art = summary.artUrl?.let { ScryfallClient.downloadBitmap(it) }
-                val summaryEntry = Entry(summary, CardRenderer.render(summary, art))
+                val summaryEntry = buildSummary(group)
+                group.summary = summaryEntry
                 post {
-                    add(listOf(summaryEntry) + made.values)
+                    add(listOf(summaryEntry) + group.cards.values)
                     // Mostramos primero el resumen; con ▶ se recorren las cinco cartas.
                     show(history.size - 6)
-                    status.text = "Aventura lista: resumen + 5 cartas. Usa ◀ ▶ para recorrerlas."
+                    status.text = "Aventura lista: resumen + 5 cartas. Usa ◀ ▶ para recorrerlas y toca una carta para cambiarla por otra del mismo tipo."
                 }
             } catch (e: Exception) {
                 post { status.text = "No se pudo crear la aventura: ${e.message ?: "error de conexión"}" }

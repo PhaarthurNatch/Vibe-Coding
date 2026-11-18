@@ -5,7 +5,7 @@
     <string name="placeholder">Pulsa un botón para forjar tu primera carta\n(tamaño póker 63 × 88 mm)</string>
     <string name="random">🎲  Carta aleatoria</string>
     <string name="adventure">🗺️  Aventura (5 cartas + resumen)</string>
-    <string name="adventure_help">Saca una amenaza, un escenario, un botín, una complicación y un aliado, y los conecta en una premisa.</string>
+    <string name="adventure_help">Saca una amenaza, un escenario, un botín, una complicación y un aliado, y los conecta en una premisa. Toca cualquiera de las 5 cartas para cambiarla por otra del mismo tipo.</string>
     <string name="sheet">🖨️ Hoja</string>
     <string name="save">💾 Guardar</string>
     <string name="share">📤 Compartir</string>
