@@ -309,6 +309,9 @@ const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 // los pesados se aturden menos (compensa que son más lentos)
 const STUN = { interruptCd: 0.25, chain: 2, chainGap: 0.8, immune: 0.6, poise: 0.15, light: 2 }; // light: los livianos pegan más fuerte a los más pesados
 const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // más pesado que quien le pega = se aturde menos
+// Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
+// los livianos flotan un rato. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
+const FLY = { loadSplit: 0.072, airZ: 35, leapVz: 520, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 1.3, floatR: 0.6, cd: 7, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -593,7 +596,8 @@ function calcStats(g, level = 1, train = null) {
   const range = clamp(220 + g.eyes.count * 25 + g.eyes.size * 4 + (g.antennae ? 20 : 0), 200, 440);
   const dodge = clamp(0.12 + wingP * 0.08 + speed / 1000 - weight * 0.025 + (g.tail.count ? 0.03 : 0) + (g.ears ? 0.02 : 0), 0.08, 0.5);
   const lv = 1 + (level - 1) * 0.07;
-  const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
+  const mass = 0.5 + area * 0.32 + headA * 0.25 + armMass * 0.5 + legMass * 0.5 + g.horns.count * g.horns.len * 0.004 + g.tail.count * g.tail.segs * g.tail.thick * 0.004; // peso sin tope (para volar)
+  const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc, mass };
   if (train) for (const t of PTS) if (train[t.k]) t.apply(st, Math.min(PTS_MAX, train[t.k]));
   return st;
 }
@@ -731,6 +735,8 @@ class Monster {
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.pts);
     this.hp = this.st.hp;
+    { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / (wg.pairs * wg.span) / ((STAGE_LIM[this.g.stage] || STAGE_LIM.adult).size) >= FLY.loadSplit ? 'leap' : 'float') : null; }
+    this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
     this.gx = 0; this.gy = 0; this.s = 1;
@@ -966,7 +972,7 @@ class Monster {
     // Alas
     for (const w of I.wings) {
       const tip = N[w.tip];
-      const rate = (g.legs.pairs ? 5 : 9) + moving * 6 + (this.state === 'dodge' ? 10 : 0);
+      const rate = (g.legs.pairs ? 5 : 9) + moving * 6 + (this.state === 'dodge' ? 10 : 0) + (this.z > 8 ? 12 : 0);
       tip.ay = Math.sin(t * rate + w.p * 0.8) * w.span * 0.35;
       tip.ax = -w.sd * Math.abs(Math.sin(t * rate)) * w.span * 0.08;
     }
@@ -1011,7 +1017,7 @@ class Monster {
     const distr = e.target && e.target !== this && !e.target.dead ? 1 : 0;            // peleando con otro
     const team = allies.length ? allies.filter(a => a.target === e).length / allies.length : 0;
     const crowd = B.mode === 'ffa' ? Math.max(0, B.ms.filter(m => !m.dead && m !== this && m.target === e && m.team !== e.team).length - 1) : 0;
-    const shield = e.buffs.defense > 0 ? 1 : e.buffs.dodge > 0 ? 0.5 : 0;
+    const shield = (e.buffs.defense > 0 ? 1 : e.buffs.dodge > 0 ? 0.5 : 0) + (e.z > FLY.airZ && !(st.ranged > 0) ? 0.8 : 0); // en el aire y no puedo dispararle
     const dps = m => Math.max(m.st.melee / m.st.meleeCd, m.st.ranged > 0 ? m.st.ranged / m.st.rangedCd : 0);
     const danger = dps(e) / (dps(e) + dps(this) + 1e-6);                              // ~0,5 si son parejos
     const pos = v => Math.max(0, v), neg = v => Math.max(0, -v);
@@ -1064,7 +1070,7 @@ class Monster {
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
   }
 
-  hop(dt) { this.vz -= 1100 * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 ? -this.vz * 0.25 : 0; } }
+  hop(dt) { if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 ? -this.vz * 0.25 : 0; } }
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
@@ -1076,7 +1082,7 @@ class Monster {
   // ---------- IA ----------
   think(dt, B) {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
-    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt;
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
@@ -1171,15 +1177,28 @@ class Monster {
     const ultNow = this.ultMode === 'ready' ? this.hitsN >= 3
       : this.ultMode === 'finisher' ? this.hitsN >= 3 && T.hp / T.st.hp <= 0.4
       : this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP;
-    if (this.ultReady && !B.cine && !B.over && ultNow
+    // Vuelo: el pesado salta alto hacia su objetivo; el liviano despega y flota un rato
+    if (this.flyer && this.flyCd <= 0 && this.z === 0 && !B.cine && !B.over) {
+      if (this.flyer === 'leap' && d > FLY.leapMin && d < FLY.leapMax) { this.startLeap(T, d, reachD); return; }
+      if (this.flyer === 'float' && d < 420) { this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.vz = 280; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('focus', 0.6, 2); }
+    }
+    if (this.ultReady && !B.cine && !B.over && ultNow && this.z < 5
       && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8))) {
       this.state = 'ultcharge'; this.stT = ULT_CHARGE_S; this.desired = { x: 0, y: 0 }; // se queda quieto juntando energía
       this.auraBoost = ULT_CHARGE_S + 2; this.setEmo('focus', ULT_CHARGE_S + 0.3, 5);
       B.text(this, '¡cargando!', '#ffe08a'); return;
     }
 
-    if (d <= reachD + 6 && this.meleeCd <= 0) this.startMelee(T, ux, uy, B);
-    else if (this.st.ranged > 0 && this.rangedCd <= 0 && d > reachD + 30 && d < this.st.range) this.shoot(T, B);
+    const air = this.z > FLY.airZ || T.z > FLY.airZ; // alguno en el aire: no hay golpe, sólo disparo (hacia arriba o hacia abajo)
+    if (!air && d <= reachD + 6 && this.meleeCd <= 0) this.startMelee(T, ux, uy, B);
+    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + 30 || air) && d < this.st.range) this.shoot(T, B);
+  }
+
+  startLeap(T, d, reach) {
+    const tAir = 2 * FLY.leapVz / 1100, v = Math.min(560, Math.max(0, d - reach * 0.7) / tAir);
+    this.state = 'leap'; this.airT = 0; this.desired = { x: 0, y: 0 };
+    this.vx = (T.x - this.x) / d * v; this.vy = (T.y - this.y) / d * v; this.vz = FLY.leapVz;
+    this.flyCd = FLY.cd + Math.random() * FLY.cdR; this.setEmo('angry', 0.9, 2);
   }
 
   startMelee(T, ux, uy, B) {
@@ -1199,7 +1218,7 @@ class Monster {
     const hx = this.x + this.atkDir.x * reach, hy = this.y + this.atkDir.y * reach;
     const tol = this.ix.arms.length ? this.g.arms.thick * 0.5 : 6;
     for (const e of B.ms) {
-      if (e.dead || e.team === this.team || this.hitSet.has(e.id)) continue;
+      if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
       if (Math.hypot(e.x - hx, e.y - hy) < e.r + 4 + tol) { this.hitSet.add(e.id); B.hit(this, e, this.st.melee, this.atkDir, 'melee'); }
     }
   }
@@ -1215,6 +1234,7 @@ class Monster {
     const mouth = this.st.rangedSrc === 'mouth';
     B.proj.push({
       x: this.x + ux * this.r, y: this.y + uy * this.r, z: Math.max(12, this.gy - head.y), vx: ux * ps, vy: uy * ps,
+      z0: Math.max(12, this.gy - head.y), tz: Math.max(12, T.gy - T.nodes[T.ix.mid].y), dist0: Math.max(30, d), trav: 0, // sube o baja hasta la altura del objetivo
       owner: this, team: this.team, pow: this.st.ranged, r: mouth ? 5 + this.st.ranged * 0.35 : 4,
       color: mouth ? hsl(this.g.pal.accent, 8) : hsl(this.g.pal.accent, 25), kind: mouth ? 'blob' : 'laser',
       life: this.st.range / ps * 1.3, checked: new Set(), trail: [],
@@ -1228,7 +1248,7 @@ class Monster {
 
   // Esquivar = moverse de verdad hacia un lado
   incoming(att, dir, B) {
-    if (this.dead || this.dodgeCd > 0 || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
+    if (this.dead || this.z > FLY.airZ || this.state === 'leap' || this.dodgeCd > 0 || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
     this.dodgeCd = 0.35;
     if (Math.random() >= Math.min(0.9, this.st.dodge * (this.buffs.dodge > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1) * (this.tp.valor < -0.2 && this.hp / this.st.hp < this.scaredHp ? 1 + -this.tp.valor * 0.35 : 1))) return;
     this.dodgeCd = 1.1;
@@ -1245,9 +1265,14 @@ class Monster {
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
-    else { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
+    else if (this.state !== 'leap') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
+    if (this.floatT > 0) this.floatT -= dt;
+    if (this.state === 'leap') { // salto alto: al caer retoma la pelea
+      this.airT += dt;
+      if (this.z === 0 && this.airT > 0.15) { this.state = 'free'; this.vx *= 0.3; this.vy *= 0.3; if (typeof battle !== 'undefined' && battle) battle.shake = Math.min(12, battle.shake + 5); }
+    }
     const m = this.r, my = m * 0.6;
     if (this.x < m) { this.x = m; this.vx = Math.abs(this.vx) * 0.4; }
     if (this.x > ARENA_W - m) { this.x = ARENA_W - m; this.vx = -Math.abs(this.vx) * 0.4; }
@@ -1746,6 +1771,7 @@ class Battle {
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
+    if (t.floatT > 0) t.floatT = Math.max(0, t.floatT - 0.6); // lo bajan a tiros
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
@@ -1842,18 +1868,21 @@ class Battle {
     // separación entre cuerpos
     const al = this.ms.filter(m => !m.dead);
     for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
-      const a = al[i], b = al[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
+      const a = al[i], b = al[j]; if (Math.abs(a.z - b.z) > FLY.airZ) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
       if (d < mn && d > 0.01) { const p = (mn - d) / 2, nx = dx / d, ny = dy / d; a.x -= nx * p; a.y -= ny * p; b.x += nx * p; b.y += ny * p; }
     }
     // proyectiles
     for (const p of this.proj) {
-      p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; p.z += (28 - p.z) * dt * 1.5;
+      p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+      if (p.tz != null) { p.trav += Math.hypot(p.vx, p.vy) * dt; p.z = Math.max(4, p.z0 + (p.tz - p.z0) * Math.min(1.4, p.trav / p.dist0)); } else p.z += (28 - p.z) * dt * 1.5;
       p.trail.push([p.x, p.y, p.z]); if (p.trail.length > 7) p.trail.shift();
       const sp = Math.hypot(p.vx, p.vy), ux = p.vx / sp, uy = p.vy / sp;
       for (const m of this.ms) {
         if (m.dead || m.team === p.team) continue;
         const dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy);
         if (p.giant) { if (d < m.r + p.r && !p.hitSet.has(m.id)) { p.hitSet.add(m.id); this.hit(p.owner, m, p.pow, { x: ux, y: uy }, 'proj'); this.shake = Math.min(14, this.shake + 6); } continue; } // atraviesa todo
+        if (m.z > FLY.airZ && Math.abs(p.z - (m.gy - m.nodes[m.ix.mid].y)) > 30 + m.r * 0.4) continue; // pasa por debajo del que vuela
         if (d < m.r + p.r) { this.hit(p.owner, m, p.pow, { x: ux, y: uy }, 'proj'); p.life = 0; break; }
         if (!p.checked.has(m.id) && d < 170) {
           const along = dx * ux + dy * uy, perp = Math.abs(dx * uy - dy * ux);

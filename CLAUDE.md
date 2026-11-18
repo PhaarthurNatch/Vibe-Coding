@@ -97,6 +97,11 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
   el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light`, compensa que perdió las cadenas).
   Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
+- **Vuelo de los alados** (`FLY`, `flyer`): según la carga alar (`st.mass` sin tope / tamaño de alas; el peso normal casi siempre está en el máximo 3,5)
+  los pesados **saltan alto** hacia su objetivo (`startLeap`, estado `leap`) y los livianos **flotan** ~1,3–1,9 s a altura `floatZ` (`floatT`), cada ~7–11 s.
+  En el aire (z > `airZ`) no se puede golpear ni ser golpeado cuerpo a cuerpo, no esquivan, no chocan con los del suelo; los disparos suben o bajan
+  hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo.
+  Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~54% (antes de esto: con alas 53%, sin alas 47%).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   El Criadero (150) es el gasto de monedas para el juego avanzado.
