@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Forja de Cartas RPG</string>
+    <string name="subtitle">Cartas de Magic convertidas en cartas de rol para cualquier sistema</string>
+    <string name="placeholder">Pulsa un botón para forjar tu primera carta\n(tamaño póker 63 × 88 mm)</string>
+    <string name="random">🎲  Carta aleatoria</string>
+    <string name="adventure">🗺️  Aventura (5 cartas + resumen)</string>
+    <string name="adventure_help">Saca una amenaza, un escenario, un botín, una complicación y un aliado, y los conecta en una premisa. Toca cualquiera de las 5 cartas para cambiarla por otra del mismo tipo.</string>
+    <string name="oracle">🔮  Oráculo de escena (elige 1 de 5)</string>
+    <string name="oracle_help">Para partidas en solitario o sin preparar: saca 5 cartas, elige la que encaje y descarta las demás. Interpreta su ilustración como la siguiente escena.</string>
+    <string name="sheet">🖨️ Hoja</string>
+    <string name="save">💾 Guardar</string>
+    <string name="share">📤 Compartir</string>
+    <string name="open_scryfall">🔗 Scryfall</string>
+    <string name="spanish">Preferir nombres en español (cuando existan)</string>
+    <string name="categories">Elige una categoría</string>
+    <string name="legal">Datos e imágenes proporcionados por Scryfall. Magic: The Gathering y sus ilustraciones son propiedad de Wizards of the Coast y de sus artistas. Esta app es contenido de fans no oficial, no afiliado ni respaldado por Wizards of the Coast ni por Scryfall. Solo para uso personal.</string>
+</resources>

@@ -1,0 +1,38 @@
+name: Android APK (Forja de Cartas RPG)
+
+on:
+  push:
+    paths:
+      - "cartas-rpg-android/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cartas-rpg-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - name: Compilar APK
+        run: |
+          chmod +x gradlew
+          # Reintenta hasta 3 veces por si algún repositorio falla temporalmente.
+          for i in 1 2 3; do
+            ./gradlew assembleRelease --stacktrace && exit 0
+            echo "Intento $i fallido; reintentando en 30 s…"
+            sleep 30
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forja-de-cartas-rpg-apk
+          path: cartas-rpg-android/app/build/outputs/apk/release/*.apk
