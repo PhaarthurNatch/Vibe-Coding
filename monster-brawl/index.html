@@ -837,7 +837,7 @@ class Monster {
     const s = this.s;
     this.auraBoost = Math.max(0, this.auraBoost - dt);
     if (!this.dead && (this.state === 'ultcharge' || this.ulting || this.buffs.all > 0 || this.growAura)) {
-      this.auraAcc += dt * (this.auraBoost > 0 ? 80 : 24);
+      this.auraAcc += dt * (this.ulting ? 170 : this.auraBoost > 0 ? 80 : 24); // en el acercamiento de cámara sale más densa
       const w = Math.max(this.seg.up.w, this.seg.mi.w, this.seg.lo.w) * 0.55 * s;
       while (this.auraAcc > 1) {
         this.auraAcc--;
@@ -1694,7 +1694,7 @@ class Battle {
   // ---------- Ultimate ----------
   startUlt(m) {
     this.cine = { m, t: 0 }; m.state = 'free';
-    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 1.6; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
+    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
   cineStep(dt) {
     const c = this.cine, m = c.m; c.t += dt;
