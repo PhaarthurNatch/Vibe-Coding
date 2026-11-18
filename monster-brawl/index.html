@@ -1853,7 +1853,7 @@ function checkGrowth() {
   const elig = r => r && r.stage !== 'egg' && !r.legacy && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
   const rec = [cur(), ...save.monsters].find(elig);
   if (!rec || scene !== 'home') return false;
-  const target = stageForLevel(rec.level);
+  const target = STAGE_ORDER[STAGE_ORDER.indexOf(rec.stage) + 1]; // una etapa por animación; si le faltan más, siguen después
   const oldM = new Monster(rec), newM = new Monster({ ...rec, stage: target });
   rec.stage = target; persist();
   const oe = oldM.estSize(), ne = newM.estSize();
