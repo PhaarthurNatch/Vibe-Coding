@@ -540,6 +540,7 @@ class Monster {
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.train);
+    if (rec.powerMul) { const k = rec.powerMul; this.st.hp = Math.round(this.st.hp * k); this.st.melee *= k; this.st.ranged *= k; } // rival de otra etapa, equilibrado
     this.hp = this.st.hp;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
@@ -1960,6 +1961,37 @@ function pet(a, b) {
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
 }
 
+// ---------- Rivales ----------
+const MIXED_STAGE_CHANCE = 0.12; // probabilidad de que un rival sea de una etapa vecina (una más o una menos)
+// Poder aproximado de un monstruo: cuánto aguanta × cuánto pega
+// Corrección por etapa medida con simulaciones (la fórmula no ve cosas como el alcance o el tamaño del cuerpo)
+const STAGE_FIX = { baby: 0.88, child: 1.08, teen: 1.1, adult: 0.9, awakened: 0.86 };
+function powerOf(st, awakened) {
+  const ehp = st.hp / (1 - st.defense / (st.defense + 40)) / (1 - st.dodge * 0.6);
+  const dps = st.melee / st.meleeCd + st.ranged / st.rangedCd * 0.8;
+  return Math.sqrt(ehp * dps) * (1 + st.speed / 600) * (awakened ? 1.12 : 1);
+}
+function makeFoe(ref, mixChance = MIXED_STAGE_CHANCE) {
+  let stage = ref.stage;
+  if (Math.random() < mixChance) { // a veces, de otra etapa
+    const i = STAGE_ORDER.indexOf(stage), opts = [i - 1, i + 1].filter(j => j >= 1 && j < STAGE_ORDER.length);
+    stage = STAGE_ORDER[opts[Math.floor(Math.random() * opts.length)]];
+  }
+  const r = newRec(stage);
+  r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
+  if (stage !== ref.stage) { // nivel coherente con su etapa
+    const nx = STAGE_ORDER[STAGE_ORDER.indexOf(stage) + 1];
+    r.level = clamp(r.level, STAGE_LV[stage] || 1, nx ? STAGE_LV[nx] - 1 : 99);
+  }
+  r.train = {}; for (let i = Math.floor(r.level * 1.2); i > 0; i--) { const t = TRAIN[Math.floor(Math.random() * TRAIN.length)].k; r.train[t] = Math.min(TRAIN_MAX, (r.train[t] || 0) + 1); }
+  if (stage !== ref.stage) { // equilibrar: su poder queda parecido al de tu monstruo
+    const mine = powerOf(calcStats(genGenome(ref.seed, ref.stage, ref.legacy), ref.level, ref.train), ref.stage === 'awakened') * STAGE_FIX[ref.stage];
+    const his = powerOf(calcStats(genGenome(r.seed, stage), r.level, r.train), stage === 'awakened') * STAGE_FIX[stage];
+    r.powerMul = clamp(mine / his * 1.12 * (0.92 + Math.random() * 0.16), 0.3, 3);
+  }
+  return new Monster(r);
+}
+
 function startBattle(mode, team) {
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
@@ -1970,11 +2002,7 @@ function startBattle(mode, team) {
   const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1, awakened: 1 }[r.stage] || 1)));
   ARENA_W = 600 * zoom;
   const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
-  const foe = ref => { // rival de la misma etapa y nivel parecido
-    const r = newRec(ref.stage); r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
-    r.train = {}; for (let i = Math.floor(r.level * 1.2); i > 0; i--) { const t = TRAIN[Math.floor(Math.random() * TRAIN.length)].k; r.train[t] = Math.min(TRAIN_MAX, (r.train[t] || 0) + 1); }
-    return new Monster(r);
-  };
+  const foe = ref => makeFoe(ref);
   const list = [...players];
   if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
   else if (mode === '2v2') {

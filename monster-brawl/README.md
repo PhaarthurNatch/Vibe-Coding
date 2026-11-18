@@ -29,6 +29,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   acercamiento de cámara. Tras usarla queda descargada (sin aura) hasta recargarla en el menú por 40 monedas.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
+- **Rivales de otras etapas**: cada rival tiene un 12% de ser de una etapa vecina (una más o una menos), con su fuerza
+  ajustada para que la pelea quede pareja (ajuste medido con simulaciones).
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
 
 ## Llevarlo a Android / iPhone
