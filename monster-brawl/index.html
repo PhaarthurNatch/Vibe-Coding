@@ -230,7 +230,7 @@ const ULTS = {
   melee: { name: 'Onda de choque', desc: 'golpea todo a su alrededor y lo lanza al otro lado de la arena' },
   ranged: { name: 'Bala gigante', desc: 'dispara una bala enorme que daña todo lo que toca hasta salir de la arena' },
   defense: { name: 'Escudo de hierro', desc: `recibe la mitad del daño por ${ULT_BUFF_S} s` },
-  speed: { name: 'Supervelocidad', desc: `se mueve el doble de rápido por ${ULT_BUFF_S} s` },
+  speed: { name: 'Supervelocidad', desc: `se mueve y ataca el doble de rápido por ${ULT_BUFF_S} s` },
   dodge: { name: 'Reflejos fantasma', desc: `esquiva el doble por ${ULT_BUFF_S} s` },
 };
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
@@ -1010,8 +1010,9 @@ class Monster {
   }
 
   startMelee(T, ux, uy, B) {
-    this.state = 'windup'; this.stT = 0.14 + this.st.weight * 0.05;
-    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd;
+    const fast = this.buffs.speed > 0 ? 0.5 : 1; // Supervelocidad: también ataca el doble de rápido
+    this.state = 'windup'; this.stT = (0.14 + this.st.weight * 0.05) * (fast < 1 ? 0.6 : 1);
+    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd * fast;
     this.setEmo('angry', 0.7, 2);
     const arms = this.ix.arms;
     if (arms.length) { const side = ux >= 0 ? 1 : -1; const c = arms.filter(a => a.sd === side); this.atkArm = c[Math.floor(Math.random() * c.length)]; }
@@ -1031,7 +1032,7 @@ class Monster {
   }
 
   shoot(T, B) {
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3);
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1);
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
