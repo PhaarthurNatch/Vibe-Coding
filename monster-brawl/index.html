@@ -1,0 +1,1226 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1b1530">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Monster Brawl</title>
+<style>
+:root{--bg:#1b1530;--panel:#251d3d;--panel2:#33295a;--text:#f3eefe;--muted:#a99fc7;--acc:#ffb84d;--good:#5ee08a;--bad:#ff5d6c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 10px)}
+.screen.on{display:flex}
+.screen>*{pointer-events:auto}
+.spacer{flex:1;pointer-events:none!important}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+.btn{background:var(--panel2);padding:12px 10px;border-radius:14px;font-weight:700;font-size:15px;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+.btn.primary{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
+.btn.ghost{background:transparent;box-shadow:none;padding:8px 12px}
+.row{display:flex;gap:8px}
+.row>.btn{flex:1}
+.title{text-align:center;font-weight:900;letter-spacing:1px;font-size:22px;margin:2px 0 4px}
+.title small{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.nav .name{flex:1;text-align:center}
+.nav .name b{font-size:20px;display:block}
+.nav .name span{font-size:12px;color:var(--muted)}
+.arrow{width:46px;height:46px;border-radius:50%;font-size:20px;background:var(--panel2)}
+.hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
+.panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
+.stat{display:grid;grid-template-columns:62px 1fr 34px;align-items:center;gap:6px;font-size:12px}
+.stat .lb{color:var(--muted)}
+.stat .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.bar{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;background:var(--acc)}
+.parts{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
+.xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.xp .bar{flex:1}
+.xp .bar i{background:#8f7bff}
+.topbar{display:flex;align-items:center;justify-content:space-between}
+.topbar .mode{font-weight:800;font-size:15px}
+.roundbtn{width:44px;height:44px;border-radius:50%;background:var(--panel2);font-weight:800}
+.fighters{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fighter{background:rgba(37,29,61,.9);border-radius:12px;padding:7px 9px;font-size:12px;display:flex;flex-direction:column;gap:4px;border:2px solid transparent}
+.fighter.me{border-color:var(--acc)}
+.fighter.dead{opacity:.4}
+.fighter .nm{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fighter .chip{width:10px;height:10px;border-radius:50%;flex:none}
+.fighter .bar{height:6px}
+.modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:5}
+.modal.on{display:flex}
+.card{background:var(--panel);border-radius:20px;padding:20px;width:min(360px,100%);text-align:center;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font-size:28px}
+.card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+.win{color:var(--good)}.lose{color:var(--bad)}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<!-- HOME -->
+<div id="home" class="screen on">
+  <div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div>
+  <div class="nav">
+    <button class="arrow" id="prev">◀</button>
+    <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
+    <button class="arrow" id="next">▶</button>
+  </div>
+  <div class="spacer" id="showArea"></div>
+  <div class="hint">toca al monstruo para sacudirlo · toca el nombre para renombrar</div>
+  <div class="panel">
+    <div class="stats" id="stats"></div>
+    <div class="parts" id="parts"></div>
+    <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
+    <div class="row">
+      <button class="btn" id="btnNew">＋ Nuevo monstruo</button>
+      <button class="btn" id="btnFree">Liberar</button>
+    </div>
+    <div class="row">
+      <button class="btn primary" data-mode="1v1">1 vs 1</button>
+      <button class="btn primary" data-mode="2v2">2 vs 2</button>
+      <button class="btn primary" data-mode="ffa">Todos vs todos</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATTLE -->
+<div id="battleUI" class="screen">
+  <div class="topbar">
+    <button class="roundbtn" id="quit">✕</button>
+    <div class="mode" id="modeLbl">1 vs 1</div>
+    <button class="roundbtn" id="speed">x1</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="fighters" id="fighters"></div>
+</div>
+
+<div class="modal" id="result">
+  <div class="card">
+    <h2 id="resTitle">¡Victoria!</h2>
+    <p id="resText"></p>
+    <div class="row">
+      <button class="btn" id="resHome">Volver</button>
+      <button class="btn primary" id="resAgain">Otra pelea</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ============================================================================
+// CONSTANTES
+// ============================================================================
+const TAU = Math.PI * 2;
+const ARENA_W = 600;                 // ancho del suelo (unidades de mundo)
+let ARENA_D = 560;                    // fondo del suelo (más largo con el celular en vertical)
+const DEPTH = 0.7;                    // compresión de profundidad (vista 2.5D)
+const TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
+const SAVE_KEY = 'monster_brawl_v1';
+const MAX_MONSTERS = 8;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// RNG con semilla: el mismo seed siempre genera el mismo monstruo
+function rng(seed) {
+  let a = seed >>> 0;
+  const f = () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  return {
+    f: (lo, hi) => lo + (hi - lo) * f(),
+    i: (lo, hi) => Math.floor(lo + (hi - lo + 1) * f()),
+    pick: arr => arr[Math.floor(f() * arr.length)],
+    chance: p => f() < p,
+    w: o => { let tot = 0; for (const k in o) tot += o[k]; let x = f() * tot; for (const k in o) { x -= o[k]; if (x <= 0) return isNaN(+k) ? k : +k; } const k0 = Object.keys(o)[0]; return isNaN(+k0) ? k0 : +k0; },
+  };
+}
+const hsl = (c, dl = 0, a = 1) => `hsla(${c.h.toFixed(0)},${c.s.toFixed(0)}%,${clamp(c.l + dl, 0, 100).toFixed(0)}%,${a})`;
+
+// ============================================================================
+// GENERADOR DE MONSTRUOS (genoma)
+// ============================================================================
+const SYL = ['gro','zu','mak','ti','bor','ra','ki','lo','vex','nu','pa','dra','mo','shi','ku','zel','bo','fi','gar','to','rix','um','pi','yo','gu','nek','sa','tor'];
+
+function eyeLayout(n, y, sp) {
+  switch (n) {
+    case 0: return [];
+    case 1: return [[0, y]];
+    case 2: return [[-sp, y], [sp, y]];
+    case 3: return [[-0.45, y + 0.12], [0.45, y + 0.12], [0, y - 0.32]];
+    case 4: return [[-0.22, y - 0.18], [0.22, y - 0.18], [-0.6, y + 0.06], [0.6, y + 0.06]];
+    case 5: return [[0, y - 0.38], [-0.36, y - 0.16], [0.36, y - 0.16], [-0.62, y + 0.12], [0.62, y + 0.12]];
+    default: return [[-0.5, y - 0.22], [0, y - 0.28], [0.5, y - 0.22], [-0.5, y + 0.2], [0, y + 0.16], [0.5, y + 0.2]];
+  }
+}
+
+function genGenome(seed) {
+  const r = rng(seed);
+  const C = (h, s, l) => ({ h: ((h % 360) + 360) % 360, s, l });
+  const hue = r.f(0, 360);
+  const h2 = hue + r.pick([0, 180, 120, 35, -35]) + r.f(-15, 15);
+  const sat = r.f(38, 78), lit = r.f(42, 58);
+  const pal = {
+    body: C(hue, sat, lit),
+    belly: C(hue + r.f(-20, 20), sat * 0.55, Math.min(86, lit + r.f(16, 28))),
+    accent: C(h2, r.f(45, 85), r.f(45, 62)),
+    limb: r.chance(0.3) ? C(h2, sat, lit) : C(hue + r.f(-10, 10), sat, lit - r.f(0, 8)),
+    horn: r.chance(0.5) ? C(40, r.f(15, 35), r.f(80, 90)) : C(h2, r.f(25, 55), r.f(22, 40)),
+    wing: C(h2 + r.f(-25, 25), r.f(40, 80), r.f(42, 66)),
+    sclera: r.chance(0.75) ? C(50, 20, 97) : C(r.f(0, 360), r.f(50, 90), r.f(72, 86)),
+    pupil: r.chance(0.7) ? C(250, 30, 8) : C(r.f(0, 360), r.f(70, 100), r.f(38, 52)),
+    spot: C(hue + r.f(-30, 30), sat, lit + (r.chance(0.5) ? 14 : -14)),
+  };
+
+  // Cabeza
+  const head = { shape: r.pick(['round', 'wide', 'tall', 'square', 'tri', 'pear']), w: r.f(32, 60), h: r.f(28, 52) };
+  if (head.shape === 'round') head.h = head.w * r.f(0.9, 1.05);
+  if (head.shape === 'wide') { head.w *= 1.15; head.h *= 0.85; }
+  if (head.shape === 'tall') { head.w *= 0.85; head.h *= 1.15; }
+  const hw = head.w / 2, hh = head.h / 2;
+
+  // Ojos y pupilas
+  const ecount = r.w({ 0: 3, 1: 14, 2: 44, 3: 15, 4: 10, 5: 7, 6: 5 });
+  const eyeY = r.f(-0.35, 0.02);
+  const maxR = ecount <= 1 ? 0.5 : ecount === 2 ? 0.34 : ecount === 3 ? 0.3 : 0.24;
+  const eyes = {
+    count: ecount,
+    size: Math.max(3.5, Math.min(r.f(5, 14), hw * maxR, hh * 0.42)),
+    pos: eyeLayout(ecount, eyeY, r.f(0.36, 0.52)),
+    pupils: r.w({ 0: 5, 1: 85, 2: 10 }),
+    pupilShape: r.pick(['round', 'round', 'slit', 'bar', 'dot', 'ring', 'star']),
+    pupilSize: r.f(0.38, 0.72),
+    lid: r.chance(0.25), lidAng: r.f(-0.5, 0.5),
+  };
+
+  const mouth = { type: r.w({ none: 5, smile: 18, fangs: 20, open: 16, beak: 10, teeth: 16, tusks: 8 }), w: r.f(0.3, 0.72), y: clamp(eyeY + 0.55 + r.f(0, 0.2), 0.3, 0.7) };
+  const horns = { count: r.w({ 0: 35, 1: 14, 2: 36, 3: 8, 4: 7 }), len: r.f(10, 34), width: r.f(4, 10), curve: r.f(-0.6, 0.6), spread: r.f(0.25, 0.9) };
+  const nl = r.w({ 0: 30, 1: 50, 2: 20 });
+  const neck = { len: nl === 0 ? 0 : nl === 1 ? r.f(6, 16) : r.f(18, 34), w: r.f(10, 20) };
+
+  // Torso: superior / medio / inferior (medio e inferior pueden no existir)
+  const upper = { w: r.f(38, 72), h: r.f(22, 36) };
+  const mid = r.chance(0.72) ? { w: clamp(upper.w * r.f(0.7, 1.3), 30, 82), h: r.f(16, 32) } : null;
+  const lower = r.chance(0.8) ? { w: clamp(upper.w * r.f(0.65, 1.35), 28, 82), h: r.f(16, 32) } : null;
+  const torso = { upper, mid, lower, shape: r.pick(['oval', 'oval', 'box']), belly: r.chance(0.7) };
+  const spots = [];
+  if (r.chance(0.35)) {
+    const segs = ['upper', mid ? 'mid' : 'upper', lower ? 'lower' : 'upper'];
+    for (let i = r.i(3, 8); i > 0; i--) spots.push({ seg: r.pick(segs), u: r.f(-0.6, 0.6), v: r.f(-0.5, 0.5), r: r.f(2, 5) });
+  }
+
+  const shoulders = { size: r.chance(0.6) ? r.f(7, 15) : 0, spikes: r.chance(0.25), accent: r.chance(0.4) };
+  const arms = { pairs: r.w({ 0: 12, 1: 60, 2: 20, 3: 8 }), upper: r.f(14, 30), fore: r.f(14, 30), thick: r.f(5, 12), hand: r.pick(['fist', 'claw', 'blade', 'paw']) };
+  const legs = { pairs: r.w({ 0: 14, 1: 70, 2: 16 }), upper: r.f(12, 26), lower: r.f(12, 26), thick: r.f(6, 14), spread: r.f(0.35, 0.85) };
+  const feet = { size: r.f(6, 14), type: r.pick(['round', 'claw', 'hoof', 'flat']) };
+  const wings = { pairs: r.w({ 0: 55, 1: 37, 2: 8 }), span: r.f(28, 64), type: r.pick(['bat', 'feather', 'bug']) };
+  const tail = { count: r.w({ 0: 28, 1: 52, 2: 13, 3: 7 }), segs: r.i(3, 8), seg: r.f(6, 11), thick: r.f(4, 10), tip: r.pick(['none', 'spike', 'ball', 'fin', 'flame']), curl: r.f(0.1, 0.45), side: r.chance(0.5) ? 1 : -1, accent: r.chance(0.35) };
+
+  let name = ''; for (let i = r.i(2, 3); i > 0; i--) name += r.pick(SYL);
+  name = name[0].toUpperCase() + name.slice(1);
+
+  return { seed, name, pal, head, eyes, mouth, horns, neck, torso, spots, shoulders, arms, legs, feet, wings, tail };
+}
+
+// Las estadísticas salen del cuerpo: más brazos = más fuerza, más alas = más esquiva, etc.
+function calcStats(g, level = 1) {
+  const T = g.torso;
+  const segs = [T.upper, T.mid, T.lower].filter(Boolean);
+  const area = segs.reduce((a, s) => a + s.w * s.h, 0) / 1000;
+  const headA = g.head.w * g.head.h / 1000;
+  const armP = g.arms.pairs, legP = g.legs.pairs, wingP = g.wings.pairs;
+  const armMass = armP * (g.arms.upper + g.arms.fore) * g.arms.thick / 1000 * 2;
+  const legMass = legP * (g.legs.upper + g.legs.lower) * g.legs.thick / 1000 * 2;
+  let weight = 0.5 + area * 0.32 + headA * 0.25 + armMass * 0.5 + legMass * 0.5 + g.horns.count * g.horns.len * 0.004 + g.tail.count * g.tail.segs * g.tail.thick * 0.004;
+  weight = clamp(weight, 0.5, 3.5);
+  const hp = 60 + area * 20 + headA * 10 + g.shoulders.size * 0.8;
+  const defense = 3 + g.shoulders.size * 0.9 + (g.shoulders.spikes ? 4 : 0) + area * 2 + (T.shape === 'box' ? 4 : 0);
+  const legLen = g.legs.upper + g.legs.lower;
+  let speed = legP ? 55 + legLen * 1.3 * (legP === 2 ? 1.15 : 1) : 75;
+  speed = clamp(speed + wingP * g.wings.span * 0.45 - weight * 14, 40, 190);
+  const handB = { fist: 1, claw: 1.2, blade: 1.4, paw: 0.9 }[g.arms.hand];
+  let melee = armP ? 5 + armP * 1.6 + g.arms.thick * 0.55 * handB + g.arms.fore * 0.08 : 4 + weight * 3;
+  melee += g.horns.count * g.horns.len * 0.06 + (g.mouth.type === 'fangs' || g.mouth.type === 'tusks' ? 1.5 : 0);
+  const reach = armP ? (g.arms.upper + g.arms.fore) * 0.75 : 8 + (g.horns.count ? g.horns.len * 0.5 : 0) + g.neck.len * 0.3;
+  const meleeCd = clamp(0.75 + weight * 0.18 - armP * 0.08, 0.5, 1.6);
+  const eyeP = g.eyes.count * g.eyes.size * 0.12 * (g.eyes.pupils ? 1 : 0.6);
+  const mouthP = { none: 0, smile: 2, fangs: 2.5, open: 4, beak: 3, teeth: 3, tusks: 2 }[g.mouth.type];
+  let ranged = (eyeP + mouthP) * 0.9;
+  if (ranged < 1.2) ranged = 0;
+  const rangedSrc = mouthP >= eyeP ? 'mouth' : 'eyes';
+  const rangedCd = clamp(2.4 - g.eyes.count * 0.15 - (g.mouth.type === 'open' ? 0.3 : 0), 1.0, 2.6);
+  const range = clamp(220 + g.eyes.count * 25 + g.eyes.size * 4, 200, 420);
+  const dodge = clamp(0.04 + wingP * 0.07 + speed / 1400 - weight * 0.025 + (g.tail.count ? 0.02 : 0), 0.03, 0.42);
+  const lv = 1 + (level - 1) * 0.07;
+  return { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
+}
+
+function makeCols(P, fl) {
+  const H = (c, dl = 0, a = 1) => hsl(c, dl + fl, a);
+  return {
+    body: H(P.body), bodyL: H(P.body, 5), bodyD: H(P.body, -6), belly: H(P.belly), accent: H(P.accent),
+    limb: H(P.limb), limbD: H(P.limb, -12), horn: H(P.horn), wing: H(P.wing), wingD: H(P.wing, -12), wingL: H(P.wing, 12, 0.8),
+    sclera: H(P.sclera), pupil: H(P.pupil), spot: H(P.spot),
+    ol: `hsl(${P.body.h.toFixed(0)},${(P.body.s * 0.5).toFixed(0)}%,${(12 + fl * 0.5).toFixed(0)}%)`,
+    mouthIn: `hsl(${P.body.h.toFixed(0)},40%,${(10 + fl * 0.4).toFixed(0)}%)`,
+    tongue: `hsl(350,70%,${(62 + fl * 0.3).toFixed(0)}%)`, white: '#fffaf0',
+  };
+}
+
+// ============================================================================
+// DIBUJO: helpers
+// ============================================================================
+function chain(ctx, pts, ws, fill, ol, lw) {
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = ol;
+  for (let i = 0; i < pts.length - 1; i++) { ctx.lineWidth = ws[i] + lw * 2; ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[i + 1].x, pts[i + 1].y); ctx.stroke(); }
+  ctx.strokeStyle = fill;
+  for (let i = 0; i < pts.length - 1; i++) { ctx.lineWidth = ws[i]; ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[i + 1].x, pts[i + 1].y); ctx.stroke(); }
+}
+function rrect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function shapePath(ctx, shape, x, y, w, h) {
+  ctx.beginPath();
+  if (w <= 0 || h <= 0) return;
+  if (shape === 'box' || shape === 'square') rrect(ctx, x - w / 2, y - h / 2, w, h, Math.min(w, h) * 0.32);
+  else if (shape === 'tri') {
+    ctx.moveTo(x, y + h / 2);
+    ctx.bezierCurveTo(x - w * 0.35, y + h / 2, x - w * 0.6, y - h * 0.2, x - w * 0.45, y - h * 0.45);
+    ctx.quadraticCurveTo(x, y - h * 0.62, x + w * 0.45, y - h * 0.45);
+    ctx.bezierCurveTo(x + w * 0.6, y - h * 0.2, x + w * 0.35, y + h / 2, x, y + h / 2);
+  } else if (shape === 'pear') {
+    ctx.moveTo(x, y - h / 2);
+    ctx.bezierCurveTo(x + w * 0.3, y - h / 2, x + w * 0.3, y - h * 0.15, x + w * 0.5, y + h * 0.15);
+    ctx.bezierCurveTo(x + w * 0.6, y + h * 0.55, x - w * 0.6, y + h * 0.55, x - w * 0.5, y + h * 0.15);
+    ctx.bezierCurveTo(x - w * 0.3, y - h * 0.15, x - w * 0.3, y - h / 2, x, y - h / 2);
+  } else ctx.ellipse(x, y, w / 2, h / 2, 0, 0, TAU);
+}
+function hornPath(ctx, bx, by, tx, ty, w, curve) {
+  const dx = tx - bx, dy = ty - by, L = Math.hypot(dx, dy) || 1, px = -dy / L, py = dx / L;
+  const cx = bx + dx * 0.5 + px * curve * L * 0.5, cy = by + dy * 0.5 + py * curve * L * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(bx - px * w / 2, by - py * w / 2);
+  ctx.quadraticCurveTo(cx - px * w * 0.2, cy - py * w * 0.2, tx, ty);
+  ctx.quadraticCurveTo(cx + px * w * 0.2, cy + py * w * 0.2, bx + px * w / 2, by + py * w / 2);
+  ctx.closePath();
+}
+function fillStroke(ctx, fill, ol, lw) { ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = lw; ctx.strokeStyle = ol; ctx.stroke(); }
+
+// ============================================================================
+// MONSTRUO: esqueleto con física de resortes (partes "floaty") + IA de combate
+// ============================================================================
+let MID = 0;
+class Monster {
+  constructor(rec) {
+    this.id = ++MID; this.rec = rec;
+    this.g = genGenome(rec.seed);
+    this.name = rec.name || this.g.name;
+    this.level = rec.level || 1;
+    this.st = calcStats(this.g, this.level);
+    this.hp = this.st.hp;
+    this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
+    this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
+    this.gx = 0; this.gy = 0; this.s = 1;
+    this.team = 0; this.state = 'free'; this.stT = 0;
+    this.target = null; this.targetTimer = 0; this.lockAx = { x: 1, y: 0 };
+    this.damageFrom = new Map(); this.kills = 0;
+    this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
+    this.kiter = this.st.ranged > this.st.melee * 0.6; this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
+    this.desired = { x: 0, y: 0 }; this.atkDir = { x: 1, y: 0 }; this.atkArm = null; this.strikeExt = 0; this.hitSet = new Set();
+    this.walkPh = Math.random() * TAU; this.t = Math.random() * 10; this.look = { x: 0, y: 0 }; this.lookAt = null;
+    this.blinkT = 2 + Math.random() * 3; this.blink = 0; this.mouthOpen = 0; this.hurtT = 0;
+    this.dead = false; this.deadT = 0; this.alpha = 1;
+    const T = this.g.torso;
+    this.r = Math.max(16, Math.max(T.upper.w, T.mid ? T.mid.w : 0, T.lower ? T.lower.w : 0) * 0.42);
+    this.buildRig();
+  }
+
+  // ---------- Construcción del esqueleto ----------
+  buildRig() {
+    const g = this.g, T = g.torso; const N = this.nodes = []; const I = this.ix = {};
+    const add = (p, ox, oy, k, z = 0.35) => { N.push({ p, ox, oy, ax: 0, ay: 0, k, c: 2 * z * Math.sqrt(k), x: 0, y: 0, vx: 0, vy: 0, len: Math.hypot(ox, oy), useT: false, tx: 0, ty: 0, boost: 1 }); return N.length - 1; };
+    const lo = T.lower || { w: T.upper.w * 0.8, h: 0 }, mi = T.mid || { w: (lo.w + T.upper.w) / 2, h: 0 }, up = T.upper;
+    this.seg = { lo, mi, up };
+    this.legSum = g.legs.upper + g.legs.lower;
+    this.hover = g.legs.pairs ? 0 : 24;
+
+    I.root = add(-1, 0, 0, 0);
+    I.lower = add(I.root, 0, -lo.h * 0.5, 420, 0.4);
+    I.mid = add(I.lower, 0, -(lo.h + mi.h) * 0.42, 360, 0.35);
+    I.upper = add(I.mid, 0, -(mi.h + up.h) * 0.42, 300, 0.3);
+    // Cuello (0..n segmentos) y cabeza
+    I.neck = []; let par = I.upper;
+    const nl = g.neck.len, ns = nl > 0 ? Math.max(1, Math.round(nl / 10)) : 0;
+    for (let i = 0; i < ns; i++) { par = add(par, 0, (i === 0 ? -up.h * 0.42 : 0) - nl / ns, 220 - i * 20, 0.28); I.neck.push(par); }
+    I.head = add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
+    // Cuernos
+    I.horns = [];
+    const hn = g.horns.count;
+    for (let i = 0; i < hn; i++) {
+      const u = hn === 1 ? 0 : lerp(-1, 1, i / (hn - 1));
+      const bx = u * g.head.w * 0.5 * g.horns.spread, by = -g.head.h * 0.4 * (1 - 0.35 * Math.abs(u));
+      const ang = -Math.PI / 2 + u * 0.9;
+      I.horns.push({ base: { x: bx, y: by }, tip: add(I.head, bx + Math.cos(ang) * g.horns.len, by + Math.sin(ang) * g.horns.len, 260, 0.3) });
+    }
+    // Hombros
+    I.shoulders = [-1, 1].map(sd => add(I.upper, sd * up.w * 0.46, -up.h * 0.18, 380, 0.35));
+    // Brazos: brazo (superior) + antebrazo + mano
+    I.arms = [];
+    for (let p = 0; p < g.arms.pairs; p++) for (const sd of [-1, 1]) {
+      let att;
+      if (p === 0) att = I.shoulders[sd < 0 ? 0 : 1];
+      else {
+        const sn = p === 1 ? (T.mid ? I.mid : T.lower ? I.lower : I.upper) : (T.lower ? I.lower : I.mid);
+        const sw = sn === I.mid ? mi.w : sn === I.lower ? lo.w : up.w;
+        att = add(sn, sd * sw * 0.46, sn === I.upper ? up.h * 0.3 : 0, 380, 0.35);
+      }
+      const el = add(att, sd * g.arms.upper * 0.45, g.arms.upper * 0.85, 160, 0.25);
+      const ha = add(el, sd * g.arms.fore * 0.15, g.arms.fore * 0.97, 120, 0.22);
+      I.arms.push({ p, sd, att, el, ha });
+    }
+    // Piernas: muslo + pierna inferior + pie
+    I.legs = [];
+    for (let p = 0; p < g.legs.pairs; p++) for (const sd of [-1, 1]) {
+      const hx = sd * Math.max(6, lo.w * 0.5 * (p === 0 ? g.legs.spread : g.legs.spread * 0.45));
+      const hip = add(I.lower, hx, lo.h * 0.35, 400, 0.4);
+      const knee = add(hip, sd * 3, g.legs.upper, 220, 0.3);
+      const foot = add(knee, 0, g.legs.lower, 240, 0.35);
+      N[knee].useT = N[foot].useT = true;
+      I.legs.push({ p, sd, hip, knee, foot, hx, ph: (sd > 0 ? Math.PI : 0) + p * Math.PI / 2 });
+    }
+    // Alas
+    I.wings = [];
+    for (let p = 0; p < g.wings.pairs; p++) for (const sd of [-1, 1]) {
+      const span = g.wings.span * (p === 0 ? 1 : 0.72);
+      const base = add(I.upper, sd * up.w * 0.22, -up.h * 0.25 + p * up.h * 0.45, 400, 0.4);
+      const tip = add(base, sd * span * 0.92, -span * (p === 0 ? 0.45 : 0.05), 90, 0.22);
+      I.wings.push({ p, sd, base, tip, span });
+    }
+    // Colas (cadena de segmentos muy blandos)
+    I.tails = [];
+    for (let i = 0; i < g.tail.count; i++) {
+      const sd = g.tail.count === 1 ? g.tail.side : (i === 0 ? -1 : i === 1 ? 1 : 0);
+      let pn = add(T.lower ? I.lower : I.mid, sd * lo.w * 0.15, lo.h * 0.2, 400, 0.4);
+      const ch = [pn];
+      for (let k = 0; k < g.tail.segs; k++) {
+        const a0 = 0.6 - k * g.tail.curl;
+        const a = sd > 0 ? a0 : sd < 0 ? Math.PI - a0 : Math.PI / 2 + Math.sin(k) * 0.3;
+        pn = add(pn, Math.cos(a) * g.tail.seg, Math.sin(a) * g.tail.seg, Math.max(40, 140 - k * 12), 0.2);
+        ch.push(pn);
+      }
+      I.tails.push({ sd, chain: ch });
+    }
+  }
+
+  // Altura estimada (para encuadrar en la vitrina)
+  estSize() {
+    const g = this.g, { lo, mi, up } = this.seg;
+    const h = (g.legs.pairs ? this.legSum * 0.9 : this.hover) + (lo.h + mi.h + up.h) * 0.84 + g.neck.len + g.head.h + (g.horns.count ? g.horns.len * 0.8 : 0);
+    const w = Math.max(up.w, mi.w, lo.w, g.head.w) + (g.arms.pairs ? (g.arms.upper * 0.5 + g.arms.thick) * 2 : 0);
+    const ww = g.wings.pairs ? up.w * 0.44 + g.wings.span * 1.9 : 0;
+    const tw = g.tail.count ? lo.w * 0.3 + g.tail.segs * g.tail.seg * 1.5 : 0;
+    return { h, w: Math.max(w, ww, tw) };
+  }
+
+  rootTarget() {
+    const lo = this.seg.lo;
+    const base = this.g.legs.pairs ? this.gy - (this.legSum * 0.9 - lo.h * 0.15) * this.s : this.gy - this.hover * this.s;
+    return { x: this.gx, y: base - this.z };
+  }
+
+  resetRig() {
+    const N = this.nodes, rt = this.rootTarget();
+    N[0].x = rt.x; N[0].y = rt.y;
+    for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; n.x = P.x + n.ox * this.s; n.y = P.y + n.oy * this.s; n.vx = n.vy = 0; }
+  }
+
+  // ---------- Animación: define a dónde "quiere" ir cada parte ----------
+  animate(dt) {
+    const g = this.g, N = this.nodes, I = this.ix, s = this.s;
+    this.t += dt; const t = this.t;
+    this.hurtT = Math.max(0, this.hurtT - dt);
+    this.mouthOpen = Math.max(0, this.mouthOpen - dt * 3);
+    this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 0.12; this.blinkT = 2 + Math.random() * 3.5; }
+    this.blink = Math.max(0, this.blink - dt);
+    if (this.dead) return;
+
+    const sp = Math.hypot(this.vx, this.vy), moving = clamp(sp / 60, 0, 1);
+    this.walkPh += sp * 0.085 * dt;
+    const lean = clamp(this.vx / 150, -1, 1);
+    const root = N[0], rt = this.rootTarget();
+    const bob = g.legs.pairs ? Math.abs(Math.sin(this.walkPh)) * 3 * moving + Math.sin(t * 2.2) * 0.8 : Math.sin(t * 2.4) * 4;
+    const crouch = this.state === 'windup' ? 4 : 0;
+    root.x = rt.x; root.y = rt.y - (bob - crouch) * s;
+
+    N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
+    const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
+    if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
+      if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
+      if (this.state === 'strike') { head.ax += this.atkDir.x * 16 * this.strikeExt; head.ay += this.atkDir.y * DEPTH * 10 * this.strikeExt; }
+    }
+
+    // Brazos
+    for (const a of I.arms) {
+      const el = N[a.el], ha = N[a.ha], att = N[a.att];
+      const sw = Math.sin(this.walkPh + (a.sd > 0 ? 0 : Math.PI) + a.p * 1.3) * moving;
+      el.ax = a.sd * Math.sin(t * 1.6 + a.p) * 1.5; el.ay = sw * 4;
+      ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
+      ha.useT = false; ha.boost = 1;
+      if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
+        const dx = this.atkDir.x, dy = this.atkDir.y * DEPTH, reach = (g.arms.upper + g.arms.fore) * s;
+        ha.useT = true; ha.boost = 4;
+        if (this.state === 'windup') { ha.tx = att.x - dx * reach * 0.3 + a.sd * 4 * s; ha.ty = att.y - reach * 0.35; }
+        else { const e = 0.4 + 0.75 * this.strikeExt; ha.tx = att.x + dx * reach * e; ha.ty = att.y + dy * reach * e + reach * 0.1; }
+      }
+    }
+    // Alas
+    for (const w of I.wings) {
+      const tip = N[w.tip];
+      const rate = (g.legs.pairs ? 5 : 9) + moving * 6 + (this.state === 'dodge' ? 10 : 0);
+      tip.ay = Math.sin(t * rate + w.p * 0.8) * w.span * 0.35;
+      tip.ax = -w.sd * Math.abs(Math.sin(t * rate)) * w.span * 0.08;
+    }
+    // Colas
+    for (const tl of I.tails) tl.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.7) * k * 0.6 * (tl.sd || 1); n.ay = Math.cos(t * 2.6 + k * 0.7) * k * 0.4; });
+    // Piernas: los pies buscan el suelo (o cuelgan si está en el aire)
+    for (const L of I.legs) {
+      const hip = N[L.hip], knee = N[L.knee], foot = N[L.foot];
+      const ph = this.walkPh + L.ph;
+      const stride = Math.min(1, sp / 50) * 10 * s;
+      const lift = Math.max(0, Math.cos(ph)) * 7 * s * moving;
+      const groundY = this.gy - (L.p === 1 ? 4 * s : 0);
+      foot.tx = this.gx + L.hx * s * 1.15 + Math.sin(ph) * stride;
+      foot.ty = Math.min(groundY - lift, hip.y + this.legSum * s * 0.98);
+      knee.tx = (hip.x + foot.x) / 2 + L.sd * 4 * s; knee.ty = (hip.y + foot.y) / 2;
+    }
+    // Pupilas: miran al objetivo con un poco de retraso
+    let lx, ly;
+    if (this.lookAt) { const dx = this.lookAt.x - head.x, dy = this.lookAt.y - head.y, d = Math.hypot(dx, dy) || 1; lx = dx / d; ly = dy / d; }
+    else if (this.target && !this.target.dead) { const dx = this.target.gx - this.gx, dy = this.target.gy - this.gy, d = Math.hypot(dx, dy) || 1; lx = dx / d; ly = dy / d * 0.6; }
+    else { lx = Math.sin(t * 0.7) * 0.5; ly = Math.sin(t * 0.53) * 0.3; }
+    const lk = Math.min(1, dt * 6); this.look.x += (lx - this.look.x) * lk; this.look.y += (ly - this.look.y) * lk;
+  }
+
+  // ---------- Física de resortes de las partes ----------
+  rigStep(dt) {
+    const N = this.nodes, s = this.s, dead = this.dead;
+    for (let i = dead ? 0 : 1; i < N.length; i++) {
+      const n = N[i], P = n.p >= 0 ? N[n.p] : null;
+      if (dead) { n.vy += 900 * dt; const f = Math.exp(-dt * 1.5); n.vx *= f; }
+      else {
+        const tx = n.useT ? n.tx : P.x + (n.ox + n.ax) * s, ty = n.useT ? n.ty : P.y + (n.oy + n.ay) * s;
+        const k = n.k * n.boost, c = n.c * Math.sqrt(n.boost);
+        n.vx += (k * (tx - n.x) - c * n.vx) * dt; n.vy += (k * (ty - n.y) - c * n.vy) * dt;
+      }
+      n.x += n.vx * dt; n.y += n.vy * dt;
+      if (P && n.len > 0.5) { // restricción de distancia (los huesos no se estiran infinito)
+        const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s;
+        const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * 1.3;
+        if (d > mx || d < mn) {
+          const tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
+          if (dead && n.p > 0) { const hx = (n.x - nx) * 0.5, hy = (n.y - ny) * 0.5; n.x -= hx; n.y -= hy; P.x += hx; P.y += hy; }
+          else { n.x = nx; n.y = ny; }
+        }
+      }
+      if (dead) { const gy = this.gy + (i % 3) * 2 * s; if (n.y > gy) { n.y = gy; n.vy *= -0.25; n.vx *= 0.8; } }
+    }
+  }
+
+  hop(dt) { this.vz -= 1100 * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 ? -this.vz * 0.25 : 0; } }
+
+  poke(px, py) {
+    this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
+    for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
+    this.lookAt = { x: px, y: py }; clearTimeout(this._lt); this._lt = setTimeout(() => this.lookAt = null, 1500);
+  }
+
+  // ---------- IA ----------
+  think(dt, B) {
+    if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt;
+    this.strafeT -= dt; if (this.strafeT < 0) { this.strafe *= -1; this.strafeT = 1.5 + Math.random() * 2; }
+    for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.06 * dt)); // el rencor se olvida lento
+
+    // Elegir objetivo: mezcla del más cercano y el que más daño le ha hecho
+    const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
+    if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; return; }
+    if (!this.target || this.target.dead || this.targetTimer <= 0) {
+      let best = null, bs = Infinity;
+      for (const e of enemies) {
+        const d = Math.hypot(e.x - this.x, e.y - this.y);
+        let sc = d - (this.damageFrom.get(e.id) || 0) * 6; // cada punto de daño "acerca" 6 unidades
+        if (e === this.target) sc -= 60;                    // lock-in: le cuesta cambiar
+        if (sc < bs) { bs = sc; best = e; }
+      }
+      if (best !== this.target) { this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d }; }
+      this.targetTimer = 0.6;
+    }
+
+    switch (this.state) {
+      case 'windup':
+        if (this.stT <= 0) {
+          this.state = 'strike'; this.stT = 0.14; this.strikeExt = 0; this.hitSet.clear(); this.mouthOpen = 1;
+          const ls = 260 / Math.pow(this.st.weight, 0.35); // pequeño desplazamiento hacia adelante al golpear
+          this.vx += this.atkDir.x * ls; this.vy += this.atkDir.y * ls;
+        }
+        break;
+      case 'strike':
+        this.strikeExt = clamp(1 - this.stT / 0.14, 0, 1);
+        this.checkMelee(B);
+        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; }
+        break;
+      case 'recover': case 'recoil': case 'dodge': case 'hitstun':
+        if (this.stT <= 0) this.state = 'free';
+        break;
+    }
+
+    if (this.state !== 'free') { this.desired = { x: 0, y: 0 }; return; }
+    const T = this.target;
+    const dx = T.x - this.x, dy = T.y - this.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+    // El eje de lock-in gira lento hacia el objetivo: se mueven "sobre un riel"
+    const ang = Math.atan2(this.lockAx.y, this.lockAx.x);
+    let da = Math.atan2(uy, ux) - ang; da = ((da + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    const na = ang + clamp(da, -1.4 * dt, 1.4 * dt);
+    this.lockAx.x = Math.cos(na); this.lockAx.y = Math.sin(na);
+    const ax = this.lockAx.x, ay = this.lockAx.y, px = -ay, py = ax;
+    const reachD = this.r + T.r + this.st.reach * 0.85;
+    const pref = this.kiter ? Math.min(this.st.range * 0.7, 230) : reachD * 0.9;
+    const fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
+    const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
+    let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
+    if (this.kiter && fwd === 0) { mx += px * this.strafe * 0.5; my += py * this.strafe * 0.5; }
+    const ml = Math.hypot(mx, my);
+    this.desired = ml > 0.05 ? { x: mx / ml * this.st.speed * Math.min(1, ml), y: my / ml * this.st.speed * Math.min(1, ml) } : { x: 0, y: 0 };
+
+    if (d <= reachD + 6 && this.meleeCd <= 0) this.startMelee(T, ux, uy, B);
+    else if (this.st.ranged > 0 && this.rangedCd <= 0 && d > reachD + 30 && d < this.st.range) this.shoot(T, B);
+  }
+
+  startMelee(T, ux, uy, B) {
+    this.state = 'windup'; this.stT = 0.14 + this.st.weight * 0.05;
+    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd;
+    const arms = this.ix.arms;
+    if (arms.length) { const side = ux >= 0 ? 1 : -1; const c = arms.filter(a => a.sd === side); this.atkArm = c[Math.floor(Math.random() * c.length)]; }
+    else this.atkArm = null;
+    T.incoming(this, this.atkDir, B);
+  }
+
+  // El golpe sólo cuenta si la mano/cabeza realmente toca al enemigo
+  checkMelee(B) {
+    const reach = this.r + this.st.reach * (0.3 + 0.7 * this.strikeExt);
+    const hx = this.x + this.atkDir.x * reach, hy = this.y + this.atkDir.y * reach;
+    const tol = this.ix.arms.length ? this.g.arms.thick * 0.5 : 6;
+    for (const e of B.ms) {
+      if (e.dead || e.team === this.team || this.hitSet.has(e.id)) continue;
+      if (Math.hypot(e.x - hx, e.y - hy) < e.r + 4 + tol) { this.hitSet.add(e.id); B.hit(this, e, this.st.melee, this.atkDir, 'melee'); }
+    }
+  }
+
+  shoot(T, B) {
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3);
+    const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
+    const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
+    const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    const head = this.nodes[this.ix.head];
+    const mouth = this.st.rangedSrc === 'mouth';
+    B.proj.push({
+      x: this.x + ux * this.r, y: this.y + uy * this.r, z: Math.max(12, this.gy - head.y), vx: ux * ps, vy: uy * ps,
+      owner: this, team: this.team, pow: this.st.ranged, r: mouth ? 5 + this.st.ranged * 0.35 : 4,
+      color: mouth ? hsl(this.g.pal.accent, 8) : hsl(this.g.pal.accent, 25), kind: mouth ? 'blob' : 'laser',
+      life: this.st.range / ps * 1.3, checked: new Set(), trail: [],
+    });
+    const rc = 110 / Math.sqrt(this.st.weight); // retroceso al disparar
+    this.vx -= ux * rc; this.vy -= uy * rc;
+    this.state = 'recoil'; this.stT = 0.16; this.mouthOpen = 1;
+    head.vx -= ux * 90; head.vy += 30;
+  }
+
+  // Esquivar = moverse de verdad hacia un lado
+  incoming(att, dir, B) {
+    if (this.dead || this.dodgeCd > 0 || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun') return;
+    this.dodgeCd = 0.35;
+    if (Math.random() >= this.st.dodge) return;
+    this.dodgeCd = 1.1;
+    let px = -dir.y, py = dir.x;
+    const cx = ARENA_W / 2 - this.x, cy = ARENA_D / 2 - this.y;
+    if (px * cx + py * cy < 0) { px = -px; py = -py; }
+    if (Math.random() < 0.25) { px = -px; py = -py; }
+    const sp = 330 + this.st.speed * 0.6;
+    this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
+    this.state = 'dodge'; this.stT = 0.28;
+    B.text(this, 'esquiva', '#9fe7ff');
+  }
+
+  physics(dt) {
+    if (this.dead) { this.hop(dt); return; }
+    if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
+    else { const f = Math.exp(-dt * (this.state === 'dodge' ? 4 : 6)); this.vx *= f; this.vy *= f; }
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    this.hop(dt);
+    const m = this.r, my = m * 0.6;
+    if (this.x < m) { this.x = m; this.vx = Math.abs(this.vx) * 0.4; }
+    if (this.x > ARENA_W - m) { this.x = ARENA_W - m; this.vx = -Math.abs(this.vx) * 0.4; }
+    if (this.y < my) { this.y = my; this.vy = Math.abs(this.vy) * 0.4; }
+    if (this.y > ARENA_D - my) { this.y = ARENA_D - my; this.vy = -Math.abs(this.vy) * 0.4; }
+  }
+
+  die(dir, kb) {
+    this.dead = true; this.state = 'dead'; this.target = null;
+    for (const n of this.nodes) { n.vx += dir.x * kb * 1.2 * Math.random() + (Math.random() - 0.5) * 160; n.vy -= 120 + Math.random() * 180; }
+  }
+
+  // ---------- Dibujo (vista frontal 2D) ----------
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    const N = this.nodes, I = this.ix, g = this.g, s = this.s, C = this.hurtT > 0 ? this.colsF : this.cols, lw = 2 * s;
+    ctx.save(); ctx.globalAlpha = this.alpha;
+    for (const w of I.wings) if (w.p === 1) this.drawWing(ctx, w, C, lw);
+    for (const w of I.wings) if (w.p === 0) this.drawWing(ctx, w, C, lw);
+    for (const tl of I.tails) this.drawTail(ctx, tl, C, lw);
+    for (const L of I.legs) if (L.p === 1) this.drawLeg(ctx, L, C.limbD, C, lw);
+    for (const L of I.legs) if (L.p === 0) this.drawLeg(ctx, L, C.limb, C, lw);
+    if (I.neck.length) {
+      const up = N[I.upper];
+      const pts = [{ x: up.x, y: up.y - this.seg.up.h * 0.3 * s }, ...I.neck.map(i => N[i]), N[I.head]];
+      chain(ctx, pts, pts.map(() => g.neck.w * s), C.body, C.ol, lw);
+    }
+    this.drawTorso(ctx, C, lw);
+    for (const a of I.arms) if (a.p > 0) this.drawArm(ctx, a, C, lw);
+    for (const a of I.arms) if (a.p === 0) this.drawArm(ctx, a, C, lw);
+    if (g.shoulders.size > 0) for (const si of I.shoulders) {
+      const n = N[si], r = g.shoulders.size * s;
+      if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
+      ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
+    }
+    this.drawHead(ctx, C, lw);
+    ctx.restore();
+  }
+
+  drawTorso(ctx, C, lw) {
+    const T = this.g.torso, N = this.nodes, I = this.ix, s = this.s;
+    const segs = [[T.lower, I.lower, C.bodyD, 'lower'], [T.mid, I.mid, C.bodyL, 'mid'], [T.upper, I.upper, C.body, 'upper']].filter(x => x[0]);
+    ctx.fillStyle = C.ol;
+    for (const [sg, ni] of segs) { const n = N[ni]; shapePath(ctx, T.shape, n.x, n.y, sg.w * s + lw * 2, sg.h * s + lw * 2); ctx.fill(); }
+    for (const [sg, ni, col] of segs) { const n = N[ni]; ctx.fillStyle = col; shapePath(ctx, T.shape, n.x, n.y, sg.w * s, sg.h * s); ctx.fill(); }
+    if (T.belly) {
+      ctx.fillStyle = C.belly;
+      for (const [sg, ni, , nm] of segs) { if (nm === 'upper' && T.mid) continue; const n = N[ni]; ctx.beginPath(); ctx.ellipse(n.x, n.y + sg.h * 0.08 * s, sg.w * 0.28 * s, sg.h * 0.36 * s, 0, 0, TAU); ctx.fill(); }
+    }
+    if (this.g.spots.length) {
+      ctx.fillStyle = C.spot;
+      const map = { upper: [T.upper, I.upper], mid: [T.mid, I.mid], lower: [T.lower, I.lower] };
+      for (const sp of this.g.spots) { const [sg, ni] = map[sp.seg]; if (!sg) continue; const n = N[ni]; ctx.beginPath(); ctx.arc(n.x + sp.u * sg.w * 0.5 * s, n.y + sp.v * sg.h * 0.5 * s, sp.r * s, 0, TAU); ctx.fill(); }
+    }
+  }
+
+  drawArm(ctx, a, C, lw) {
+    const N = this.nodes, g = this.g, s = this.s, at = N[a.att], el = N[a.el], ha = N[a.ha], th = g.arms.thick * s;
+    const col = a.p > 0 ? C.limbD : C.limb;
+    chain(ctx, [at, el, ha], [th, th * 0.85], col, C.ol, lw);
+    const dx = ha.x - el.x, dy = ha.y - el.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    switch (g.arms.hand) {
+      case 'fist': ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.8, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
+      case 'paw': ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.85, 0, TAU); fillStroke(ctx, C.belly, C.ol, lw); break;
+      case 'claw':
+        for (const o of [-0.5, 0, 0.5]) { const c = Math.cos(o), sn = Math.sin(o), vx = ux * c - uy * sn, vy = ux * sn + uy * c; hornPath(ctx, ha.x, ha.y, ha.x + vx * th * 1.6, ha.y + vy * th * 1.6, th * 0.45, 0.3); fillStroke(ctx, C.horn, C.ol, lw * 0.7); }
+        ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.65, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
+      case 'blade': hornPath(ctx, ha.x, ha.y, ha.x + ux * g.arms.fore * 0.75 * s, ha.y + uy * g.arms.fore * 0.75 * s, th * 0.9, 0.15); fillStroke(ctx, C.horn, C.ol, lw); break;
+    }
+  }
+
+  drawLeg(ctx, L, col, C, lw) {
+    const N = this.nodes, g = this.g, s = this.s, h = N[L.hip], k = N[L.knee], f = N[L.foot], th = g.legs.thick * s;
+    chain(ctx, [h, k, f], [th, th * 0.82], col, C.ol, lw);
+    const fs = g.feet.size * s, fx = f.x + L.sd * fs * 0.25, fy = f.y - fs * 0.3;
+    ctx.beginPath();
+    switch (g.feet.type) {
+      case 'hoof': rrect(ctx, fx - fs * 0.7, fy - fs * 0.45, fs * 1.4, fs * 0.8, fs * 0.25); fillStroke(ctx, C.horn, C.ol, lw); break;
+      case 'flat': ctx.ellipse(fx + L.sd * fs * 0.2, fy + fs * 0.05, fs * 1.2, fs * 0.42, 0, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
+      case 'claw':
+        ctx.ellipse(fx, fy, fs * 0.85, fs * 0.5, 0, 0, TAU); fillStroke(ctx, col, C.ol, lw);
+        for (const o of [-0.6, 0, 0.6]) { hornPath(ctx, fx + o * fs * 0.7, fy + fs * 0.2, fx + o * fs * 1.1, fy + fs * 0.65, fs * 0.3, 0); fillStroke(ctx, C.horn, C.ol, lw * 0.6); }
+        break;
+      default: ctx.ellipse(fx, fy, fs * 0.9, fs * 0.5, 0, 0, TAU); fillStroke(ctx, col, C.ol, lw);
+    }
+  }
+
+  drawWing(ctx, w, C, lw) {
+    const N = this.nodes, g = this.g, b = N[w.base], t = N[w.tip];
+    const dx = t.x - b.x, dy = t.y - b.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    let px = -uy, py = ux; if (py < 0) { px = -px; py = -py; }
+    const fill = w.p === 1 ? C.wingD : C.wing;
+    ctx.lineJoin = 'round';
+    if (g.wings.type === 'bat') {
+      const D = L * 0.75, P = (f, h) => ({ x: b.x + dx * f + px * D * h, y: b.y + dy * f + py * D * h });
+      const pts = [P(1, 0), P(0.82, 0.6), P(0.5, 0.78), P(0.2, 0.55), P(0, 0.2)];
+      const ac = { x: b.x + dx * 0.5 - px * L * 0.12, y: b.y + dy * 0.5 - py * L * 0.12 };
+      ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(ac.x, ac.y, t.x, t.y);
+      for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], c = pts[i]; ctx.quadraticCurveTo((a.x + c.x) / 2 - px * D * 0.14, (a.y + c.y) / 2 - py * D * 0.14, c.x, c.y); }
+      ctx.closePath(); fillStroke(ctx, fill, C.ol, lw);
+      const wr = { x: b.x + dx * 0.62 - px * L * 0.08, y: b.y + dy * 0.62 - py * L * 0.08 };
+      ctx.beginPath(); for (const k of [1, 2, 3]) { ctx.moveTo(wr.x, wr.y); ctx.lineTo(pts[k].x, pts[k].y); }
+      ctx.lineWidth = lw * 0.8; ctx.strokeStyle = C.ol; ctx.stroke();
+    } else if (g.wings.type === 'feather') {
+      const a0 = Math.atan2(uy, ux), sg = (ux * py - uy * px) > 0 ? 1 : -1;
+      for (let i = 4; i >= 0; i--) {
+        const len = L * (1 - i * 0.13);
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a0 + sg * i * 0.24);
+        ctx.beginPath(); ctx.ellipse(len / 2, 0, len / 2, L * 0.11, 0, 0, TAU); fillStroke(ctx, i % 2 ? fill : C.wingL, C.ol, lw);
+        ctx.restore();
+      }
+    } else {
+      const a0 = Math.atan2(uy, ux), sg = (ux * py - uy * px) > 0 ? 1 : -1;
+      ctx.save(); ctx.globalAlpha *= 0.7;
+      ctx.translate(b.x, b.y);
+      ctx.save(); ctx.rotate(a0 + sg * 0.55); ctx.beginPath(); ctx.ellipse(L * 0.36, 0, L * 0.38, L * 0.15, 0, 0, TAU); fillStroke(ctx, C.wingL, C.ol, lw); ctx.restore();
+      ctx.rotate(a0); ctx.beginPath(); ctx.ellipse(L * 0.5, 0, L * 0.55, L * 0.2, 0, 0, TAU); fillStroke(ctx, C.wingL, C.ol, lw);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.lineWidth = lw * 0.6; ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  drawTail(ctx, tl, C, lw) {
+    const pts = tl.chain.map(i => this.nodes[i]), n = pts.length, th = this.g.tail.thick * this.s;
+    const ws = pts.slice(0, -1).map((_, i) => th * (1 - 0.6 * i / (n - 1)));
+    chain(ctx, pts, ws, this.g.tail.accent ? C.accent : C.body, C.ol, lw);
+    const a = pts[n - 2], b = pts[n - 1], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    switch (this.g.tail.tip) {
+      case 'spike': hornPath(ctx, b.x, b.y, b.x + ux * th * 2.4, b.y + uy * th * 2.4, th * 1.2, 0); fillStroke(ctx, C.horn, C.ol, lw); break;
+      case 'ball': ctx.beginPath(); ctx.arc(b.x, b.y, th * 1.1, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); break;
+      case 'fin': ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(uy, ux)); ctx.beginPath(); ctx.ellipse(th * 1.2, 0, th * 1.5, th * 0.8, 0, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); ctx.restore(); break;
+      case 'flame': {
+        const fl = 1 + Math.sin(this.t * 22) * 0.15;
+        ctx.beginPath(); ctx.ellipse(b.x, b.y - th * fl, th * 1.1, th * 1.8 * fl, 0, 0, TAU); ctx.fillStyle = hsl(this.g.pal.accent, 10, 0.85); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(b.x, b.y - th * 0.6, th * 0.6, th * 1.1 * fl, 0, 0, TAU); ctx.fillStyle = 'rgba(255,240,170,.9)'; ctx.fill();
+        break;
+      }
+    }
+  }
+
+  drawHead(ctx, C, lw) {
+    const N = this.nodes, I = this.ix, g = this.g, s = this.s, h = N[I.head];
+    const par = N[I.neck.length ? I.neck[I.neck.length - 1] : I.upper];
+    const tilt = clamp((h.x - par.x) / (40 * s), -1, 1) * 0.35;
+    const ct = Math.cos(tilt), st = Math.sin(tilt);
+    for (const hr of I.horns) {
+      const tip = N[hr.tip], bx = h.x + (hr.base.x * ct - hr.base.y * st) * s, by = h.y + (hr.base.x * st + hr.base.y * ct) * s;
+      hornPath(ctx, bx, by, tip.x, tip.y, g.horns.width * s, g.horns.curve * Math.sign(hr.base.x || 1));
+      fillStroke(ctx, C.horn, C.ol, lw);
+    }
+    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(tilt);
+    const W = g.head.w * s, H = g.head.h * s, hw = W / 2, hh = H / 2;
+    shapePath(ctx, g.head.shape, 0, 0, W, H); fillStroke(ctx, C.body, C.ol, lw * 1.6);
+
+    // Ojos + pupilas
+    const er = g.eyes.size * s;
+    for (const e of g.eyes.pos) {
+      const ex = e[0] * hw, ey = e[1] * hh;
+      ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU);
+      if (this.blink > 0 || this.dead) {
+        ctx.fillStyle = C.bodyD; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ex - er, ey); ctx.lineTo(ex + er, ey); ctx.lineWidth = lw; ctx.strokeStyle = C.ol; ctx.stroke();
+        continue;
+      }
+      fillStroke(ctx, C.sclera, C.ol, lw);
+      ctx.save(); ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.clip();
+      const pr = er * g.eyes.pupilSize, lx = this.look.x * (er - pr) * 0.75, ly = this.look.y * (er - pr) * 0.75;
+      if (g.eyes.pupils === 1) this.drawPupil(ctx, ex + lx, ey + ly, pr, C);
+      else if (g.eyes.pupils === 2) { this.drawPupil(ctx, ex + lx - pr * 0.55, ey + ly, pr * 0.65, C); this.drawPupil(ctx, ex + lx + pr * 0.55, ey + ly, pr * 0.65, C); }
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(ex - er * 0.35, ey - er * 0.38, er * 0.22, 0, TAU); ctx.fill();
+      if (g.eyes.lid) {
+        ctx.translate(ex, ey); ctx.rotate(g.eyes.lidAng * (ex < 0 ? 1 : -1));
+        ctx.fillStyle = C.body; ctx.fillRect(-er * 1.5, -er * 1.6, er * 3, er * 1.15);
+        ctx.beginPath(); ctx.moveTo(-er * 1.5, -er * 0.45); ctx.lineTo(er * 1.5, -er * 0.45); ctx.lineWidth = lw; ctx.strokeStyle = C.ol; ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Boca
+    const my = g.mouth.y * hh, mw = g.mouth.w * hw, o = this.mouthOpen;
+    ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    switch (g.mouth.type) {
+      case 'smile':
+        ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * (0.5 + o * 0.7), mw, my);
+        if (o > 0.15) { ctx.closePath(); ctx.fillStyle = C.mouthIn; ctx.fill(); }
+        ctx.stroke(); break;
+      case 'open': {
+        const oh = mw * (0.32 + o * 0.4);
+        ctx.beginPath(); ctx.ellipse(0, my, mw * 0.8, oh, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
+        ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + oh * 0.75, mw * 0.5, oh * 0.6, 0, 0, TAU); ctx.fill(); ctx.restore();
+        break;
+      }
+      case 'fangs':
+        if (o > 0.15) { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.12, mw * 0.85, mw * 0.35 * o, 0, 0, TAU); ctx.fillStyle = C.mouthIn; ctx.fill(); }
+        ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * 0.2, mw, my); ctx.stroke();
+        for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * mw * 0.5 - mw * 0.13, my + mw * 0.08); ctx.lineTo(sx * mw * 0.5, my + mw * 0.5); ctx.lineTo(sx * mw * 0.5 + mw * 0.13, my + mw * 0.08); ctx.closePath(); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
+        break;
+      case 'teeth': {
+        const th = mw * (0.32 + o * 0.45);
+        ctx.beginPath(); rrect(ctx, -mw, my - th / 2, mw * 2, th, th * 0.4); fillStroke(ctx, C.mouthIn, C.ol, lw);
+        ctx.save(); ctx.clip(); ctx.fillStyle = C.white; const n = 5, tw = mw * 2 / n;
+        for (let i = 0; i < n; i++) {
+          const x0 = -mw + i * tw;
+          ctx.beginPath(); ctx.moveTo(x0, my - th / 2); ctx.lineTo(x0 + tw / 2, my - th / 2 + th * 0.38); ctx.lineTo(x0 + tw, my - th / 2); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x0 + tw * 0.1, my + th / 2); ctx.lineTo(x0 + tw * 0.6, my + th / 2 - th * 0.32); ctx.lineTo(x0 + tw * 1.1, my + th / 2); ctx.fill();
+        }
+        ctx.restore(); break;
+      }
+      case 'beak':
+        if (o > 0.1) { ctx.beginPath(); ctx.moveTo(-mw * 0.45, my); ctx.lineTo(mw * 0.45, my); ctx.lineTo(0, my + mw * (0.35 + o * 0.35)); ctx.closePath(); fillStroke(ctx, hsl(g.pal.accent, -12), C.ol, lw); }
+        ctx.beginPath(); ctx.moveTo(-mw * 0.6, my - mw * 0.25); ctx.lineTo(mw * 0.6, my - mw * 0.25); ctx.lineTo(0, my + mw * 0.45 - o * mw * 0.2); ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw);
+        break;
+      case 'tusks':
+        ctx.beginPath(); ctx.moveTo(-mw * 0.8, my); ctx.quadraticCurveTo(0, my + mw * (0.15 + o * 0.5), mw * 0.8, my); ctx.stroke();
+        for (const sx of [-1, 1]) { hornPath(ctx, sx * mw * 0.7, my + mw * 0.05, sx * mw * 1.0, my - mw * 0.55, mw * 0.28, -sx * 0.4); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
+        break;
+    }
+    ctx.restore();
+  }
+
+  drawPupil(ctx, x, y, r, C) {
+    ctx.fillStyle = C.pupil; ctx.beginPath();
+    switch (this.g.eyes.pupilShape) {
+      case 'slit': ctx.ellipse(x, y, r * 0.32, r * 1.15, 0, 0, TAU); break;
+      case 'bar': ctx.ellipse(x, y, r * 1.15, r * 0.34, 0, 0, TAU); break;
+      case 'dot': ctx.arc(x, y, r * 0.5, 0, TAU); break;
+      case 'ring': ctx.arc(x, y, r * 0.75, 0, TAU); ctx.lineWidth = r * 0.4; ctx.strokeStyle = C.pupil; ctx.stroke(); return;
+      case 'star': for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr = i % 2 ? r * 0.4 : r * 1.1; i ? ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : ctx.moveTo(x + rr, y); } ctx.closePath(); break;
+      default: ctx.arc(x, y, r, 0, TAU);
+    }
+    ctx.fill();
+  }
+}
+
+// ============================================================================
+// BATALLA
+// ============================================================================
+class Battle {
+  constructor(ms, mode) {
+    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
+    this.time = 0; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
+    this.player = ms.find(m => m.isPlayer);
+    const P = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
+    ms.forEach((m, i) => {
+      m.x = P[i][0] * ARENA_W; m.y = P[i][1] * ARENA_D;
+      const dx = ARENA_W / 2 - m.x, dy = ARENA_D / 2 - m.y, d = Math.hypot(dx, dy) || 1; m.lockAx = { x: dx / d, y: dy / d };
+      this.place(m); m.resetRig();
+    });
+  }
+  place(m) { m.s = 0.82 + 0.28 * (m.y / ARENA_D); m.gx = m.x; m.gy = TOP + m.y * DEPTH; }
+
+  text(m, str, col, big) { const h = m.nodes[m.ix.head]; this.texts.push({ x: m.gx + (Math.random() - 0.5) * 16, y: h.y - m.g.head.h * m.s * 0.6, str, col, life: 0.9, big }); }
+
+  hit(a, t, pow, dir, kind) {
+    const dmg = Math.max(1, pow * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)));
+    t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1;
+    t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg);
+    if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
+    const kb = (kind === 'melee' ? 24 : 11) * pow / t.st.weight; // el peso regula el knockback
+    t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(260, kb * 0.45);
+    if (t.state !== 'dead') { t.state = 'hitstun'; t.stT = 0.1 + Math.min(0.3, kb / 1500); }
+    for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
+    const tm = t.nodes[t.ix.mid];
+    const hx = tm.x - dir.x * t.r * 0.6, hy = tm.y - dir.y * t.r * 0.3;
+    const col = kind === 'melee' ? '#fff3b0' : null;
+    for (let i = 0; i < (kind === 'melee' ? 10 : 6); i++) {
+      const a2 = Math.random() * TAU, sp = 60 + Math.random() * 200;
+      this.parts.push({ x: hx, y: hy, vx: Math.cos(a2) * sp + dir.x * 80, vy: Math.sin(a2) * sp - 60, life: 0.35 + Math.random() * 0.25, col: col || hsl(a.g.pal.accent, 15), r: 2 + Math.random() * 2.5 });
+    }
+    this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
+    this.shake = Math.min(9, this.shake + kb / 55);
+    if (t.hp <= 0 && !t.dead) { t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true); }
+  }
+
+  step(dt) {
+    this.time += dt;
+    for (const m of this.ms) m.think(dt, this);
+    for (const m of this.ms) m.physics(dt);
+    // separación entre cuerpos
+    const al = this.ms.filter(m => !m.dead);
+    for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
+      const a = al[i], b = al[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
+      if (d < mn && d > 0.01) { const p = (mn - d) / 2, nx = dx / d, ny = dy / d; a.x -= nx * p; a.y -= ny * p; b.x += nx * p; b.y += ny * p; }
+    }
+    // proyectiles
+    for (const p of this.proj) {
+      p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; p.z += (28 - p.z) * dt * 1.5;
+      p.trail.push([p.x, p.y, p.z]); if (p.trail.length > 7) p.trail.shift();
+      const sp = Math.hypot(p.vx, p.vy), ux = p.vx / sp, uy = p.vy / sp;
+      for (const m of this.ms) {
+        if (m.dead || m.team === p.team) continue;
+        const dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy);
+        if (d < m.r + p.r) { this.hit(p.owner, m, p.pow, { x: ux, y: uy }, 'proj'); p.life = 0; break; }
+        if (!p.checked.has(m.id) && d < 170) {
+          const along = dx * ux + dy * uy, perp = Math.abs(dx * uy - dy * ux);
+          if (along > 0 && perp < m.r + p.r + 12) { p.checked.add(m.id); m.incoming(p.owner, { x: ux, y: uy }, this); }
+        }
+      }
+      if (p.x < -20 || p.x > ARENA_W + 20 || p.y < -20 || p.y > ARENA_D + 20) p.life = 0;
+    }
+    this.proj = this.proj.filter(p => p.life > 0);
+    for (const q of this.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt; }
+    this.parts = this.parts.filter(q => q.life > 0);
+    for (const t of this.texts) { t.y -= 45 * dt; t.life -= dt; }
+    this.texts = this.texts.filter(t => t.life > 0);
+    this.shake *= Math.exp(-dt * 10);
+    // partes del cuerpo
+    for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+    // fin
+    if (!this.over) {
+      const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
+      if (alive.size <= 1 || this.time > 90) {
+        this.over = true;
+        if (alive.size === 1) this.winTeam = [...alive][0];
+        else { const sc = {}; for (const m of this.ms) sc[m.team] = (sc[m.team] || 0) + m.hp / m.st.hp; this.winTeam = +Object.keys(sc).sort((a, b) => sc[b] - sc[a])[0]; }
+      }
+    } else this.endT += dt;
+  }
+
+  draw(ctx) {
+    ctx.save();
+    if (this.shake > 0.2) ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
+    drawArena(ctx);
+    // sombras
+    for (const m of this.ms) {
+      if (m.alpha <= 0) continue;
+      const lift = m.z + m.hover * m.s, k = clamp(1 - lift / 120, 0.3, 1);
+      ctx.fillStyle = `rgba(30,15,40,${0.28 * k * m.alpha})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.25 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill();
+    }
+    // lock-in del jugador
+    const pm = this.player;
+    if (pm && !pm.dead && pm.target && !pm.target.dead) {
+      const T = pm.target;
+      ctx.save(); ctx.setLineDash([6, 8]); ctx.strokeStyle = 'rgba(255,200,90,.45)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(pm.gx, pm.gy); ctx.lineTo(T.gx, T.gy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(255,200,90,.85)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(T.gx, T.gy, T.r * 1.4 * T.s, T.r * 0.5 * T.s, 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+    for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
+    // monstruos ordenados por profundidad
+    const sorted = [...this.ms].sort((a, b) => (a.dead - b.dead) || a.y - b.y);
+    for (const m of sorted) m.draw(ctx);
+    // proyectiles
+    for (const p of this.proj) {
+      const Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
+      ctx.lineCap = 'round';
+      for (let i = 1; i < p.trail.length; i++) { const a = p.trail[i - 1], b = p.trail[i]; ctx.strokeStyle = p.color; ctx.globalAlpha = i / p.trail.length * 0.5; ctx.lineWidth = p.r * (p.kind === 'laser' ? 1.4 : 1.2) * i / p.trail.length; ctx.beginPath(); ctx.moveTo(a[0], Y(a)); ctx.lineTo(b[0], Y(b)); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      const y = TOP + p.y * DEPTH - p.z;
+      ctx.fillStyle = p.color; ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(p.x, y, p.r * 1.8, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(p.x, y, p.r, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.arc(p.x - p.r * 0.3, y - p.r * 0.3, p.r * 0.4, 0, TAU); ctx.fill();
+    }
+    for (const q of this.parts) { ctx.globalAlpha = clamp(q.life * 3, 0, 1); ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // barras de vida sobre la cabeza
+    for (const m of this.ms) {
+      if (m.dead) continue;
+      const h = m.nodes[m.ix.head]; let top = h.y - m.g.head.h * m.s * 0.55;
+      for (const hr of m.ix.horns) top = Math.min(top, m.nodes[hr.tip].y);
+      const bw = 54, by = top - 16, f = m.hp / m.st.hp;
+      ctx.fillStyle = 'rgba(15,8,25,.75)'; ctx.beginPath(); rrect(ctx, m.gx - bw / 2 - 2, by - 2, bw + 4, 11, 4); ctx.fill();
+      ctx.fillStyle = teamColor(m, this.mode); ctx.beginPath(); rrect(ctx, m.gx - bw / 2, by, bw * f, 7, 3); ctx.fill();
+      if (m.isPlayer) { ctx.fillStyle = '#ffcf6e'; ctx.font = '900 16px system-ui'; ctx.textAlign = 'center'; ctx.fillText('★', m.gx, by - 5); }
+    }
+    ctx.textAlign = 'center';
+    for (const t of this.texts) {
+      ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.big ? 24 : 17}px system-ui`;
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+}
+
+function teamColor(m, mode) {
+  if (m.isPlayer) return '#ffcf6e';
+  if (mode === '2v2') return m.team === 0 ? '#5ee08a' : '#ff5d6c';
+  return '#ff5d6c';
+}
+
+function drawArena(ctx) {
+  const g0 = TOP, g1 = TOP + ARENA_D * DEPTH;
+  const wg = ctx.createLinearGradient(0, g0 - 80, 0, g0); wg.addColorStop(0, '#3a2d5c'); wg.addColorStop(1, '#4d3c76');
+  ctx.fillStyle = wg; ctx.fillRect(-40, g0 - 80, ARENA_W + 80, 80);
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
+  for (let r = 0; r < 4; r++) { const y = g0 - 80 + r * 20; ctx.beginPath(); ctx.moveTo(-40, y); ctx.lineTo(ARENA_W + 40, y); ctx.stroke(); for (let x = -40 + (r % 2) * 25; x < ARENA_W + 40; x += 50) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20); ctx.stroke(); } }
+  const gg = ctx.createLinearGradient(0, g0, 0, g1); gg.addColorStop(0, '#b8925e'); gg.addColorStop(1, '#e0bd80');
+  ctx.fillStyle = gg; ctx.fillRect(-40, g0, ARENA_W + 80, g1 - g0);
+  ctx.strokeStyle = 'rgba(90,50,20,.12)'; ctx.lineWidth = 1.5;
+  for (let y = 0; y <= ARENA_D; y += 56) { ctx.beginPath(); ctx.moveTo(-40, g0 + y * DEPTH); ctx.lineTo(ARENA_W + 40, g0 + y * DEPTH); ctx.stroke(); }
+  for (let x = 0; x <= ARENA_W; x += 60) { ctx.beginPath(); ctx.moveTo(x, g0); ctx.lineTo(x, g1); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(ARENA_W / 2, g0 + ARENA_D * DEPTH / 2, 90, 90 * DEPTH, 0, 0, TAU); ctx.stroke();
+  ctx.fillStyle = '#7a5a38'; ctx.fillRect(-40, g1, ARENA_W + 80, 16);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-40, g0, ARENA_W + 80, 6);
+}
+
+// ============================================================================
+// GUARDADO
+// ============================================================================
+function newRec() { const seed = (Math.random() * 4294967296) >>> 0; return { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0 }; }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0 }; }
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+const xpNeed = l => 60 + l * 40;
+const save = loadSave(); persist();
+const cur = () => save.monsters[save.sel];
+
+// ============================================================================
+// APP / UI
+// ============================================================================
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+let W = 0, H = 0, DPR = 1;
+let scene = 'home', show = null, battle = null, battleSpeed = 1, lastMode = '1v1', homeView = null;
+
+function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
+addEventListener('resize', resize); resize();
+
+const STAT_DEF = [
+  ['Vida', st => st.hp, 260, v => Math.round(v)],
+  ['Fuerza', st => st.melee, 30, v => Math.round(v)],
+  ['Disparo', st => st.ranged, 14, v => v ? Math.round(v) : '—'],
+  ['Defensa', st => st.defense, 36, v => Math.round(v)],
+  ['Velocidad', st => st.speed, 190, v => Math.round(v)],
+  ['Peso', st => st.weight, 3.5, v => v.toFixed(1)],
+  ['Esquiva', st => st.dodge, 0.42, v => Math.round(v * 100) + '%'],
+];
+
+function partsSummary(g) {
+  const p = [];
+  const n = (c, one, many) => c ? `${c} ${c === 1 ? one : many}` : null;
+  p.push(n(g.eyes.count, 'ojo', 'ojos') || 'sin ojos');
+  p.push(n(g.arms.pairs * 2, 'brazo', 'brazos') || 'sin brazos');
+  p.push(g.legs.pairs ? n(g.legs.pairs * 2, 'pierna', 'piernas') : 'flota');
+  if (g.wings.pairs) p.push(n(g.wings.pairs * 2, 'ala', 'alas'));
+  if (g.tail.count) p.push(n(g.tail.count, 'cola', 'colas'));
+  if (g.horns.count) p.push(n(g.horns.count, 'cuerno', 'cuernos'));
+  if (g.neck.len > 16) p.push('cuello largo');
+  return p.join(' · ');
+}
+
+function renderHome() {
+  const rec = cur();
+  show = new Monster(rec); show.resetRig();
+  $('mName').textContent = rec.name;
+  $('mSub').textContent = `Nv. ${rec.level} · ${save.sel + 1}/${save.monsters.length}`;
+  const st = show.st;
+  $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
+  $('parts').textContent = partsSummary(show.g);
+  $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
+  $('xpBar').style.width = (rec.xp / xpNeed(rec.level) * 100) + '%';
+  $('record').textContent = `${rec.wins}V ${rec.losses}D`;
+}
+
+$('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); };
+$('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); };
+$('nameBox').onclick = () => { const n = prompt('Nombre del monstruo:', cur().name); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
+$('btnNew').onclick = () => {
+  if (save.monsters.length >= MAX_MONSTERS) { alert(`Máximo ${MAX_MONSTERS} monstruos. Libera uno primero.`); return; }
+  save.monsters.push(newRec()); save.sel = save.monsters.length - 1; persist(); renderHome();
+};
+$('btnFree').onclick = () => {
+  if (save.monsters.length <= 1) { alert('Necesitas al menos un monstruo.'); return; }
+  if (!confirm(`¿Liberar a ${cur().name}? No vuelve.`)) return;
+  save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
+};
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startBattle(b.dataset.mode));
+
+cv.addEventListener('pointerdown', e => {
+  if (scene !== 'home' || !show || !homeView) return;
+  const x = (e.clientX - homeView.cx) / homeView.k, y = (e.clientY - homeView.gy) / homeView.k;
+  const sz = show.estSize();
+  if (Math.abs(x) < sz.w * 0.6 && y < 20 && y > -sz.h * 1.1) show.poke(x, y);
+});
+
+function startBattle(mode) {
+  lastMode = mode;
+  ARENA_D = H / W > 1.25 ? 980 : 560;
+  const me = cur();
+  const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
+  const foe = () => { const r = newRec(); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1); return new Monster(r); };
+  const list = [pm];
+  if (mode === '1v1') { const e = foe(); e.team = 1; list.push(e); }
+  else if (mode === '2v2') { const al = foe(); al.team = 0; list.push(al); for (let i = 0; i < 2; i++) { const e = foe(); e.team = 1; list.push(e); } }
+  else for (let i = 0; i < 3; i++) { const e = foe(); e.team = i + 1; list.push(e); }
+  battle = new Battle(list, mode);
+  scene = 'battle';
+  $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
+  $('modeLbl').textContent = { '1v1': '1 vs 1', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${m.name} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
+}
+
+function updateFighters() {
+  if (!battle) return;
+  battle.ms.forEach((m, i) => { const el = $('f' + i); if (!el) return; el.querySelector('i').style.width = (m.hp / m.st.hp * 100) + '%'; el.classList.toggle('dead', m.dead); });
+}
+
+function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
+$('quit').onclick = () => { if (battle && !battle.over && !confirm('¿Abandonar la pelea? No ganas XP.')) return; goHome(); };
+$('speed').onclick = () => { battleSpeed = battleSpeed === 1 ? 2 : battleSpeed === 2 ? 3 : 1; $('speed').textContent = 'x' + battleSpeed; };
+$('resHome').onclick = goHome;
+$('resAgain').onclick = () => startBattle(lastMode);
+
+function finishBattle() {
+  const rec = cur(), pm = battle.player;
+  const win = battle.winTeam === pm.team;
+  const gain = (win ? 50 : 20) + pm.kills * 10;
+  rec.xp += gain; win ? rec.wins++ : rec.losses++;
+  let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
+  persist();
+  $('resTitle').textContent = win ? '¡Victoria!' : 'Derrota';
+  $('resTitle').className = win ? 'win' : 'lose';
+  $('resText').innerHTML = `${rec.name} ganó <b>+${gain} XP</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
+  $('result').classList.add('on');
+}
+
+// ============================================================================
+// LOOP
+// ============================================================================
+let last = performance.now(), acc = 0, frame = 0;
+const STEP = 1 / 60;
+function loop(now) {
+  let dt = Math.min(0.1, (now - last) / 1000); last = now;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
+
+  if (scene === 'home' && show) {
+    acc += dt; let n = 0;
+    while (acc >= STEP && n++ < 5) { acc -= STEP; show.hop(STEP); show.animate(STEP); show.rigStep(STEP / 2); show.rigStep(STEP / 2); }
+    const r = $('showArea').getBoundingClientRect(), sz = show.estSize();
+    const k = Math.min(r.height * 0.78 / sz.h, r.width * 0.8 / sz.w, 3.2);
+    homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k };
+    const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - sz.h * k * 0.5, 10, homeView.cx, homeView.gy - sz.h * k * 0.5, Math.max(r.width, r.height) * 0.7);
+    glow.addColorStop(0, hsl(show.g.pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
+    const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
+    ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(0, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
+    show.draw(ctx);
+    ctx.restore();
+  } else if (scene === 'battle' && battle) {
+    acc += dt * battleSpeed; let n = 0;
+    while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
+    const top = 64, bottom = $('fighters').getBoundingClientRect().height + 24;
+    const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
+    const k = Math.min(W / bw, (H - top - bottom) / bh);
+    ctx.save(); ctx.translate((W - ARENA_W * k) / 2, top + ((H - top - bottom) - bh * k) / 2); ctx.scale(k, k);
+    battle.draw(ctx);
+    ctx.restore();
+    if (++frame % 6 === 0) updateFighters();
+    if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
+  }
+  requestAnimationFrame(loop);
+}
+renderHome();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
