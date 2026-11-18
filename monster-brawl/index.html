@@ -2106,18 +2106,26 @@ function setPage(n) {
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
 // Deslizar con el dedo en cualquier parte: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar).
-// Sobre el monstruo también: un trazo largo y rápido cambia de página; frotar despacio es acariciar; si lo tienes tomado, no.
+// En el Home, deslizar arriba/abajo cambia de monstruo. Sobre el monstruo también: un trazo largo y rápido cuenta; frotar despacio es acariciar; si lo tienes tomado, no.
 let swipe = null, swipedAt = 0;
 addEventListener('pointerdown', e => { if (scene === 'home' && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY, t: performance.now(), touch, id: e.pointerId }; });
 addEventListener('pointerup', e => {
   if (!swipe || e.pointerId !== swipe.id) return;
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, dt = performance.now() - swipe.t, onMon = swipe.touch; swipe = null;
-  if (onMon && (onMon.grab || dt > 800 || Math.abs(dx) < 100)) return; // tomado, o caricia (frotar corto o lento)
+  if (onMon && (onMon.grab || dt > 800 || Math.max(Math.abs(dx), Math.abs(dy)) < 100)) return; // tomado, o caricia (frotar corto o lento)
   if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
     const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 2);
     if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
+  } else if (homePage === 1 && Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5 && save.monsters.length > 1) {
+    swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
   }
 });
+// Cambiar de monstruo (flechas o deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
+function switchMonster(d) {
+  save.sel = (save.sel + d + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth();
+  if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; } }
+  else if (egg) { egg.sq = 0.18; egg.vt += d * 5; }
+}
 addEventListener('pointercancel', () => swipe = null);
 addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true); // un deslizamiento no aprieta botones
 
@@ -2217,8 +2225,8 @@ function tapEgg() {
   }, 1100);
 }
 
-$('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
-$('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
+$('prev').onclick = () => switchMonster(-1);
+$('next').onclick = () => switchMonster(1);
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Página Adoptar: muestra el huevo que te llevarías; al adoptarlo pasa al Home para hacerlo nacer

@@ -5,7 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Menú en 3 páginas** (deslizar o tocar las pestañas): Adoptar (a la izquierda, muestra el huevo que te llevas; máximo 8 monstruos),
-  Monstruo (el "home", página inicial) y Entrenar (a la derecha).
+  Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo) y Entrenar (a la derecha).
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
   Adolescente (Nv. 5-7): más grande y con más partes. Adulto (Nv. 8-11): todas las partes.
