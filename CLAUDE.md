@@ -94,14 +94,16 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
+- **Peso por etapa** (`WEIGHT_SCALE`): los adultos llegaban casi todos al tope 3,5; ahora su peso se escala (×0,885, tope 4,2) para que el promedio siga ~3,3
+  pero haya adultos livianos (~2,6) y pesados (~4,1). Las otras etapas no cambian. `st.mass` es el peso sin escalar ni tope (lo usa el vuelo).
 - **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
-  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light`, compensa que perdió las cadenas).
-  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
+  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light` 0,5; era 2 antes del peso por etapa y dejaba a los livianos en 67%).
+  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Con el peso por etapa: livianos ~48% / medios ~48–52% / pesados ~51–54% en 1v1. `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
 - **Vuelo de los alados** (`FLY`, `flyer`): según la carga alar (`st.mass` sin tope / tamaño de alas; el peso normal casi siempre está en el máximo 3,5)
-  los pesados **saltan alto** hacia su objetivo (`startLeap`, estado `leap`) y los livianos **flotan** ~1,3–1,9 s a altura `floatZ` (`floatT`), cada ~7–11 s.
+  los pesados **saltan alto** hacia su objetivo (`startLeap`, estado `leap`) y los livianos **flotan** ~1,1–1,7 s a altura `floatZ` (`floatT`), cada ~9–13 s.
   En el aire (z > `airZ`) no se puede golpear ni ser golpeado cuerpo a cuerpo, no esquivan, no chocan con los del suelo; los disparos suben o bajan
   hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo.
-  Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~54% (antes de esto: con alas 53%, sin alas 47%).
+  Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   El Criadero (150) es el gasto de monedas para el juego avanzado.

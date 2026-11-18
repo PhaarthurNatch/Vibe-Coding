@@ -307,11 +307,11 @@ const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 // Elección de objetivo: cada enemigo recibe un puntaje con factores de 0 a 1 (ver Monster.scoreTarget)
 // Cadenas de golpes: si te interrumpen el golpe no pierdes toda la espera; tras varios aturdimientos seguidos aguantas un rato;
 // los pesados se aturden menos (compensa que son más lentos)
-const STUN = { interruptCd: 0.25, chain: 2, chainGap: 0.8, immune: 0.6, poise: 0.15, light: 2 }; // light: los livianos pegan más fuerte a los más pesados
+const STUN = { interruptCd: 0.25, chain: 2, chainGap: 0.8, immune: 0.6, poise: 0.15, light: 0.5 }; // light: los livianos pegan más fuerte a los más pesados
 const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // más pesado que quien le pega = se aturde menos
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
-const FLY = { loadSplit: 0.072, airZ: 35, leapVz: 520, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 1.3, floatR: 0.6, cd: 7, cdR: 4 };
+const FLY = { loadSplit: 0.072, airZ: 35, leapVz: 520, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 1.1, floatR: 0.6, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -567,6 +567,7 @@ function rollGenome(seed, stage = 'adult') {
 }
 
 // Las estadísticas salen del cuerpo: más brazos = más fuerza, más alas = más esquiva, etc.
+const WEIGHT_SCALE = { adult: 0.885 };
 function calcStats(g, level = 1, train = null) {
   const T = g.torso;
   const segs = [T.upper, T.mid, T.lower].filter(Boolean);
@@ -576,7 +577,9 @@ function calcStats(g, level = 1, train = null) {
   const armMass = armP * (g.arms.upper + g.arms.fore) * g.arms.thick / 1000 * 2;
   const legMass = legP * (g.legs.upper + g.legs.lower) * g.legs.thick / 1000 * 2;
   let weight = 0.5 + area * 0.32 + headA * 0.25 + armMass * 0.5 + legMass * 0.5 + g.horns.count * g.horns.len * 0.004 + g.tail.count * g.tail.segs * g.tail.thick * 0.004;
-  weight = clamp(weight, 0.5, 3.5);
+  // Peso por etapa: los adultos son grandes y antes casi todos llegaban al tope (3,5). Se escala para que su promedio
+  // siga igual (~3,3) pero haya adultos livianos y pesados (≈2,6–4,1). Las otras etapas no cambian.
+  weight = clamp(weight * (WEIGHT_SCALE[g.stage] || 1), 0.5, 4.2);
   const hp = 60 + area * 20 + headA * 10 + g.shoulders.size * 0.8;
   const defense = 3 + g.shoulders.size * 0.9 + (g.shoulders.spikes ? 4 : 0) + area * 2 + (T.shape === 'box' ? 4 : 0);
   const legLen = g.legs.upper + g.legs.lower;
