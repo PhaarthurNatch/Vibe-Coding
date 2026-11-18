@@ -2426,7 +2426,7 @@ function updateEggBtn() {
 // ---------- Criadero: cruzar dos Awakened ----------
 const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60 * 1000, BREED_MUTATION = 0.1;
 const hmm = ms => { const t = Math.ceil(ms / 60000); return t >= 60 ? `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min` : mmss(ms); }; // 2 h 05 min / 4:32
-const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea terminada adelanta la incubación del huevo del Criadero
+const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
 let breedEgg = save.breeding ? new EggView(save.breeding.rec) : null, breedSel = new Set();
 function makeChild(A, B) {
   const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3 };
@@ -2465,7 +2465,7 @@ function renderBreed(thumbs) {
   if (aw.length < 2) h += `<p class="adoptTxt">Necesitas 2 monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Tienes ${aw.length}.</p>`;
   else h += `<div class="bdlist">${aw.map(([r, i]) => `<button class="tpc ${breedSel.has(i) ? 'on' : ''}" data-bd="${i}" ${resting(r) || r.bred ? 'disabled' : ''}><canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span></button>`).join('')}</div>`;
   h += `<button class="btn primary bdgo" id="bdGo"></button>`;
-  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas antes de poder abrirlo (cada pelea lo adelanta ${INCUBATE_FIGHT_MS / 60000} min).</p></div>`;
+  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas antes de poder abrirlo (cada pelea ganada lo adelanta ${INCUBATE_FIGHT_MS / 60000} min).</p></div>`;
   body.innerHTML = h;
   body.querySelectorAll('[data-bd]').forEach(b => {
     drawThumb(b.querySelector('canvas'), save.monsters[+b.dataset.bd]);
@@ -2964,7 +2964,7 @@ function finishBattle() {
     return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
   });
   wakeUp();
-  if (save.breeding && save.breeding.readyAt > Date.now()) { // pelear adelanta un poquito la incubación
+  if (place === 1 && save.breeding && save.breeding.readyAt > Date.now()) { // ganar adelanta un poquito la incubación
     save.breeding.readyAt = Math.max(Date.now(), save.breeding.readyAt - INCUBATE_FIGHT_MS);
     lines.push(`<small>🥚 El huevo del Criadero incubó ${INCUBATE_FIGHT_MS / 60000} min más rápido${save.breeding.readyAt <= Date.now() ? ': ¡ya se puede abrir!' : ''}</small>`);
   }
