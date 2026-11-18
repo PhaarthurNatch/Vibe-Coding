@@ -2081,7 +2081,7 @@ function renderTrain() {
   const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
   if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
   h += `<p class="tdesc">Cambia con cómo lo crías: acariciarlo lo vuelve más valiente, lanzarlo más agresivo y sus peleas también lo marcan. O con ejercicios:</p>`;
-  h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k); return `<button class="btn dbtn" data-drill="${i}" ${save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}</small></button>`; }).join('')}</div></div>`;
+  h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k), maxed = drillMaxed(rec, d); return `<button class="btn dbtn" data-drill="${i}" ${maxed || save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>${maxed ? `ya es lo más ${d.d > 0 ? t.pos : t.neg} posible` : `más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}`}</small></button>`; }).join('')}</div></div>`;
   h += `<div class="tsec"><div class="thead">Momento de la ultimate</div>`;
   if (rec.stage === 'awakened') {
     const um = rec.ultMode || 'save';
@@ -2110,9 +2110,10 @@ function addPoint(k) {
   rec.pts[k] = (rec.pts[k] || 0) + 1; persist();
   renderHome(); renderTrain(); trainFx(`+${PTS.find(t => t.k === k).name}`);
 }
+const drillMaxed = (rec, d) => (rec.temper[d.k] || 0) * d.d >= 0.999; // ese eje ya está al máximo en esa dirección
 function doDrill(i) {
   const rec = cur(), d = DRILLS[i], t = TEMPER.find(x => x.k === d.k);
-  if (save.coins < DRILL_COST) return;
+  if (save.coins < DRILL_COST || drillMaxed(rec, d)) return;
   save.coins -= DRILL_COST; adjustTemper(rec, d.k, d.d * DRILL_STEP); persist();
   renderHome(); renderTrain(); trainFx(`más ${d.d > 0 ? t.pos : t.neg}`);
 }
