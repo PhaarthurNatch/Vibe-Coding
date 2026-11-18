@@ -1992,6 +1992,9 @@ const STAT_DEF = [
   ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
 ];
 
+// Ánimo en el menú: feliz un rato después de acariciarlo; si no, triste con 1 corazón o menos
+const PET_HAPPY_MS = 60 * 1000;
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.lives <= 1 ? 'sad' : null;
 function renderHome() {
   wakeUp();
   if (homePage === 1) setTimeout(renderTrain);
@@ -2011,7 +2014,7 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = rec.lives <= 1 ? 'sad' : null;
+  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec);
   $('mName').textContent = rec.name;
   updateSub();
   const st = show.st;
@@ -2264,6 +2267,8 @@ function pet(a, b) {
   show.lookAt = null;
   petAcc += d;
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
+  const rec = cur(), fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
+  rec.happyUntil = Date.now() + PET_HAPPY_MS; show.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
@@ -2572,6 +2577,7 @@ function loop(now) {
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
+  if (scene === 'home' && show && frame % 20 === 0) show.baseEmo = baseEmoFor(cur()); // se le pasa la felicidad
   if (scene === 'home' && ++frame % 20 === 0 && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
