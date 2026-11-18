@@ -27,7 +27,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 10 s; Velocidad: doble de rápido por 10 s; Esquiva: doble esquiva por 10 s).
   Al usar cualquier ultimate queda potenciado: +15% a todos sus stats por 8 s.
   Se activa con 5+ golpes en la pelea y 60% de vida o menos: primero se queda 1,3 s cargando energía y luego viene el
-  acercamiento de cámara. Tras usarla queda descargada (sin aura) hasta recargarla en el menú por 40 monedas.
+  acercamiento de cámara. Una por pelea: tras usarla pierde el aura y se recarga sola al empezar la siguiente pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
 - **Rivales de otras etapas**: el rival puede ser de cualquier etapa; mientras más lejos de la tuya, menos probable
