@@ -163,7 +163,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
   <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button><button data-page="3">Criadero</button></div>
-  <div class="pager"><div class="track" id="track" style="transform:translateX(-33.3333%)">
+  <div class="pager"><div class="track" id="track" style="transform:translateX(-25%)">
   <div class="page">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="spacer" id="adoptArea"></div>
@@ -291,6 +291,7 @@ const ULTS = {
 };
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
 const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge'];
+const ULT_RECHARGE_S = 20; // segundos reales hasta poder volver a usar la ultimate en la misma pelea
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
 const SHIELD_MUL = 0; // Escudo de hierro: no recibe daño (igual lo empujan)
@@ -1096,6 +1097,7 @@ class Monster {
   think(dt, B) {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
+    if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.awakened) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
@@ -1834,7 +1836,7 @@ class Battle {
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
   execUlt(m) {
-    m.ultReady = false; m.ulting = false; // el aura sigue mientras dure el potenciado
+    m.ultReady = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
@@ -2777,7 +2779,7 @@ function updateUltBar() {
   $('ultBar').querySelectorAll('[data-ultm]').forEach(b => {
     const m = battle.ms[+b.dataset.ultm], used = !m.ultReady || m.ultRequest;
     b.disabled = used || m.dead || battle.over || battle.introT > 0;
-    b.querySelector('b').textContent = m.ultRequest ? '¡CARGANDO!' : !m.ultReady ? 'USADA' : m.dead ? 'K.O.' : 'ULTIMATE';
+    b.querySelector('b').textContent = m.dead ? 'K.O.' : m.ultRequest ? '¡CARGANDO!' : !m.ultReady ? (m.ultCd > 0 ? `RECARGA ${Math.ceil(m.ultCd / BATTLE_SPEED)}s` : 'USADA') : 'ULTIMATE';
   });
 }
 function updateFighters() {

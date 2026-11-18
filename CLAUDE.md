@@ -23,7 +23,8 @@ El jugador cría, entrena y moldea la personalidad de sus monstruos; los combate
 
 1. Editar `monster-brawl/index.html`.
 2. Probar en un navegador headless con Playwright (Chromium ya viene instalado en el entorno; `require('playwright')` funciona).
-   - Prueba rápida: `node monster-brawl/tools/smoke.js` (abre el juego como iPhone 13, hace nacer un huevo y juega una pelea; debe terminar con `no errors`).
+   - Prueba rápida: `node monster-brawl/tools/smoke.js` (abre el juego como iPhone 13, hace nacer un huevo, revisa que el Home quede centrado al abrir y juega una pelea; debe terminar con `no errors`).
+   - Si cambia la cantidad de páginas del menú, actualizar también el `translateX` inicial de `#track` en el HTML (ya pasó: quedó en 3 páginas y el Home salía corrido).
    - Para equilibrio: escribir simulaciones con `page.evaluate` usando las clases del juego directamente (ejemplo abajo).
    - Las capturas de pantalla y scripts temporales van en el scratchpad, **nunca en el repo**.
 3. Commit + push a la rama de trabajo. Mensajes de commit en inglés; terminar con las líneas de atribución que pida el entorno.
@@ -113,10 +114,10 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Acariciar o lanzar NO cambia la personalidad** (decisión del dueño). Acariciar lo deja feliz 1 minuto en el menú. Perder un corazón (que lo noqueen, aunque su equipo gane) lo deja triste 1 minuto (`sadUntil`); acariciarlo le quita esa tristeza. Con 1 corazón o menos queda **machacado** (no triste): cara cansada, curitas en la cabeza y ojo morado (`battered`, sólo en el menú).
 - **Ultimate (Awakened):** equipable y cambiable desde Entrenar (ahí **sólo** aparecen las desbloqueadas). Al despertar trae una de regalo (`starterUlt`); las demás se **compran en la Tienda** por 150 monedas
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
-  Una por pelea, se recarga al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
+  Se recarga **20 s después de usarla** (`ULT_RECHARGE_S`, en segundos reales; el botón muestra "RECARGA Ns") y al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
   Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
   **Tus monstruos la lanzan sólo cuando aprietas el botón ULTIMATE** abajo de la arena (`ultBar`, `setupUltBar`/`updateUltBar`, `ultRequest`; uno por monstruo tuyo con ultimate,
-  una vez por pelea, desactivado en la cuenta regresiva). Ya no hay modos "cuándo la usa" en Entrenar; los **rivales** siguen decidiendo solos (`ultMode` al azar).
+  desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Entrenar; los **rivales** siguen decidiendo solos (`ultMode` al azar).
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
