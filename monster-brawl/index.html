@@ -1928,6 +1928,7 @@ class EggView {
     this.rec = rec; this.pal = genGenome(rec.seed, 'baby', false, (rec.gen || 0) >= 3).pal; this.cols = makeCols(this.pal, 0);
     const r = rng((rec.seed ^ 0x1234567) >>> 0);
     this.w = 50; this.h = 62; this.tilt = 0; this.vt = 0; this.sq = 0; this.t = 0;
+    this.gx = 0; this.z = 0; this.vx = 0; this.vz = 0; this.held = false; // posición (para tomarlo y lanzarlo en Adoptar)
     this.spots = Array.from({ length: r.i(4, 7) }, () => ({ u: r.f(-0.8, 0.8), v: r.f(0.1, 0.9), r: r.f(3, 7) }));
     this.cracks = Array.from({ length: 7 }, () => { const pts = []; let u = r.f(-0.7, 0.7), v = r.f(0.25, 0.75); for (let i = 0; i < 4; i++) { pts.push([u, v]); u += r.f(-0.3, 0.3); v += r.f(-0.15, 0.15); } return pts; });
   }
@@ -1936,6 +1937,22 @@ class EggView {
     const nerv = this.rec.taps / this.rec.need; // mientras más cerca de nacer, más se mueve solo
     const idle = Math.sin(this.t * 10) * 0.05 * nerv * (Math.sin(this.t * 1.7) > 0.3 ? 1 : 0);
     this.vt += (-70 * (this.tilt - idle) - 7 * this.vt) * dt; this.tilt += this.vt * dt; this.sq *= Math.exp(-dt * 9);
+  }
+  // Física al tomarlo/lanzarlo: cae, rebota, rueda un poco y vuelve despacio al centro
+  homeStep(dt, halfW, maxZ) {
+    if (this.held) return;
+    const vz0 = this.vz;
+    this.vz -= 1100 * dt; this.z += this.vz * dt;
+    if (this.z < 0) {
+      this.z = 0;
+      if (vz0 < -150) { this.vz = -vz0 * 0.3; this.sq = Math.min(0.25, -vz0 / 2400); this.vt += (Math.random() - 0.5) * 10; }
+      else this.vz = 0;
+    }
+    if (this.z === 0) { this.vx += (-this.gx * 1.2 - this.vx) * Math.min(1, dt * 2.5); this.vt += this.vx * dt * 0.06; } // rueda
+    else this.vx *= Math.exp(-dt * 0.3);
+    this.gx += this.vx * dt;
+    if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; this.vt -= Math.sign(this.gx) * 5; this.sq = 0.12; }
+    if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
   }
   draw(ctx) {
     const { w, h } = this, C = this.cols, prog = this.rec.taps / this.rec.need;
@@ -2005,7 +2022,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
   });
 }
 let W = 0, H = 0, DPR = 1;
-let homeBounds = { halfW: 100, maxZ: 200 };
+let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null;
 
@@ -2274,8 +2291,12 @@ const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY
 cv.addEventListener('pointerdown', e => {
   if (scene !== 'home' || !homeView) return;
   const p = toLocal(e);
-  if (homeView.adopt) { // en Adoptar, tocar el huevo sólo lo hace bambolear
-    if (Math.abs(p.x) < adoptEgg.w * 0.9 && p.y < 20 && p.y > -adoptEgg.h * 1.3) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; }
+  if (homeView.adopt) { // en Adoptar: tocar el huevo lo hace bambolear; mantener lo toma para moverlo o lanzarlo
+    const E = adoptEgg;
+    if (!(Math.abs(p.x - E.gx) < E.w * 0.9 && p.y + E.z < 20 && p.y + E.z > -E.h * 1.3)) return;
+    touch = { sx: e.clientX, sy: e.clientY, last: p, pet: false, grab: false, adopt: true, id: e.pointerId, hist: [[p.x, p.y, performance.now()]] };
+    touch.timer = setTimeout(() => { if (touch && !touch.pet) grab(touch); }, GRAB_HOLD_MS);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { }
     return;
   }
   if (egg) { if (Math.abs(p.x) < egg.w * 0.9 && p.y < 20 && p.y > -egg.h * 1.3) tapEgg(); return; }
@@ -2287,17 +2308,22 @@ cv.addEventListener('pointerdown', e => {
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }
 });
 cv.addEventListener('pointermove', e => {
-  if (!touch || e.pointerId !== touch.id || !show || scene !== 'home') return;
+  if (!touch || e.pointerId !== touch.id || scene !== 'home') return;
+  const O = grabbed(touch); if (!O) return;
   const p = toLocal(e);
   touch.hist.push([p.x, p.y, performance.now()]); if (touch.hist.length > 6) touch.hist.shift();
   if (touch.grab) { // lo llevas colgando del dedo
-    show.gx = clamp(p.x - touch.offX, -homeBounds.halfW, homeBounds.halfW);
-    show.z = clamp(touch.offY - p.y, 0, homeBounds.maxZ);
-    const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
-    if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
+    const bd = touch.adopt ? adoptBounds : homeBounds;
+    O.gx = clamp(p.x - touch.offX, -bd.halfW, bd.halfW);
+    O.z = clamp(touch.offY - p.y, 0, bd.maxZ);
+    if (touch.adopt) O.vt += (p.x - touch.last.x) * 0.04; // el huevo se balancea colgando
+    else {
+      const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
+      if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
+    }
   } else {
     if (!touch.pet && Math.hypot(e.clientX - touch.sx, e.clientY - touch.sy) > 10) { touch.pet = true; clearTimeout(touch.timer); }
-    if (touch.pet) pet(touch.last, p);
+    if (touch.pet && !touch.adopt) pet(touch.last, p);
   }
   touch.last = p;
 });
@@ -2305,24 +2331,30 @@ cv.addEventListener('pointerup', e => {
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
+  else if (!touch.pet && touch.adopt) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; } // bambolea
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
 cv.addEventListener('pointercancel', () => { if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
 const GRAB_HOLD_MS = 280;
+const grabbed = t => t.adopt ? (scene === 'home' && homeView && homeView.adopt ? adoptEgg : null) : show; // qué tiene el dedo: el monstruo o el huevo de Adoptar
 function grab(t) {
-  t.grab = true; show.held = true; show.vx = 0; show.vz = 0;
-  show.z = Math.min(homeBounds.maxZ, show.z + 14); // lo levantas un poquito
-  t.offX = t.last.x - show.gx; t.offY = t.last.y + show.z;
+  const O = grabbed(t); if (!O) return;
+  t.grab = true; O.held = true; O.vx = 0; O.vz = 0;
+  O.z = Math.min((t.adopt ? adoptBounds : homeBounds).maxZ, O.z + 14); // lo levantas un poquito
+  t.offX = t.last.x - O.gx; t.offY = t.last.y + O.z;
+  if (t.adopt) { O.sq = 0.1; try { navigator.vibrate && navigator.vibrate(15); } catch (err) { } return; }
   if (!show.sleep) show.setEmo('surprised', 0.45, 2, ['happy', 60]);
   for (const n of show.nodes) n.vy += 60 + Math.random() * 60;
   try { navigator.vibrate && navigator.vibrate(15); } catch (err) { }
 }
 function release(t) {
-  show.held = false;
+  const O = t.adopt ? adoptEgg : show; if (!O) return;
+  O.held = false;
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
-  if (performance.now() - b[2] > 120) { show.vx = 0; show.vz = 0; } // estaba quieto: sólo lo sueltas
-  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  if (performance.now() - b[2] > 120) { O.vx = 0; O.vz = 0; } // estaba quieto: sólo lo sueltas
+  else { O.vx = clamp((b[0] - a[0]) / dt, -900, 900); O.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  if (t.adopt) return;
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
 function pet(a, b) {
@@ -2596,7 +2628,7 @@ function loop(now) {
       acc -= STEP; fxStep(STEP);
       if (egg) egg.update(STEP);
       else show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
-      adoptEgg.update(STEP);
+      adoptEgg.update(STEP); adoptEgg.homeStep(STEP, adoptBounds.halfW, adoptBounds.maxZ);
     }
     // Se dibuja en el área de la página que está más centrada (Adoptar muestra el huevo por adoptar)
     const areas = ['adoptArea', 'showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.left + q.width / 2 - W / 2);
@@ -2606,15 +2638,17 @@ function loop(now) {
     const sz = E ? { w: E.w, h: E.h } : show.estSize();
     const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
     homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k, adopt: onAdopt };
-    if (!onAdopt) homeBounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * 0.3), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
+    const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
+    if (onAdopt) adoptBounds = bounds; else homeBounds = bounds;
     const pal = E ? E.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
     const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
     glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
     ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
     if (E) {
-      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, E.w * 0.55, E.w * 0.16, 0, 0, TAU); ctx.fill();
-      E.draw(ctx);
+      const ek = clamp(1 - E.z / 150, 0.3, 1);
+      ctx.fillStyle = `rgba(0,0,0,${0.3 * ek})`; ctx.beginPath(); ctx.ellipse(E.gx, 0, E.w * 0.55 * ek, E.w * 0.16 * ek, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(E.gx, -E.z); E.draw(ctx); ctx.restore();
     } else {
       const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
       ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(show.gx, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
