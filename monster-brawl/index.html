@@ -836,7 +836,7 @@ class Monster {
   auraStep(dt) {
     const s = this.s;
     this.auraBoost = Math.max(0, this.auraBoost - dt);
-    if (!this.dead && (this.state === 'ultcharge' || this.ulting || this.buffs.all > 0)) {
+    if (!this.dead && (this.state === 'ultcharge' || this.ulting || this.buffs.all > 0 || this.growAura)) {
       this.auraAcc += dt * (this.auraBoost > 0 ? 80 : 24);
       const w = Math.max(this.seg.up.w, this.seg.mi.w, this.seg.lo.w) * 0.55 * s;
       while (this.auraAcc > 1) {
@@ -2452,6 +2452,7 @@ function checkGrowth() {
   const from = STAGE_ORDER.indexOf(rec.stage), to = STAGE_ORDER.indexOf(stageForLevel(rec.level));
   const chain = [new Monster(rec)];
   for (let i = from + 1; i <= to; i++) chain.push(new Monster({ ...rec, stage: STAGE_ORDER[i] }));
+  for (const m of chain) m.growAura = m.awakened; // en la animación de despertar el aura se ve como siempre
   for (let i = 1; i < chain.length; i++) chain[i].hidden = new Set(newParts(chain[i - 1].g, chain[i].g));
   chain.forEach(m => m.resetRig());
   const fe = chain[chain.length - 1].estSize(); // encuadre según el tamaño final
@@ -2499,6 +2500,7 @@ function growStep(dt) {
         G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
         burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
         $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó! Ultimate: ${ULTS[G.newM.ultType].name}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!`;
+        if (G.rec.stage === 'awakened') G.newM.auraBoost = 2.5;
         if (last) { G.phase = 'done'; $('growOk').hidden = false; }
         else { G.phase = 'between'; G.betweenT = G.t; } // ¡y todavía le falta crecer más!
       }
