@@ -300,7 +300,7 @@ const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mej
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
 // Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
 // en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
-const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.45, teamBackoff: 0.4 };
+const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.6, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
