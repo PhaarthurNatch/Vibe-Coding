@@ -1438,11 +1438,14 @@ class Monster {
     const er = g.eyes.size * s;
     const jit = () => E === 'scared' ? (Math.random() - 0.5) * er * 0.22 : 0;
     const blinkOk = !['scared', 'surprised', 'dizzy', 'hurt', 'happy', 'love'].includes(E);
-    const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35] }[E]; // [altura del párpado, inclinación]
-    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85 }[E] || 1;
+    const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35], beat: [0.02, -0.1] }[E]; // [altura del párpado, inclinación]
+    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8 }[E] || 1;
+    // machacado (1 corazón o menos): ojo morado en el ojo de más a la derecha
+    const bruiseEye = this.battered && g.eyes.pos.length ? g.eyes.pos.reduce((a, b) => b[0] > a[0] ? b : a) : null;
 
     for (const e of g.eyes.pos) {
       const ex = e[0] * hw, ey = e[1] * hh, side = ex < -0.01 ? -1 : ex > 0.01 ? 1 : 0;
+      if (e === bruiseEye) { ctx.beginPath(); ctx.ellipse(ex + er * 0.08, ey + er * 0.12, er * 1.5, er * 1.35, 0, 0, TAU); ctx.fillStyle = 'rgba(110,55,150,.5)'; ctx.fill(); }
       ctx.lineWidth = lw * 1.3; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       if (E === 'ko') { // ojos en X
         ctx.beginPath(); ctx.moveTo(ex - er * 0.6, ey - er * 0.6); ctx.lineTo(ex + er * 0.6, ey + er * 0.6); ctx.moveTo(ex + er * 0.6, ey - er * 0.6); ctx.lineTo(ex - er * 0.6, ey + er * 0.6); ctx.stroke(); continue;
@@ -1493,6 +1496,7 @@ class Monster {
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
     if (custom && E === 'scared') wavy(mw * 0.12, 6);
     else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    else if (custom && E === 'beat') wavy(mw * 0.05, 4);
     else if (custom && E === 'love') { ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
     else if (custom && E === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
@@ -1564,6 +1568,17 @@ class Monster {
     }
 
     // ---------- Detalles alrededor de la cara ----------
+    if (this.battered) { // curitas cruzadas en la cabeza, del lado contrario al ojo morado
+      const sd = bruiseEye && bruiseEye[0] < 0 ? 1 : -1, bx = sd * hw * 0.45, by = -hh * 0.68, L = Math.max(14, Math.min(hw, hh) * 0.75), Wd = L * 0.32;
+      for (const a of [0.6, -0.6]) {
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(a);
+        ctx.beginPath(); rrect(ctx, -L / 2, -Wd / 2, L, Wd, Wd / 2); fillStroke(ctx, '#f4cfa2', C.ol, lw * 0.8);
+        ctx.fillStyle = '#e0a675'; ctx.fillRect(-L * 0.16, -Wd * 0.32, L * 0.32, Wd * 0.64);
+        ctx.fillStyle = 'rgba(150,95,60,.55)';
+        for (const dx of [-0.36, -0.27, 0.27, 0.36]) for (const dy of [-0.18, 0.18]) { ctx.beginPath(); ctx.arc(dx * L, dy * Wd, Math.max(0.7, Wd * 0.07), 0, TAU); ctx.fill(); }
+        ctx.restore();
+      }
+    }
     if (this.crying && E === 'sad') { // lágrimas que caen de los ojos
       const ey = g.eyes.pos.length ? g.eyes.pos : [[-0.3, -0.1], [0.3, -0.1]];
       ey.slice(0, 2).forEach((e, k) => {
@@ -2011,10 +2026,11 @@ const STAT_DEF = [
   ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
 ];
 
-// Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón, o con 1 corazón o menos.
-// Acariciarlo le quita esa tristeza.
+// Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
+// con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
 const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
-const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() || rec.lives <= 1 ? 'sad' : null;
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= 1 ? 'beat' : null;
+const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
   if (homePage === 1) setTimeout(renderTrain);
@@ -2034,7 +2050,7 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec);
+  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
   $('mName').textContent = rec.name;
   updateSub();
   const st = show.st;
@@ -2615,7 +2631,7 @@ function loop(now) {
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
-  if (scene === 'home' && show && frame % 20 === 0) show.baseEmo = baseEmoFor(cur()); // se le pasa la felicidad
+  if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
   if (scene === 'home' && ++frame % 20 === 0 && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
