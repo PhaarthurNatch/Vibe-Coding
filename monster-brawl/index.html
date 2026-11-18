@@ -136,11 +136,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ums .btn{flex:1;font-size:12px;padding:9px 4px}
 .ums .btn.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
 .respec{align-self:center;font-size:12px;padding:8px 12px}
-.persona,.detbtn,.det{grid-column:1/-1}
-.persona{margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.persona{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .persona b{color:var(--text)}
-.detbtn{background:none;box-shadow:none;color:var(--muted);font-size:11px;text-decoration:underline;padding:2px}
-.det{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;opacity:.85}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -2011,21 +2008,10 @@ const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
   ['Agilidad', st => st.speed * 0.6 + st.dodge * 150, 200],
   ['Técnica', st => 60 / st.meleeCd + st.reach * 0.6, 160],
 ];
-let detailOpen = false;
 function personaText(rec) {
   const ls = TEMPER.map(t => temperLabel(t.k, (rec.temper || {})[t.k] || 0)).filter(Boolean);
   return `Personalidad: <b>${ls.length ? ls.join(' · ') : 'equilibrada'}</b>`;
 }
-const STAT_DEF = [
-  ['Vida', st => st.hp, 260, v => Math.round(v)],
-  ['Fuerza', st => st.melee, 30, v => Math.round(v)],
-  ['Disparo', st => st.ranged, 14, v => v ? Math.round(v) : '—'],
-  ['Defensa', st => st.defense, 36, v => Math.round(v)],
-  ['Velocidad', st => st.speed, 190, v => Math.round(v)],
-  ['Peso', st => st.weight, 3.5, v => v.toFixed(1)],
-  ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
-];
-
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
 const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
@@ -2056,10 +2042,7 @@ function renderHome() {
   const st = show.st;
   const row = (lb, v, mx, txt) => `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${txt}</span></div>`;
   $('stats').innerHTML = MAIN_DEF.map(([lb, fn, mx]) => row(lb, fn(st), mx, Math.round(fn(st)))).join('')
-    + `<p class="persona">${personaText(rec)}</p>`
-    + `<button class="btn detbtn" id="detBtn">${detailOpen ? 'Ocultar detalle' : 'Ver detalle'}</button>`
-    + (detailOpen ? `<div class="det">${STAT_DEF.map(([lb, fn, mx, fmt]) => row(lb, fn(st), mx, fmt(fn(st)))).join('')}</div>` : '');
-  $('detBtn').onclick = () => { detailOpen = !detailOpen; renderHome(); };
+    + `<p class="persona">${personaText(rec)}</p>`;
   $('ultInfo').hidden = !show.awakened;
   if (show.awakened) $('ultInfo').innerHTML = `Ultimate: <b>${ULTS[show.ultType].name}</b> · ${ULTS[show.ultType].desc}`;
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
