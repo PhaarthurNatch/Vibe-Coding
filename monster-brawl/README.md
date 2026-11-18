@@ -4,10 +4,12 @@ Juego de monstruos generados al azar que pelean solos (estilo "cría y pelea").
 Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el navegador del celular.
 
 ## Qué hay
+- **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: huevos por 60 monedas, que se abren ahí mismo, y ultimates por 150; máximo 8 monstruos),
+  Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo) y Entrenar (a la derecha).
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
   Adolescente (Nv. 5-7): más grande y con más partes. Adulto (Nv. 8-11): todas las partes.
-  Awakened (Nv. 12+): mismo cuerpo de adulto, con aura de partículas de su color y una ultimate. Al crecer conserva todas sus partes
+  Awakened (Nv. 12+): mismo cuerpo de adulto y una ultimate; al usarla le sale un aura de partículas de su color que dura lo que dura su efecto. Al crecer conserva todas sus partes
   (agrandadas) y se sortea si le salen partes nuevas; las cantidades sólo suben. Crece recién al volver al menú,
   con una animación a pantalla completa donde le van apareciendo las partes nuevas (si le toca crecer varias etapas,
   crecen una tras otra dentro de la misma animación).
@@ -19,7 +21,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   cuerpo de dos tonos y dibujos (rayas, degradado, manchas grandes). Los monstruos antiguos conservan su aspecto.
 - **Partes "floaty"**: cada parte es un nodo con resorte que sigue a su padre con retraso; al recibir golpes se sacuden y al morir caen como ragdoll.
 - **Stats salen del cuerpo**: vida, fuerza, disparo, defensa, velocidad, peso (regula el knockback) y esquiva.
-- **IA**: primero ataca al más cercano; el daño recibido se acumula como odio y, cuando el odio hacia alguien pasa un umbral, va por él aunque esté lejos ("¡grr!"); al fijarlo se mueve sobre un eje de lock-in que gira lento.
+- **IA**: elige objetivo mirando a la vez qué tan cerca está, quién le está pegando ahora, quién le ha pegado en toda la pelea, quién lo está atacando, quién está débil o distraído, a quién ataca su compañero (2 vs 2), si ya hay varios encima de uno (todos contra todos), si tiene escudo y qué tan peligroso es. La personalidad decide cuánto pesa cada cosa ("¡grr!" cuando cambia por rabia, "¡ahora!" por oportunidad). No cambia a cada rato: sólo si el nuevo es claramente mejor. Al fijarlo se mueve sobre un eje de lock-in que gira lento.
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.
 - Modos 1v1, 2v2 y todos contra todos (velocidad fija x1.5). En 2v2 eliges 2 de tus monstruos para pelear en equipo
@@ -40,7 +42,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
   Se usa una por pelea (con carga previa y acercamiento de cámara) y se recarga al empezar cada pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
-  mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
+  mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas. Si lo noquean (pierde un corazón) queda triste 1 minuto en el menú, aunque su equipo gane, pero si lo acaricias se pone feliz. Con 1 corazón o menos se ve machacado: cansado, con curitas y un ojo morado.
 - **Rivales**: siempre de la misma etapa que tu monstruo, con nivel parecido y puntos y personalidad al azar.
 - **Muerte súbita**: desde los 60 s de pelea (de juego) el daño va subiendo poco a poco, así las peleas siempre terminan con un K.O.
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).

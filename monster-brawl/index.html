@@ -46,8 +46,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
-.track{display:flex;width:200%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-.page{width:50%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
+.track{display:flex;width:300%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.page{width:33.3333%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
 .page>*{pointer-events:auto}
 .page>.spacer{pointer-events:none}
 .tlist{display:flex;flex-direction:column;gap:8px}
@@ -63,7 +63,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
-.tpanel{min-height:0;overflow-y:auto;flex:0 1 auto}
+#adoptArea{flex:1 1 170px;min-height:170px}
+#btnNew:not([hidden]){display:flex;align-items:center;justify-content:center;gap:6px}
+.adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+.tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
+#home .top,#home .tabs,#home .nav,#home .panel:not(.tpanel){touch-action:none} /* deslizar para cambiar de página sin que el navegador se lo robe */
 .tinfo{text-align:center;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.track{transition:none}}
 .xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
@@ -101,7 +105,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .mid{color:var(--acc)}
 .growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
 #growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
-.tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto}
+.tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto;touch-action:pan-y}
 .tpc{background:var(--panel2);border-radius:14px;padding:6px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;border:2px solid transparent;font-size:12px;color:var(--muted)}
 .tpc b{color:var(--text);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tpc canvas{width:72px;height:72px}
@@ -136,11 +140,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ums .btn{flex:1;font-size:12px;padding:9px 4px}
 .ums .btn.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
 .respec{align-self:center;font-size:12px;padding:8px 12px}
-.persona,.detbtn,.det{grid-column:1/-1}
-.persona{margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.persona{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .persona b{color:var(--text)}
-.detbtn{background:none;box-shadow:none;color:var(--muted);font-size:11px;text-decoration:underline;padding:2px}
-.det{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;opacity:.85}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -150,8 +151,18 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0" class="on">Monstruo</button><button data-page="1">Entrenar</button></div>
-  <div class="pager"><div class="track" id="track">
+  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button></div>
+  <div class="pager"><div class="track" id="track" style="transform:translateX(-33.3333%)">
+  <div class="page">
+    <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
+    <div class="spacer" id="adoptArea"></div>
+    <div class="panel tpanel">
+      <div class="tsec"><div class="thead">Huevo misterioso</div>
+        <p class="adoptTxt" id="adoptTxt"></p>
+        <button class="btn primary" id="btnNew"></button></div>
+      <div class="tsec" id="shopUlts"></div>
+    </div>
+  </div>
   <div class="page">
   <div class="nav">
     <button class="arrow" id="prev">◀</button>
@@ -165,7 +176,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="ultinfo" id="ultInfo" hidden></div>
     <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
-      <button class="btn" id="btnNew">＋ Adoptar huevo</button>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
@@ -285,8 +295,17 @@ const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 -
 // Peleas largas: desde OT_START s de juego empieza la muerte súbita (el daño sube poco a poco) para que siempre termine con un K.O.
 const OT_START = 60, OT_RAMP = 12, HARD_LIMIT = 300;
 const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
-const HATE_THRESHOLD = 0.12; // odio (daño recibido) que debe acumular, como fracción de su vida máx., antes de importar
-const HATE_WEIGHT = 14;       // pasado el umbral, cada punto de odio "acerca" al enemigo 14 unidades
+// Elección de objetivo: cada enemigo recibe un puntaje con factores de 0 a 1 (ver Monster.scoreTarget)
+const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
+const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
+const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
+const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
+// Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
+// en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
+const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
+// Pesos de cada factor (y cuánto los mueve la personalidad)
+const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
+  distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
 const MAX_MONSTERS = 8;
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -668,6 +687,9 @@ function fillStroke(ctx, fill, ol, lw) { ctx.fillStyle = fill; ctx.fill(); ctx.l
 // ============================================================================
 // MONSTRUO: esqueleto con física de resortes (partes "floaty") + IA de combate
 // ============================================================================
+// Qué tan "floaty" son las partes: resortes más firmes y que frenan más rápido.
+// 1,3 y 1,5 dejan el bamboleo en ~75% del original (medido en 60 peleas).
+const RIG_STIFF = 1.3, RIG_DAMP = 1.5;
 let MID = 0;
 class Monster {
   constructor(rec) {
@@ -682,7 +704,7 @@ class Monster {
     this.gx = 0; this.gy = 0; this.s = 1;
     this.team = 0; this.state = 'free'; this.stT = 0;
     this.target = null; this.targetTimer = 0; this.lockAx = { x: 1, y: 0 };
-    this.damageFrom = new Map(); this.kills = 0;
+    this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
     this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
     // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
@@ -823,12 +845,12 @@ class Monster {
     for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; n.x = P.x + n.ox * this.s; n.y = P.y + n.oy * this.s; n.vx = n.vy = 0; }
   }
 
-  // ---------- Aura de Awakened: partículas de su color que suben (mientras tenga la ultimate lista) ----------
+  // ---------- Aura de Awakened: partículas de su color que suben, sólo al cargar la ultimate y mientras dura su efecto ----------
   auraStep(dt) {
     const s = this.s;
-    if (this.ultReady && !this.dead) {
-      this.auraBoost = Math.max(0, this.auraBoost - dt);
-      this.auraAcc += dt * (this.auraBoost > 0 ? 80 : 24);
+    this.auraBoost = Math.max(0, this.auraBoost - dt);
+    if (!this.dead && (this.state === 'ultcharge' || this.ulting || this.buffs.all > 0 || this.growAura)) {
+      this.auraAcc += dt * (this.ulting ? 170 : this.auraBoost > 0 ? 80 : 24); // en el acercamiento de cámara sale más densa
       const w = Math.max(this.seg.up.w, this.seg.mi.w, this.seg.lo.w) * 0.55 * s;
       while (this.auraAcc > 1) {
         this.auraAcc--;
@@ -940,6 +962,35 @@ class Monster {
     const lk = Math.min(1, dt * 6); this.look.x += (lx - this.look.x) * lk; this.look.y += (ly - this.look.y) * lk;
   }
 
+  // ---------- Puntaje de un posible objetivo (más alto = mejor) ----------
+  // Cada factor va de 0 a 1 (así funciona igual en todas las etapas); la personalidad cambia los pesos:
+  // Agresivo = cercanía · Cauto = se aleja del que le pega fuerte · Terco = rencor y no suelta · Oportunista = vulnerable y distraído ·
+  // Valiente = va por el más peligroso · Prudente = lo evita.
+  scoreTarget(e, B, allies) {
+    const { agr, terco, valor } = this.tp, st = this.st, hpMax = st.hp;
+    const d = Math.hypot(e.x - this.x, e.y - this.y);
+    const reach = this.kiter ? Math.min(st.range * 0.8, 300) : this.r + e.r + st.reach * 0.85;
+    const close = 0.85 / (1 + Math.max(0, d - reach) / Math.max(40, st.speed) * 1.2) + 0.15 * (1 - clamp(d / Math.hypot(ARENA_W, ARENA_D), 0, 1));
+    const threat = clamp((this.recentFrom.get(e.id) || 0) / (hpMax * 0.25), 0, 1);  // cuánto le pegó en los últimos segundos
+    const grudge = clamp((this.damageFrom.get(e.id) || 0) / (hpMax * 0.5), 0, 1);  // cuánto le ha pegado en toda la pelea
+    const onMe = e.target === this ? 1 : 0;
+    const hpF = e.hp / e.st.hp, myHit = Math.max(st.melee, st.ranged) * (1 - e.st.defense / (e.st.defense + 40));
+    const vuln = clamp((1 - hpF) * 0.7 + (e.hp < myHit * 2.5 ? 0.3 : 0), 0, 1);       // poca vida / lo remata pronto
+    const distr = e.target && e.target !== this && !e.target.dead ? 1 : 0;            // peleando con otro
+    const team = allies.length ? allies.filter(a => a.target === e).length / allies.length : 0;
+    const crowd = B.mode === 'ffa' ? Math.max(0, B.ms.filter(m => !m.dead && m !== this && m.target === e && m.team !== e.team).length - 1) : 0;
+    const shield = e.buffs.defense > 0 ? 1 : e.buffs.dodge > 0 ? 0.5 : 0;
+    const dps = m => Math.max(m.st.melee / m.st.meleeCd, m.st.ranged > 0 ? m.st.ranged / m.st.rangedCd : 0);
+    const danger = dps(e) / (dps(e) + dps(this) + 1e-6);                              // ~0,5 si son parejos
+    const pos = v => Math.max(0, v), neg = v => Math.max(0, -v);
+    const W = TGT_W;
+    const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * (W.grudge + W.grudgeTerco * pos(terco));
+    const opp = vuln * (W.vuln + W.vulnOpp * neg(terco)) + distr * (W.distr + W.distrOpp * neg(terco));
+    const sc = close * (W.close + W.closeAgr * agr) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield
+      + (danger - 0.5) * (W.dangerValor * valor - W.dangerCauto * neg(agr));
+    return { sc, angry, opp };
+  }
+
   // ---------- Física de resortes de las partes ----------
   rigStep(dt) {
     const N = this.nodes, s = this.s, dead = this.dead;
@@ -948,7 +999,7 @@ class Monster {
       if (dead) { n.vy += 900 * dt; const f = Math.exp(-dt * 1.5); n.vx *= f; }
       else {
         const tx = n.useT ? n.tx : P.x + (n.ox + n.ax) * s, ty = n.useT ? n.ty : P.y + (n.oy + n.ay) * s;
-        const k = n.k * n.boost, c = n.c * Math.sqrt(n.boost);
+        const k = n.k * n.boost * RIG_STIFF, c = n.c * RIG_DAMP * Math.sqrt(n.boost * RIG_STIFF);
         n.vx += (k * (tx - n.x) - c * n.vx) * dt; n.vy += (k * (ty - n.y) - c * n.vy) * dt;
       }
       n.x += n.vx * dt; n.y += n.vy * dt;
@@ -998,36 +1049,37 @@ class Monster {
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
     this.strafeT -= dt; if (this.strafeT < 0) { this.strafe *= -1; this.strafeT = 1.5 + Math.random() * 2; }
-    for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.04 * dt)); // el odio se olvida lento
+    for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.03 * dt)); // rencor: se olvida muy lento
+    for (const [k, v] of this.recentFrom) this.recentFrom.set(k, v * Math.exp(-dt / TGT_RECENT_S)); // daño reciente: se olvida rápido
+    this.commitT -= dt;
 
-    // Elegir objetivo:
-    // 1.º el más cercano. 2.º el que más daño le ha hecho: el daño recibido se acumula como odio,
-    // y cuando el odio hacia alguien pasa el umbral, va por él aunque esté más lejos.
+    // Elegir objetivo: puntaje por factores (cercanía, amenaza, quién lo ataca, vulnerable, distraído, equipo,
+    // amontonamiento, escudo, peligro); la personalidad decide cuánto pesa cada uno. Cambia sólo si el nuevo es claramente mejor.
     const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
     if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; return; }
     if (!this.target || this.target.dead || this.targetTimer <= 0) {
-      const tc = this.tp.terco, thr = this.st.hp * HATE_THRESHOLD * (1 + tc * 0.8);
-      let best = null, bs = Infinity, nearest = null, nd = Infinity, why = '';
+      const allies = B.ms.filter(m => !m.dead && m.team === this.team && m !== this);
+      let best = null, bs = -Infinity, bWhy = null, cur = null;
       for (const e of enemies) {
-        const d = Math.hypot(e.x - this.x, e.y - this.y);
-        if (d < nd) { nd = d; nearest = e; }
-        const hate = Math.max(0, (this.damageFrom.get(e.id) || 0) - thr) * HATE_WEIGHT;
-        // Oportunista: prefiere al más débil y al que ataca a su compañero
-        const opp = tc < 0 ? (1 - e.hp / e.st.hp) * 200 * -tc + (e.target && e.target !== this ? 70 * -tc : 0) : 0; // el débil o el distraído
-        let sc = d - hate - opp;
-        if (e === this.target) sc -= 60 * (1 + tc); // lock-in: al Terco le cuesta mucho más cambiar
-        if (sc < bs) { bs = sc; best = e; why = opp > hate ? 'opp' : 'hate'; }
+        const r = this.scoreTarget(e, B, allies);
+        if (e === this.target) cur = r;
+        if (r.sc > bs) { bs = r.sc; best = e; bWhy = r; }
       }
-      if (best !== this.target) {
+      const tc = this.tp.terco, margin = Math.max(0.05, TGT_MARGIN * (1 + tc * 0.8));
+      const keep = cur && !this.target.dead && (bs - cur.sc < margin || (this.commitT > 0 && bs - cur.sc < margin * 3));
+      if (best !== this.target && !keep) {
         const prev = this.target;
-        this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
-        if (prev) this.switches++;
-        if (prev && best !== nearest) {
-          if (why === 'opp') { B.text(this, '¡ahora!', '#ffe08a'); this.setEmo('focus', 1.2, 3); } // oportunista
-          else { B.text(this, '¡grr!', '#ff7a7a'); this.setEmo('angry', 1.4, 3); }                  // por odio
+        this.target = best; this.commitT = TGT_COMMIT * (1 + tc * 0.6);
+        const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
+        if (prev && !prev.dead) {
+          this.switches++;
+          // por qué cambió (lo que más pesó a favor del nuevo): rencor/amenaza = "¡grr!", vulnerable/distraído = "¡ahora!"
+          const angry = bWhy.angry - (cur ? cur.angry : 0), opp = bWhy.opp - (cur ? cur.opp : 0);
+          if (angry > 0.15 && angry >= opp) { B.text(this, '¡grr!', '#ff7a7a'); this.setEmo('angry', 1.4, 3); }
+          else if (opp > 0.15) { B.text(this, '¡ahora!', '#ffe08a'); this.setEmo('focus', 1.2, 3); }
         }
       }
-      this.targetTimer = 0.6;
+      this.targetTimer = TGT_EVERY;
     }
 
     switch (this.state) {
@@ -1041,7 +1093,7 @@ class Monster {
       case 'strike':
         this.strikeExt = clamp(1 - this.stT / 0.14, 0, 1);
         this.checkMelee(B);
-        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; if (this.tp.agr < -0.25) this.backoff = 0.6 * -this.tp.agr; }
+        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; if (this.tp.agr < -0.25) this.backoff = 0.6 * -this.tp.agr * (B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamBackoff : 1); }
         break;
       case 'ultcharge':
         if (this.stT <= 0) { if (!B.cine && !B.over) B.startUlt(this); else this.stT = 0.1; }
@@ -1061,11 +1113,11 @@ class Monster {
     this.lockAx.x = Math.cos(na); this.lockAx.y = Math.sin(na);
     const ax = this.lockAx.x, ay = this.lockAx.y, px = -ay, py = ax;
     const reachD = this.r + T.r + this.st.reach * 0.85;
-    const pref = this.kiter ? Math.min(this.st.range * 0.7, 230) * (1 - this.tp.agr * 0.25) : reachD * 0.9;
+    const pref = this.kiter ? Math.max(reachD + 45, Math.min(this.st.range * 0.7, 230) * (1 - this.tp.agr * 0.25) * (B.mode === 'ffa' ? KITE.ffaDist : 1)) : reachD * 0.9;
     let fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
     if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
     const lowHp = this.hp / this.st.hp < this.scaredHp;
-    if (lowHp && this.tp.valor < -0.2 && d < 240) fwd = -1; // Prudente con poca vida: se aleja
+    if (lowHp && this.tp.valor < -0.2 && d < 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1)) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1121,7 +1173,8 @@ class Monster {
   }
 
   shoot(T, B) {
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1);
+    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover;
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
@@ -1435,11 +1488,14 @@ class Monster {
     const er = g.eyes.size * s;
     const jit = () => E === 'scared' ? (Math.random() - 0.5) * er * 0.22 : 0;
     const blinkOk = !['scared', 'surprised', 'dizzy', 'hurt', 'happy', 'love'].includes(E);
-    const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35] }[E]; // [altura del párpado, inclinación]
-    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85 }[E] || 1;
+    const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35], beat: [0.02, -0.1] }[E]; // [altura del párpado, inclinación]
+    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8 }[E] || 1;
+    // machacado (1 corazón o menos): ojo morado en el ojo de más a la derecha
+    const bruiseEye = this.battered && g.eyes.pos.length ? g.eyes.pos.reduce((a, b) => b[0] > a[0] ? b : a) : null;
 
     for (const e of g.eyes.pos) {
       const ex = e[0] * hw, ey = e[1] * hh, side = ex < -0.01 ? -1 : ex > 0.01 ? 1 : 0;
+      if (e === bruiseEye) { ctx.beginPath(); ctx.ellipse(ex + er * 0.08, ey + er * 0.12, er * 1.5, er * 1.35, 0, 0, TAU); ctx.fillStyle = 'rgba(110,55,150,.5)'; ctx.fill(); }
       ctx.lineWidth = lw * 1.3; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       if (E === 'ko') { // ojos en X
         ctx.beginPath(); ctx.moveTo(ex - er * 0.6, ey - er * 0.6); ctx.lineTo(ex + er * 0.6, ey + er * 0.6); ctx.moveTo(ex + er * 0.6, ey - er * 0.6); ctx.lineTo(ex - er * 0.6, ey + er * 0.6); ctx.stroke(); continue;
@@ -1490,6 +1546,7 @@ class Monster {
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
     if (custom && E === 'scared') wavy(mw * 0.12, 6);
     else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    else if (custom && E === 'beat') wavy(mw * 0.05, 4);
     else if (custom && E === 'love') { ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
     else if (custom && E === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
@@ -1561,6 +1618,17 @@ class Monster {
     }
 
     // ---------- Detalles alrededor de la cara ----------
+    if (this.battered) { // curitas cruzadas en la cabeza, del lado contrario al ojo morado
+      const sd = bruiseEye && bruiseEye[0] < 0 ? 1 : -1, bx = sd * hw * 0.45, by = -hh * 0.68, L = Math.max(14, Math.min(hw, hh) * 0.75), Wd = L * 0.32;
+      for (const a of [0.6, -0.6]) {
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(a);
+        ctx.beginPath(); rrect(ctx, -L / 2, -Wd / 2, L, Wd, Wd / 2); fillStroke(ctx, '#f4cfa2', C.ol, lw * 0.8);
+        ctx.fillStyle = '#e0a675'; ctx.fillRect(-L * 0.16, -Wd * 0.32, L * 0.32, Wd * 0.64);
+        ctx.fillStyle = 'rgba(150,95,60,.55)';
+        for (const dx of [-0.36, -0.27, 0.27, 0.36]) for (const dy of [-0.18, 0.18]) { ctx.beginPath(); ctx.arc(dx * L, dy * Wd, Math.max(0.7, Wd * 0.07), 0, TAU); ctx.fill(); }
+        ctx.restore();
+      }
+    }
     if (this.crying && E === 'sad') { // lágrimas que caen de los ojos
       const ey = g.eyes.pos.length ? g.eyes.pos : [[-0.3, -0.1], [0.3, -0.1]];
       ey.slice(0, 2).forEach((e, k) => {
@@ -1644,7 +1712,7 @@ class Battle {
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
-    t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg);
+    t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
     t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
@@ -1670,7 +1738,7 @@ class Battle {
   // ---------- Ultimate ----------
   startUlt(m) {
     this.cine = { m, t: 0 }; m.state = 'free';
-    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 1.6; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
+    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
   cineStep(dt) {
     const c = this.cine, m = c.m; c.t += dt;
@@ -1682,7 +1750,7 @@ class Battle {
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
   execUlt(m) {
-    m.ultReady = false; m.aura = [];
+    m.ultReady = false; m.ulting = false; // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
@@ -1855,9 +1923,12 @@ const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
 const MAX_LIVES = 3;
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
-const HEAL_COST = 30;             // monedas para curar al instante
+const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
+const healCost = rec => HEAL_COST[rec.stage] || 30;
+const EGG_COST = 60;              // monedas para adoptar un huevo (el primero de una partida nueva es gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
-const REWARDS = { 2: [[60, 25], [20, 5]], 3: [[70, 30], [40, 15], [20, 5]], 4: [[80, 40], [50, 20], [30, 10], [15, 5]] };
+// [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
+const REWARDS = { '1v1': [[60, 25], [20, 10]], '2v2': [[45, 15], [15, 5]], ffa: [[80, 40], [50, 25], [30, 15], [15, 5]] };
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
 const resting = rec => rec.restUntil && Date.now() < rec.restUntil;
@@ -1884,11 +1955,11 @@ function newRec(stage = 'egg') {
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && (s.monsters.length || s.adopting)) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
-      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [] }; }
+      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [], sel: 0, coins: 0, ults: [], adopting: newRec() }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -1903,6 +1974,7 @@ class EggView {
     this.rec = rec; this.pal = genGenome(rec.seed, 'baby', false, (rec.gen || 0) >= 3).pal; this.cols = makeCols(this.pal, 0);
     const r = rng((rec.seed ^ 0x1234567) >>> 0);
     this.w = 50; this.h = 62; this.tilt = 0; this.vt = 0; this.sq = 0; this.t = 0;
+    this.gx = 0; this.z = 0; this.vx = 0; this.vz = 0; this.held = false; // posición (para tomarlo y lanzarlo en Adoptar)
     this.spots = Array.from({ length: r.i(4, 7) }, () => ({ u: r.f(-0.8, 0.8), v: r.f(0.1, 0.9), r: r.f(3, 7) }));
     this.cracks = Array.from({ length: 7 }, () => { const pts = []; let u = r.f(-0.7, 0.7), v = r.f(0.25, 0.75); for (let i = 0; i < 4; i++) { pts.push([u, v]); u += r.f(-0.3, 0.3); v += r.f(-0.15, 0.15); } return pts; });
   }
@@ -1911,6 +1983,22 @@ class EggView {
     const nerv = this.rec.taps / this.rec.need; // mientras más cerca de nacer, más se mueve solo
     const idle = Math.sin(this.t * 10) * 0.05 * nerv * (Math.sin(this.t * 1.7) > 0.3 ? 1 : 0);
     this.vt += (-70 * (this.tilt - idle) - 7 * this.vt) * dt; this.tilt += this.vt * dt; this.sq *= Math.exp(-dt * 9);
+  }
+  // Física al tomarlo/lanzarlo: cae, rebota, rueda un poco y vuelve despacio al centro
+  homeStep(dt, halfW, maxZ) {
+    if (this.held) return;
+    const vz0 = this.vz;
+    this.vz -= 1100 * dt; this.z += this.vz * dt;
+    if (this.z < 0) {
+      this.z = 0;
+      if (vz0 < -150) { this.vz = -vz0 * 0.3; this.sq = Math.min(0.25, -vz0 / 2400); this.vt += (Math.random() - 0.5) * 10; }
+      else this.vz = 0;
+    }
+    if (this.z === 0) { this.vx += (-this.gx * 1.2 - this.vx) * Math.min(1, dt * 2.5); this.vt += this.vx * dt * 0.06; } // rueda
+    else this.vx *= Math.exp(-dt * 0.3);
+    this.gx += this.vx * dt;
+    if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; this.vt -= Math.sign(this.gx) * 5; this.sq = 0.12; }
+    if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
   }
   draw(ctx) {
     const { w, h } = this, C = this.cols, prog = this.rec.taps / this.rec.need;
@@ -1980,7 +2068,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
   });
 }
 let W = 0, H = 0, DPR = 1;
-let homeBounds = { halfW: 100, maxZ: 200 };
+let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null;
 
@@ -1993,31 +2081,25 @@ const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
   ['Agilidad', st => st.speed * 0.6 + st.dodge * 150, 200],
   ['Técnica', st => 60 / st.meleeCd + st.reach * 0.6, 160],
 ];
-let detailOpen = false;
 function personaText(rec) {
   const ls = TEMPER.map(t => temperLabel(t.k, (rec.temper || {})[t.k] || 0)).filter(Boolean);
   return `Personalidad: <b>${ls.length ? ls.join(' · ') : 'equilibrada'}</b>`;
 }
-const STAT_DEF = [
-  ['Vida', st => st.hp, 260, v => Math.round(v)],
-  ['Fuerza', st => st.melee, 30, v => Math.round(v)],
-  ['Disparo', st => st.ranged, 14, v => v ? Math.round(v) : '—'],
-  ['Defensa', st => st.defense, 36, v => Math.round(v)],
-  ['Velocidad', st => st.speed, 190, v => Math.round(v)],
-  ['Peso', st => st.weight, 3.5, v => v.toFixed(1)],
-  ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
-];
-
-// Ánimo en el menú: feliz un rato después de acariciarlo; si no, triste con 1 corazón o menos
-const PET_HAPPY_MS = 60 * 1000;
-const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.lives <= 1 ? 'sad' : null;
+// Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
+// con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
+const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= 1 ? 'beat' : null;
+const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
-  if (homePage === 1) setTimeout(renderTrain);
+  renderAdopt();
+  $('coins').textContent = save.coins;
+  if (!save.monsters.length) { show = null; egg = null; return; } // todavía no tiene monstruos: sólo la página Adoptar
+  if (homePage === 2) setTimeout(renderTrain);
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="1"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
   $('rest').hidden = !resting(rec);
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2030,16 +2112,13 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec);
+  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
   $('mName').textContent = rec.name;
   updateSub();
   const st = show.st;
   const row = (lb, v, mx, txt) => `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${txt}</span></div>`;
   $('stats').innerHTML = MAIN_DEF.map(([lb, fn, mx]) => row(lb, fn(st), mx, Math.round(fn(st)))).join('')
-    + `<p class="persona">${personaText(rec)}</p>`
-    + `<button class="btn detbtn" id="detBtn">${detailOpen ? 'Ocultar detalle' : 'Ver detalle'}</button>`
-    + (detailOpen ? `<div class="det">${STAT_DEF.map(([lb, fn, mx, fmt]) => row(lb, fn(st), mx, fmt(fn(st)))).join('')}</div>` : '');
-  $('detBtn').onclick = () => { detailOpen = !detailOpen; renderHome(); };
+    + `<p class="persona">${personaText(rec)}</p>`;
   $('ultInfo').hidden = !show.awakened;
   if (show.awakened) $('ultInfo').innerHTML = `Ultimate: <b>${ULTS[show.ultType].name}</b> · ${ULTS[show.ultType].desc}`;
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
@@ -2056,30 +2135,49 @@ function updateRest() {
   const rec = cur();
   if (!resting(rec)) return;
   $('restTxt').innerHTML = `Sin vidas. Descansa <b>${mmss(rec.restUntil - Date.now())}</b> para volver a pelear.`;
-  $('btnHeal').textContent = `Curar ya · ${HEAL_COST}`;
-  $('btnHeal').disabled = save.coins < HEAL_COST;
+  $('btnHeal').textContent = `Curar ya · ${healCost(rec)}`;
+  $('btnHeal').disabled = save.coins < healCost(rec);
 }
 $('btnHeal').onclick = () => {
   const rec = cur();
-  if (save.coins < HEAL_COST || !resting(rec)) return;
-  save.coins -= HEAL_COST; delete rec.restUntil; rec.lives = MAX_LIVES; persist();
+  if (save.coins < healCost(rec) || !resting(rec)) return;
+  save.coins -= healCost(rec); delete rec.restUntil; rec.lives = MAX_LIVES; persist();
   renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
 };
-let homePage = 0;
+// Páginas del menú: 0 = Tienda (huevos y ultimates), 1 = Home (el monstruo), 2 = Entrenar
+let homePage = 1;
+const adoptLocked = () => !!save.adopting || !save.monsters.length; // abriendo un huevo: no se sale de Adoptar hasta que nazca
 function setPage(n) {
-  homePage = n; $('track').style.transform = `translateX(${-50 * n}%)`;
+  if (adoptLocked() && n !== 0) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; adoptEgg.sq = 0.1; if (homePage === 0) return; n = 0; }
+  homePage = n; $('track').style.transform = `translateX(${-100 / 3 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
-  if (n === 1) renderTrain();
+  if (n === 2) renderTrain();
+  if (n === 0) renderAdopt();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
-// Deslizar con el dedo: hacia la izquierda abre Entrenar, hacia la derecha vuelve
-let swipe = null;
-addEventListener('pointerdown', e => { if (scene === 'home' && !touch && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY }; });
+// Deslizar con el dedo en cualquier parte: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar).
+// En el Home, deslizar arriba/abajo cambia de monstruo. Sobre el monstruo también: un trazo largo y rápido cuenta; frotar despacio es acariciar; si lo tienes tomado, no.
+let swipe = null, swipedAt = 0;
+addEventListener('pointerdown', e => { if (scene === 'home' && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY, t: performance.now(), touch, id: e.pointerId }; });
 addEventListener('pointerup', e => {
-  if (!swipe) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(dx < 0 ? 1 : 0);
+  if (!swipe || e.pointerId !== swipe.id) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, dt = performance.now() - swipe.t, onMon = swipe.touch; swipe = null;
+  if (onMon && (onMon.grab || dt > 800 || Math.max(Math.abs(dx), Math.abs(dy)) < 100)) return; // tomado, o caricia (frotar corto o lento)
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 2);
+    if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
+  } else if (homePage === 1 && Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5 && save.monsters.length > 1) {
+    swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
+  }
 });
+// Cambiar de monstruo (flechas o deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
+function switchMonster(d) {
+  save.sel = (save.sel + d + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth();
+  if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; } }
+  else if (egg) { egg.sq = 0.18; egg.vt += d * 5; }
+}
 addEventListener('pointercancel', () => swipe = null);
+addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true); // un deslizamiento no aprieta botones
 
 function renderTrain() {
   const rec = cur();
@@ -2098,15 +2196,14 @@ function renderTrain() {
   h += `<div class="tsec"><div class="thead">Ultimate</div>`;
   if (rec.stage === 'awakened') {
     const eq = rec.ult || starterUlt(rec.seed);
-    h += `<div class="ultlist">${ULT_KEYS.map(k => {
-      const own = ownsUlt(k) || k === eq, on = k === eq;
-      const btn = on ? `<span class="pill on">Equipada</span>` : own ? `<button class="btn" data-ulteq="${k}">Equipar</button>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
-      return `<div class="ultc ${on ? 'on' : ''} ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
+    h += `<div class="ultlist">${ULT_KEYS.filter(k => ownsUlt(k) || k === eq).map(k => {
+      const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
+      return `<div class="ultc ${on ? 'on' : ''}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
     }).join('')}</div>`;
-    h += `<p class="tdesc">Las que desbloqueas quedan para todos tus monstruos. Puedes cambiarla cuando quieras.</p>`;
+    h += `<p class="tdesc">${ULT_KEYS.every(k => ownsUlt(k) || k === eq) ? 'Tienes todas las ultimates.' : 'Desbloquea más en la Tienda.'} Puedes cambiarla cuando quieras.</p>`;
     const um = rec.ultMode || 'save';
     h += `<div class="thead" style="font-size:13px">Cuándo la usa</div><div class="ums">${Object.entries(ULT_MODES).map(([k, m]) => `<button class="btn ${um === k ? 'on' : ''}" data-um="${k}">${m.name}</button>`).join('')}</div><p class="tdesc">${ULT_MODES[um].desc}.</p>`;
-  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; después puedes desbloquear y equipar otras.</p>`;
+  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
   h += `</div>`;
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
   h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
@@ -2119,12 +2216,6 @@ function renderTrain() {
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => doDrill(+b.dataset.drill));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
-  document.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
-    const k = b.dataset.ultbuy;
-    if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
-    if (save.coins < ULT_COST) return;
-    save.coins -= ULT_COST; grantUlt(k); rec.ult = k; persist(); renderHome(); renderTrain(); trainFx(`¡${ULTS[k].name}!`);
-  });
   document.querySelectorAll('[data-um]').forEach(b => b.onclick = () => { rec.ultMode = b.dataset.um; persist(); renderTrain(); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
@@ -2165,26 +2256,81 @@ function tapEgg() {
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
   celebrate('¡Nació!');
-  // después de verlo nacer, le pones nombre (viene uno al azar sugerido)
+  nameNewborn(rec);
+}
+// después de verlo nacer, le pones nombre (viene uno al azar sugerido)
+function nameNewborn(rec) {
   setTimeout(async () => {
     const n = await ask('¡Nació tu monstruo! ¿Cómo se llamará?', { input: rec.name, ok: 'Listo', cancel: null, low: true });
     if (n && n.trim()) rec.name = n.trim().slice(0, 16);
     persist();
     if (scene === 'home' && cur() === rec) {
-      $('mName').textContent = rec.name; if (homePage === 1) renderTrain();
+      $('mName').textContent = rec.name; if (homePage === 2) renderTrain();
       show.vz = 260; show.setEmo('happy', 2, 3); fx.label = `¡Hola, ${rec.name}!`; fx.labelT = 2.2;
     }
   }, 1100);
 }
 
-$('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
-$('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
+$('prev').onclick = () => switchMonster(-1);
+$('next').onclick = () => switchMonster(1);
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
-$('btnNew').onclick = () => {
-  if (save.monsters.length >= MAX_MONSTERS) { ask(`Tienes el máximo de ${MAX_MONSTERS} monstruos. Libera uno para hacer espacio.`, { ok: 'Entendido', cancel: null }); return; }
-  save.monsters.push(newRec()); save.sel = save.monsters.length - 1; persist(); renderHome();
+// Página Adoptar: muestra el huevo que te llevarías. Al adoptarlo se abre ahí mismo (tocándolo varias veces);
+// recién cuando nace pasa al Home y le pones nombre. La adopción en curso se guarda (save.adopting).
+let adoptRec = save.adopting || newRec(), adoptEgg = new EggView(adoptRec), hatching = false;
+function renderAdopt() {
+  const n = save.monsters.length, full = n >= MAX_MONSTERS, mine = !!save.adopting;
+  $('aSub').textContent = mine ? `Faltan ${adoptRec.need - adoptRec.taps} toques` : `Tienes ${n}/${MAX_MONSTERS} monstruos`;
+  $('adoptTxt').innerHTML = mine ? (n ? '¡Es tuyo! Tócalo varias veces para que nazca.' : '¡Bienvenido! Este huevo es tuyo.<br>Tócalo varias veces para que nazca.')
+    : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
+    : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
+  $('btnNew').hidden = mine; $('btnNew').disabled = full || save.coins < EGG_COST;
+  renderShopUlts(mine);
+  $('btnNew').innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
+}
+// Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
+function renderShopUlts(hide) {
+  const el = $('shopUlts'); el.hidden = hide; if (hide) return;
+  el.innerHTML = `<div class="thead">Ultimates</div><div class="ultlist">${ULT_KEYS.map(k => {
+    const own = ownsUlt(k);
+    const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
+    return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
+  }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Entrenar.</p>`;
+  el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.ultbuy;
+    if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
+    if (save.coins < ULT_COST || ownsUlt(k)) return;
+    save.coins -= ULT_COST; grantUlt(k); persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
+  });
+}
+$('btnNew').onclick = async () => {
+  if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST) return;
+  if (!await ask(`¿Adoptar este huevo por ${EGG_COST} monedas? Tendrás que abrirlo antes de volver.`, { ok: 'Adoptar' })) return;
+  if (save.coins < EGG_COST || save.adopting) return;
+  save.coins -= EGG_COST; $('coins').textContent = save.coins;
+  save.adopting = adoptRec; persist(); renderAdopt();
+  adoptEgg.vz = 260; adoptEgg.sq = 0.15; fx.label = '¡Es tuyo!'; fx.labelT = 1.6;
 };
+function tapAdoptEgg() {
+  if (!save.adopting) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; return; } // aún no es tuyo: sólo bambolea
+  if (hatching) return;
+  const rec = adoptRec, E = adoptEgg; rec.taps++;
+  E.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); E.sq = 0.12;
+  burst(E.gx + (Math.random() - 0.5) * 30, -E.z - E.h * (0.4 + Math.random() * 0.4), 3, hsl(E.pal.body, 24), 160, [2, 3.5]);
+  if (rec.taps < rec.need) { persist(); renderAdopt(); return; }
+  // ¡nace! el cascarón estalla aquí y el bebé aparece en el Home
+  hatching = true;
+  burst(E.gx, -E.z - 35, 14, hsl(E.pal.body, 24), 300, [4, 8]); burst(E.gx, -E.z - 35, 6, hsl(E.pal.accent), 260, [3, 6]); fx.flash = 0.5;
+  setTimeout(() => {
+    rec.stage = 'baby'; delete rec.taps; delete rec.need; delete save.adopting;
+    save.monsters.push(rec); save.sel = save.monsters.length - 1;
+    adoptRec = newRec(); adoptEgg = new EggView(adoptRec); hatching = false; // el siguiente huevo para adoptar
+    persist(); renderHome(); setPage(1);
+    show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
+    celebrate('¡Nació!');
+    nameNewborn(rec);
+  }, 350);
+}
 $('btnFree').onclick = async () => {
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
   const m = show; // el monstruo se pone triste (y llora) mientras decides
@@ -2240,6 +2386,14 @@ const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY
 cv.addEventListener('pointerdown', e => {
   if (scene !== 'home' || !homeView) return;
   const p = toLocal(e);
+  if (homeView.adopt) { // en Adoptar: tocar el huevo lo hace bambolear; mantener lo toma para moverlo o lanzarlo
+    const E = adoptEgg;
+    if (!(Math.abs(p.x - E.gx) < E.w * 0.9 && p.y + E.z < 20 && p.y + E.z > -E.h * 1.3)) return;
+    touch = { sx: e.clientX, sy: e.clientY, last: p, pet: false, grab: false, adopt: true, id: e.pointerId, hist: [[p.x, p.y, performance.now()]] };
+    touch.timer = setTimeout(() => { if (touch && !touch.pet) grab(touch); }, GRAB_HOLD_MS);
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+    return;
+  }
   if (egg) { if (Math.abs(p.x) < egg.w * 0.9 && p.y < 20 && p.y > -egg.h * 1.3) tapEgg(); return; }
   if (!show) return;
   const sz = show.estSize();
@@ -2249,17 +2403,22 @@ cv.addEventListener('pointerdown', e => {
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }
 });
 cv.addEventListener('pointermove', e => {
-  if (!touch || e.pointerId !== touch.id || !show || scene !== 'home') return;
+  if (!touch || e.pointerId !== touch.id || scene !== 'home') return;
+  const O = grabbed(touch); if (!O) return;
   const p = toLocal(e);
   touch.hist.push([p.x, p.y, performance.now()]); if (touch.hist.length > 6) touch.hist.shift();
   if (touch.grab) { // lo llevas colgando del dedo
-    show.gx = clamp(p.x - touch.offX, -homeBounds.halfW, homeBounds.halfW);
-    show.z = clamp(touch.offY - p.y, 0, homeBounds.maxZ);
-    const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
-    if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
+    const bd = touch.adopt ? adoptBounds : homeBounds;
+    O.gx = clamp(p.x - touch.offX, -bd.halfW, bd.halfW);
+    O.z = clamp(touch.offY - p.y, 0, bd.maxZ);
+    if (touch.adopt) O.vt += (p.x - touch.last.x) * 0.04; // el huevo se balancea colgando
+    else {
+      const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
+      if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
+    }
   } else {
     if (!touch.pet && Math.hypot(e.clientX - touch.sx, e.clientY - touch.sy) > 10) { touch.pet = true; clearTimeout(touch.timer); }
-    if (touch.pet) pet(touch.last, p);
+    if (touch.pet && !touch.adopt) pet(touch.last, p);
   }
   touch.last = p;
 });
@@ -2267,24 +2426,30 @@ cv.addEventListener('pointerup', e => {
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
+  else if (!touch.pet && touch.adopt) tapAdoptEgg(); // bambolea, o lo abre si ya es tuyo
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
 cv.addEventListener('pointercancel', () => { if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
 const GRAB_HOLD_MS = 280;
+const grabbed = t => t.adopt ? (scene === 'home' && homeView && homeView.adopt ? adoptEgg : null) : show; // qué tiene el dedo: el monstruo o el huevo de Adoptar
 function grab(t) {
-  t.grab = true; show.held = true; show.vx = 0; show.vz = 0;
-  show.z = Math.min(homeBounds.maxZ, show.z + 14); // lo levantas un poquito
-  t.offX = t.last.x - show.gx; t.offY = t.last.y + show.z;
+  const O = grabbed(t); if (!O) return;
+  t.grab = true; O.held = true; O.vx = 0; O.vz = 0;
+  O.z = Math.min((t.adopt ? adoptBounds : homeBounds).maxZ, O.z + 14); // lo levantas un poquito
+  t.offX = t.last.x - O.gx; t.offY = t.last.y + O.z;
+  if (t.adopt) { O.sq = 0.1; try { navigator.vibrate && navigator.vibrate(15); } catch (err) { } return; }
   if (!show.sleep) show.setEmo('surprised', 0.45, 2, ['happy', 60]);
   for (const n of show.nodes) n.vy += 60 + Math.random() * 60;
   try { navigator.vibrate && navigator.vibrate(15); } catch (err) { }
 }
 function release(t) {
-  show.held = false;
+  const O = t.adopt ? adoptEgg : show; if (!O) return;
+  O.held = false;
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
-  if (performance.now() - b[2] > 120) { show.vx = 0; show.vz = 0; } // estaba quieto: sólo lo sueltas
-  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  if (performance.now() - b[2] > 120) { O.vx = 0; O.vz = 0; } // estaba quieto: sólo lo sueltas
+  else { O.vx = clamp((b[0] - a[0]) / dt, -900, 900); O.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  if (t.adopt) return;
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
 function pet(a, b) {
@@ -2298,7 +2463,7 @@ function pet(a, b) {
   petAcc += d;
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
   const rec = cur(), fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
-  rec.happyUntil = Date.now() + PET_HAPPY_MS; show.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
+  rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; show.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
@@ -2416,12 +2581,13 @@ function partNodes(M, key) {
 }
 function checkGrowth() {
   const elig = r => r && r.stage !== 'egg' && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
-  const rec = [cur(), ...save.monsters].find(elig);
+  const rec = [...(save.monsters.length ? [cur()] : []), ...save.monsters].find(elig);
   if (!rec || scene !== 'home') return false;
   // Si le toca crecer varias etapas, todas van en la misma animación, una tras otra
   const from = STAGE_ORDER.indexOf(rec.stage), to = STAGE_ORDER.indexOf(stageForLevel(rec.level));
   const chain = [new Monster(rec)];
   for (let i = from + 1; i <= to; i++) chain.push(new Monster({ ...rec, stage: STAGE_ORDER[i] }));
+  for (const m of chain) m.growAura = m.awakened; // en la animación de despertar el aura se ve como siempre
   for (let i = 1; i < chain.length; i++) chain[i].hidden = new Set(newParts(chain[i - 1].g, chain[i].g));
   chain.forEach(m => m.resetRig());
   const fe = chain[chain.length - 1].estSize(); // encuadre según el tamaño final
@@ -2509,7 +2675,7 @@ $('resAgain').onclick = () => startBattle(lastMode);
 
 function finishBattle() {
   const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
-  const [bx, bc] = (REWARDS[nTeams] || REWARDS[2])[place - 1];
+  const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
   const lines = battle.players.map(pm => {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
@@ -2518,6 +2684,7 @@ function finishBattle() {
     let lifeTxt = '';
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
+      rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
       if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
       else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
     }
@@ -2550,28 +2717,33 @@ function loop(now) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
-  if (scene === 'home' && (show || egg)) {
+  if (scene === 'home' && (show || egg || adoptLocked())) {
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) {
       acc -= STEP; fxStep(STEP);
       if (egg) egg.update(STEP);
-      else show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      else if (show) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      adoptEgg.update(STEP); adoptEgg.homeStep(STEP, adoptBounds.halfW, adoptBounds.maxZ);
     }
+    // Se dibuja en el área de la página que está más centrada (Adoptar muestra el huevo por adoptar)
+    const areas = ['adoptArea', 'showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.left + q.width / 2 - W / 2);
+    const r = adoptLocked() && !show && !egg ? areas[0] : areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onAdopt = r === areas[0];
+    const E = onAdopt ? adoptEgg : egg;
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
-    const ra = $('showArea').getBoundingClientRect(), rb = $('trainArea').getBoundingClientRect();
-    const r = Math.abs(ra.left + ra.width / 2 - W / 2) < Math.abs(rb.left + rb.width / 2 - W / 2) ? ra : rb;
-    const sz = egg ? { w: egg.w, h: egg.h } : show.estSize();
+    const sz = E ? { w: E.w, h: E.h } : show.estSize();
     const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
-    homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k };
-    homeBounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * 0.3), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
-    const pal = egg ? egg.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
+    homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k, adopt: onAdopt };
+    const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
+    if (onAdopt) adoptBounds = bounds; else homeBounds = bounds;
+    const pal = E ? E.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
     const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
     glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
     ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
-    if (egg) {
-      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, egg.w * 0.55, egg.w * 0.16, 0, 0, TAU); ctx.fill();
-      egg.draw(ctx);
+    if (E) {
+      const ek = clamp(1 - E.z / 150, 0.3, 1);
+      ctx.fillStyle = `rgba(0,0,0,${0.3 * ek})`; ctx.beginPath(); ctx.ellipse(E.gx, 0, E.w * 0.55 * ek, E.w * 0.16 * ek, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(E.gx, -E.z); E.draw(ctx); ctx.restore();
     } else {
       const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
       ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(show.gx, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
@@ -2610,10 +2782,11 @@ function loop(now) {
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
-  if (scene === 'home' && show && frame % 20 === 0) show.baseEmo = baseEmoFor(cur()); // se le pasa la felicidad
-  if (scene === 'home' && ++frame % 20 === 0 && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
+  if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
+  if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().heartAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
+if (adoptLocked()) { homePage = 0; $('track').style.transform = 'translateX(0%)'; document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.page === '0')); }
 renderHome();
 checkGrowth();
 if (save.notice) { const n = save.notice; delete save.notice; persist(); ask(n, { ok: 'Entendido', cancel: null }); }
