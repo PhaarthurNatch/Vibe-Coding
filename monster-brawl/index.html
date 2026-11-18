@@ -63,6 +63,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .card input{font:inherit;font-size:17px;padding:12px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);text-align:center;width:100%}
 .card input:focus{outline:none;border-color:var(--acc)}
 .btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn:disabled{opacity:.35;pointer-events:none}
+.eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -78,13 +80,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="arrow" id="next">▶</button>
   </div>
   <div class="spacer" id="showArea"></div>
-  <div class="hint">toca al monstruo para sacudirlo · toca el nombre para renombrar</div>
+  <div class="hint" id="hint">toca al monstruo para sacudirlo · toca el nombre para renombrar</div>
   <div class="panel">
     <div class="stats" id="stats"></div>
     <div class="parts" id="parts"></div>
     <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
-      <button class="btn" id="btnNew">＋ Nuevo monstruo</button>
+      <button class="btn" id="btnNew">＋ Adoptar huevo</button>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
     <div class="row">
@@ -134,7 +136,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 // CONSTANTES
 // ============================================================================
 const TAU = Math.PI * 2;
-const ARENA_W = 600;                 // ancho del suelo (unidades de mundo)
+let ARENA_W = 600;                   // ancho del suelo (más chico para bebés = cámara más cerca)
 let ARENA_D = 560;                    // fondo del suelo (más largo con el celular en vertical)
 const DEPTH = 0.7;                    // compresión de profundidad (vista 2.5D)
 const TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
@@ -175,8 +177,26 @@ function eyeLayout(n, y, sp) {
   }
 }
 
-function genGenome(seed) {
-  const r = rng(seed);
+// Qué partes puede tener cada etapa de vida (pesos para el sorteo; {0:1} = nunca)
+const STAGE_LIM = {
+  baby: { size: 0.62, blob: true, eyes: { 1: 20, 2: 65, 3: 15 }, horns: { 0: 1 }, neck: { 0: 1 }, mid: 0, lower: 0, shoulders: 0, arms: { 0: 1 }, legs: { 0: 1 }, wings: { 0: 1 }, tail: { 0: 1 } },
+  teen: { size: 0.8, eyes: { 0: 3, 1: 15, 2: 50, 3: 20, 4: 12 }, horns: { 0: 55, 1: 20, 2: 25 }, neck: { 0: 55, 1: 45 }, mid: 0, lower: 0.75, shoulders: 0, arms: { 0: 20, 1: 80 }, legs: { 0: 15, 1: 85 }, wings: { 0: 80, 1: 20 }, tail: { 0: 50, 1: 50 } },
+  adult: { size: 1, eyes: { 0: 3, 1: 14, 2: 44, 3: 15, 4: 10, 5: 7, 6: 5 }, horns: { 0: 35, 1: 14, 2: 36, 3: 8, 4: 7 }, neck: { 0: 30, 1: 50, 2: 20 }, mid: 0.72, lower: 0.8, shoulders: 0.6, arms: { 0: 12, 1: 60, 2: 20, 3: 8 }, legs: { 0: 14, 1: 70, 2: 16 }, wings: { 0: 55, 1: 37, 2: 8 }, tail: { 0: 28, 1: 52, 2: 13, 3: 7 } },
+};
+
+function scaleGenome(g, k) {
+  if (k === 1) return;
+  const m = (o, keys) => keys.forEach(key => o[key] *= k);
+  m(g.head, ['w', 'h']); m(g.eyes, ['size']); m(g.horns, ['len', 'width']); m(g.neck, ['len', 'w']);
+  for (const sg of [g.torso.upper, g.torso.mid, g.torso.lower]) if (sg) m(sg, ['w', 'h']);
+  g.spots.forEach(sp => sp.r *= k); m(g.shoulders, ['size']); m(g.arms, ['upper', 'fore', 'thick']);
+  m(g.legs, ['upper', 'lower', 'thick']); m(g.feet, ['size']); m(g.wings, ['span']); m(g.tail, ['seg', 'thick']);
+}
+
+// Mismo seed = mismos colores en todas las etapas; las partes se sortean de nuevo en cada etapa
+function genGenome(seed, stage = 'adult') {
+  const L = STAGE_LIM[stage] || STAGE_LIM.adult;
+  let r = rng(seed);
   const C = (h, s, l) => ({ h: ((h % 360) + 360) % 360, s, l });
   const hue = r.f(0, 360);
   const h2 = hue + r.pick([0, 180, 120, 35, -35]) + r.f(-15, 15);
@@ -192,6 +212,7 @@ function genGenome(seed) {
     pupil: r.chance(0.7) ? C(250, 30, 8) : C(r.f(0, 360), r.f(70, 100), r.f(38, 52)),
     spot: C(hue + r.f(-30, 30), sat, lit + (r.chance(0.5) ? 14 : -14)),
   };
+  if (stage !== 'adult') r = rng((seed ^ (stage === 'baby' ? 0x9e3779b9 : 0x85ebca6b)) >>> 0);
 
   // Cabeza
   const head = { shape: r.pick(['round', 'wide', 'tall', 'square', 'tri', 'pear']), w: r.f(32, 60), h: r.f(28, 52) };
@@ -201,7 +222,7 @@ function genGenome(seed) {
   const hw = head.w / 2, hh = head.h / 2;
 
   // Ojos y pupilas
-  const ecount = r.w({ 0: 3, 1: 14, 2: 44, 3: 15, 4: 10, 5: 7, 6: 5 });
+  const ecount = r.w(L.eyes);
   const eyeY = r.f(-0.35, 0.02);
   const maxR = ecount <= 1 ? 0.5 : ecount === 2 ? 0.34 : ecount === 3 ? 0.3 : 0.24;
   const eyes = {
@@ -215,14 +236,14 @@ function genGenome(seed) {
   };
 
   const mouth = { type: r.w({ none: 5, smile: 18, fangs: 20, open: 16, beak: 10, teeth: 16, tusks: 8 }), w: r.f(0.3, 0.72), y: clamp(eyeY + 0.55 + r.f(0, 0.2), 0.3, 0.7) };
-  const horns = { count: r.w({ 0: 35, 1: 14, 2: 36, 3: 8, 4: 7 }), len: r.f(10, 34), width: r.f(4, 10), curve: r.f(-0.6, 0.6), spread: r.f(0.25, 0.9) };
-  const nl = r.w({ 0: 30, 1: 50, 2: 20 });
+  const horns = { count: r.w(L.horns), len: r.f(10, 34), width: r.f(4, 10), curve: r.f(-0.6, 0.6), spread: r.f(0.25, 0.9) };
+  const nl = r.w(L.neck);
   const neck = { len: nl === 0 ? 0 : nl === 1 ? r.f(6, 16) : r.f(18, 34), w: r.f(10, 20) };
 
   // Torso: superior / medio / inferior (medio e inferior pueden no existir)
   const upper = { w: r.f(38, 72), h: r.f(22, 36) };
-  const mid = r.chance(0.72) ? { w: clamp(upper.w * r.f(0.7, 1.3), 30, 82), h: r.f(16, 32) } : null;
-  const lower = r.chance(0.8) ? { w: clamp(upper.w * r.f(0.65, 1.35), 28, 82), h: r.f(16, 32) } : null;
+  const mid = r.chance(L.mid) ? { w: clamp(upper.w * r.f(0.7, 1.3), 30, 82), h: r.f(16, 32) } : null;
+  const lower = r.chance(L.lower) ? { w: clamp(upper.w * r.f(0.65, 1.35), 28, 82), h: r.f(16, 32) } : null;
   const torso = { upper, mid, lower, shape: r.pick(['oval', 'oval', 'box']), belly: r.chance(0.7) };
   const spots = [];
   if (r.chance(0.35)) {
@@ -230,17 +251,23 @@ function genGenome(seed) {
     for (let i = r.i(3, 8); i > 0; i--) spots.push({ seg: r.pick(segs), u: r.f(-0.6, 0.6), v: r.f(-0.5, 0.5), r: r.f(2, 5) });
   }
 
-  const shoulders = { size: r.chance(0.6) ? r.f(7, 15) : 0, spikes: r.chance(0.25), accent: r.chance(0.4) };
-  const arms = { pairs: r.w({ 0: 12, 1: 60, 2: 20, 3: 8 }), upper: r.f(14, 30), fore: r.f(14, 30), thick: r.f(5, 12), hand: r.pick(['fist', 'claw', 'blade', 'paw']) };
-  const legs = { pairs: r.w({ 0: 14, 1: 70, 2: 16 }), upper: r.f(12, 26), lower: r.f(12, 26), thick: r.f(6, 14), spread: r.f(0.35, 0.85) };
+  const shoulders = { size: r.chance(L.shoulders) ? r.f(7, 15) : 0, spikes: r.chance(0.25), accent: r.chance(0.4) };
+  const arms = { pairs: r.w(L.arms), upper: r.f(14, 30), fore: r.f(14, 30), thick: r.f(5, 12), hand: r.pick(['fist', 'claw', 'blade', 'paw']) };
+  const legs = { pairs: r.w(L.legs), upper: r.f(12, 26), lower: r.f(12, 26), thick: r.f(6, 14), spread: r.f(0.35, 0.85) };
   const feet = { size: r.f(6, 14), type: r.pick(['round', 'claw', 'hoof', 'flat']) };
-  const wings = { pairs: r.w({ 0: 55, 1: 37, 2: 8 }), span: r.f(28, 64), type: r.pick(['bat', 'feather', 'bug']) };
-  const tail = { count: r.w({ 0: 28, 1: 52, 2: 13, 3: 7 }), segs: r.i(3, 8), seg: r.f(6, 11), thick: r.f(4, 10), tip: r.pick(['none', 'spike', 'ball', 'fin', 'flame']), curl: r.f(0.1, 0.45), side: r.chance(0.5) ? 1 : -1, accent: r.chance(0.35) };
+  const wings = { pairs: r.w(L.wings), span: r.f(28, 64), type: r.pick(['bat', 'feather', 'bug']) };
+  const tail = { count: r.w(L.tail), segs: r.i(3, 8), seg: r.f(6, 11), thick: r.f(4, 10), tip: r.pick(['none', 'spike', 'ball', 'fin', 'flame']), curl: r.f(0.1, 0.45), side: r.chance(0.5) ? 1 : -1, accent: r.chance(0.35) };
 
   let name = ''; for (let i = r.i(2, 3); i > 0; i--) name += r.pick(SYL);
   name = name[0].toUpperCase() + name.slice(1);
 
-  return { seed, name, pal, head, eyes, mouth, horns, neck, torso, spots, shoulders, arms, legs, feet, wings, tail };
+  const g = { seed, stage, name, pal, head, eyes, mouth, horns, neck, torso, spots, shoulders, arms, legs, feet, wings, tail };
+  scaleGenome(g, L.size);
+  if (L.blob) { // bebé: una sola pieza de cuerpo que también es la cara
+    g.blob = true; g.spots = [];
+    g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false };
+  }
+  return g;
 }
 
 // Las estadísticas salen del cuerpo: más brazos = más fuerza, más alas = más esquiva, etc.
@@ -336,7 +363,7 @@ let MID = 0;
 class Monster {
   constructor(rec) {
     this.id = ++MID; this.rec = rec;
-    this.g = genGenome(rec.seed);
+    this.g = genGenome(rec.seed, rec.stage === 'egg' ? 'baby' : (rec.stage || 'adult'));
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level);
@@ -365,7 +392,7 @@ class Monster {
     const lo = T.lower || { w: T.upper.w * 0.8, h: 0 }, mi = T.mid || { w: (lo.w + T.upper.w) / 2, h: 0 }, up = T.upper;
     this.seg = { lo, mi, up };
     this.legSum = g.legs.upper + g.legs.lower;
-    this.hover = g.legs.pairs ? 0 : 24;
+    this.hover = g.legs.pairs || g.blob ? 0 : 24;
 
     I.root = add(-1, 0, 0, 0);
     I.lower = add(I.root, 0, -lo.h * 0.5, 420, 0.4);
@@ -375,7 +402,7 @@ class Monster {
     I.neck = []; let par = I.upper;
     const nl = g.neck.len, ns = nl > 0 ? Math.max(1, Math.round(nl / 10)) : 0;
     for (let i = 0; i < ns; i++) { par = add(par, 0, (i === 0 ? -up.h * 0.42 : 0) - nl / ns, 220 - i * 20, 0.28); I.neck.push(par); }
-    I.head = add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
+    I.head = g.blob ? add(I.upper, 0, -g.head.h * 0.1, 260, 0.2) : add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
     // Cuernos
     I.horns = [];
     const hn = g.horns.count;
@@ -471,7 +498,8 @@ class Monster {
     this.walkPh += sp * 0.085 * dt;
     const lean = clamp(this.vx / 150, -1, 1);
     const root = N[0], rt = this.rootTarget();
-    const bob = g.legs.pairs ? Math.abs(Math.sin(this.walkPh)) * 3 * moving + Math.sin(t * 2.2) * 0.8 : Math.sin(t * 2.4) * 4;
+    const bob = g.blob ? Math.abs(Math.sin(this.walkPh * 1.6)) * 10 * moving + Math.abs(Math.sin(t * 3)) * 1.5
+      : g.legs.pairs ? Math.abs(Math.sin(this.walkPh)) * 3 * moving + Math.sin(t * 2.2) * 0.8 : Math.sin(t * 2.4) * 4;
     const crouch = this.state === 'windup' ? 4 : 0;
     root.x = rt.x; root.y = rt.y - (bob - crouch) * s;
 
@@ -708,7 +736,7 @@ class Monster {
       const pts = [{ x: up.x, y: up.y - this.seg.up.h * 0.3 * s }, ...I.neck.map(i => N[i]), N[I.head]];
       chain(ctx, pts, pts.map(() => g.neck.w * s), C.body, C.ol, lw);
     }
-    this.drawTorso(ctx, C, lw);
+    if (!g.blob) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0) this.drawArm(ctx, a, C, lw);
     for (const a of I.arms) if (a.p === 0) this.drawArm(ctx, a, C, lw);
     if (g.shoulders.size > 0) for (const si of I.shoulders) {
@@ -1081,12 +1109,69 @@ function drawArena(ctx) {
 // ============================================================================
 // GUARDADO
 // ============================================================================
-function newRec() { const seed = (Math.random() * 4294967296) >>> 0; return { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0 }; }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0 }; }
+const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', teen: 'Adolescente', adult: 'Adulto' };
+const STAGE_ORDER = ['egg', 'baby', 'teen', 'adult'];
+const TEEN_LV = 3, ADULT_LV = 6; // nivel en que crece a adolescente / adulto
+const stageForLevel = l => l >= ADULT_LV ? 'adult' : l >= TEEN_LV ? 'teen' : 'baby';
+function newRec(stage = 'egg') {
+  const seed = (Math.random() * 4294967296) >>> 0;
+  const rec = { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage };
+  if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
+  return rec;
+}
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; }); s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0 }; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
 const cur = () => save.monsters[save.sel];
+
+// ============================================================================
+// HUEVO
+// ============================================================================
+function eggPath(ctx, w, h) { ctx.beginPath(); ctx.ellipse(0, -h * 0.4, w / 2, h * 0.6, 0, Math.PI, TAU); ctx.ellipse(0, -h * 0.4, w / 2, h * 0.4, 0, 0, Math.PI); ctx.closePath(); }
+class EggView {
+  constructor(rec) {
+    this.rec = rec; this.pal = genGenome(rec.seed).pal; this.cols = makeCols(this.pal, 0);
+    const r = rng((rec.seed ^ 0x1234567) >>> 0);
+    this.w = 50; this.h = 62; this.tilt = 0; this.vt = 0; this.sq = 0; this.t = 0;
+    this.spots = Array.from({ length: r.i(4, 7) }, () => ({ u: r.f(-0.8, 0.8), v: r.f(0.1, 0.9), r: r.f(3, 7) }));
+    this.cracks = Array.from({ length: 7 }, () => { const pts = []; let u = r.f(-0.7, 0.7), v = r.f(0.25, 0.75); for (let i = 0; i < 4; i++) { pts.push([u, v]); u += r.f(-0.3, 0.3); v += r.f(-0.15, 0.15); } return pts; });
+  }
+  update(dt) {
+    this.t += dt;
+    const nerv = this.rec.taps / this.rec.need; // mientras más cerca de nacer, más se mueve solo
+    const idle = Math.sin(this.t * 10) * 0.05 * nerv * (Math.sin(this.t * 1.7) > 0.3 ? 1 : 0);
+    this.vt += (-70 * (this.tilt - idle) - 7 * this.vt) * dt; this.tilt += this.vt * dt; this.sq *= Math.exp(-dt * 9);
+  }
+  draw(ctx) {
+    const { w, h } = this, C = this.cols, prog = this.rec.taps / this.rec.need;
+    ctx.save(); ctx.rotate(this.tilt); ctx.scale(1 + this.sq, 1 - this.sq);
+    if (prog > 0) { ctx.fillStyle = hsl(this.pal.accent, 20, 0.12 + 0.2 * prog); ctx.beginPath(); ctx.ellipse(0, -h * 0.45, w * (0.8 + 0.1 * Math.sin(this.t * 5)), h * 0.72, 0, 0, TAU); ctx.fill(); }
+    eggPath(ctx, w, h); fillStroke(ctx, hsl(this.pal.body, 24), C.ol, 2.4);
+    ctx.save(); eggPath(ctx, w, h); ctx.clip();
+    ctx.fillStyle = C.accent;
+    for (const sp of this.spots) { ctx.beginPath(); ctx.ellipse(sp.u * w / 2, -sp.v * h, sp.r, sp.r * 0.8, 0, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-w * 0.2, -h * 0.72, w * 0.09, h * 0.13, -0.4, 0, TAU); ctx.fill();
+    const nc = Math.floor(prog * this.cracks.length + 1e-6);
+    ctx.strokeStyle = C.ol; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    for (let i = 0; i < nc; i++) { ctx.beginPath(); this.cracks[i].forEach(([u, v], k) => { const x = u * w * 0.45, y = -v * h; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
+    ctx.restore(); ctx.restore();
+  }
+}
+
+// Efectos de la vitrina (cascarón, destellos, texto)
+const fx = { parts: [], flash: 0, label: null, labelT: 0 };
+function burst(x, y, n, col, spd = 220, size = [2, 5]) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = spd * (0.4 + Math.random() * 0.6); fx.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - spd * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, life: 0.8 + Math.random() * 0.6, col, r: size[0] + Math.random() * (size[1] - size[0]) }); }
+}
+function fxStep(dt) {
+  for (const q of fx.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 700 * dt; q.rot += q.vr * dt; q.life -= dt; if (q.y > 0) { q.y = 0; q.vy *= -0.3; q.vx *= 0.7; } }
+  fx.parts = fx.parts.filter(q => q.life > 0); fx.flash = Math.max(0, fx.flash - dt * 2.2); fx.labelT -= dt;
+}
+function celebrate(text, col) {
+  fx.flash = 1; fx.label = text; fx.labelT = 2.4;
+  burst(0, -40, 16, col || '#ffe08a', 260, [2, 4]);
+}
 
 // ============================================================================
 // APP / UI
@@ -1110,7 +1195,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar' } = {}) {
   });
 }
 let W = 0, H = 0, DPR = 1;
-let scene = 'home', show = null, battle = null, battleSpeed = 1, lastMode = '1v1', homeView = null;
+let scene = 'home', show = null, egg = null, battle = null, battleSpeed = 1, lastMode = '1v1', homeView = null;
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 addEventListener('resize', resize); resize();
@@ -1128,6 +1213,7 @@ const STAT_DEF = [
 function partsSummary(g) {
   const p = [];
   const n = (c, one, many) => c ? `${c} ${c === 1 ? one : many}` : null;
+  if (g.blob) return ['cuerpo de una pieza', n(g.eyes.count, 'ojo', 'ojos'), 'boca'].filter(Boolean).join(' · ');
   p.push(n(g.eyes.count, 'ojo', 'ojos') || 'sin ojos');
   p.push(n(g.arms.pairs * 2, 'brazo', 'brazos') || 'sin brazos');
   p.push(g.legs.pairs ? n(g.legs.pairs * 2, 'pierna', 'piernas') : 'flota');
@@ -1139,21 +1225,56 @@ function partsSummary(g) {
 }
 
 function renderHome() {
-  const rec = cur();
+  const rec = cur(), isEgg = rec.stage === 'egg';
+  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = isEgg);
+  $('hint').textContent = isEgg ? 'toca el huevo para que nazca' : 'toca al monstruo para sacudirlo · toca el nombre para renombrar';
+  if (isEgg) {
+    show = null; egg = new EggView(rec);
+    $('mName').textContent = 'Huevo misterioso';
+    updateEggSub();
+    $('stats').innerHTML = '<p class="eggmsg">Todavía no nace. Tócalo varias veces para romper el cascarón.<br>Nace como bebé y crece con cada nivel.</p>';
+    $('parts').textContent = '';
+    $('xpTxt').textContent = 'XP 0'; $('xpBar').style.width = '0'; $('record').textContent = '';
+    return;
+  }
+  egg = null;
   show = new Monster(rec); show.resetRig();
   $('mName').textContent = rec.name;
-  $('mSub').textContent = `Nv. ${rec.level} · ${save.sel + 1}/${save.monsters.length}`;
+  $('mSub').textContent = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${save.sel + 1}/${save.monsters.length}`;
   const st = show.st;
   $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
-  $('parts').textContent = partsSummary(show.g);
+  const nextLv = rec.stage === 'baby' ? TEEN_LV : rec.stage === 'teen' ? ADULT_LV : 0;
+  $('parts').innerHTML = partsSummary(show.g) + (nextLv ? `<br>crece a ${STAGE_NAME[rec.stage === 'baby' ? 'teen' : 'adult']} en Nv. ${nextLv}` : '');
+  if (rec.evolved) {
+    delete rec.evolved; persist();
+    show.vz = 280; show.mouthOpen = 1;
+    celebrate(`¡Creció a ${STAGE_NAME[rec.stage]}!`, hsl(show.g.pal.accent, 15));
+  }
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
   $('xpBar').style.width = (rec.xp / xpNeed(rec.level) * 100) + '%';
   $('record').textContent = `${rec.wins}V ${rec.losses}D`;
 }
 
+function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques · ${save.sel + 1}/${save.monsters.length}`; }
+function tapEgg() {
+  const rec = cur();
+  rec.taps++;
+  egg.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); egg.sq = 0.12;
+  burst((Math.random() - 0.5) * 30, -egg.h * (0.4 + Math.random() * 0.4), 3, hsl(egg.pal.body, 24), 160, [2, 3.5]);
+  if (rec.taps < rec.need) { persist(); updateEggSub(); return; }
+  // ¡nace!
+  const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
+  rec.stage = 'baby'; delete rec.taps; delete rec.need; persist();
+  burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
+  renderHome();
+  show.vz = 320; show.mouthOpen = 1;
+  celebrate(`¡Nació ${rec.name}!`);
+}
+
 $('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); };
 $('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); };
-$('nameBox').onclick = async () => { const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
+$('nameBox').onclick = async () => {
+  if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 $('btnNew').onclick = () => {
   if (save.monsters.length >= MAX_MONSTERS) { ask(`Tienes el máximo de ${MAX_MONSTERS} monstruos. Libera uno para hacer espacio.`, { ok: 'Entendido', cancel: null }); return; }
   save.monsters.push(newRec()); save.sel = save.monsters.length - 1; persist(); renderHome();
@@ -1166,18 +1287,21 @@ $('btnFree').onclick = async () => {
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startBattle(b.dataset.mode));
 
 cv.addEventListener('pointerdown', e => {
-  if (scene !== 'home' || !show || !homeView) return;
+  if (scene !== 'home' || !homeView) return;
   const x = (e.clientX - homeView.cx) / homeView.k, y = (e.clientY - homeView.gy) / homeView.k;
+  if (egg) { if (Math.abs(x) < egg.w * 0.9 && y < 20 && y > -egg.h * 1.3) tapEgg(); return; }
+  if (!show) return;
   const sz = show.estSize();
   if (Math.abs(x) < sz.w * 0.6 && y < 20 && y > -sz.h * 1.1) show.poke(x, y);
 });
 
 function startBattle(mode) {
   lastMode = mode;
-  ARENA_D = H / W > 1.25 ? 980 : 560;
   const me = cur();
+  const zoom = { baby: 0.6, teen: 0.8, adult: 1 }[me.stage] || 1;
+  ARENA_W = 600 * zoom; ARENA_D = (H / W > 1.25 ? 980 : 560) * zoom;
   const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
-  const foe = () => { const r = newRec(); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1); return new Monster(r); };
+  const foe = () => { const r = newRec(me.stage); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1); return new Monster(r); };
   const list = [pm];
   if (mode === '1v1') { const e = foe(); e.team = 1; list.push(e); }
   else if (mode === '2v2') { const al = foe(); al.team = 0; list.push(al); for (let i = 0; i < 2; i++) { const e = foe(); e.team = 1; list.push(e); } }
@@ -1206,10 +1330,12 @@ function finishBattle() {
   const gain = (win ? 50 : 20) + pm.kills * 10;
   rec.xp += gain; win ? rec.wins++ : rec.losses++;
   let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
+  const grow = stageForLevel(rec.level);
+  if (STAGE_ORDER.indexOf(grow) > STAGE_ORDER.indexOf(rec.stage)) { rec.stage = grow; rec.evolved = true; }
   persist();
   $('resTitle').textContent = win ? '¡Victoria!' : 'Derrota';
   $('resTitle').className = win ? 'win' : 'lose';
-  $('resText').innerHTML = `${rec.name} ganó <b>+${gain} XP</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
+  $('resText').innerHTML = `${rec.name} ganó <b>+${gain} XP</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '') + (rec.evolved ? `<br>¡Está creciendo! Ahora es <b>${STAGE_NAME[rec.stage]}</b> y su cuerpo cambió.` : '');
   $('result').classList.add('on');
 }
 
@@ -1223,20 +1349,43 @@ function loop(now) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
-  if (scene === 'home' && show) {
+  if (scene === 'home' && (show || egg)) {
     acc += dt; let n = 0;
-    while (acc >= STEP && n++ < 5) { acc -= STEP; show.hop(STEP); show.animate(STEP); show.rigStep(STEP / 2); show.rigStep(STEP / 2); }
-    const r = $('showArea').getBoundingClientRect(), sz = show.estSize();
-    const k = Math.min(r.height * 0.78 / sz.h, r.width * 0.8 / sz.w, 3.2);
+    while (acc >= STEP && n++ < 5) {
+      acc -= STEP; fxStep(STEP);
+      if (egg) egg.update(STEP);
+      else { show.hop(STEP); show.animate(STEP); show.rigStep(STEP / 2); show.rigStep(STEP / 2); }
+    }
+    // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
+    const r = $('showArea').getBoundingClientRect(), sz = egg ? { w: egg.w, h: egg.h } : show.estSize();
+    const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
     homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k };
-    const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - sz.h * k * 0.5, 10, homeView.cx, homeView.gy - sz.h * k * 0.5, Math.max(r.width, r.height) * 0.7);
-    glow.addColorStop(0, hsl(show.g.pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
+    const pal = egg ? egg.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
+    const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
+    glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
     ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
-    const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
-    ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(0, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
-    show.draw(ctx);
+    if (egg) {
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, egg.w * 0.55, egg.w * 0.16, 0, 0, TAU); ctx.fill();
+      egg.draw(ctx);
+    } else {
+      const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
+      ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(0, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
+      show.draw(ctx);
+    }
+    for (const q of fx.parts) {
+      ctx.save(); ctx.globalAlpha = clamp(q.life * 2, 0, 1); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
+      ctx.fillStyle = q.col; ctx.beginPath(); ctx.moveTo(-q.r, -q.r * 0.6); ctx.lineTo(q.r, -q.r * 0.3); ctx.lineTo(q.r * 0.2, q.r * 0.8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
     ctx.restore();
+    if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
+    if (fx.labelT > 0 && fx.label) {
+      const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
+      ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.font = '900 24px system-ui';
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(fx.label, homeView.cx, y);
+      ctx.fillStyle = '#ffcf6e'; ctx.fillText(fx.label, homeView.cx, y); ctx.globalAlpha = 1;
+    }
   } else if (scene === 'battle' && battle) {
     acc += dt * battleSpeed; let n = 0;
     while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
