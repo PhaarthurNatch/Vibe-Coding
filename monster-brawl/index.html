@@ -649,7 +649,17 @@ class Monster {
     const fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
+    // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
+    const W0 = Math.min(90, ARENA_W * 0.15), dl = this.x - this.r, dr = ARENA_W - this.r - this.x, dtp = this.y - this.r * 0.6, dbt = ARENA_D - this.r * 0.6 - this.y;
+    const push = d => d < W0 ? (1 - Math.max(0, d) / W0) ** 2 : 0;
+    const wx = push(dl) - push(dr), wy = push(dtp) - push(dbt);
+    if (this.kiter && (px * this.strafe * wx + py * this.strafe * wy) < 0) this.strafe *= -1; // no rodear hacia la pared
     if (this.kiter && fwd === 0) { mx += px * this.strafe * 0.5; my += py * this.strafe * 0.5; }
+    if (fwd < 0 && (wx || wy)) { // retrocediendo contra la pared: deslizarse por el costado en vez de quedar pegado
+      const side = (px * wx + py * wy) >= 0 ? 1 : -1;
+      mx += px * side * 0.8; my += py * side * 0.8;
+    }
+    mx += wx * 1.8; my += wy * 1.8;
     const ml = Math.hypot(mx, my);
     this.desired = ml > 0.05 ? { x: mx / ml * this.st.speed * Math.min(1, ml), y: my / ml * this.st.speed * Math.min(1, ml) } : { x: 0, y: 0 };
 
