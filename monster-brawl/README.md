@@ -13,7 +13,9 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **IA**: elige objetivo mezclando el más cercano y el que más daño le ha hecho; al fijarlo se mueve sobre un eje de lock-in que gira lento.
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.
-- Modos 1v1, 2v2 y todos contra todos. XP y niveles guardados en el dispositivo.
+- Modos 1v1, 2v2 y todos contra todos. XP, monedas y niveles guardados en el dispositivo.
+- **Vidas**: 3 por monstruo; si lo noquean pierde una. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
+- **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
 
 ## Llevarlo a Android / iPhone
 Envolverlo con Capacitor: `npm i @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios`,

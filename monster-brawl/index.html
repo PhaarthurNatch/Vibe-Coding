@@ -11,6 +11,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 :root{color-scheme:dark;--bg:#1b1530;--panel:#251d3d;--panel2:#33295a;--text:#f3eefe;--muted:#a99fc7;--acc:#ffb84d;--good:#5ee08a;--bad:#ff5d6c}
+[hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
@@ -65,6 +66,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .btn:disabled{opacity:.35;pointer-events:none}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top .title{text-align:left;margin:0}
+.coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
+.hearts{color:var(--bad);letter-spacing:1px}
+.rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
+.rest .btn{flex:none;padding:9px 12px;font-size:13px}
+.mid{color:var(--acc)}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -73,7 +82,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div>
+  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
   <div class="nav">
     <button class="arrow" id="prev">◀</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
@@ -89,6 +98,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn" id="btnNew">＋ Adoptar huevo</button>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
+    <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
     <div class="row">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
       <button class="btn primary" data-mode="2v2">2 vs 2</button>
@@ -491,7 +501,7 @@ class Monster {
     this.hurtT = Math.max(0, this.hurtT - dt);
     this.mouthOpen = Math.max(0, this.mouthOpen - dt * 3);
     this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 0.12; this.blinkT = 2 + Math.random() * 3.5; }
-    this.blink = Math.max(0, this.blink - dt);
+    this.blink = this.sleep ? 1 : Math.max(0, this.blink - dt);
     if (this.dead) return;
 
     const sp = Math.hypot(this.vx, this.vy), moving = clamp(sp / 60, 0, 1);
@@ -706,7 +716,7 @@ class Monster {
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
-    else { const f = Math.exp(-dt * (this.state === 'dodge' ? 4 : 6)); this.vx *= f; this.vy *= f; }
+    else { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
     const m = this.r, my = m * 0.6;
@@ -949,7 +959,7 @@ class Monster {
 class Battle {
   constructor(ms, mode) {
     this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
-    this.time = 0; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
+    this.time = 0; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer);
     const P = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
     ms.forEach((m, i) => {
@@ -967,9 +977,9 @@ class Battle {
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1;
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
-    const kb = (kind === 'melee' ? 24 : 11) * pow / t.st.weight; // el peso regula el knockback
-    t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(260, kb * 0.45);
-    if (t.state !== 'dead') { t.state = 'hitstun'; t.stT = 0.1 + Math.min(0.3, kb / 1500); }
+    const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
+    t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
+    if (t.state !== 'dead') { t.state = 'hitstun'; t.stT = 0.12 + Math.min(0.4, kb / 1600); }
     for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
     const hx = tm.x - dir.x * t.r * 0.6, hy = tm.y - dir.y * t.r * 0.3;
@@ -979,8 +989,11 @@ class Battle {
       this.parts.push({ x: hx, y: hy, vx: Math.cos(a2) * sp + dir.x * 80, vy: Math.sin(a2) * sp - 60, life: 0.35 + Math.random() * 0.25, col: col || hsl(a.g.pal.accent, 15), r: 2 + Math.random() * 2.5 });
     }
     this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
-    this.shake = Math.min(9, this.shake + kb / 55);
-    if (t.hp <= 0 && !t.dead) { t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true); }
+    this.shake = Math.min(12, this.shake + kb / 45);
+    if (t.hp <= 0 && !t.dead) {
+      t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true);
+      if (!this.ms.some(m => m.team === t.team && !m.dead)) this.elim.push(t.team); // equipo eliminado
+    }
   }
 
   step(dt) {
@@ -1022,8 +1035,10 @@ class Battle {
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
       if (alive.size <= 1 || this.time > 90) {
         this.over = true;
-        if (alive.size === 1) this.winTeam = [...alive][0];
-        else { const sc = {}; for (const m of this.ms) sc[m.team] = (sc[m.team] || 0) + m.hp / m.st.hp; this.winTeam = +Object.keys(sc).sort((a, b) => sc[b] - sc[a])[0]; }
+        // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
+        const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
+        this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
+        this.winTeam = this.ranking[0];
       }
     } else this.endT += dt;
   }
@@ -1111,15 +1126,27 @@ function drawArena(ctx) {
 // ============================================================================
 const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', teen: 'Adolescente', adult: 'Adulto' };
 const STAGE_ORDER = ['egg', 'baby', 'teen', 'adult'];
+const MAX_LIVES = 3;
+const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
+const HEAL_COST = 30;             // monedas para curar al instante
+// [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
+const REWARDS = { 2: [[60, 25], [20, 5]], 3: [[70, 30], [40, 15], [20, 5]], 4: [[80, 40], [50, 20], [30, 10], [15, 5]] };
+const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar'];
+const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
+const resting = rec => rec.restUntil && Date.now() < rec.restUntil;
+const canFight = rec => rec.stage !== 'egg' && !resting(rec);
+// Si terminó el descanso, vuelve con todas sus vidas
+function wakeUp() { let ch = false; for (const m of save.monsters) if (m.restUntil && Date.now() >= m.restUntil) { delete m.restUntil; m.lives = MAX_LIVES; ch = true; } if (ch) persist(); return ch; }
+const mmss = ms => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 const TEEN_LV = 3, ADULT_LV = 6; // nivel en que crece a adolescente / adulto
 const stageForLevel = l => l >= ADULT_LV ? 'adult' : l >= TEEN_LV ? 'teen' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage };
+  const rec = { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; }); s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0 }; }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; }); if (s.coins == null) s.coins = 0; s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -1225,8 +1252,12 @@ function partsSummary(g) {
 }
 
 function renderHome() {
+  wakeUp();
   const rec = cur(), isEgg = rec.stage === 'egg';
-  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = isEgg);
+  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = !canFight(rec));
+  $('coins').textContent = save.coins;
+  $('rest').hidden = !resting(rec);
+  updateRest();
   $('hint').textContent = isEgg ? 'toca el huevo para que nazca' : 'toca al monstruo para sacudirlo · toca el nombre para renombrar';
   if (isEgg) {
     show = null; egg = new EggView(rec);
@@ -1238,9 +1269,9 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig();
+  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec);
   $('mName').textContent = rec.name;
-  $('mSub').textContent = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${save.sel + 1}/${save.monsters.length}`;
+  $('mSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)} · ${save.sel + 1}/${save.monsters.length}`;
   const st = show.st;
   $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
   const nextLv = rec.stage === 'baby' ? TEEN_LV : rec.stage === 'teen' ? ADULT_LV : 0;
@@ -1255,6 +1286,19 @@ function renderHome() {
   $('record').textContent = `${rec.wins}V ${rec.losses}D`;
 }
 
+function updateRest() {
+  const rec = cur();
+  if (!resting(rec)) return;
+  $('restTxt').innerHTML = `Sin vidas. Descansa <b>${mmss(rec.restUntil - Date.now())}</b> para volver a pelear.`;
+  $('btnHeal').textContent = `Curar ya · ${HEAL_COST}`;
+  $('btnHeal').disabled = save.coins < HEAL_COST;
+}
+$('btnHeal').onclick = () => {
+  const rec = cur();
+  if (save.coins < HEAL_COST || !resting(rec)) return;
+  save.coins -= HEAL_COST; delete rec.restUntil; rec.lives = MAX_LIVES; persist();
+  renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
+};
 function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques · ${save.sel + 1}/${save.monsters.length}`; }
 function tapEgg() {
   const rec = cur();
@@ -1296,6 +1340,7 @@ cv.addEventListener('pointerdown', e => {
 });
 
 function startBattle(mode) {
+  if (!canFight(cur())) { goHome(); return; }
   lastMode = mode;
   const me = cur();
   const zoom = { baby: 0.6, teen: 0.8, adult: 1 }[me.stage] || 1;
@@ -1325,17 +1370,30 @@ $('resHome').onclick = goHome;
 $('resAgain').onclick = () => startBattle(lastMode);
 
 function finishBattle() {
-  const rec = cur(), pm = battle.player;
-  const win = battle.winTeam === pm.team;
-  const gain = (win ? 50 : 20) + pm.kills * 10;
-  rec.xp += gain; win ? rec.wins++ : rec.losses++;
+  const rec = cur(), pm = battle.player, rank = battle.ranking;
+  const place = rank.indexOf(pm.team) + 1, nTeams = rank.length;
+  const [bx, bc] = (REWARDS[nTeams] || REWARDS[2])[place - 1];
+  const xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
+  rec.xp += xp; save.coins += coins;
+  place === 1 ? rec.wins++ : rec.losses++;
+  // vidas: sólo se pierde una si lo noquearon
+  let lifeTxt = '';
+  if (pm.dead) {
+    rec.lives = Math.max(0, rec.lives - 1);
+    if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
+    else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
+  }
   let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
   const grow = stageForLevel(rec.level);
   if (STAGE_ORDER.indexOf(grow) > STAGE_ORDER.indexOf(rec.stage)) { rec.stage = grow; rec.evolved = true; }
   persist();
-  $('resTitle').textContent = win ? '¡Victoria!' : 'Derrota';
-  $('resTitle').className = win ? 'win' : 'lose';
-  $('resText').innerHTML = `${rec.name} ganó <b>+${gain} XP</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '') + (rec.evolved ? `<br>¡Está creciendo! Ahora es <b>${STAGE_NAME[rec.stage]}</b> y su cuerpo cambió.` : '');
+  $('resTitle').textContent = nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
+  $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
+  $('resText').innerHTML = `${rec.name} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.`
+    + lifeTxt
+    + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '')
+    + (rec.evolved ? `<br>¡Está creciendo! Ahora es <b>${STAGE_NAME[rec.stage]}</b> y su cuerpo cambió.` : '');
+  $('resAgain').disabled = !canFight(rec);
   $('result').classList.add('on');
 }
 
@@ -1372,6 +1430,12 @@ function loop(now) {
       const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
       ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(0, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
       show.draw(ctx);
+      if (show.sleep) { // Zzz mientras descansa
+        const h = show.nodes[show.ix.head];
+        ctx.fillStyle = 'rgba(220,210,255,.85)'; ctx.textAlign = 'center';
+        for (let i = 0; i < 3; i++) { const ph = (performance.now() / 1400 + i / 3) % 1; ctx.globalAlpha = Math.sin(ph * Math.PI); ctx.font = `800 ${10 + ph * 10}px system-ui`; ctx.fillText('z', h.x + show.g.head.w * 0.5 + ph * 22, h.y - show.g.head.h * 0.4 - ph * 34); }
+        ctx.globalAlpha = 1;
+      }
     }
     for (const q of fx.parts) {
       ctx.save(); ctx.globalAlpha = clamp(q.life * 2, 0, 1); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
@@ -1398,6 +1462,7 @@ function loop(now) {
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
+  if (scene === 'home' && ++frame % 20 === 0 && cur().restUntil) { if (wakeUp()) renderHome(); else updateRest(); }
   requestAnimationFrame(loop);
 }
 renderHome();
