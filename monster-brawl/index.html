@@ -2627,9 +2627,6 @@ function pet(a, b) {
 }
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
-// Dificultad extra de los rivales en 2 vs 2 (el dueño sentía que siempre ganaba): +5% de vida y +5% de daño (~10% más fuertes)
-const FOE_2V2 = 1.05;
-function buffFoe(m, k) { m.st.hp = Math.round(m.st.hp * k); m.hp = m.st.hp; m.st.melee *= k; m.st.ranged *= k; }
 function makeFoe(ref) {
   const r = newRec(ref.stage);
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
@@ -2655,7 +2652,7 @@ function startBattle(mode, team) {
   if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
   else if (mode === '2v2') {
     if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
-    for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; buffFoe(e, FOE_2V2); list.push(e); }
+    for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
   }
   else for (let i = 0; i < 3; i++) { const e = foe(me); e.team = i + 1; list.push(e); }
   $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
