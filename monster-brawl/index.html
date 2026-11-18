@@ -1652,7 +1652,6 @@ function finishBattle() {
     else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
   }
   wakeUp();
-  if (rec.lives > 0 && rec.lives < MAX_LIVES) lifeTxt += ` <small>(recupera 1 cada ${HEART_MS / 60000} min)</small>`;
   let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
   const grow = stageForLevel(rec.level);
   if (STAGE_ORDER.indexOf(grow) > STAGE_ORDER.indexOf(rec.stage)) { rec.stage = grow; rec.evolved = true; }
