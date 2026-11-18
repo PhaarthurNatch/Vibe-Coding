@@ -2011,8 +2011,8 @@ const STAT_DEF = [
   ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
 ];
 
-// Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder, o con 1 corazón o menos.
-// Acariciarlo le quita la tristeza de la derrota.
+// Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón, o con 1 corazón o menos.
+// Acariciarlo le quita esa tristeza.
 const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
 const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() || rec.lives <= 1 ? 'sad' : null;
 function renderHome() {
@@ -2517,12 +2517,12 @@ function finishBattle() {
   const lines = battle.players.map(pm => {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
-    if (place === 1) rec.wins++;
-    else { rec.losses++; rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; } // perder lo deja triste un rato
+    place === 1 ? rec.wins++ : rec.losses++;
     // vidas: sólo se pierde una si lo noquearon
     let lifeTxt = '';
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
+      rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
       if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
       else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
     }
