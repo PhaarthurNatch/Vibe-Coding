@@ -231,7 +231,8 @@ function eyeLayout(n, y, sp) {
 // Qué partes puede tener cada etapa de vida (pesos para el sorteo; {0:1} = nunca)
 const STAGE_LIM = {
   baby: { size: 0.62, blob: true, eyes: { 1: 20, 2: 65, 3: 15 }, horns: { 0: 1 }, neck: { 0: 1 }, mid: 0, lower: 0, shoulders: 0, arms: { 0: 1 }, legs: { 0: 1 }, wings: { 0: 1 }, tail: { 0: 1 } },
-  teen: { size: 0.8, eyes: { 0: 3, 1: 15, 2: 50, 3: 20, 4: 12 }, horns: { 0: 55, 1: 20, 2: 25 }, neck: { 0: 55, 1: 45 }, mid: 0, lower: 0.75, shoulders: 0, arms: { 0: 20, 1: 80 }, legs: { 0: 15, 1: 85 }, wings: { 0: 80, 1: 20 }, tail: { 0: 50, 1: 50 } },
+  child: { size: 0.72, eyes: { 1: 20, 2: 60, 3: 20 }, horns: { 0: 75, 1: 15, 2: 10 }, neck: { 0: 1 }, mid: 0, lower: 0, shoulders: 0, arms: { 0: 40, 1: 60 }, legs: { 0: 30, 1: 70 }, wings: { 0: 1 }, tail: { 0: 65, 1: 35 } },
+  teen: { size: 0.85, eyes: { 0: 3, 1: 15, 2: 50, 3: 20, 4: 12 }, horns: { 0: 55, 1: 20, 2: 25 }, neck: { 0: 55, 1: 45 }, mid: 0, lower: 0.75, shoulders: 0, arms: { 0: 20, 1: 80 }, legs: { 0: 15, 1: 85 }, wings: { 0: 80, 1: 20 }, tail: { 0: 50, 1: 50 } },
   adult: { size: 1, eyes: { 0: 3, 1: 14, 2: 44, 3: 15, 4: 10, 5: 7, 6: 5 }, horns: { 0: 35, 1: 14, 2: 36, 3: 8, 4: 7 }, neck: { 0: 30, 1: 50, 2: 20 }, mid: 0.72, lower: 0.8, shoulders: 0.6, arms: { 0: 12, 1: 60, 2: 20, 3: 8 }, legs: { 0: 14, 1: 70, 2: 16 }, wings: { 0: 55, 1: 37, 2: 8 }, tail: { 0: 28, 1: 52, 2: 13, 3: 7 } },
 };
 
@@ -250,13 +251,15 @@ function scaleGenome(g, k) {
 function genGenome(seed, stage = 'adult', legacy = false) {
   if (stage === 'egg') stage = 'baby';
   if (legacy || stage === 'baby') return rollGenome(seed, stage);
-  const teen = growFrom(rollGenome(seed, 'baby'), 'teen', seed);
+  const child = growFrom(rollGenome(seed, 'baby'), 'child', seed);
+  if (stage === 'child') return child;
+  const teen = growFrom(child, 'teen', seed);
   return stage === 'teen' ? teen : growFrom(teen, 'adult', seed);
 }
 
 function growFrom(prev, stage, seed) {
   const fresh = rollGenome(seed, stage);                 // candidatos para las partes nuevas de esta etapa
-  const r = rng((seed ^ (stage === 'teen' ? 0x27d4eb2f : 0x165667b1)) >>> 0);
+  const r = rng((seed ^ ({ child: 0x3c6ef372, teen: 0x27d4eb2f }[stage] || 0x165667b1)) >>> 0);
   const k = STAGE_LIM[stage].size / STAGE_LIM[prev.stage].size * r.f(0.95, 1.1); // cuánto crece
   const g = JSON.parse(JSON.stringify(prev));
   scaleGenome(g, k);
@@ -308,7 +311,7 @@ function rollGenome(seed, stage = 'adult') {
     pupil: r.chance(0.7) ? C(250, 30, 8) : C(r.f(0, 360), r.f(70, 100), r.f(38, 52)),
     spot: C(hue + r.f(-30, 30), sat, lit + (r.chance(0.5) ? 14 : -14)),
   };
-  if (stage !== 'adult') r = rng((seed ^ (stage === 'baby' ? 0x9e3779b9 : 0x85ebca6b)) >>> 0);
+  if (stage !== 'adult') r = rng((seed ^ ({ baby: 0x9e3779b9, child: 0xa54ff53a }[stage] || 0x85ebca6b)) >>> 0);
 
   // Cabeza
   const head = { shape: r.pick(['round', 'wide', 'tall', 'square', 'tri', 'pear']), w: r.f(32, 60), h: r.f(28, 52) };
@@ -1365,8 +1368,8 @@ function drawArena(ctx) {
 // ============================================================================
 // GUARDADO
 // ============================================================================
-const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', teen: 'Adolescente', adult: 'Adulto' };
-const STAGE_ORDER = ['egg', 'baby', 'teen', 'adult'];
+const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolescente', adult: 'Adulto' };
+const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult'];
 const MAX_LIVES = 3;
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
@@ -1391,8 +1394,8 @@ function wakeUp() {
   if (ch) persist(); return ch;
 }
 const mmss = ms => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const TEEN_LV = 3, ADULT_LV = 6; // nivel en que crece a adolescente / adulto
-const stageForLevel = l => l >= ADULT_LV ? 'adult' : l >= TEEN_LV ? 'teen' : 'baby';
+const STAGE_LV = { child: 3, teen: 5, adult: 8 }; // nivel en que crece a cada etapa
+const stageForLevel = l => l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
   const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 2 };
@@ -1522,8 +1525,8 @@ function renderHome() {
   updateSub();
   const st = show.st;
   $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
-  const nextLv = rec.stage === 'baby' ? TEEN_LV : rec.stage === 'teen' ? ADULT_LV : 0;
-  $('parts').textContent = nextLv ? `Crece a ${STAGE_NAME[rec.stage === 'baby' ? 'teen' : 'adult']} en Nv. ${nextLv}` : '';
+  const nextSt = STAGE_ORDER[STAGE_ORDER.indexOf(rec.stage) + 1], nextLv = nextSt ? Math.max(STAGE_LV[nextSt], rec.level + 1) : 0;
+  $('parts').textContent = nextLv ? `Crece a ${STAGE_NAME[nextSt]} en Nv. ${nextLv}` : '';
   $('parts').hidden = !nextLv;
   if (rec.evolved) {
     delete rec.evolved; persist();
@@ -1712,7 +1715,7 @@ function startBattle(mode) {
   if (!canFight(cur())) { goHome(); return; }
   lastMode = mode;
   const me = cur();
-  const zoom = { baby: 0.6, teen: 0.8, adult: 1 }[me.stage] || 1;
+  const zoom = { baby: 0.6, child: 0.7, teen: 0.82, adult: 1 }[me.stage] || 1;
   ARENA_W = 600 * zoom; ARENA_D = (H / W > 1.25 ? 980 : 560) * zoom;
   const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
   const foe = () => {

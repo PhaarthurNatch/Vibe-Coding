@@ -4,11 +4,10 @@ Juego de monstruos generados al azar que pelean solos (estilo "cría y pelea").
 Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el navegador del celular.
 
 ## Qué hay
-- **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca). Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca.
-  Adolescente (Nv. 3-5): más grande y con partes limitadas. Adulto (Nv. 6+): todas las partes. Al crecer conserva todas sus partes
+- **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
+  Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
+  Adolescente (Nv. 5-7): más grande y con más partes. Adulto (Nv. 8+): todas las partes. Al crecer conserva todas sus partes
   (agrandadas) y se sortea si le salen partes nuevas; las cantidades sólo suben.
-- **Cuerpos aleatorios** (vista frontal 2D): pupilas, ojos, cabeza, cuello, torso superior/medio/inferior,
-  hombros, brazos, antebrazos, muslos, piernas, pies, alas, colas, cuernos y boca. Varían en color, largo y cantidad (puede ser 0).
 - **Partes "floaty"**: cada parte es un nodo con resorte que sigue a su padre con retraso; al recibir golpes se sacuden y al morir caen como ragdoll.
 - **Stats salen del cuerpo**: vida, fuerza, disparo, defensa, velocidad, peso (regula el knockback) y esquiva.
 - **IA**: primero ataca al más cercano; el daño recibido se acumula como odio y, cuando el odio hacia alguien pasa un umbral, va por él aunque esté lejos ("¡grr!"); al fijarlo se mueve sobre un eje de lock-in que gira lento.
