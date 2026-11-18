@@ -2409,13 +2409,23 @@ function renderAdopt() {
   $('aSub').textContent = mine ? `Faltan ${adoptRec.need - adoptRec.taps} toques` : `Tienes ${n}/${MAX_MONSTERS} monstruos`;
   $('adoptTxt').innerHTML = mine ? (n ? '¡Es tuyo! Tócalo varias veces para que nazca.' : '¡Bienvenido! Este huevo es tuyo.<br>Tócalo varias veces para que nazca.')
     : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
-    : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
-  $('btnNew').hidden = mine; $('btnNew').disabled = full || save.coins < EGG_COST;
+    : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.<br><small>Puedes adoptar 1 huevo al día.</small>';
+  $('btnNew').hidden = mine;
   renderShopUlts(mine);
-  $('btnNew').innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
+  updateEggBtn();
+}
+// Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const eggBoughtToday = () => save.eggDay === dayKey();
+function updateEggBtn() {
+  const full = save.monsters.length >= MAX_MONSTERS, today = eggBoughtToday(), b = $('btnNew');
+  b.disabled = full || today || save.coins < EGG_COST;
+  if (today) { const m = new Date(); m.setHours(24, 0, 0, 0); const t = Math.ceil((m - Date.now()) / 60000); b.innerHTML = `Próximo huevo en ${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min`; }
+  else b.innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
 }
 // ---------- Criadero: cruzar dos Awakened ----------
 const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 60 * 60 * 1000, BREED_MUTATION = 0.1;
+const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea terminada adelanta la incubación del huevo del Criadero
 let breedEgg = save.breeding ? new EggView(save.breeding.rec) : null, breedSel = new Set();
 function makeChild(A, B) {
   const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3 };
@@ -2448,13 +2458,13 @@ function renderBreed(thumbs) {
     updateBreedBtn(); return;
   }
   const aw = save.monsters.map((r, i) => [r, i]).filter(([r]) => r.stage === 'awakened');
-  for (const i of [...breedSel]) { const r = save.monsters[i]; if (!r || r.stage !== 'awakened' || resting(r)) breedSel.delete(i); }
+  for (const i of [...breedSel]) { const r = save.monsters[i]; if (!r || r.stage !== 'awakened' || resting(r) || r.bred) breedSel.delete(i); }
   $('bdSub').textContent = 'Cruza dos Awakened';
   let h = `<div class="tsec"><div class="thead">Elige a los padres <span class="pill" id="bdCount">${breedSel.size}/2</span></div>`;
   if (aw.length < 2) h += `<p class="adoptTxt">Necesitas 2 monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Tienes ${aw.length}.</p>`;
-  else h += `<div class="bdlist">${aw.map(([r, i]) => `<button class="tpc ${breedSel.has(i) ? 'on' : ''}" data-bd="${i}" ${resting(r) ? 'disabled' : ''}><canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span></button>`).join('')}</div>`;
+  else h += `<div class="bdlist">${aw.map(([r, i]) => `<button class="tpc ${breedSel.has(i) ? 'on' : ''}" data-bd="${i}" ${resting(r) || r.bred ? 'disabled' : ''}><canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span></button>`).join('')}</div>`;
   h += `<button class="btn primary bdgo" id="bdGo"></button>`;
-  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 60000} min antes de poder abrirlo.</p></div>`;
+  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 60000} min antes de poder abrirlo (cada pelea lo adelanta ${INCUBATE_FIGHT_MS / 60000} min).</p></div>`;
   body.innerHTML = h;
   body.querySelectorAll('[data-bd]').forEach(b => {
     drawThumb(b.querySelector('canvas'), save.monsters[+b.dataset.bd]);
@@ -2472,13 +2482,13 @@ function updateBreedBtn() {
 }
 async function doBreed() {
   const [A, B] = [...breedSel].map(i => save.monsters[i]);
-  if (!A || !B || save.breeding || save.coins < BREED_COST || save.monsters.length >= MAX_MONSTERS) return;
+  if (!A || !B || A.bred || B.bred || save.breeding || save.coins < BREED_COST || save.monsters.length >= MAX_MONSTERS) return;
   if (!await ask(`¿Criar a ${A.name} y ${B.name} por ${BREED_COST} monedas? Dormirán ${BREED_NAP_MS / 60000} min y el huevo incubará ${INCUBATE_MS / 60000} min.`, { ok: 'Criar' })) return;
   if (save.breeding || save.coins < BREED_COST) return;
   save.coins -= BREED_COST;
   const rec = makeChild(A, B);
   save.breeding = { rec, readyAt: Date.now() + INCUBATE_MS };
-  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS;
+  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = B.bred = true; // sólo una vez en la vida
   breedSel.clear(); breedEgg = new EggView(rec); breedEgg.sq = 0.2;
   persist(); renderHome(); renderBreed(true); fx.label = '¡Un huevo!'; fx.labelT = 2;
 }
@@ -2503,10 +2513,10 @@ function renderShopUlts(hide) {
   });
 }
 $('btnNew').onclick = async () => {
-  if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST) return;
+  if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST || eggBoughtToday()) return;
   if (!await ask(`¿Adoptar este huevo por ${EGG_COST} monedas? Tendrás que abrirlo antes de volver.`, { ok: 'Adoptar' })) return;
-  if (save.coins < EGG_COST || save.adopting) return;
-  save.coins -= EGG_COST; $('coins').textContent = save.coins;
+  if (save.coins < EGG_COST || save.adopting || eggBoughtToday()) return;
+  save.coins -= EGG_COST; save.eggDay = dayKey(); $('coins').textContent = save.coins;
   save.adopting = adoptRec; persist(); renderAdopt();
   adoptEgg.vz = 260; adoptEgg.sq = 0.15; fx.label = '¡Es tuyo!'; fx.labelT = 1.6;
 };
@@ -2953,6 +2963,10 @@ function finishBattle() {
     return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
   });
   wakeUp();
+  if (save.breeding && save.breeding.readyAt > Date.now()) { // pelear adelanta un poquito la incubación
+    save.breeding.readyAt = Math.max(Date.now(), save.breeding.readyAt - INCUBATE_FIGHT_MS);
+    lines.push(`<small>🥚 El huevo del Criadero incubó ${INCUBATE_FIGHT_MS / 60000} min más rápido${save.breeding.readyAt <= Date.now() ? ': ¡ya se puede abrir!' : ''}</small>`);
+  }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
@@ -3041,6 +3055,7 @@ function loop(now) {
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
+  if (scene === 'home' && homePage === 0 && frame % 120 === 0 && !save.adopting) updateEggBtn(); // cuenta hasta el próximo huevo
   if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().napUntil || cur().heartAt || save.breeding || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
