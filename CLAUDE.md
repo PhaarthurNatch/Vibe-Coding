@@ -102,7 +102,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Vuelo de los alados** (`FLY`, `flyer`): según la carga alar (`st.mass` sin tope / tamaño de alas; el peso normal casi siempre está en el máximo 3,5)
   los pesados (alas chicas para su cuerpo) **saltan alto** hacia su objetivo, con un salto algo lento (gravedad ×`leapG` 0,7; `startLeap`, estado `leap`) y los livianos **flotan para alejarse** ~2–2,8 s a altura `floatZ` (`floatT`) cuando el rival está encima, cada ~9–13 s (mientras flotan retroceden y disparan hacia abajo si pueden).
   En el aire (z > `airZ`) no se puede golpear ni ser golpeado cuerpo a cuerpo, no esquivan, no chocan con los del suelo; los disparos suben o bajan
-  hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo.
+  hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo. Al volar (saltar o flotar) aletean más rápido y con ~2,5× más recorrido (`flapK`, y la punta del ala más firme con `boost`).
   Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.

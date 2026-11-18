@@ -980,11 +980,14 @@ class Monster {
       }
     }
     // Alas
+    this.flapK = (this.flapK || 0) + ((this.z > 8 || this.state === 'leap' || this.floatT > 0 ? 1 : 0) - (this.flapK || 0)) * Math.min(1, dt * 8);
     for (const w of I.wings) {
       const tip = N[w.tip];
-      const rate = (g.legs.pairs ? 5 : 9) + moving * 6 + (this.state === 'dodge' ? 10 : 0) + (this.z > 8 ? 12 : 0);
-      tip.ay = Math.sin(t * rate + w.p * 0.8) * w.span * 0.35;
-      tip.ax = -w.sd * Math.abs(Math.sin(t * rate)) * w.span * 0.08;
+      const fly = this.flapK || 0; // 0 en el suelo → 1 volando (saltando o flotando): aletea más rápido y con mucho más recorrido
+      const rate = (g.legs.pairs ? 5 : 9) + moving * 6 + (this.state === 'dodge' ? 10 : 0) + fly * 12;
+      tip.ay = Math.sin(t * rate + w.p * 0.8) * w.span * (0.35 + 0.55 * fly);
+      tip.ax = -w.sd * Math.abs(Math.sin(t * rate)) * w.span * (0.08 + 0.22 * fly);
+      tip.boost = 1 + 3 * fly; // en el aire el ala sigue el aleteo con más fuerza (si no, el resorte se queda corto)
     }
     // Colas
     this.earT = (this.earT ?? Math.random() * 3) - dt;
