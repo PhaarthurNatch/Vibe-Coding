@@ -348,7 +348,7 @@ function calcStats(g, level = 1, train = null) {
   const rangedSrc = mouthP >= eyeP ? 'mouth' : 'eyes';
   const rangedCd = clamp(2.4 - g.eyes.count * 0.15 - (g.mouth.type === 'open' ? 0.3 : 0), 1.0, 2.6);
   const range = clamp(220 + g.eyes.count * 25 + g.eyes.size * 4, 200, 420);
-  const dodge = clamp(0.04 + wingP * 0.07 + speed / 1400 - weight * 0.025 + (g.tail.count ? 0.02 : 0), 0.03, 0.42);
+  const dodge = clamp(0.12 + wingP * 0.08 + speed / 1000 - weight * 0.025 + (g.tail.count ? 0.03 : 0), 0.08, 0.5);
   const lv = 1 + (level - 1) * 0.07;
   const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
   if (train) for (const t of TRAIN) if (train[t.k]) t.apply(st, train[t.k]);
@@ -365,7 +365,7 @@ const TRAIN = [
   { k: 'defense', name: 'Defensa', desc: '+2.5 defensa', apply: (st, n) => st.defense += 2.5 * n },
   { k: 'speed', name: 'Velocidad', desc: '+6 velocidad', apply: (st, n) => st.speed = clamp(st.speed + 6 * n, 40, 250) },
   { k: 'weight', name: 'Peso', desc: '+0.12 peso, menos knockback', apply: (st, n) => st.weight = clamp(st.weight + 0.12 * n, 0.5, 4.8) },
-  { k: 'dodge', name: 'Esquiva', desc: '+1.5% esquiva', apply: (st, n) => st.dodge = clamp(st.dodge + 0.015 * n, 0.03, 0.57) },
+  { k: 'dodge', name: 'Esquiva', desc: '+1.5% esquiva', apply: (st, n) => st.dodge = clamp(st.dodge + 0.015 * n, 0.08, 0.62) },
 ];
 
 function makeCols(P, fl) {
@@ -1411,7 +1411,7 @@ const STAT_DEF = [
   ['Defensa', st => st.defense, 36, v => Math.round(v)],
   ['Velocidad', st => st.speed, 190, v => Math.round(v)],
   ['Peso', st => st.weight, 3.5, v => v.toFixed(1)],
-  ['Esquiva', st => st.dodge, 0.42, v => Math.round(v * 100) + '%'],
+  ['Esquiva', st => st.dodge, 0.5, v => Math.round(v * 100) + '%'],
 ];
 
 function renderHome() {
