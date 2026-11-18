@@ -6,7 +6,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 ## Qué hay
 - **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: huevos por 60 monedas, que se abren ahí mismo, y ultimates por 150; máximo 8 monstruos),
   Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo), Entrenar y Criadero (a la derecha).
-- **Criadero**: cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 1 hora. El hijo hereda partes, colores y
+- **Criadero**: cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas. El hijo hereda partes, colores y
   personalidad de sus padres (a veces muta algo) y al despertar trae la ultimate de uno de ellos.
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
