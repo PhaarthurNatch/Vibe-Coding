@@ -2424,7 +2424,8 @@ function updateEggBtn() {
   else b.innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
 }
 // ---------- Criadero: cruzar dos Awakened ----------
-const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 60 * 60 * 1000, BREED_MUTATION = 0.1;
+const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60 * 1000, BREED_MUTATION = 0.1;
+const hmm = ms => { const t = Math.ceil(ms / 60000); return t >= 60 ? `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min` : mmss(ms); }; // 2 h 05 min / 4:32
 const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea terminada adelanta la incubación del huevo del Criadero
 let breedEgg = save.breeding ? new EggView(save.breeding.rec) : null, breedSel = new Set();
 function makeChild(A, B) {
@@ -2449,9 +2450,9 @@ function renderBreed(thumbs) {
   }
   if (Bd) {
     const left = Bd.readyAt - Date.now();
-    $('bdSub').textContent = left > 0 ? `Incubando · ${mmss(left)}` : `Faltan ${Bd.rec.need - Bd.rec.taps} toques`;
+    $('bdSub').textContent = left > 0 ? `Incubando · ${hmm(left)}` : `Faltan ${Bd.rec.need - Bd.rec.taps} toques`;
     body.innerHTML = `<div class="tsec"><div class="thead">Huevo de ${esc(Bd.rec.parents[0])} y ${esc(Bd.rec.parents[1])}</div>
-      <p class="adoptTxt">${left > 0 ? `Está incubando. Podrás abrirlo en <b>${mmss(left)}</b>.` : '¡Ya se mueve! Tócalo varias veces para que nazca.'}</p></div>`;
+      <p class="adoptTxt">${left > 0 ? `Está incubando. Podrás abrirlo en <b>${hmm(left)}</b>.` : '¡Ya se mueve! Tócalo varias veces para que nazca.'}</p></div>`;
     return;
   }
   if (!thumbs && body.querySelector('.bdlist')) { // sólo actualizar el botón (sin volver a dibujar las miniaturas)
@@ -2464,7 +2465,7 @@ function renderBreed(thumbs) {
   if (aw.length < 2) h += `<p class="adoptTxt">Necesitas 2 monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Tienes ${aw.length}.</p>`;
   else h += `<div class="bdlist">${aw.map(([r, i]) => `<button class="tpc ${breedSel.has(i) ? 'on' : ''}" data-bd="${i}" ${resting(r) || r.bred ? 'disabled' : ''}><canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span></button>`).join('')}</div>`;
   h += `<button class="btn primary bdgo" id="bdGo"></button>`;
-  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 60000} min antes de poder abrirlo (cada pelea lo adelanta ${INCUBATE_FIGHT_MS / 60000} min).</p></div>`;
+  h += `<p class="tdesc">El hijo hereda partes, colores y personalidad de sus padres (a veces sale algo nuevo) y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas antes de poder abrirlo (cada pelea lo adelanta ${INCUBATE_FIGHT_MS / 60000} min).</p></div>`;
   body.innerHTML = h;
   body.querySelectorAll('[data-bd]').forEach(b => {
     drawThumb(b.querySelector('canvas'), save.monsters[+b.dataset.bd]);
@@ -2483,7 +2484,7 @@ function updateBreedBtn() {
 async function doBreed() {
   const [A, B] = [...breedSel].map(i => save.monsters[i]);
   if (!A || !B || A.bred || B.bred || save.breeding || save.coins < BREED_COST || save.monsters.length >= MAX_MONSTERS) return;
-  if (!await ask(`¿Criar a ${A.name} y ${B.name} por ${BREED_COST} monedas? Dormirán ${BREED_NAP_MS / 60000} min y el huevo incubará ${INCUBATE_MS / 60000} min.`, { ok: 'Criar' })) return;
+  if (!await ask(`¿Criar a ${A.name} y ${B.name} por ${BREED_COST} monedas? Dormirán ${BREED_NAP_MS / 60000} min y el huevo incubará ${INCUBATE_MS / 3600000} horas.`, { ok: 'Criar' })) return;
   if (save.breeding || save.coins < BREED_COST) return;
   save.coins -= BREED_COST;
   const rec = makeChild(A, B);
