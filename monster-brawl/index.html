@@ -72,7 +72,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .topbar .mode{font-weight:800;font-size:15px}
 .roundbtn{width:44px;height:44px;border-radius:50%;background:var(--panel2);font-weight:800}
-.fighters{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fighters{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
 .fighter{background:rgba(37,29,61,.9);border-radius:12px;padding:7px 9px;font-size:12px;display:flex;flex-direction:column;gap:4px;border:2px solid transparent}
 .fighter.me{border-color:var(--acc)}
 .fighter.dead{opacity:.4}
@@ -99,6 +99,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
 .rest .btn{flex:none;padding:9px 12px;font-size:13px}
 .mid{color:var(--acc)}
+.growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
+#growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -120,7 +122,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="hint" id="hint">toca: sacudir · desliza: acariciar · mantén: tomarlo</div>
   <div class="panel">
     <div class="stats" id="stats"></div>
-    <div class="parts" id="parts"></div>
     <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
       <button class="btn" id="btnNew">＋ Adoptar huevo</button>
@@ -150,10 +151,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="topbar">
     <button class="roundbtn" id="quit">✕</button>
     <div class="mode" id="modeLbl">1 vs 1</div>
-    <button class="roundbtn" id="speed">x1.5</button>
+    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
-  <div class="spacer"></div>
   <div class="fighters" id="fighters"></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- CRECIMIENTO -->
+<div id="growUI" class="screen">
+  <div class="growTitle" id="growTitle"></div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="growOk" hidden>Continuar</button>
 </div>
 
 <div class="modal" id="result">
@@ -897,20 +905,21 @@ class Monster {
     if (this.alpha <= 0) return;
     const N = this.nodes, I = this.ix, g = this.g, s = this.s, C = this.hurtT > 0 ? this.colsF : this.cols, lw = 2 * s;
     ctx.save(); ctx.globalAlpha = this.alpha;
-    for (const w of I.wings) if (w.p === 1) this.drawWing(ctx, w, C, lw);
-    for (const w of I.wings) if (w.p === 0) this.drawWing(ctx, w, C, lw);
-    for (const tl of I.tails) this.drawTail(ctx, tl, C, lw);
-    for (const L of I.legs) if (L.p === 1) this.drawLeg(ctx, L, C.limbD, C, lw);
-    for (const L of I.legs) if (L.p === 0) this.drawLeg(ctx, L, C.limb, C, lw);
-    if (I.neck.length) {
+    const hid = k => this.hidden && this.hidden.has(k); // partes que aún no aparecen (animación de crecer)
+    for (const w of I.wings) if (w.p === 1 && !hid('wing:1')) this.drawWing(ctx, w, C, lw);
+    for (const w of I.wings) if (w.p === 0 && !hid('wing:0')) this.drawWing(ctx, w, C, lw);
+    I.tails.forEach((tl, i) => { if (!hid('tail:' + i)) this.drawTail(ctx, tl, C, lw); });
+    for (const L of I.legs) if (L.p === 1 && !hid('leg:1')) this.drawLeg(ctx, L, C.limbD, C, lw);
+    for (const L of I.legs) if (L.p === 0 && !hid('leg:0')) this.drawLeg(ctx, L, C.limb, C, lw);
+    if (I.neck.length && !hid('neck')) {
       const up = N[I.upper];
       const pts = [{ x: up.x, y: up.y - this.seg.up.h * 0.3 * s }, ...I.neck.map(i => N[i]), N[I.head]];
       chain(ctx, pts, pts.map(() => g.neck.w * s), C.body, C.ol, lw);
     }
-    if (!g.blob) this.drawTorso(ctx, C, lw);
-    for (const a of I.arms) if (a.p > 0) this.drawArm(ctx, a, C, lw);
-    for (const a of I.arms) if (a.p === 0) this.drawArm(ctx, a, C, lw);
-    if (g.shoulders.size > 0) for (const si of I.shoulders) {
+    if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
+    for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
+    for (const a of I.arms) if (a.p === 0 && !hid('arm:0')) this.drawArm(ctx, a, C, lw);
+    if (g.shoulders.size > 0 && !hid('shoulders')) for (const si of I.shoulders) {
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
       ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
@@ -921,7 +930,7 @@ class Monster {
 
   drawTorso(ctx, C, lw) {
     const T = this.g.torso, N = this.nodes, I = this.ix, s = this.s;
-    const segs = [[T.lower, I.lower, C.bodyD, 'lower'], [T.mid, I.mid, C.bodyL, 'mid'], [T.upper, I.upper, C.body, 'upper']].filter(x => x[0]);
+    const segs = [[T.lower, I.lower, C.bodyD, 'lower'], [T.mid, I.mid, C.bodyL, 'mid'], [T.upper, I.upper, C.body, 'upper']].filter(x => x[0] && !(this.hidden && this.hidden.has(x[3])));
     ctx.fillStyle = C.ol;
     for (const [sg, ni] of segs) { const n = N[ni]; shapePath(ctx, T.shape, n.x, n.y, sg.w * s + lw * 2, sg.h * s + lw * 2); ctx.fill(); }
     for (const [sg, ni, col] of segs) { const n = N[ni]; ctx.fillStyle = col; shapePath(ctx, T.shape, n.x, n.y, sg.w * s, sg.h * s); ctx.fill(); }
@@ -1026,6 +1035,7 @@ class Monster {
     const tilt = clamp((h.x - par.x) / (40 * s), -1, 1) * 0.35;
     const ct = Math.cos(tilt), st = Math.sin(tilt);
     for (const hr of I.horns) {
+      if (this.hidden && this.hidden.has('horn:' + I.horns.indexOf(hr))) continue;
       const tip = N[hr.tip], bx = h.x + (hr.base.x * ct - hr.base.y * st) * s, by = h.y + (hr.base.x * st + hr.base.y * ct) * s;
       hornPath(ctx, bx, by, tip.x, tip.y, g.horns.width * s, g.horns.curve * Math.sign(hr.base.x || 1));
       fillStroke(ctx, C.horn, C.ol, lw);
@@ -1452,6 +1462,14 @@ function heartPath(ctx, x, y, r) {
   ctx.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.6, y - r * 1.1, x, y - r * 0.35);
   ctx.bezierCurveTo(x + r * 0.6, y - r * 1.1, x + r * 1.4, y - r * 0.1, x, y + r * 0.9); ctx.closePath();
 }
+function drawFxParts(ctx) {
+  for (const q of fx.parts) {
+    if (q.heart) { ctx.globalAlpha = clamp(q.life * 1.5, 0, 1); heartPath(ctx, q.x, q.y, q.r); fillStroke(ctx, q.col, '#7a1f45', 1.5); ctx.globalAlpha = 1; continue; }
+    ctx.save(); ctx.globalAlpha = clamp(q.life * 2, 0, 1); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
+    ctx.fillStyle = q.col; ctx.beginPath(); ctx.moveTo(-q.r, -q.r * 0.6); ctx.lineTo(q.r, -q.r * 0.3); ctx.lineTo(q.r * 0.2, q.r * 0.8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
 function heartFx(x, y) { fx.parts.push({ heart: true, x, y, vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 30, rot: 0, vr: 0, life: 1.3, col: '#ff7aa2', r: 5 + Math.random() * 3, ph: Math.random() * TAU }); }
 function fxStep(dt) {
   for (const q of fx.parts) if (q.heart) { q.x += (q.vx + Math.sin(q.life * 6 + q.ph) * 25) * dt; q.y += q.vy * dt; q.life -= dt; }
@@ -1486,7 +1504,8 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 };
-let scene = 'home', show = null, egg = null, battle = null, battleSpeed = 1.5, lastMode = '1v1', homeView = null;
+const BATTLE_SPEED = 1.5; // velocidad fija de los combates
+let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null;
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 addEventListener('resize', resize); resize();
@@ -1515,7 +1534,6 @@ function renderHome() {
     $('mName').textContent = 'Huevo misterioso';
     updateEggSub();
     $('stats').innerHTML = '<p class="eggmsg">Todavía no nace. Tócalo varias veces para romper el cascarón.<br>Nace como bebé y crece con cada nivel.</p>';
-    $('parts').textContent = ''; $('parts').hidden = true;
     $('xpTxt').textContent = 'XP 0'; $('xpBar').style.width = '0'; $('record').textContent = '';
     return;
   }
@@ -1525,14 +1543,6 @@ function renderHome() {
   updateSub();
   const st = show.st;
   $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
-  const nextSt = STAGE_ORDER[STAGE_ORDER.indexOf(rec.stage) + 1], nextLv = nextSt ? Math.max(STAGE_LV[nextSt], rec.level + 1) : 0;
-  $('parts').textContent = nextLv ? `Crece a ${STAGE_NAME[nextSt]} en Nv. ${nextLv}` : '';
-  $('parts').hidden = !nextLv;
-  if (rec.evolved) {
-    delete rec.evolved; persist();
-    show.vz = 280; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
-    celebrate(`¡Creció a ${STAGE_NAME[rec.stage]}!`, hsl(show.g.pal.accent, 15));
-  }
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
   $('xpBar').style.width = (rec.xp / xpNeed(rec.level) * 100) + '%';
   $('record').textContent = `${rec.wins}V ${rec.losses}D`;
@@ -1631,8 +1641,8 @@ function tapEgg() {
   }, 1100);
 }
 
-$('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); };
-$('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); };
+$('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
+$('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 $('btnNew').onclick = () => {
@@ -1716,7 +1726,7 @@ function startBattle(mode) {
   lastMode = mode;
   const me = cur();
   const zoom = { baby: 0.6, child: 0.7, teen: 0.82, adult: 1 }[me.stage] || 1;
-  ARENA_W = 600 * zoom; ARENA_D = (H / W > 1.25 ? 980 : 560) * zoom;
+  ARENA_W = 600 * zoom;
   const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
   const foe = () => {
     const r = newRec(me.stage); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1);
@@ -1727,11 +1737,16 @@ function startBattle(mode) {
   if (mode === '1v1') { const e = foe(); e.team = 1; list.push(e); }
   else if (mode === '2v2') { const al = foe(); al.team = 0; list.push(al); for (let i = 0; i < 2; i++) { const e = foe(); e.team = 1; list.push(e); } }
   else for (let i = 0; i < 3; i++) { const e = foe(); e.team = i + 1; list.push(e); }
-  battle = new Battle(list, mode);
-  scene = 'battle';
   $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
   $('modeLbl').textContent = { '1v1': '1 vs 1', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
   $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${m.name} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
+  // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores
+  if (H / W > 1.25) {
+    const k = W / (ARENA_W + 60), avail = H - $('fighters').getBoundingClientRect().bottom - 8 - 16;
+    ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
+  } else ARENA_D = 560 * zoom;
+  battle = new Battle(list, mode);
+  scene = 'battle';
 }
 
 function updateFighters() {
@@ -1739,10 +1754,108 @@ function updateFighters() {
   battle.ms.forEach((m, i) => { const el = $('f' + i); if (!el) return; el.querySelector('i').style.width = (m.hp / m.st.hp * 100) + '%'; el.classList.toggle('dead', m.dead); });
 }
 
-function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
+function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
+
+// ---------- Crecimiento: ocurre al volver al menú, con animación a pantalla completa ----------
+function newParts(o, n) { // partes que tiene la etapa nueva y no tenía la anterior, en el orden en que aparecen
+  const out = [];
+  if (o.blob && !n.blob) out.push('torso');
+  else { if (!o.torso.mid && n.torso.mid) out.push('mid'); if (!o.torso.lower && n.torso.lower) out.push('lower'); }
+  if (!(o.neck.len > 0) && n.neck.len > 0) out.push('neck');
+  for (let p = o.legs.pairs; p < n.legs.pairs; p++) out.push('leg:' + p);
+  for (let p = o.arms.pairs; p < n.arms.pairs; p++) out.push('arm:' + p);
+  if (!(o.shoulders.size > 0) && n.shoulders.size > 0) out.push('shoulders');
+  for (let i = o.tail.count; i < n.tail.count; i++) out.push('tail:' + i);
+  for (let p = o.wings.pairs; p < n.wings.pairs; p++) out.push('wing:' + p);
+  for (let i = o.horns.count; i < n.horns.count; i++) out.push('horn:' + i);
+  return out;
+}
+function partNodes(M, key) {
+  const I = M.ix, [k, v] = key.split(':'), p = +v;
+  switch (k) {
+    case 'torso': return [I.upper, I.mid, I.lower];
+    case 'mid': return [I.mid]; case 'lower': return [I.lower];
+    case 'neck': return I.neck; case 'shoulders': return I.shoulders;
+    case 'leg': return I.legs.filter(L => L.p === p).flatMap(L => [L.knee, L.foot]);
+    case 'arm': return I.arms.filter(a => a.p === p).flatMap(a => [a.el, a.ha]);
+    case 'wing': return I.wings.filter(w => w.p === p).map(w => w.tip);
+    case 'tail': return I.tails[p] ? I.tails[p].chain : [];
+    case 'horn': return I.horns[p] ? [I.horns[p].tip] : [];
+  }
+  return [];
+}
+function checkGrowth() {
+  const rec = cur();
+  if (!rec || rec.stage === 'egg' || rec.legacy || scene !== 'home') return false;
+  const target = stageForLevel(rec.level);
+  if (STAGE_ORDER.indexOf(target) <= STAGE_ORDER.indexOf(rec.stage)) return false;
+  const oldM = new Monster(rec), newM = new Monster({ ...rec, stage: target });
+  rec.stage = target; persist();
+  const oe = oldM.estSize(), ne = newM.estSize();
+  newM.hidden = new Set(newParts(oldM.g, newM.g));
+  oldM.resetRig(); newM.resetRig();
+  growAnim = { rec, oldM, newM, parts: [...newM.hidden], idx: 0, t: 0, phase: 'old', ratio: Math.min(1, oe.h / ne.h), scl: 1, k: Math.min(H * 0.48 / ne.h, W * 0.78 / ne.w, 3.5), ne };
+  fx.parts = []; fx.label = null;
+  scene = 'grow'; touch = null;
+  $('home').classList.remove('on'); $('growUI').classList.add('on');
+  $('growTitle').textContent = `¡${rec.name} está creciendo!`; $('growOk').hidden = true;
+  return true;
+}
+function growStep(dt) {
+  const G = growAnim, acc = hsl(G.newM.g.pal.accent, 15);
+  G.t += dt; fxStep(dt);
+  const ease = e => 1 + 2.2 * Math.pow(e - 1, 3) + 1.2 * Math.pow(e - 1, 2); // rebote al final
+  if (G.phase === 'old') { // brilla y tiembla cada vez más
+    const sh = clamp((G.t - 0.5) / 1.0, 0, 1);
+    G.oldM.gx = (Math.random() - 0.5) * 12 * sh;
+    if (Math.random() < sh * 0.35) burst((Math.random() - 0.5) * 80, -Math.random() * 90, 1, acc, 120, [2, 4]);
+    if (G.t >= 1.6) { // ¡destello y cambia de cuerpo!
+      G.phase = 'swap'; G.swapT = G.t; fx.flash = 1;
+      burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
+      G.newM.vz = 220; G.newM.mouthOpen = 1; G.newM.setEmo('surprised', 0.8, 3, ['happy', 60]);
+    }
+  } else {
+    G.scl = lerp(G.ratio, 1, ease(clamp((G.t - G.swapT) / 0.8, 0, 1)));
+    if (G.phase === 'swap' && G.t - G.swapT > 1.1) { G.phase = 'parts'; G.nextT = G.t; }
+    if (G.phase === 'parts' && G.t >= G.nextT) {
+      if (G.idx < G.parts.length) { // le aparece una parte nueva
+        const key = G.parts[G.idx++], M = G.newM; M.hidden.delete(key);
+        for (const i of partNodes(M, key)) { const n = M.nodes[i]; burst(n.x, n.y, 7, acc, 200, [2, 4]); n.vy -= 160; n.vx += (Math.random() - 0.5) * 200; }
+        M.vz = 170; M.mouthOpen = 1; G.nextT = G.t + 0.55;
+      } else {
+        G.phase = 'done'; G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
+        burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
+        $('growTitle').textContent = `¡${G.rec.name} ahora es ${STAGE_NAME[G.rec.stage]}!`; $('growOk').hidden = false;
+      }
+    }
+    if (G.phase === 'done' && G.newM.z === 0 && Math.random() < dt * 1.2) G.newM.vz = 200;
+  }
+  (G.phase === 'old' ? G.oldM : G.newM).homeStep(dt, 1e4, 1e4);
+}
+function drawGrow() {
+  const G = growAnim, M = G.phase === 'old' ? G.oldM : G.newM, pal = M.g.pal;
+  const cx = W / 2, gy = H * 0.74, k = G.k, cy = gy - G.ne.h * k * 0.5;
+  const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.max(W, H) * 0.7);
+  glow.addColorStop(0, hsl(pal.accent, 0, 0.45)); glow.addColorStop(1, 'rgba(27,21,48,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  // rayos de luz girando
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(G.t * 0.35);
+  const ri = G.phase === 'old' ? clamp(G.t / 1.6, 0, 1) : 1;
+  for (let i = 0; i < 14; i++) { const a = i * TAU / 14; ctx.fillStyle = `rgba(255,240,200,${0.07 * ri})`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a - 0.09) * 1500, Math.sin(a - 0.09) * 1500); ctx.lineTo(Math.cos(a + 0.09) * 1500, Math.sin(a + 0.09) * 1500); ctx.fill(); }
+  ctx.restore();
+  ctx.save(); ctx.translate(cx, gy); ctx.scale(k, k);
+  const sc = G.phase === 'old' ? 1 : G.scl;
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(M.gx, 0, M.r * 1.5 * sc, M.r * 0.42 * sc, 0, 0, TAU); ctx.fill();
+  ctx.scale(sc, sc); M.draw(ctx); drawFxParts(ctx);
+  ctx.restore();
+  if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.8})`; ctx.fillRect(0, 0, W, H); }
+}
+$('growOk').onclick = () => {
+  growAnim = null; scene = 'home';
+  $('growUI').classList.remove('on'); $('home').classList.add('on');
+  renderHome(); show.vz = 240; show.setEmo('happy', 2, 3);
+};
 $('quit').onclick = async () => { if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome(); };
-const SPEEDS = [1, 1.5, 2, 3]; // x1.5 es la velocidad por defecto
-$('speed').onclick = () => { battleSpeed = SPEEDS[(SPEEDS.indexOf(battleSpeed) + 1) % SPEEDS.length]; $('speed').textContent = 'x' + battleSpeed; };
 $('resHome').onclick = goHome;
 $('resAgain').onclick = () => startBattle(lastMode);
 
@@ -1762,15 +1875,12 @@ function finishBattle() {
   }
   wakeUp();
   let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
-  const grow = stageForLevel(rec.level);
-  if (STAGE_ORDER.indexOf(grow) > STAGE_ORDER.indexOf(rec.stage)) { rec.stage = grow; rec.evolved = true; }
-  persist();
+  persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
   $('resText').innerHTML = `${rec.name} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.`
     + lifeTxt
-    + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '')
-    + (rec.evolved ? `<br>¡Está creciendo! Ahora es <b>${STAGE_NAME[rec.stage]}</b> y su cuerpo cambió.` : '');
+    + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
   $('resAgain').disabled = !canFight(rec);
   $('result').classList.add('on');
 }
@@ -1818,12 +1928,7 @@ function loop(now) {
         ctx.globalAlpha = 1;
       }
     }
-    for (const q of fx.parts) {
-      if (q.heart) { ctx.globalAlpha = clamp(q.life * 1.5, 0, 1); heartPath(ctx, q.x, q.y, q.r); fillStroke(ctx, q.col, '#7a1f45', 1.5); ctx.globalAlpha = 1; continue; }
-      ctx.save(); ctx.globalAlpha = clamp(q.life * 2, 0, 1); ctx.translate(q.x, q.y); ctx.rotate(q.rot);
-      ctx.fillStyle = q.col; ctx.beginPath(); ctx.moveTo(-q.r, -q.r * 0.6); ctx.lineTo(q.r, -q.r * 0.3); ctx.lineTo(q.r * 0.2, q.r * 0.8); ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
+    drawFxParts(ctx);
     ctx.restore();
     if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
     if (fx.labelT > 0 && fx.label) {
@@ -1832,13 +1937,17 @@ function loop(now) {
       ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(fx.label, homeView.cx, y);
       ctx.fillStyle = '#ffcf6e'; ctx.fillText(fx.label, homeView.cx, y); ctx.globalAlpha = 1;
     }
+  } else if (scene === 'grow' && growAnim) {
+    acc += dt; let n = 0;
+    while (acc >= STEP && n++ < 5) { acc -= STEP; growStep(STEP); }
+    drawGrow();
   } else if (scene === 'battle' && battle) {
-    acc += dt * battleSpeed; let n = 0;
+    acc += dt * BATTLE_SPEED; let n = 0;
     while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
-    const top = 64, bottom = $('fighters').getBoundingClientRect().height + 24;
+    const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = 16;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
     const k = Math.min(W / bw, (H - top - bottom) / bh);
-    ctx.save(); ctx.translate((W - ARENA_W * k) / 2, top + ((H - top - bottom) - bh * k) / 2); ctx.scale(k, k);
+    ctx.save(); ctx.translate((W - ARENA_W * k) / 2, top + Math.max(0, ((H - top - bottom) - bh * k) / 2)); ctx.scale(k, k);
     battle.draw(ctx);
     ctx.restore();
     if (++frame % 6 === 0) updateFighters();
@@ -1848,6 +1957,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 renderHome();
+checkGrowth();
 requestAnimationFrame(loop);
 </script>
 </body>
