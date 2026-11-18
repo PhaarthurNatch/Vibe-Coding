@@ -188,6 +188,8 @@ let ARENA_D = 560;                    // fondo del suelo (más largo con el celu
 const DEPTH = 0.7;                    // compresión de profundidad (vista 2.5D)
 const TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
 const SAVE_KEY = 'monster_brawl_v1';
+const HATE_THRESHOLD = 0.12; // odio (daño recibido) que debe acumular, como fracción de su vida máx., antes de importar
+const HATE_WEIGHT = 14;       // pasado el umbral, cada punto de odio "acerca" al enemigo 14 unidades
 const MAX_MONSTERS = 8;
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -652,20 +654,28 @@ class Monster {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt;
     this.strafeT -= dt; if (this.strafeT < 0) { this.strafe *= -1; this.strafeT = 1.5 + Math.random() * 2; }
-    for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.06 * dt)); // el rencor se olvida lento
+    for (const [k, v] of this.damageFrom) this.damageFrom.set(k, v * (1 - 0.04 * dt)); // el odio se olvida lento
 
-    // Elegir objetivo: mezcla del más cercano y el que más daño le ha hecho
+    // Elegir objetivo:
+    // 1.º el más cercano. 2.º el que más daño le ha hecho: el daño recibido se acumula como odio,
+    // y cuando el odio hacia alguien pasa el umbral, va por él aunque esté más lejos.
     const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
     if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; return; }
     if (!this.target || this.target.dead || this.targetTimer <= 0) {
-      let best = null, bs = Infinity;
+      const thr = this.st.hp * HATE_THRESHOLD;
+      let best = null, bs = Infinity, nearest = null, nd = Infinity;
       for (const e of enemies) {
         const d = Math.hypot(e.x - this.x, e.y - this.y);
-        let sc = d - (this.damageFrom.get(e.id) || 0) * 6; // cada punto de daño "acerca" 6 unidades
-        if (e === this.target) sc -= 60;                    // lock-in: le cuesta cambiar
+        if (d < nd) { nd = d; nearest = e; }
+        let sc = d - Math.max(0, (this.damageFrom.get(e.id) || 0) - thr) * HATE_WEIGHT;
+        if (e === this.target) sc -= 60; // lock-in: le cuesta cambiar
         if (sc < bs) { bs = sc; best = e; }
       }
-      if (best !== this.target) { this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d }; }
+      if (best !== this.target) {
+        const prev = this.target;
+        this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
+        if (prev && best !== nearest) B.text(this, '¡grr!', '#ff7a7a'); // cambió de objetivo por odio
+      }
       this.targetTimer = 0.6;
     }
 
