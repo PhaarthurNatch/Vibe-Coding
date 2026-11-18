@@ -63,7 +63,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
-#adoptArea{flex:1 1 120px;min-height:120px}
+#adoptArea{flex:1 1 170px;min-height:170px}
 #btnNew:not([hidden]){display:flex;align-items:center;justify-content:center;gap:6px}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
@@ -151,14 +151,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0">Adoptar</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button></div>
+  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateX(-33.3333%)">
   <div class="page">
-    <div class="nav"><div class="name"><b>Adoptar</b><span id="aSub"></span></div></div>
+    <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="spacer" id="adoptArea"></div>
-    <div class="panel">
-      <p class="adoptTxt" id="adoptTxt"></p>
-      <button class="btn primary" id="btnNew"></button>
+    <div class="panel tpanel">
+      <div class="tsec"><div class="thead">Huevo misterioso</div>
+        <p class="adoptTxt" id="adoptTxt"></p>
+        <button class="btn primary" id="btnNew"></button></div>
+      <div class="tsec" id="shopUlts"></div>
     </div>
   </div>
   <div class="page">
@@ -2142,7 +2144,7 @@ $('btnHeal').onclick = () => {
   save.coins -= healCost(rec); delete rec.restUntil; rec.lives = MAX_LIVES; persist();
   renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
 };
-// Páginas del menú: 0 = Adoptar, 1 = Home (el monstruo), 2 = Entrenar
+// Páginas del menú: 0 = Tienda (huevos y ultimates), 1 = Home (el monstruo), 2 = Entrenar
 let homePage = 1;
 const adoptLocked = () => !!save.adopting || !save.monsters.length; // abriendo un huevo: no se sale de Adoptar hasta que nazca
 function setPage(n) {
@@ -2194,15 +2196,14 @@ function renderTrain() {
   h += `<div class="tsec"><div class="thead">Ultimate</div>`;
   if (rec.stage === 'awakened') {
     const eq = rec.ult || starterUlt(rec.seed);
-    h += `<div class="ultlist">${ULT_KEYS.map(k => {
-      const own = ownsUlt(k) || k === eq, on = k === eq;
-      const btn = on ? `<span class="pill on">Equipada</span>` : own ? `<button class="btn" data-ulteq="${k}">Equipar</button>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
-      return `<div class="ultc ${on ? 'on' : ''} ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
+    h += `<div class="ultlist">${ULT_KEYS.filter(k => ownsUlt(k) || k === eq).map(k => {
+      const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
+      return `<div class="ultc ${on ? 'on' : ''}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
     }).join('')}</div>`;
-    h += `<p class="tdesc">Las que desbloqueas quedan para todos tus monstruos. Puedes cambiarla cuando quieras.</p>`;
+    h += `<p class="tdesc">${ULT_KEYS.every(k => ownsUlt(k) || k === eq) ? 'Tienes todas las ultimates.' : 'Desbloquea más en la Tienda.'} Puedes cambiarla cuando quieras.</p>`;
     const um = rec.ultMode || 'save';
     h += `<div class="thead" style="font-size:13px">Cuándo la usa</div><div class="ums">${Object.entries(ULT_MODES).map(([k, m]) => `<button class="btn ${um === k ? 'on' : ''}" data-um="${k}">${m.name}</button>`).join('')}</div><p class="tdesc">${ULT_MODES[um].desc}.</p>`;
-  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; después puedes desbloquear y equipar otras.</p>`;
+  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
   h += `</div>`;
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
   h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
@@ -2215,12 +2216,6 @@ function renderTrain() {
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => doDrill(+b.dataset.drill));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
-  document.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
-    const k = b.dataset.ultbuy;
-    if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
-    if (save.coins < ULT_COST) return;
-    save.coins -= ULT_COST; grantUlt(k); rec.ult = k; persist(); renderHome(); renderTrain(); trainFx(`¡${ULTS[k].name}!`);
-  });
   document.querySelectorAll('[data-um]').forEach(b => b.onclick = () => { rec.ultMode = b.dataset.um; persist(); renderTrain(); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
@@ -2290,7 +2285,23 @@ function renderAdopt() {
     : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
     : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
   $('btnNew').hidden = mine; $('btnNew').disabled = full || save.coins < EGG_COST;
+  renderShopUlts(mine);
   $('btnNew').innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
+}
+// Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
+function renderShopUlts(hide) {
+  const el = $('shopUlts'); el.hidden = hide; if (hide) return;
+  el.innerHTML = `<div class="thead">Ultimates</div><div class="ultlist">${ULT_KEYS.map(k => {
+    const own = ownsUlt(k);
+    const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
+    return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
+  }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Entrenar.</p>`;
+  el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.ultbuy;
+    if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
+    if (save.coins < ULT_COST || ownsUlt(k)) return;
+    save.coins -= ULT_COST; grantUlt(k); persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
+  });
 }
 $('btnNew').onclick = async () => {
   if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST) return;

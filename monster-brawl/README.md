@@ -4,7 +4,7 @@ Juego de monstruos generados al azar que pelean solos (estilo "cría y pelea").
 Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el navegador del celular.
 
 ## Qué hay
-- **Menú en 3 páginas** (deslizar o tocar las pestañas): Adoptar (a la izquierda, muestra el huevo que te llevas; máximo 8 monstruos),
+- **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: huevos por 60 monedas, que se abren ahí mismo, y ultimates por 150; máximo 8 monstruos),
   Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo) y Entrenar (a la derecha).
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
