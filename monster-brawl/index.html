@@ -46,8 +46,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
-.track{display:flex;width:200%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-.page{width:50%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
+.track{display:flex;width:300%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.page{width:33.3333%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
 .page>*{pointer-events:auto}
 .page>.spacer{pointer-events:none}
 .tlist{display:flex;flex-direction:column;gap:8px}
@@ -63,6 +63,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
+#adoptArea{flex:1 1 120px;min-height:120px}
+.adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto}
 .tinfo{text-align:center;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){.track{transition:none}}
@@ -147,8 +149,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0" class="on">Monstruo</button><button data-page="1">Entrenar</button></div>
-  <div class="pager"><div class="track" id="track">
+  <div class="tabs" role="tablist"><button data-page="0">Adoptar</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button></div>
+  <div class="pager"><div class="track" id="track" style="transform:translateX(-33.3333%)">
+  <div class="page">
+    <div class="nav"><div class="name"><b>Adoptar</b><span id="aSub"></span></div></div>
+    <div class="spacer" id="adoptArea"></div>
+    <div class="panel">
+      <p class="adoptTxt" id="adoptTxt"></p>
+      <button class="btn primary" id="btnNew">＋ Adoptar este huevo</button>
+    </div>
+  </div>
   <div class="page">
   <div class="nav">
     <button class="arrow" id="prev">◀</button>
@@ -162,7 +172,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="ultinfo" id="ultInfo" hidden></div>
     <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
-      <button class="btn" id="btnNew">＋ Adoptar huevo</button>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
@@ -2019,11 +2028,12 @@ const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil >
 const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
-  if (homePage === 1) setTimeout(renderTrain);
+  if (homePage === 2) setTimeout(renderTrain);
+  renderAdopt();
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="1"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
   $('rest').hidden = !resting(rec);
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2068,19 +2078,21 @@ $('btnHeal').onclick = () => {
   save.coins -= HEAL_COST; delete rec.restUntil; rec.lives = MAX_LIVES; persist();
   renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
 };
-let homePage = 0;
+// Páginas del menú: 0 = Adoptar, 1 = Home (el monstruo), 2 = Entrenar
+let homePage = 1;
 function setPage(n) {
-  homePage = n; $('track').style.transform = `translateX(${-50 * n}%)`;
+  homePage = n; $('track').style.transform = `translateX(${-100 / 3 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
-  if (n === 1) renderTrain();
+  if (n === 2) renderTrain();
+  if (n === 0) renderAdopt();
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
-// Deslizar con el dedo: hacia la izquierda abre Entrenar, hacia la derecha vuelve
+// Deslizar con el dedo: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar)
 let swipe = null;
 addEventListener('pointerdown', e => { if (scene === 'home' && !touch && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY }; });
 addEventListener('pointerup', e => {
   if (!swipe) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(dx < 0 ? 1 : 0);
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(clamp(homePage + (dx < 0 ? 1 : -1), 0, 2));
 });
 addEventListener('pointercancel', () => swipe = null);
 
@@ -2174,7 +2186,7 @@ function tapEgg() {
     if (n && n.trim()) rec.name = n.trim().slice(0, 16);
     persist();
     if (scene === 'home' && cur() === rec) {
-      $('mName').textContent = rec.name; if (homePage === 1) renderTrain();
+      $('mName').textContent = rec.name; if (homePage === 2) renderTrain();
       show.vz = 260; show.setEmo('happy', 2, 3); fx.label = `¡Hola, ${rec.name}!`; fx.labelT = 2.2;
     }
   }, 1100);
@@ -2184,9 +2196,20 @@ $('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % s
 $('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); checkGrowth(); };
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
+// Página Adoptar: muestra el huevo que te llevarías; al adoptarlo pasa al Home para hacerlo nacer
+let adoptRec = newRec(), adoptEgg = new EggView(adoptRec);
+function renderAdopt() {
+  const n = save.monsters.length, full = n >= MAX_MONSTERS;
+  $('aSub').textContent = `Tienes ${n}/${MAX_MONSTERS} monstruos`;
+  $('adoptTxt').innerHTML = full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
+    : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
+  $('btnNew').disabled = full;
+}
 $('btnNew').onclick = () => {
-  if (save.monsters.length >= MAX_MONSTERS) { ask(`Tienes el máximo de ${MAX_MONSTERS} monstruos. Libera uno para hacer espacio.`, { ok: 'Entendido', cancel: null }); return; }
-  save.monsters.push(newRec()); save.sel = save.monsters.length - 1; persist(); renderHome();
+  if (save.monsters.length >= MAX_MONSTERS) return;
+  save.monsters.push(adoptRec); save.sel = save.monsters.length - 1; persist();
+  adoptRec = newRec(); adoptEgg = new EggView(adoptRec); // el siguiente huevo
+  renderHome(); setPage(1);
 };
 $('btnFree').onclick = async () => {
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
@@ -2243,6 +2266,10 @@ const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY
 cv.addEventListener('pointerdown', e => {
   if (scene !== 'home' || !homeView) return;
   const p = toLocal(e);
+  if (homeView.adopt) { // en Adoptar, tocar el huevo sólo lo hace bambolear
+    if (Math.abs(p.x) < adoptEgg.w * 0.9 && p.y < 20 && p.y > -adoptEgg.h * 1.3) { adoptEgg.vt += (Math.random() < 0.5 ? -1 : 1) * 6; adoptEgg.sq = 0.12; }
+    return;
+  }
   if (egg) { if (Math.abs(p.x) < egg.w * 0.9 && p.y < 20 && p.y > -egg.h * 1.3) tapEgg(); return; }
   if (!show) return;
   const sz = show.estSize();
@@ -2560,22 +2587,25 @@ function loop(now) {
       acc -= STEP; fxStep(STEP);
       if (egg) egg.update(STEP);
       else show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      adoptEgg.update(STEP);
     }
+    // Se dibuja en el área de la página que está más centrada (Adoptar muestra el huevo por adoptar)
+    const areas = ['adoptArea', 'showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.left + q.width / 2 - W / 2);
+    const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onAdopt = r === areas[0];
+    const E = onAdopt ? adoptEgg : egg;
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
-    const ra = $('showArea').getBoundingClientRect(), rb = $('trainArea').getBoundingClientRect();
-    const r = Math.abs(ra.left + ra.width / 2 - W / 2) < Math.abs(rb.left + rb.width / 2 - W / 2) ? ra : rb;
-    const sz = egg ? { w: egg.w, h: egg.h } : show.estSize();
+    const sz = E ? { w: E.w, h: E.h } : show.estSize();
     const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
-    homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k };
-    homeBounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * 0.3), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
-    const pal = egg ? egg.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
+    homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k, adopt: onAdopt };
+    if (!onAdopt) homeBounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * 0.3), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
+    const pal = E ? E.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
     const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
     glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
     ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
     ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
-    if (egg) {
-      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, egg.w * 0.55, egg.w * 0.16, 0, 0, TAU); ctx.fill();
-      egg.draw(ctx);
+    if (E) {
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0, 0, E.w * 0.55, E.w * 0.16, 0, 0, TAU); ctx.fill();
+      E.draw(ctx);
     } else {
       const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
       ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(show.gx, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
