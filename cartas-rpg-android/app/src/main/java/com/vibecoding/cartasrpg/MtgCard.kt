@@ -21,4 +21,6 @@ data class MtgCard(
     val artUrl: String?,
     val scryfallUri: String,
     val lang: String,
+    val imageStatus: String,
+    val oracleId: String?,
 )
