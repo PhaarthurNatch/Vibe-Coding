@@ -25,8 +25,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   (máx. 10 niveles por stat; cuesta 20, 35, 50… monedas). Los rivales también traen algo de entrenamiento según su nivel.
 - **Ultimate (Awakened)**: depende del stat en que más destaca (Fuerza: onda de choque que lanza a todos al otro lado;
   Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 7 s; Velocidad: doble de rápido por 7 s; Esquiva: doble esquiva por 7 s).
-  Se activa con 5+ golpes en la pelea y 60% de vida o menos, con acercamiento de cámara. Una por pelea; tras usarla pierde el aura
-  y se recarga al volver al menú.
+  Se activa con 5+ golpes en la pelea y 60% de vida o menos: primero se queda 1,3 s cargando energía y luego viene el
+  acercamiento de cámara. Tras usarla queda descargada (sin aura) hasta recargarla en el menú por 40 monedas.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
