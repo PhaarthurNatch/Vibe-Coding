@@ -979,7 +979,6 @@ class Monster {
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
     this.state = 'dodge'; this.stT = 0.28;
     this.setEmo('surprised', 0.5, 2);
-    B.text(this, 'esquiva', '#9fe7ff');
   }
 
   physics(dt) {
