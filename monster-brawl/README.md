@@ -34,11 +34,11 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
   Cambia con ejercicios (monedas) y según cómo pelea.
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
-- **Ultimate (Awakened)**: depende del stat en que más destaca (Fuerza: onda de choque que lanza a todos al otro lado;
-  Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 10 s; Velocidad: se mueve y ataca el doble de rápido por 10 s; Esquiva: doble esquiva por 10 s).
-  Al usar cualquier ultimate queda potenciado: +30% a todos sus stats por 10 s (lo mismo que dura la ultimate).
-  Se activa con 5+ golpes en la pelea y 60% de vida o menos: primero se queda 1,3 s cargando energía y luego viene el
-  acercamiento de cámara. Una por pelea: tras usarla pierde el aura y se recarga sola al empezar la siguiente pelea.
+- **Ultimate (Awakened)**: se equipa y se cambia cuando quieras desde Entrenar. Al despertar trae una de regalo; las demás
+  se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
+  al otro lado), Bala gigante (atraviesa todo en línea recta), Escudo de hierro (mitad de daño 10 s), Supervelocidad (se mueve y
+  ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s).
+  Se usa una por pelea (con carga previa y acercamiento de cámara) y se recarga al empezar cada pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
 - **Rivales**: siempre de la misma etapa que tu monstruo, con nivel parecido y puntos y personalidad al azar.

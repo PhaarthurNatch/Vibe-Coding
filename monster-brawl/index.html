@@ -61,7 +61,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .pips i{width:100%;max-width:18px;height:5px;border-radius:3px;background:rgba(255,255,255,.1)}
 .pips i.on{background:var(--acc)}
 .tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
-.tbtn .ci{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
+.ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto}
 .tinfo{text-align:center;font-size:12px;color:var(--muted)}
@@ -125,6 +125,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .drills{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dbtn small{font-weight:600;color:var(--muted);font-size:10px}
+.ultlist{display:flex;flex-direction:column;gap:6px}
+.ultc{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px;border:2px solid transparent}
+.ultc.on{border-color:var(--acc)}
+.ultc.locked b{color:var(--muted)}
+.ultc b{font-size:13px}
+.ultc .tdesc{grid-column:1}
+.ultc .btn,.ultc .pill{grid-row:1/3;grid-column:2;font-size:12px;padding:8px 10px;display:flex;align-items:center;gap:5px}
 .ums{display:flex;gap:6px}
 .ums .btn{flex:1;font-size:12px;padding:9px 4px}
 .ums .btn.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
@@ -259,6 +266,10 @@ const ULTS = {
 };
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
 const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge'];
+const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
+const starterUlt = seed => ULT_KEYS[rng((seed ^ 0x1234abcd) >>> 0).i(0, ULT_KEYS.length - 1)]; // la que trae de regalo al despertar
+const ownsUlt = k => (save.ults || []).includes(k);
+function grantUlt(k) { save.ults = save.ults || []; if (!save.ults.includes(k)) save.ults.push(k); }
 let ULT_AVG = null;
 function ultTypeOf(g, train) {
   if (!ULT_AVG) { // promedio y variación de una muestra fija de adultos (siempre la misma)
@@ -684,7 +695,7 @@ class Monster {
     this.emo = 'neutral'; this.emoT = 0; this.emoP = 0; this.emoNext = null; this.baseEmo = null; this.winEmo = null;
     this.dead = false; this.deadT = 0; this.alpha = 1;
     this.awakened = rec.stage === 'awakened';
-    this.ultType = ultTypeOf(this.g, rec.pts);
+    this.ultType = rec.ult || starterUlt(rec.seed); // la ultimate equipada
     this.g = bodyFromTraining(this.g, rec.pts); // el entrenamiento se nota en el cuerpo
     this.ultReady = this.awakened; // se recarga al empezar cada pelea (una por pelea)
     this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0 };
@@ -1872,7 +1883,9 @@ function newRec(stage = 'egg') {
 }
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
-      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save'; if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
+      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save';
+      if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
+      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [] }; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -2079,22 +2092,36 @@ function renderTrain() {
       <div class="tdesc">${t.desc}</div></div>`; }).join('');
   h += `<p class="tdesc">Ganas ${PTS_PER_LEVEL} puntos por nivel. El cuerpo cambia según cómo lo entrenes.</p>`;
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
+  h += `<div class="tsec"><div class="thead">Ultimate</div>`;
+  if (rec.stage === 'awakened') {
+    const eq = rec.ult || starterUlt(rec.seed);
+    h += `<div class="ultlist">${ULT_KEYS.map(k => {
+      const own = ownsUlt(k) || k === eq, on = k === eq;
+      const btn = on ? `<span class="pill on">Equipada</span>` : own ? `<button class="btn" data-ulteq="${k}">Equipar</button>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
+      return `<div class="ultc ${on ? 'on' : ''} ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
+    }).join('')}</div>`;
+    h += `<p class="tdesc">Las que desbloqueas quedan para todos tus monstruos. Puedes cambiarla cuando quieras.</p>`;
+    const um = rec.ultMode || 'save';
+    h += `<div class="thead" style="font-size:13px">Cuándo la usa</div><div class="ums">${Object.entries(ULT_MODES).map(([k, m]) => `<button class="btn ${um === k ? 'on' : ''}" data-um="${k}">${m.name}</button>`).join('')}</div><p class="tdesc">${ULT_MODES[um].desc}.</p>`;
+  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; después puedes desbloquear y equipar otras.</p>`;
+  h += `</div>`;
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
   h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
   const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
   if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
   h += `<p class="tdesc">Cambia según cómo pelea y con ejercicios:</p>`;
   h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k), maxed = drillMaxed(rec, d); return `<button class="btn dbtn" data-drill="${i}" ${maxed || save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>${maxed ? `ya es lo más ${d.d > 0 ? t.pos : t.neg} posible` : `más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}`}</small></button>`; }).join('')}</div></div>`;
-  h += `<div class="tsec"><div class="thead">Momento de la ultimate</div>`;
-  if (rec.stage === 'awakened') {
-    const um = rec.ultMode || 'save';
-    h += `<div class="ums">${Object.entries(ULT_MODES).map(([k, m]) => `<button class="btn ${um === k ? 'on' : ''}" data-um="${k}">${m.name}</button>`).join('')}</div><p class="tdesc">${ULT_MODES[um].desc}.</p>`;
-  } else h += `<p class="tdesc">Lo eliges cuando despierte (Nv. ${STAGE_LV.awakened}).</p>`;
-  h += `</div>`;
   $('tlist').innerHTML = h;
   $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas`;
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => doDrill(+b.dataset.drill));
+  document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
+  document.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
+    const k = b.dataset.ultbuy;
+    if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
+    if (save.coins < ULT_COST) return;
+    save.coins -= ULT_COST; grantUlt(k); rec.ult = k; persist(); renderHome(); renderTrain(); trainFx(`¡${ULTS[k].name}!`);
+  });
   document.querySelectorAll('[data-um]').forEach(b => b.onclick = () => { rec.ultMode = b.dataset.um; persist(); renderTrain(); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
@@ -2278,6 +2305,7 @@ function makeFoe(ref) {
   r.pts = randomPts(r.level);
   r.temper = { agr: Math.random() * 1.6 - 0.8, terco: Math.random() * 1.6 - 0.8, valor: Math.random() * 1.6 - 0.8 };
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
+  r.ult = ULT_KEYS[Math.floor(Math.random() * ULT_KEYS.length)];
   return new Monster(r);
 }
 
@@ -2420,7 +2448,9 @@ function growStep(dt) {
     if (Math.random() < sh * 0.35) burst((Math.random() - 0.5) * 80, -Math.random() * 90, 1, acc, 120, [2, 4]);
     if (pt >= dur) { // ¡destello y cambia de cuerpo!
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
-      G.rec.stage = G.newM.rec.stage; persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
+      G.rec.stage = G.newM.rec.stage;
+      if (G.rec.stage === 'awakened' && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); } // ultimate de regalo al despertar
+      persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
       G.newM.vz = 220; G.newM.mouthOpen = 1; G.newM.setEmo('surprised', 0.8, 3, ['happy', 60]);
     }
