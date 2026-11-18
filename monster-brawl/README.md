@@ -14,7 +14,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.
 - Modos 1v1, 2v2 y todos contra todos. XP, monedas y niveles guardados en el dispositivo.
-- **Vidas**: 3 por monstruo; si lo noquean pierde una. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
+- **Vidas**: 3 por monstruo; si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
+- **Caricias**: arrastra el dedo sobre el monstruo para acariciarlo (cierra los ojos, se sonroja, salen corazones); un toque corto lo sacude.
 - **Entrenamiento**: desliza a la página Entrenar y paga monedas para subir Vida, Fuerza, Disparo, Defensa, Velocidad, Peso o Esquiva
   (máx. 10 niveles por stat; cuesta 20, 35, 50… monedas). Los rivales también traen algo de entrenamiento según su nivel.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
