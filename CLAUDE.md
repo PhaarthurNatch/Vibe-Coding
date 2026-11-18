@@ -117,7 +117,7 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
 - Personalidades por modo (900 peleas c/u, tras el ajuste `KITE`): todos contra todos 23–27% (Cauto ~29%; esperado 25%), 2 vs 2 48–52%.
   Antes del ajuste el Cauto (casi siempre pelea a distancia) ganaba ~38% en todos contra todos y ~41% en 2 vs 2, y el Prudente ~33% en todos contra todos.
   `KITE` (sólo para los que pelean a distancia, salvo `ffaRetreat`): en todos contra todos se quedan más cerca (`ffaDist`) y disparan más lento (`ffaFire`),
-  y el Prudente huye menos lejos con poca vida (`ffaRetreat`); en equipo disparan más seguido (`teamCover` 0,6; con 0,45 se veía exagerado según el dueño, y el Cauto en 2v2 bajó a ~44%) y el Cauto se aleja menos tras golpear (`teamBackoff`).
+  y el Prudente huye menos lejos con poca vida (`ffaRetreat`); en equipo disparan más seguido (`teamCover` 0,75; el dueño lo pidió bajar dos veces desde 0,45 porque se veía exagerado, así que el Cauto en 2v2 queda algo bajo, ~41–44%) y el Cauto se aleja menos tras golpear (`teamBackoff`).
   1 vs 1 no cambia. Subir más `ffaFire` casi no baja al Cauto (su ventaja es sobrevivir, no el daño).
   Cambios de objetivo por pelea (todos contra todos): Terco ~0,7, Oportunista ~2,6.
 - Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%). Las de daño usan el ataque más fuerte (`ultPow`).
