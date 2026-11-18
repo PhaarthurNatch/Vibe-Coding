@@ -88,17 +88,31 @@ object CardRenderer {
         )
 
         // Ilustración.
-        val artBox = RectF(M, 220f, W - M, 590f)
+        // El recuadro se adapta a la proporción de la ilustración para mostrarla completa,
+        // sin recortes. Si la imagen es muy alta se reduce el ancho y se centra.
+        val maxArtW = W - 2 * M
+        val maxArtH = 440f
+        var artW = maxArtW
+        var artH = 370f
+        if (art != null && art.width > 0 && art.height > 0) {
+            val aspect = art.width.toFloat() / art.height
+            artH = artW / aspect
+            if (artH > maxArtH) {
+                artH = maxArtH
+                artW = artH * aspect
+            }
+        }
+        val artBox = RectF((W - artW) / 2f, 220f, (W + artW) / 2f, 220f + artH)
         drawArt(c, art, artBox, card, accent)
         p.style = Paint.Style.STROKE; p.strokeWidth = 5f; p.color = accentDark
         c.drawRoundRect(artBox, 14f, 14f, p)
         p.style = Paint.Style.FILL
 
         // Estadísticas.
-        var y = 606f
+        var y = artBox.bottom + 14f
         if (card.stats.isNotEmpty()) {
-            drawStats(c, card.stats, RectF(M, y, W - M, y + 78f), accent, accentDark)
-            y += 92f
+            drawStats(c, card.stats, RectF(M, y, W - M, y + 74f), accent, accentDark)
+            y += 86f
         }
 
         // Caja de texto.
