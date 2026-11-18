@@ -243,8 +243,53 @@ function scaleGenome(g, k) {
   m(g.legs, ['upper', 'lower', 'thick']); m(g.feet, ['size']); m(g.wings, ['span']); m(g.tail, ['seg', 'thick']);
 }
 
-// Mismo seed = mismos colores en todas las etapas; las partes se sortean de nuevo en cada etapa
-function genGenome(seed, stage = 'adult') {
+// Cuerpo de un monstruo según su etapa.
+// Al crecer conserva todo lo que ya tenía (agrandado) y sólo se sortea si le aparecen partes nuevas.
+// legacy = monstruos adultos de antes de este sistema: conservan el cuerpo que ya tenían.
+function genGenome(seed, stage = 'adult', legacy = false) {
+  if (stage === 'egg') stage = 'baby';
+  if (legacy || stage === 'baby') return rollGenome(seed, stage);
+  const teen = growFrom(rollGenome(seed, 'baby'), 'teen', seed);
+  return stage === 'teen' ? teen : growFrom(teen, 'adult', seed);
+}
+
+function growFrom(prev, stage, seed) {
+  const fresh = rollGenome(seed, stage);                 // candidatos para las partes nuevas de esta etapa
+  const r = rng((seed ^ (stage === 'teen' ? 0x27d4eb2f : 0x165667b1)) >>> 0);
+  const k = STAGE_LIM[stage].size / STAGE_LIM[prev.stage].size * r.f(0.95, 1.1); // cuánto crece
+  const g = JSON.parse(JSON.stringify(prev));
+  scaleGenome(g, k);
+  g.stage = stage; g.name = fresh.name;
+  // El bebé era una sola pieza: ahora le sale torso; su cuerpo de bebé pasa a ser la cabeza
+  if (g.blob) { delete g.blob; g.torso = fresh.torso; g.spots = fresh.spots; }
+  else {
+    const T = g.torso;
+    if (!T.mid && fresh.torso.mid) T.mid = { w: clamp(T.upper.w * r.f(0.8, 1.2), 30, 82), h: fresh.torso.mid.h };
+    if (!T.lower && fresh.torso.lower) T.lower = { w: clamp(T.upper.w * r.f(0.8, 1.25), 28, 82), h: fresh.torso.lower.h };
+    if (!g.spots.length && fresh.spots.length) g.spots = fresh.spots;
+  }
+  // Partes que puede ganar: si ya las tenía las conserva (y su cantidad sólo puede subir)
+  const keepOrNew = (key, countKey, max) => {
+    if (prev[key][countKey] > 0) g[key][countKey] = Math.min(max, Math.max(g[key][countKey], fresh[key][countKey]));
+    else g[key] = fresh[key];
+  };
+  keepOrNew('arms', 'pairs', 3); keepOrNew('legs', 'pairs', 2); keepOrNew('wings', 'pairs', 2);
+  keepOrNew('horns', 'count', 4); keepOrNew('tail', 'count', 3);
+  if (prev.tail.count > 0) g.tail.segs = Math.max(g.tail.segs, Math.min(8, g.tail.segs + r.i(0, 2)));
+  if (!(prev.legs.pairs > 0)) g.feet = fresh.feet;
+  if (!(prev.neck.len > 0)) g.neck = fresh.neck; else g.neck.len = Math.max(g.neck.len, fresh.neck.len);
+  if (!(prev.shoulders.size > 0)) g.shoulders = fresh.shoulders;
+  // Ojos: conserva los suyos y a veces le sale uno más
+  if (fresh.eyes.count > g.eyes.count && g.eyes.count < 6 && r.chance(0.3)) {
+    const n = g.eyes.count + 1, y = g.eyes.pos.length ? g.eyes.pos.reduce((a, p) => a + p[1], 0) / g.eyes.pos.length : -0.15;
+    const maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
+    g.eyes.count = n; g.eyes.pos = eyeLayout(n, y, 0.44);
+    g.eyes.size = Math.max(3.5, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
+  }
+  return g;
+}
+
+function rollGenome(seed, stage = 'adult') {
   const L = STAGE_LIM[stage] || STAGE_LIM.adult;
   let r = rng(seed);
   const C = (h, s, l) => ({ h: ((h % 360) + 360) % 360, s, l });
@@ -428,7 +473,7 @@ let MID = 0;
 class Monster {
   constructor(rec) {
     this.id = ++MID; this.rec = rec;
-    this.g = genGenome(rec.seed, rec.stage === 'egg' ? 'baby' : (rec.stage || 'adult'));
+    this.g = genGenome(rec.seed, rec.stage || 'adult', rec.legacy);
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.train);
@@ -1332,11 +1377,11 @@ const TEEN_LV = 3, ADULT_LV = 6; // nivel en que crece a adolescente / adulto
 const stageForLevel = l => l >= ADULT_LV ? 'adult' : l >= TEEN_LV ? 'teen' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: genGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 2 };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
-function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; }); if (s.coins == null) s.coins = 0; s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
+function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && s.monsters.length) { s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; s.sel = clamp(s.sel | 0, 0, s.monsters.length - 1); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0 }; }
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -1348,7 +1393,7 @@ const cur = () => save.monsters[save.sel];
 function eggPath(ctx, w, h) { ctx.beginPath(); ctx.ellipse(0, -h * 0.4, w / 2, h * 0.6, 0, Math.PI, TAU); ctx.ellipse(0, -h * 0.4, w / 2, h * 0.4, 0, 0, Math.PI); ctx.closePath(); }
 class EggView {
   constructor(rec) {
-    this.rec = rec; this.pal = genGenome(rec.seed).pal; this.cols = makeCols(this.pal, 0);
+    this.rec = rec; this.pal = rollGenome(rec.seed).pal; this.cols = makeCols(this.pal, 0);
     const r = rng((rec.seed ^ 0x1234567) >>> 0);
     this.w = 50; this.h = 62; this.tilt = 0; this.vt = 0; this.sq = 0; this.t = 0;
     this.spots = Array.from({ length: r.i(4, 7) }, () => ({ u: r.f(-0.8, 0.8), v: r.f(0.1, 0.9), r: r.f(3, 7) }));
@@ -1511,7 +1556,7 @@ function renderTrain() {
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = '<p class="eggmsg">Primero tiene que nacer. Vuelve a la página del monstruo y toca el huevo.</p>'; $('tinfo').textContent = ''; return; }
   rec.train = rec.train || {};
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
-  const g = genGenome(rec.seed, rec.stage), st = calcStats(g, rec.level, rec.train);
+  const g = genGenome(rec.seed, rec.stage, rec.legacy), st = calcStats(g, rec.level, rec.train);
   $('tlist').innerHTML = TRAIN.map(t => {
     const lv = rec.train[t.k] || 0, max = lv >= TRAIN_MAX, cost = trainCost(lv);
     const def = STAT_DEF.find(d => d[0] === t.name), now = def[1](st);
