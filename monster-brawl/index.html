@@ -1921,10 +1921,12 @@ const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
 const MAX_LIVES = 3;
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
-const HEAL_COST = 30;             // monedas para curar al instante
+const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
+const healCost = rec => HEAL_COST[rec.stage] || 30;
 const EGG_COST = 60;              // monedas para adoptar un huevo (el primero de una partida nueva es gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
-const REWARDS = { 2: [[60, 25], [20, 5]], 3: [[70, 30], [40, 15], [20, 5]], 4: [[80, 40], [50, 20], [30, 10], [15, 5]] };
+// [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
+const REWARDS = { '1v1': [[60, 25], [20, 10]], '2v2': [[45, 15], [15, 5]], ffa: [[80, 40], [50, 25], [30, 15], [15, 5]] };
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
 const resting = rec => rec.restUntil && Date.now() < rec.restUntil;
@@ -2131,13 +2133,13 @@ function updateRest() {
   const rec = cur();
   if (!resting(rec)) return;
   $('restTxt').innerHTML = `Sin vidas. Descansa <b>${mmss(rec.restUntil - Date.now())}</b> para volver a pelear.`;
-  $('btnHeal').textContent = `Curar ya · ${HEAL_COST}`;
-  $('btnHeal').disabled = save.coins < HEAL_COST;
+  $('btnHeal').textContent = `Curar ya · ${healCost(rec)}`;
+  $('btnHeal').disabled = save.coins < healCost(rec);
 }
 $('btnHeal').onclick = () => {
   const rec = cur();
-  if (save.coins < HEAL_COST || !resting(rec)) return;
-  save.coins -= HEAL_COST; delete rec.restUntil; rec.lives = MAX_LIVES; persist();
+  if (save.coins < healCost(rec) || !resting(rec)) return;
+  save.coins -= healCost(rec); delete rec.restUntil; rec.lives = MAX_LIVES; persist();
   renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
 };
 // Páginas del menú: 0 = Adoptar, 1 = Home (el monstruo), 2 = Entrenar
@@ -2662,7 +2664,7 @@ $('resAgain').onclick = () => startBattle(lastMode);
 
 function finishBattle() {
   const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
-  const [bx, bc] = (REWARDS[nTeams] || REWARDS[2])[place - 1];
+  const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
   const lines = battle.players.map(pm => {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;

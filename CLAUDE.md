@@ -89,8 +89,9 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
-- **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con 30 monedas.
-- **Premios:** XP y monedas según el puesto + bonus por K.O. (`REWARDS`).
+- **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
+- **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
+  Pendiente (dueño): un gasto de monedas para el juego avanzado, p. ej. la cría.
 - **Entrenamiento por puntos:** 2 puntos por nivel en Poder/Aguante/Agilidad/Técnica (máx. 20 c/u), reiniciar cuesta 50. El cuerpo cambia con los puntos.
   En el menú sólo se muestran esos 4 stats y la personalidad: **no hay "Ver detalle"** con vida/fuerza/peso/esquiva, etc. (el dueño lo pidió quitar).
 - **Personalidad** (3 ejes de −1 a 1): Agresivo↔Cauto, Terco↔Oportunista, Valiente↔Prudente. Cambia **sólo** con ejercicios (15 monedas, bloqueados si el eje ya está al máximo) y según cómo pelea.
