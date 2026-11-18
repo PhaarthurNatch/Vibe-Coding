@@ -115,7 +115,8 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
   Una por pelea, se recarga al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
   Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
-  El jugador elige cuándo la usa: apenas pueda / como remate / para salvarse.
+  **Tus monstruos la lanzan sólo cuando aprietas el botón ULTIMATE** abajo de la arena (`ultBar`, `setupUltBar`/`updateUltBar`, `ultRequest`; uno por monstruo tuyo con ultimate,
+  una vez por pelea, desactivado en la cuenta regresiva). Ya no hay modos "cuándo la usa" en Entrenar; los **rivales** siguen decidiendo solos (`ultMode` al azar).
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
