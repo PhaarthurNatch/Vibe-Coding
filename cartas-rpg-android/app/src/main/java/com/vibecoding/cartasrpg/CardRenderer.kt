@@ -61,9 +61,9 @@ object CardRenderer {
         val bandText = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE; typeface = sansBold; textSize = 28f
         }
-        val catText = "${card.category.emoji} ${card.category.singular.uppercase()}"
+        val catText = card.roleLabel?.uppercase() ?: "${card.category.emoji} ${card.category.singular.uppercase()}"
         c.drawText(
-            TextUtils.ellipsize(catText, bandText, 330f, TextUtils.TruncateAt.END).toString(),
+            TextUtils.ellipsize(catText, bandText, 360f, TextUtils.TruncateAt.END).toString(),
             band.left + 18, band.centerY() + 10, bandText,
         )
         drawTier(c, card, band)
@@ -126,6 +126,38 @@ object CardRenderer {
         foot.textAlign = Paint.Align.RIGHT
         foot.typeface = serifBold
         c.drawText("Forja RPG", W - M, 998f, foot)
+        return bmp
+    }
+
+    /**
+     * Hoja A4 a 300 ppp (2480 × 3508 px) con hasta 9 cartas en cuadrícula 3 × 3
+     * y marcas de corte, lista para imprimir al 100 %.
+     */
+    fun sheet(cards: List<Bitmap>): Bitmap {
+        val sw = 2480
+        val sh = 3508
+        val bmp = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
+        bmp.density = 300
+        val c = Canvas(bmp)
+        c.drawColor(Color.WHITE)
+        val ox = (sw - 3 * W) / 2f
+        val oy = (sh - 3 * H) / 2f
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        cards.take(9).forEachIndexed { i, card ->
+            val x = ox + (i % 3) * W
+            val y = oy + (i / 3) * H
+            c.drawBitmap(card, null, RectF(x, y, x + W, y + H), paint)
+        }
+        // Marcas de corte en los márgenes.
+        val cut = Paint().apply { color = 0xFF888888.toInt(); strokeWidth = 2f }
+        for (k in 0..3) {
+            val x = ox + k * W
+            val y = oy + k * H
+            c.drawLine(x, 20f, x, oy - 10, cut)
+            c.drawLine(x, oy + 3 * H + 10, x, sh - 20f, cut)
+            c.drawLine(20f, y, ox - 10, y, cut)
+            c.drawLine(ox + 3 * W + 10, y, sw - 20f, y, cut)
+        }
         return bmp
     }
 
@@ -222,7 +254,11 @@ object CardRenderer {
             spans.forEach { sb.setSpan(it, start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
         }
 
+        card.motive?.let {
+            styled(it, StyleSpan(Typeface.ITALIC), ForegroundColorSpan(0xFF5C4F3D.toInt()))
+        }
         if (card.traits.isNotEmpty()) {
+            paragraph()
             styled("Rasgos: ", StyleSpan(Typeface.BOLD), ForegroundColorSpan(accentDark))
             styled(card.traits.joinToString(" · "), StyleSpan(Typeface.BOLD))
         }
@@ -234,9 +270,11 @@ object CardRenderer {
             paragraph()
             styled("“$it”", StyleSpan(Typeface.ITALIC), ForegroundColorSpan(0xFF5C4F3D.toInt()))
         }
-        paragraph()
-        styled("Gancho: ", StyleSpan(Typeface.BOLD), ForegroundColorSpan(accentDark))
-        styled(card.hook, StyleSpan(Typeface.ITALIC))
+        if (card.hook.isNotBlank()) {
+            paragraph()
+            styled("${card.hookLabel}: ", StyleSpan(Typeface.BOLD), ForegroundColorSpan(accentDark))
+            styled(card.hook, StyleSpan(Typeface.ITALIC))
+        }
 
         val pad = 16f
         val width = (box.width() - 2 * pad).toInt()

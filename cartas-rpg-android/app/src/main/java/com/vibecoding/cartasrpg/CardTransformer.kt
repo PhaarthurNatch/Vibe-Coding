@@ -1,6 +1,7 @@
 package com.vibecoding.cartasrpg
 
 import kotlin.math.ceil
+import kotlin.math.max
 import kotlin.random.Random
 
 data class Stat(val label: String, val value: String)
@@ -16,6 +17,11 @@ data class RpgCard(
     val effect: String,
     val flavor: String?,
     val hook: String,
+    val hookLabel: String = "Gancho",
+    /** Sustituye a la categoría en la banda superior (p. ej. "Aventura 1/5 · Amenaza"). */
+    val roleLabel: String? = null,
+    /** Motivación y enemigos naturales (según el círculo de colores de Magic). */
+    val motive: String? = null,
     val artist: String?,
     val source: String,
     val artUrl: String?,
@@ -32,14 +38,15 @@ object CardTransformer {
         val legendary = "legendary" in typeLower
 
         // Subtipos: preferimos la línea de tipo impresa en español si existe.
-        val subtypes = subtypesOf(card)
+        val redundant = setOf("trampa", "equipo", "vehículo", "montura", "aura", "saga", "dios")
+        val subtypes = subtypesOf(card).filterNot { it.lowercase() in redundant }
         val subtitle = buildString {
             append(category.singular)
             if (legendary && category != Category.DEITY && category != Category.HERO) append(" único")
             if (subtypes.isNotEmpty()) append(" — ").append(subtypes.take(3).joinToString(" "))
         }
 
-        val stats = buildStats(card, typeLower)
+        val stats = buildStats(card, typeLower, category)
         // Las habilidades explicadas en la descripción no se repiten como rasgos.
         val traits = card.keywords.filterNot { AbilityInterpreter.hasExplanation(it) }
             .map { translateKeyword(it) }.distinct().take(5)
@@ -52,7 +59,8 @@ object CardTransformer {
             category = category,
             title = title,
             subtitle = subtitle,
-            tier = tierOf(card),
+            tier = tierOf(card, typeLower),
+            motive = motiveOf(card, category, typeLower),
             stats = stats,
             traits = traits,
             effect = effect,
@@ -85,15 +93,29 @@ object CardTransformer {
         }
     }
 
-    /** Nivel 1–5 basado en coste de maná y rareza. */
-    private fun tierOf(card: MtgCard): Int {
-        var tier = ceil((card.cmc + 1) / 2.0).toInt().coerceIn(1, 5)
+    /**
+     * Nivel 1–5. Base: coste de maná (la referencia más usada por quienes convierten
+     * criaturas de Magic a otros juegos). En criaturas se compara además con la media de
+     * fuerza y resistencia (que estima bien el coste) y se suma medio punto por volar.
+     */
+    private fun tierOf(card: MtgCard, typeLower: String): Int {
+        var estimate = card.cmc
+        val p = card.power?.toIntOrNull()
+        val t = card.toughness?.toIntOrNull()
+        if (p != null && t != null) {
+            var body = (p + t) / 2.0
+            if (card.keywords.any { it.equals("Flying", true) }) body += 0.5
+            if (card.keywords.any { it.equals("Defender", true) }) body -= 1.0
+            estimate = max(estimate, body)
+        }
+        if ("legendary" in typeLower) estimate += 1.0
+        var tier = ceil((estimate + 1) / 2.0).toInt().coerceIn(1, 5)
         if (card.rarity == "mythic") tier++
         if (card.rarity == "common" && tier > 1 && card.cmc < 4) tier--
         return tier.coerceIn(1, 5)
     }
 
-    private fun buildStats(card: MtgCard, typeLower: String): List<Stat> {
+    private fun buildStats(card: MtgCard, typeLower: String, category: Category): List<Stat> {
         val affinity = affinityOf(card, typeLower)
         val rarity = when (card.rarity) {
             "common" -> "Común"
@@ -106,6 +128,7 @@ object CardTransformer {
             card.power != null && card.toughness != null -> listOf(
                 Stat("Ofensiva", scale(card.power)),
                 Stat("Aguante", scale(card.toughness)),
+                Stat("Rol", combatRole(card, typeLower)),
                 Stat("Afinidad", affinity),
             )
             card.loyalty != null -> listOf(
@@ -118,11 +141,81 @@ object CardTransformer {
                 Stat("Afinidad", affinity),
                 Stat("Rareza", rarity),
             )
+            category in ITEM_LIKE -> listOf(
+                Stat("Uso", itemUse(card, typeLower)),
+                Stat("Afinidad", affinity),
+                Stat("Rareza", rarity),
+            )
             else -> listOf(
                 Stat("Afinidad", affinity),
                 Stat("Rareza", rarity),
             )
         }
+    }
+
+    private val ITEM_LIKE = setOf(Category.ITEM, Category.EQUIPMENT, Category.MOUNT)
+
+    /** Rol táctico genérico, como los que usan muchos juegos de rol para sus enemigos. */
+    private fun combatRole(card: MtgCard, typeLower: String): String {
+        val kw = card.keywords.map { it.lowercase() }
+        val p = card.power?.toIntOrNull()
+        val t = card.toughness?.toIntOrNull()
+        return when {
+            "defender" in kw -> "Guardián"
+            p == null || t == null -> "Impredecible"
+            p == 0 -> "Apoyo"
+            "flying" in kw && p >= t -> "Hostigador"
+            "legendary" in typeLower && p + t >= 6 -> "Líder"
+            p >= t + 2 -> "Atacante"
+            t >= p + 2 -> "Tanque"
+            p + t <= 3 && card.oracleText.lines().size > 1 -> "Especialista"
+            p + t <= 2 -> "Esbirro"
+            else -> "Soldado"
+        }
+    }
+
+    /** Cómo se usa un objeto en mesa. */
+    private fun itemUse(card: MtgCard, typeLower: String): String {
+        val text = card.oracleText.lowercase()
+        val self = card.name.lowercase()
+        return when {
+            "sacrifice $self" in text || "sacrifice this" in text -> "Un solo uso"
+            "equipment" in typeLower -> "Se porta"
+            "vehicle" in typeLower -> "Se tripula"
+            "mount" in typeLower -> "Se monta"
+            "{t}:" in text || "{t}," in text -> "Una vez por ronda"
+            else -> "Pasivo"
+        }
+    }
+
+    private val COLOR_NAMES = mapOf("W" to "la Luz", "U" to "la Mente", "B" to "la Sombra", "R" to "el Fuego", "G" to "la Naturaleza")
+    private val COLOR_DRIVE = mapOf(
+        "W" to "orden, protección y bien común",
+        "U" to "conocimiento, control y perfección",
+        "B" to "poder y ambición a cualquier precio",
+        "R" to "libertad, pasión e impulso",
+        "G" to "instinto, tradición y equilibrio natural",
+    )
+    /** Colores enemigos en el círculo de colores de Magic. */
+    private val COLOR_ENEMIES = mapOf(
+        "W" to listOf("B", "R"), "U" to listOf("R", "G"), "B" to listOf("W", "G"),
+        "R" to listOf("W", "U"), "G" to listOf("U", "B"),
+    )
+    private val SENTIENT = setOf(Category.MONSTER, Category.NPC, Category.DEITY, Category.HERO)
+
+    /** Motivación y enemigos naturales para criaturas y personajes (filosofía de los colores). */
+    private fun motiveOf(card: MtgCard, category: Category, typeLower: String): String? {
+        if (category !in SENTIENT) return null
+        val colors = card.colors.filter { it in COLOR_DRIVE }
+        if (colors.isEmpty()) {
+            return if ("artifact" in typeLower) "Impulso: cumplir el propósito para el que fue creado."
+            else "Impulso: sobrevivir; no responde a ninguna causa."
+        }
+        val drive = COLOR_DRIVE.getValue(colors.first())
+        val enemies = colors.flatMap { COLOR_ENEMIES.getValue(it) }.distinct().filter { it !in colors }
+        val enemyText = enemies.mapNotNull { COLOR_NAMES[it] }.joinToString(" y ")
+        return if (enemyText.isNotEmpty()) "Impulso: $drive. Enemigos naturales: los seguidores de $enemyText."
+        else "Impulso: $drive."
     }
 
     private fun scale(v: String): String {

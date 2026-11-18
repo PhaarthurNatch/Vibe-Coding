@@ -242,12 +242,13 @@ object AbilityInterpreter {
         else -> "a un objetivo"
     }
 
-    private fun allies(n: Int, kind: String?): String {
+    private fun allies(n: Int?, kind: String?): String {
         val k = kind?.let { CardTransformer.subtypeEs(it) ?: it }?.lowercase()
         return when {
             n == 1 && k != null -> "invoca a un aliado ($k)"
             n == 1 -> "invoca a un aliado"
-            k != null -> "invoca a $n aliados ($k)"
+            n == null && k != null -> "invoca a varios aliados ($k)"
+            n != null && k != null -> "invoca a $n aliados ($k)"
             else -> "invoca a varios aliados"
         }
     }
@@ -358,7 +359,7 @@ object AbilityInterpreter {
         Regex("create (a|an|one|two|three|four|five|x|\\d+) [^.]*?clue") to { _, _ -> "revela una pista" },
         Regex("create (a|an|one|two|three|four|five|x|\\d+) [^.]*?(\\w+) (?:artifact )?(?:enchantment )?creature tokens?") to { m, _ ->
             val kind = m.groupValues[2].takeIf { it !in setOf("colorless", "white", "blue", "black", "red", "green", "legendary") }
-            allies(num(m.groupValues[1]) ?: 2, kind)
+            allies(num(m.groupValues[1]), kind)
         },
         Regex("create [^.]*tokens?") to { _, _ -> "crea algo útil de la nada" },
         // Potenciadores

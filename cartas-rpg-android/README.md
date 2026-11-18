@@ -13,6 +13,30 @@ listas para imprimir).
 4. Activa *Preferir nombres en español* para usar el nombre impreso en español
    cuando exista.
 
+## Basado en guías de la comunidad
+La conversión se apoya en las ideas que más se repiten en las guías para usar
+cartas de Magic en partidas de rol, adaptadas para que valgan en cualquier sistema:
+- **"¿Qué hace la carta?"**: describir el efecto de forma sencilla y no copiar
+  las reglas (guías de conversión de hechizos, mentalidad de conversión de ICRPG).
+- **El coste de maná como base de la dificultad**, ajustado por fuerza y resistencia,
+  ya que la media de ambas estima bien el coste. Volar suma medio punto y ser legendario, uno más.
+- **Rol táctico** según fuerza y resistencia: Atacante, Tanque, Hostigador,
+  Guardián, Líder, Esbirro…
+- **El círculo de colores como filosofía**: cada color da una motivación y unos
+  enemigos naturales (Luz ↔ Sombra y Fuego, Mente ↔ Fuego y Naturaleza…).
+- **Equipo y artefactos como objetos mágicos** para entregar al grupo, con su
+  forma de uso (se porta, un solo uso, una vez por ronda…).
+- **Generar aventuras sacando 5 cartas** e improvisar conexiones (método de
+  r/rpg difundido por The Alexandrian).
+- **Preparar un lote de cartas** para varias sesiones e imprimirlo en hojas.
+
+## Funciones extra
+- 🗺️ **Aventura**: amenaza + escenario + botín + complicación + aliado, con una
+  carta resumen que incluye la premisa y un giro.
+- ◀ ▶ **Historial** de las últimas 15 cartas.
+- 🖨️ **Hoja A4** con las últimas 9 cartas en cuadrícula 3×3 con marcas de corte,
+  a 300 ppp. Imprímela al 100 %.
+
 ## Categorías
 | Botón | Qué busca en Scryfall |
 |---|---|
