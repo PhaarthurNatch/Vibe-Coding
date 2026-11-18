@@ -102,7 +102,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Ultimate (Awakened):** equipable y cambiable desde Entrenar (ahí **sólo** aparecen las desbloqueadas). Al despertar trae una de regalo (`starterUlt`); las demás se **compran en la Tienda** por 150 monedas
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
   Una por pelea, se recarga al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
-  Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
+  Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
   El jugador elige cuándo la usa: apenas pueda / como remate / para salvarse.
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
@@ -123,7 +123,7 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
   y el Prudente huye menos lejos con poca vida (`ffaRetreat`); en equipo disparan más seguido (`teamCover` 0,75; el dueño lo pidió bajar dos veces desde 0,45 porque se veía exagerado, así que el Cauto en 2v2 queda algo bajo, ~41–44%) y el Cauto se aleja menos tras golpear (`teamBackoff`).
   1 vs 1 no cambia. Subir más `ffaFire` casi no baja al Cauto (su ventaja es sobrevivir, no el daño).
   Cambios de objetivo por pelea (todos contra todos): Terco ~0,7, Oportunista ~2,6.
-- Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%). Las de daño usan el ataque más fuerte (`ultPow`).
+- Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%); con el Escudo de hierro invulnerable: ~51% en 1v1 y ~36% en todos contra todos. Las de daño usan el ataque más fuerte (`ultPow`).
 
 ## Ideas pendientes / posibles siguientes pasos
 
