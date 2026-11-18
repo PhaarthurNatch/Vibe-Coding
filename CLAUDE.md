@@ -78,7 +78,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Crece recién al volver al menú**, con animación a pantalla completa; si debe crecer varias etapas, todas van en la misma animación.
   "Otra pelea" sigue usando la etapa actual.
 - **Huevo:** se compra en la Tienda (página izquierda) por 60 monedas (`EGG_COST`; el primero de una partida nueva es gratis) y **se abre ahí mismo** (tocándolo varias veces; mientras tanto no se puede salir de Adoptar, `adoptLocked`); al nacer pasa al Home y se le pone nombre. La adopción en curso se guarda en `save.adopting`. Una partida nueva empieza así (sin monstruos, en Adoptar). Los huevos que ya estaban en la lista de partidas antiguas siguen naciendo en el Home.
-- **Criadero** (4.ª página): cruza **dos Awakened** por 150 monedas (`BREED_COST`). Los padres quedan **durmiendo 30 min** (`napUntil`, `napping`; no pelean, sin botón de curar)
+- **Criadero** (4.ª página, **bloqueada con 🔒** hasta tener 2 Awakened; se desbloquea para siempre con un aviso, `save.breedUnlocked`, `checkBreedUnlock`): cruza **dos Awakened** por 150 monedas (`BREED_COST`). Los padres quedan **durmiendo 30 min** (`napUntil`, `napping`; no pelean, sin botón de curar)
   y el huevo **incuba 1 hora** (`save.breeding = {rec, readyAt}`) antes de poder abrirlo a toques en el nido; al nacer pasa al Home. Un huevo a la vez.
   Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
