@@ -27,6 +27,13 @@ cartas de Magic en partidas de rol, adaptadas para que valgan en cualquier siste
   forma de uso (se porta, un solo uso, una vez por ronda…).
 - **Generar aventuras sacando 5 cartas** e improvisar conexiones (método de
   r/rpg difundido por The Alexandrian).
+- **Reglas para jugar en solitario con cartas de Magic** (vídeos y documentos de fans):
+  saca 5 cartas, elige 1 como escena u objetivo, descarta las demás e
+  interpreta su ilustración.
+- **Ajuste por colores** de los conversores automáticos de cartas a fichas:
+  cada color aporta unos puntos fuertes (Luz: defensa; Mente: magia y engaño;
+  Sombra: daño letal; Fuego: daño explosivo y velocidad; Naturaleza: fuerza y
+  resistencia).
 - **Preparar un lote de cartas** para varias sesiones e imprimirlo en hojas.
 
 ## Funciones extra
@@ -34,6 +41,8 @@ cartas de Magic en partidas de rol, adaptadas para que valgan en cualquier siste
   carta resumen que incluye la premisa y un giro.
   Toca cualquiera de las 5 cartas para cambiarla por otra del mismo tipo; el
   resumen se actualiza solo.
+- 🔮 **Oráculo de escena**: 5 cartas al azar; toca la que encaje y las otras
+  4 se descartan. Útil para jugar en solitario o improvisar.
 - ◀ ▶ **Historial** de las últimas 15 cartas.
 - 🖨️ **Hoja A4** con las últimas 9 cartas en cuadrícula 3×3 con marcas de corte,
   a 300 ppp. Imprímela al 100 %.

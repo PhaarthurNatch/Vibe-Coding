@@ -10,10 +10,17 @@ object TableGuide {
 
     private const val MAX_KEYWORDS = 3
 
-    fun describe(category: Category, tier: Int, stats: List<Stat>, keywords: List<String>): List<String> {
+    fun describe(
+        category: Category,
+        tier: Int,
+        stats: List<Stat>,
+        keywords: List<String>,
+        colors: List<String> = emptyList(),
+    ): List<String> {
         val out = mutableListOf<String>()
         out += usage(category, tier)
         stats.firstOrNull { it.label == "Rol" }?.let { ROLE_TEXT[it.value] }?.let { out += it }
+        if (stats.any { it.label == "Rol" }) strengths(colors)?.let { out += it }
         stats.firstOrNull { it.label == "Uso" }?.let { USE_TEXT[it.value] }?.let { out += it }
         stats.firstOrNull { it.label == "Ejecución" }?.let { CAST_TEXT[it.value] }?.let { out += it }
         out += keywords.mapNotNull { KEYWORD_RULES[it.lowercase()] }.distinct().take(MAX_KEYWORDS)
@@ -36,6 +43,24 @@ object TableGuide {
         Category.TRAP -> "Peligro oculto de Letalidad $tier/5; los personajes atentos pueden detectarlo a tiempo."
         Category.EVENT -> "Úsalo como acontecimiento de Escala $tier/5 que altera la escena o la campaña."
         Category.RANDOM -> "Úsalo como inspiración libre."
+    }
+
+    /**
+     * Puntos fuertes según el color, como hacen los conversores de cartas a fichas de
+     * monstruo, que ajustan las estadísticas base según los colores de maná.
+     */
+    private val COLOR_STRENGTH = mapOf(
+        "W" to "defensa y protección de los suyos",
+        "U" to "magia, engaño y control",
+        "B" to "daño letal y drenar vida",
+        "R" to "daño explosivo y velocidad",
+        "G" to "fuerza física y resistencia",
+    )
+
+    private fun strengths(colors: List<String>): String? {
+        val parts = colors.mapNotNull { COLOR_STRENGTH[it] }
+        if (parts.isEmpty()) return null
+        return "Puntos fuertes: " + parts.joinToString("; ") + "."
     }
 
     private val ROLE_TEXT = mapOf(

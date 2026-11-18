@@ -31,6 +31,8 @@ class MainActivity : Activity() {
         var group: AdventureGroup? = null
         /** Rol dentro de la aventura (null en la carta resumen). */
         var role: Adventure.Role? = null
+        /** Oráculo "elige 1 de 5" al que pertenece, mientras no se haya elegido. */
+        var oracle: MutableList<Entry>? = null
     }
 
     /** Las cinco cartas de una aventura y su resumen, para poder cambiarlas al tocarlas. */
@@ -93,6 +95,10 @@ class MainActivity : Activity() {
             it.setOnClickListener { generateAdventure() }
             generateButtons += it
         }
+        findViewById<Button>(R.id.oracleButton).also {
+            it.setOnClickListener { generateOracle() }
+            generateButtons += it
+        }
 
         val grid = findViewById<GridLayout>(R.id.categoryGrid)
         val margin = dp(4)
@@ -136,9 +142,16 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------ generación
 
-    private fun buildCard(category: Category, spanish: Boolean, roleLabel: String? = null): Entry {
+    private fun buildCard(
+        category: Category,
+        spanish: Boolean,
+        roleLabel: String? = null,
+        tweak: (RpgCard) -> RpgCard = { it },
+    ): Entry {
         val mtg = ScryfallClient.randomCard(category, spanish)
-        val rpg = CardTransformer.transform(mtg, category).let { if (roleLabel != null) it.copy(roleLabel = roleLabel) else it }
+        val rpg = CardTransformer.transform(mtg, category)
+            .let { if (roleLabel != null) it.copy(roleLabel = roleLabel) else it }
+            .let(tweak)
         val art = rpg.artUrl?.let { ScryfallClient.downloadBitmap(it) }
         return Entry(rpg, CardRenderer.render(rpg, art), art)
     }
@@ -149,6 +162,7 @@ class MainActivity : Activity() {
         val entry = current ?: return
         val group = entry.group
         val role = entry.role
+        entry.oracle?.let { chooseOracle(entry, it); return }
         when {
             group != null && role != null -> rerollAdventureCard(entry, group, role)
             group != null -> toast("Toca una de las 5 cartas de la aventura para cambiarla")
@@ -180,6 +194,49 @@ class MainActivity : Activity() {
                 post { setLoading(false) }
             }
         }
+    }
+
+    /**
+     * Oráculo de escena, como en las reglas para jugar rol en solitario con cartas de Magic:
+     * se sacan 5 cartas al azar, se elige 1 (las otras 4 se descartan) y se interpreta
+     * su ilustración como la siguiente escena u objetivo.
+     */
+    private fun generateOracle() {
+        setLoading(true)
+        val spanish = spanishSwitch.isChecked
+        executor.execute {
+            try {
+                val options = mutableListOf<Entry>()
+                for (i in 1..5) {
+                    post { status.text = "Sacando carta $i/5 del oráculo…" }
+                    val e = buildCard(Category.RANDOM, spanish, "🔮 Opción $i/5 · toca para elegir") {
+                        it.copy(hook = ORACLE_PROMPT, hookLabel = "Interpreta")
+                    }
+                    e.oracle = options
+                    options += e
+                    Thread.sleep(100) // Scryfall pide espaciar las peticiones.
+                }
+                post {
+                    add(options)
+                    show(history.size - 5)
+                    status.text = "Oráculo: recorre las 5 opciones con ◀ ▶ y toca la que mejor encaje con tu historia."
+                }
+            } catch (e: Exception) {
+                post { status.text = "No se pudo consultar el oráculo: ${e.message ?: "error de conexión"}" }
+            } finally {
+                post { setLoading(false) }
+            }
+        }
+    }
+
+    private fun chooseOracle(chosen: Entry, options: MutableList<Entry>) {
+        val card = chosen.card.copy(roleLabel = "🔮 Escena elegida")
+        val picked = Entry(card, CardRenderer.render(card, chosen.art), chosen.art)
+        options.filter { it !== chosen }.forEach { history.remove(it) }
+        val i = history.indexOf(chosen)
+        if (i >= 0) history[i] = picked else history += picked
+        show(history.indexOf(picked))
+        status.text = "Escena elegida: ${card.title}. Las otras 4 cartas se descartaron."
     }
 
     private fun buildSummary(group: AdventureGroup): Entry {
@@ -367,5 +424,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val MAX_HISTORY = 15
+        private const val ORACLE_PROMPT =
+            "Mira la ilustración: ¿quién aparece, dónde está y qué está a punto de pasar? Eso es lo siguiente que ocurre en tu historia."
     }
 }

@@ -61,7 +61,7 @@ object CardTransformer {
             motive = motiveOf(card, category, typeLower),
             stats = stats,
             traits = traits,
-            effect = TableGuide.describe(category, tier, stats, card.keywords).joinToString("\n"),
+            effect = TableGuide.describe(category, tier, stats, card.keywords, card.colors).joinToString("\n"),
             flavor = null,
             hook = hookFor(category, title),
             artist = card.artist,

@@ -6,6 +6,8 @@
     <string name="random">🎲  Carta aleatoria</string>
     <string name="adventure">🗺️  Aventura (5 cartas + resumen)</string>
     <string name="adventure_help">Saca una amenaza, un escenario, un botín, una complicación y un aliado, y los conecta en una premisa. Toca cualquiera de las 5 cartas para cambiarla por otra del mismo tipo.</string>
+    <string name="oracle">🔮  Oráculo de escena (elige 1 de 5)</string>
+    <string name="oracle_help">Para partidas en solitario o sin preparar: saca 5 cartas, elige la que encaje y descarta las demás. Interpreta su ilustración como la siguiente escena.</string>
     <string name="sheet">🖨️ Hoja</string>
     <string name="save">💾 Guardar</string>
     <string name="share">📤 Compartir</string>

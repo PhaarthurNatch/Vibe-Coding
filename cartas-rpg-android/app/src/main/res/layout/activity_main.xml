@@ -178,6 +178,25 @@
             android:textColor="@color/muted"
             android:textSize="12sp" />
 
+        <Button
+            android:id="@+id/oracleButton"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#4A3B6B"
+            android:text="@string/oracle"
+            android:textAllCaps="false"
+            android:textColor="@color/text"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/oracle_help"
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
