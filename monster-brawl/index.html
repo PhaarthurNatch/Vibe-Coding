@@ -8,12 +8,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Monster Brawl</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
-:root{--bg:#1b1530;--panel:#251d3d;--panel2:#33295a;--text:#f3eefe;--muted:#a99fc7;--acc:#ffb84d;--good:#5ee08a;--bad:#ff5d6c}
+:root{color-scheme:dark;--bg:#1b1530;--panel:#251d3d;--panel2:#33295a;--text:#f3eefe;--muted:#a99fc7;--acc:#ffb84d;--good:#5ee08a;--bad:#ff5d6c}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-.screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding:calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 10px)}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding-block:calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-bottom, 0px) + 10px);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .screen.on{display:flex}
 .screen>*{pointer-events:auto}
 .spacer{flex:1;pointer-events:none!important}
@@ -58,6 +59,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .card{background:var(--panel);border-radius:20px;padding:20px;width:min(360px,100%);text-align:center;display:flex;flex-direction:column;gap:12px}
 .card h2{margin:0;font-size:28px}
 .card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+#dialog{z-index:6}
+.card input{font:inherit;font-size:17px;padding:12px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);text-align:center;width:100%}
+.card input:focus{outline:none;border-color:var(--acc)}
+.btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -108,6 +113,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="row">
       <button class="btn" id="resHome">Volver</button>
       <button class="btn primary" id="resAgain">Otra pelea</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="dialog">
+  <div class="card">
+    <p id="dlgText"></p>
+    <input id="dlgInput" maxlength="16" autocomplete="off">
+    <div class="row">
+      <button class="btn" id="dlgNo">Cancelar</button>
+      <button class="btn primary" id="dlgYes">Aceptar</button>
     </div>
   </div>
 </div>
@@ -1077,6 +1093,22 @@ const cur = () => save.monsters[save.sel];
 // ============================================================================
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
+
+// Diálogo propio (los alert/confirm/prompt nativos no funcionan en todas partes y se ven feos en una app)
+function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar' } = {}) {
+  return new Promise(res => {
+    const d = $('dialog'), inp = $('dlgInput'), yes = $('dlgYes'), no = $('dlgNo');
+    $('dlgText').textContent = text;
+    inp.hidden = input === null; inp.value = input || '';
+    yes.textContent = ok; no.hidden = !cancel; no.textContent = cancel || '';
+    const done = v => { d.classList.remove('on'); yes.onclick = no.onclick = inp.onkeydown = null; res(v); };
+    yes.onclick = () => done(input === null ? true : inp.value);
+    no.onclick = () => done(input === null ? false : null);
+    inp.onkeydown = e => { if (e.key === 'Enter') yes.onclick(); };
+    d.classList.add('on');
+    if (input !== null) setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  });
+}
 let W = 0, H = 0, DPR = 1;
 let scene = 'home', show = null, battle = null, battleSpeed = 1, lastMode = '1v1', homeView = null;
 
@@ -1121,14 +1153,14 @@ function renderHome() {
 
 $('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); };
 $('next').onclick = () => { save.sel = (save.sel + 1) % save.monsters.length; persist(); renderHome(); };
-$('nameBox').onclick = () => { const n = prompt('Nombre del monstruo:', cur().name); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
+$('nameBox').onclick = async () => { const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 $('btnNew').onclick = () => {
-  if (save.monsters.length >= MAX_MONSTERS) { alert(`Máximo ${MAX_MONSTERS} monstruos. Libera uno primero.`); return; }
+  if (save.monsters.length >= MAX_MONSTERS) { ask(`Tienes el máximo de ${MAX_MONSTERS} monstruos. Libera uno para hacer espacio.`, { ok: 'Entendido', cancel: null }); return; }
   save.monsters.push(newRec()); save.sel = save.monsters.length - 1; persist(); renderHome();
 };
-$('btnFree').onclick = () => {
-  if (save.monsters.length <= 1) { alert('Necesitas al menos un monstruo.'); return; }
-  if (!confirm(`¿Liberar a ${cur().name}? No vuelve.`)) return;
+$('btnFree').onclick = async () => {
+  if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
+  if (!await ask(`¿Liberar a ${cur().name}? No vuelve.`, { ok: 'Liberar' })) return;
   save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
 };
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startBattle(b.dataset.mode));
@@ -1163,7 +1195,7 @@ function updateFighters() {
 }
 
 function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
-$('quit').onclick = () => { if (battle && !battle.over && !confirm('¿Abandonar la pelea? No ganas XP.')) return; goHome(); };
+$('quit').onclick = async () => { if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome(); };
 $('speed').onclick = () => { battleSpeed = battleSpeed === 1 ? 2 : battleSpeed === 2 ? 3 : 1; $('speed').textContent = 'x' + battleSpeed; };
 $('resHome').onclick = goHome;
 $('resAgain').onclick = () => startBattle(lastMode);
