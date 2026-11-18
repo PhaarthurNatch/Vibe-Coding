@@ -20,10 +20,18 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Compilar APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          # Reintenta hasta 3 veces por si algún repositorio falla temporalmente.
+          for i in 1 2 3; do
+            ./gradlew assembleRelease --stacktrace && exit 0
+            echo "Intento $i fallido; reintentando en 30 s…"
+            sleep 30
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: forja-de-cartas-rpg-apk
