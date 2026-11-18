@@ -64,6 +64,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
 #adoptArea{flex:1 1 120px;min-height:120px}
+#btnNew:not([hidden]){display:flex;align-items:center;justify-content:center;gap:6px}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
 #home .top,#home .tabs,#home .nav,#home .panel:not(.tpanel){touch-action:none} /* deslizar para cambiar de página sin que el navegador se lo robe */
@@ -157,7 +158,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="spacer" id="adoptArea"></div>
     <div class="panel">
       <p class="adoptTxt" id="adoptTxt"></p>
-      <button class="btn primary" id="btnNew">＋ Adoptar este huevo</button>
+      <button class="btn primary" id="btnNew"></button>
     </div>
   </div>
   <div class="page">
@@ -1921,6 +1922,7 @@ const MAX_LIVES = 3;
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
 const HEAL_COST = 30;             // monedas para curar al instante
+const EGG_COST = 60;              // monedas para adoptar un huevo (el primero de una partida nueva es gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
 const REWARDS = { 2: [[60, 25], [20, 5]], 3: [[70, 30], [40, 15], [20, 5]], 4: [[80, 40], [50, 20], [30, 10], [15, 5]] };
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar'];
@@ -2285,10 +2287,14 @@ function renderAdopt() {
   $('adoptTxt').innerHTML = mine ? (n ? '¡Es tuyo! Tócalo varias veces para que nazca.' : '¡Bienvenido! Este huevo es tuyo.<br>Tócalo varias veces para que nazca.')
     : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
     : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.';
-  $('btnNew').hidden = mine; $('btnNew').disabled = full;
+  $('btnNew').hidden = mine; $('btnNew').disabled = full || save.coins < EGG_COST;
+  $('btnNew').innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
 }
-$('btnNew').onclick = () => {
-  if (save.monsters.length >= MAX_MONSTERS || save.adopting) return;
+$('btnNew').onclick = async () => {
+  if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST) return;
+  if (!await ask(`¿Adoptar este huevo por ${EGG_COST} monedas? Tendrás que abrirlo antes de volver.`, { ok: 'Adoptar' })) return;
+  if (save.coins < EGG_COST || save.adopting) return;
+  save.coins -= EGG_COST; $('coins').textContent = save.coins;
   save.adopting = adoptRec; persist(); renderAdopt();
   adoptEgg.vz = 260; adoptEgg.sq = 0.15; fx.label = '¡Es tuyo!'; fx.labelT = 1.6;
 };
