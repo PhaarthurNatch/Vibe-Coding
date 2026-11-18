@@ -32,7 +32,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name{flex:1;text-align:center}
 .nav .name b{font-size:20px;display:block}
 .nav .name span{font-size:12px;color:var(--muted)}
-.arrow{width:46px;height:46px;border-radius:50%;font-size:20px;background:var(--panel2)}
 .hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
 .panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
@@ -45,6 +44,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs{display:flex;justify-content:center;gap:6px;margin:4px 0 6px}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
+.tabs button.glow{color:#ffd36b;animation:tabglow 1.6s ease-in-out infinite} /* Entrenar con puntos por gastar */
+@keyframes tabglow{0%,100%{text-shadow:0 0 4px rgba(255,190,60,.45)}50%{text-shadow:0 0 12px rgba(255,200,70,.95),0 0 22px rgba(255,170,40,.55)}}
+@media (prefers-reduced-motion:reduce){.tabs button.glow{animation:none;text-shadow:0 0 8px rgba(255,190,60,.7)}}
 .pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
 .track{display:flex;width:300%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
 .page{width:33.3333%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
@@ -92,7 +94,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #dialog.low{align-items:flex-end;padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);background:rgba(10,6,20,.35)}
 .card input{font:inherit;font-size:17px;padding:12px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);text-align:center;width:100%}
 .card input:focus{outline:none;border-color:var(--acc)}
-.btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .btn:disabled{opacity:.35;pointer-events:none}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -165,9 +167,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   </div>
   <div class="page">
   <div class="nav">
-    <button class="arrow" id="prev">◀</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
-    <button class="arrow" id="next">▶</button>
   </div>
   <div class="spacer" id="showArea"></div>
   <div class="hint" id="hint" hidden></div>
@@ -2111,7 +2111,7 @@ function renderHome() {
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; tb.classList.toggle('glow', free > 0); }
   $('rest').hidden = !resting(rec);
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2182,7 +2182,7 @@ addEventListener('pointerup', e => {
     swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
   }
 });
-// Cambiar de monstruo (flechas o deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
+// Cambiar de monstruo (deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
 function switchMonster(d) {
   save.sel = (save.sel + d + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth();
   if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; } }
@@ -2283,8 +2283,6 @@ function nameNewborn(rec) {
   }, 1100);
 }
 
-$('prev').onclick = () => switchMonster(-1);
-$('next').onclick = () => switchMonster(1);
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Página Adoptar: muestra el huevo que te llevarías. Al adoptarlo se abre ahí mismo (tocándolo varias veces);
