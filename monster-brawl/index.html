@@ -1962,21 +1962,28 @@ function pet(a, b) {
 }
 
 // ---------- Rivales ----------
-const MIXED_STAGE_CHANCE = 0.12; // probabilidad de que un rival sea de una etapa vecina (una más o una menos)
+// Peso de cada etapa del rival según su distancia a la de tu monstruo (más cerca = más probable)
+const STAGE_MIX_W = { 0: 80, 1: 6, 2: 2.5, 3: 1, 4: 0.5 };
 // Poder aproximado de un monstruo: cuánto aguanta × cuánto pega
 // Corrección por etapa medida con simulaciones (la fórmula no ve cosas como el alcance o el tamaño del cuerpo)
 const STAGE_FIX = { baby: 0.88, child: 1.08, teen: 1.1, adult: 0.9, awakened: 0.86 };
+// Ajuste extra para etapas lejanas (tu etapa>etapa del rival), calibrado con simulaciones hasta ~50% de victorias
+const PAIR_FIX = { 'baby>teen': 1.1, 'baby>adult': 0.9, 'baby>awakened': 0.92, 'child>adult': 0.8, 'child>awakened': 0.85, 'teen>baby': 0.92, 'teen>awakened': 0.88,
+  'adult>baby': 1.16, 'adult>child': 1.16, 'awakened>baby': 1.07, 'awakened>child': 1.27, 'awakened>teen': 0.96 };
 function powerOf(st, awakened) {
   const ehp = st.hp / (1 - st.defense / (st.defense + 40)) / (1 - st.dodge * 0.6);
   const dps = st.melee / st.meleeCd + st.ranged / st.rangedCd * 0.8;
   return Math.sqrt(ehp * dps) * (1 + st.speed / 600) * (awakened ? 1.12 : 1);
 }
-function makeFoe(ref, mixChance = MIXED_STAGE_CHANCE) {
-  let stage = ref.stage;
-  if (Math.random() < mixChance) { // a veces, de otra etapa
-    const i = STAGE_ORDER.indexOf(stage), opts = [i - 1, i + 1].filter(j => j >= 1 && j < STAGE_ORDER.length);
-    stage = STAGE_ORDER[opts[Math.floor(Math.random() * opts.length)]];
-  }
+function pickFoeStage(refStage) {
+  const i = STAGE_ORDER.indexOf(refStage), opts = [];
+  for (let j = 1; j < STAGE_ORDER.length; j++) opts.push([STAGE_ORDER[j], STAGE_MIX_W[Math.abs(j - i)] || 0]);
+  let x = Math.random() * opts.reduce((a, o) => a + o[1], 0);
+  for (const [st, w] of opts) { x -= w; if (x <= 0) return st; }
+  return refStage;
+}
+function makeFoe(ref, forceStage = null) {
+  const stage = forceStage || pickFoeStage(ref.stage);
   const r = newRec(stage);
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   if (stage !== ref.stage) { // nivel coherente con su etapa
@@ -1987,7 +1994,7 @@ function makeFoe(ref, mixChance = MIXED_STAGE_CHANCE) {
   if (stage !== ref.stage) { // equilibrar: su poder queda parecido al de tu monstruo
     const mine = powerOf(calcStats(genGenome(ref.seed, ref.stage, ref.legacy), ref.level, ref.train), ref.stage === 'awakened') * STAGE_FIX[ref.stage];
     const his = powerOf(calcStats(genGenome(r.seed, stage), r.level, r.train), stage === 'awakened') * STAGE_FIX[stage];
-    r.powerMul = clamp(mine / his * 1.12 * (0.92 + Math.random() * 0.16), 0.3, 3);
+    r.powerMul = clamp(mine / his * 1.12 * (PAIR_FIX[ref.stage + '>' + stage] || 1) * (0.92 + Math.random() * 0.16), 0.05, 20);
   }
   return new Monster(r);
 }
