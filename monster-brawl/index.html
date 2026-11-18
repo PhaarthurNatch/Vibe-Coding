@@ -663,7 +663,6 @@ class Monster {
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.pts);
-    if (rec.powerMul) { const k = rec.powerMul; this.st.hp = Math.round(this.st.hp * k); this.st.melee *= k; this.st.ranged *= k; } // rival de otra etapa, equilibrado
     this.hp = this.st.hp;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
@@ -2266,46 +2265,13 @@ function pet(a, b) {
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); adjustTemper(cur(), 'valor', 0.004); persist(); } // las caricias le dan valor
 }
 
-// ---------- Rivales ----------
-// Peso de cada etapa del rival según su distancia a la de tu monstruo (más cerca = más probable)
-const STAGE_MIX_W = { 0: 80, 1: 6, 2: 2.5, 3: 1, 4: 0.5 };
-// Poder aproximado de un monstruo: cuánto aguanta × cuánto pega
-// Corrección por etapa medida con simulaciones (la fórmula no ve cosas como el alcance o el tamaño del cuerpo)
-const STAGE_FIX = { baby: 0.88, child: 1.08, teen: 1.1, adult: 0.9, awakened: 0.86 };
-// Ajuste por par de etapas (tu etapa>etapa del rival), calibrado con simulaciones hasta ~50% de victorias
-const PAIR_FIX = {
-  'baby>child': 1.01, 'baby>teen': 0.97, 'baby>adult': 0.86, 'baby>awakened': 0.79, 'child>baby': 0.76,
-  'child>teen': 0.85, 'child>adult': 0.7, 'child>awakened': 0.67, 'teen>baby': 0.72, 'teen>child': 0.9,
-  'teen>adult': 0.78, 'teen>awakened': 0.67, 'adult>baby': 0.91, 'adult>child': 1.08, 'adult>teen': 0.99,
-  'adult>awakened': 0.76, 'awakened>baby': 0.97, 'awakened>child': 1.22, 'awakened>teen': 1.22, 'awakened>adult': 1.01 };
-function powerOf(st, awakened) {
-  const ehp = st.hp / (1 - st.defense / (st.defense + 40)) / (1 - st.dodge * 0.6);
-  const dps = st.melee / st.meleeCd + st.ranged / st.rangedCd * 0.8;
-  return Math.sqrt(ehp * dps) * (1 + st.speed / 600) * (awakened ? 1.12 : 1);
-}
-function pickFoeStage(refStage) {
-  const i = STAGE_ORDER.indexOf(refStage), opts = [];
-  for (let j = 1; j < STAGE_ORDER.length; j++) opts.push([STAGE_ORDER[j], STAGE_MIX_W[Math.abs(j - i)] || 0]);
-  let x = Math.random() * opts.reduce((a, o) => a + o[1], 0);
-  for (const [st, w] of opts) { x -= w; if (x <= 0) return st; }
-  return refStage;
-}
-function makeFoe(ref, forceStage = null) {
-  const stage = forceStage || pickFoeStage(ref.stage);
-  const r = newRec(stage);
+// ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
+function makeFoe(ref) {
+  const r = newRec(ref.stage);
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
-  if (stage !== ref.stage) { // nivel coherente con su etapa
-    const nx = STAGE_ORDER[STAGE_ORDER.indexOf(stage) + 1];
-    r.level = clamp(r.level, STAGE_LV[stage] || 1, nx ? STAGE_LV[nx] - 1 : 99);
-  }
   r.pts = randomPts(r.level);
   r.temper = { agr: Math.random() * 1.6 - 0.8, terco: Math.random() * 1.6 - 0.8, valor: Math.random() * 1.6 - 0.8 };
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
-  if (stage !== ref.stage) { // equilibrar: su poder queda parecido al de tu monstruo
-    const mine = powerOf(calcStats(genGenome(ref.seed, ref.stage, ref.legacy, (ref.gen || 0) >= 3), ref.level, ref.pts), ref.stage === 'awakened') * STAGE_FIX[ref.stage];
-    const his = powerOf(calcStats(genGenome(r.seed, stage, false, true), r.level, r.pts), stage === 'awakened') * STAGE_FIX[stage];
-    r.powerMul = clamp(mine / his * 1.12 * (PAIR_FIX[ref.stage + '>' + stage] || 1) * (0.92 + Math.random() * 0.16), 0.05, 20);
-  }
   return new Monster(r);
 }
 

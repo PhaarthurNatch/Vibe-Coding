@@ -41,9 +41,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   acercamiento de cámara. Una por pelea: tras usarla pierde el aura y se recarga sola al empezar la siguiente pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
-- **Rivales de otras etapas**: el rival puede ser de cualquier etapa; mientras más lejos de la tuya, menos probable
-  (misma etapa ~82-89%, vecina ~6%, a 2 etapas ~2,5%, a 3 ~1%, a 4 ~0,5%). Su fuerza se ajusta para que la pelea quede
-  pareja (calibrado con simulaciones: todas las combinaciones quedan entre ~40% y 60% de victorias).
+- **Rivales**: siempre de la misma etapa que tu monstruo, con nivel parecido y puntos y personalidad al azar.
 - **Muerte súbita**: desde los 60 s de pelea (de juego) el daño va subiendo poco a poco, así las peleas siempre terminan con un K.O.
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
 
