@@ -128,7 +128,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="arrow" id="next">▶</button>
   </div>
   <div class="spacer" id="showArea"></div>
-  <div class="hint" id="hint">toca: sacudir · desliza: acariciar · mantén: tomarlo</div>
+  <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
     <div class="ultinfo" id="ultInfo" hidden></div>
@@ -1910,7 +1910,7 @@ function renderHome() {
   $('coins').textContent = save.coins;
   $('rest').hidden = !resting(rec);
   updateRest();
-  $('hint').textContent = isEgg ? 'toca el huevo para que nazca' : 'toca: sacudir · desliza: acariciar · mantén: tomarlo';
+  $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
   if (isEgg) {
     show = null; egg = new EggView(rec);
     $('mName').textContent = 'Huevo misterioso';
