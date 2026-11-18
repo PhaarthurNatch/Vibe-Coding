@@ -260,13 +260,15 @@ const ULT_CHARGE_S = 1.3;      // se queda cargando energía antes de lanzarla
 const ULTS = {
   melee: { name: 'Onda de choque', desc: 'golpea todo a su alrededor y lo lanza al otro lado de la arena' },
   ranged: { name: 'Bala gigante', desc: 'dispara una bala enorme que daña todo lo que toca hasta salir de la arena' },
-  defense: { name: 'Escudo de hierro', desc: `recibe la mitad del daño por ${ULT_BUFF_S} s` },
+  defense: { name: 'Escudo de hierro', desc: `recibe 40% menos daño por ${ULT_BUFF_S} s` },
   speed: { name: 'Supervelocidad', desc: `se mueve y ataca el doble de rápido por ${ULT_BUFF_S} s` },
   dodge: { name: 'Reflejos fantasma', desc: `esquiva el doble por ${ULT_BUFF_S} s` },
 };
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
 const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge'];
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
+const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
+const SHIELD_MUL = 0.6; // Escudo de hierro: recibe 40% menos daño
 const starterUlt = seed => ULT_KEYS[rng((seed ^ 0x1234abcd) >>> 0).i(0, ULT_KEYS.length - 1)]; // la que trae de regalo al despertar
 const ownsUlt = k => (save.ults || []).includes(k);
 function grantUlt(k) { save.ults = save.ults || []; if (!save.ults.includes(k)) save.ults.push(k); }
@@ -1638,7 +1640,7 @@ class Battle {
   hit(a, t, pow, dir, kind) {
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
-    const dmg = Math.max(1, pow * ot * allA * allT * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? 0.5 : 1));
+    const dmg = Math.max(1, pow * ot * allA * allT * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? SHIELD_MUL : 1));
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
@@ -1686,10 +1688,11 @@ class Battle {
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
     const T = m.target && !m.target.dead ? m.target : enemies[0];
     switch (m.ultType) {
-      case 'ranged': { // bala gigante que atraviesa todo hasta salir de la arena
-        const dx = T ? T.x - m.x : 1, dy = T ? T.y - m.y : 0, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, head = m.nodes[m.ix.head];
-        this.proj.push({ giant: true, x: m.x + ux * m.r, y: m.y + uy * m.r, z: Math.max(20, m.gy - head.y), vx: ux * 300, vy: uy * 300, owner: m, team: m.team,
-          pow: m.st.ranged * 4, r: 30, color: hsl(m.g.pal.accent, 12), kind: 'blob', life: 99, checked: new Set(), hitSet: new Set(), trail: [] });
+      case 'ranged': { // bala gigante que atraviesa todo hasta salir de la arena (apunta adelantándose al movimiento)
+        const BS = 380, tl = T ? Math.hypot(T.x - m.x, T.y - m.y) / BS : 0;
+        const dx = T ? T.x + T.vx * tl * 0.7 - m.x : 1, dy = T ? T.y + T.vy * tl * 0.7 - m.y : 0, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, head = m.nodes[m.ix.head];
+        this.proj.push({ giant: true, x: m.x + ux * m.r, y: m.y + uy * m.r, z: Math.max(20, m.gy - head.y), vx: ux * BS, vy: uy * BS, owner: m, team: m.team,
+          pow: ultPow(m) * 2.8, r: 30, color: hsl(m.g.pal.accent, 12), kind: 'blob', life: 99, checked: new Set(), hitSet: new Set(), trail: [] });
         m.vx -= ux * 260; m.vy -= uy * 260; m.state = 'recoil'; m.stT = 0.4; this.shake = 8;
         break;
       }
@@ -1701,7 +1704,7 @@ class Battle {
           if (d > ULT_RADIUS) continue;
           if (d < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
           const dir = { x: dx / d, y: dy / d };
-          this.hit(m, e, m.st.melee * 2.5, dir, 'melee');
+          this.hit(m, e, ultPow(m) * 2.5, dir, 'melee');
           const V = ARENA_W * 3.3 / Math.pow(e.st.weight, 0.25);
           e.vx = dir.x * V; e.vy = dir.y * V; e.vz = 420;
           if (!e.dead) { e.state = 'hitstun'; e.stT = 0.9; e.setEmo('dizzy', 1.4, 4); }

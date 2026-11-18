@@ -36,8 +36,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
 - **Ultimate (Awakened)**: se equipa y se cambia cuando quieras desde Entrenar. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
-  al otro lado), Bala gigante (atraviesa todo en línea recta), Escudo de hierro (mitad de daño 10 s), Supervelocidad (se mueve y
-  ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s).
+  al otro lado), Bala gigante (atraviesa todo en línea recta; apunta adelantándose), Escudo de hierro (40% menos daño 10 s), Supervelocidad (se mueve y
+  ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
   Se usa una por pelea (con carga previa y acercamiento de cámara) y se recarga al empezar cada pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
