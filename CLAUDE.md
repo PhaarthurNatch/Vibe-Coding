@@ -89,6 +89,9 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
+- **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
+  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light`, compensa que perdió las cadenas).
+  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   Pendiente (dueño): un gasto de monedas para el juego avanzado, p. ej. la cría.

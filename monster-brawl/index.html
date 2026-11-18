@@ -296,13 +296,17 @@ const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 -
 const OT_START = 60, OT_RAMP = 12, HARD_LIMIT = 300;
 const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 // Elección de objetivo: cada enemigo recibe un puntaje con factores de 0 a 1 (ver Monster.scoreTarget)
+// Cadenas de golpes: si te interrumpen el golpe no pierdes toda la espera; tras varios aturdimientos seguidos aguantas un rato;
+// los pesados se aturden menos (compensa que son más lentos)
+const STUN = { interruptCd: 0.25, chain: 2, chainGap: 0.8, immune: 0.6, poise: 0.15, light: 2 }; // light: los livianos pegan más fuerte a los más pesados
+const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // más pesado que quien le pega = se aturde menos
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
 // Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
 // en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
-const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
+const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
@@ -704,7 +708,7 @@ class Monster {
     this.gx = 0; this.gy = 0; this.s = 1;
     this.team = 0; this.state = 'free'; this.stT = 0;
     this.target = null; this.targetTimer = 0; this.lockAx = { x: 1, y: 0 };
-    this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0;
+    this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0; this.stunChain = 0; this.lastStun = -9; this.stunImmune = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
     this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
     // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
@@ -1044,7 +1048,7 @@ class Monster {
   // ---------- IA ----------
   think(dt, B) {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
-    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt;
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt;
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
@@ -1708,7 +1712,8 @@ class Battle {
   hit(a, t, pow, dir, kind) {
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
-    const dmg = Math.max(1, pow * ot * allA * allT * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? SHIELD_MUL : 1));
+    const lightB = a.st.weight < t.st.weight ? Math.pow(t.st.weight / a.st.weight, STUN.light) : 1; // golpe/disparo preciso del más liviano
+    const dmg = Math.max(1, pow * ot * allA * allT * lightB * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? SHIELD_MUL : 1));
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
@@ -1716,7 +1721,14 @@ class Battle {
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
     t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
-    if (t.state !== 'dead' && t.state !== 'ultcharge') { t.state = 'hitstun'; t.stT = 0.12 + Math.min(0.4, kb / 1600); }
+    if (t.state !== 'dead' && t.state !== 'ultcharge') {
+      if (t.state === 'windup' || t.state === 'strike') t.meleeCd = Math.min(t.meleeCd, STUN.interruptCd); // le cortaron el golpe: puede reintentar pronto
+      if (t.stunImmune <= 0) {
+        if (this.time - t.lastStun > STUN.chainGap) t.stunChain = 0;
+        t.state = 'hitstun'; t.stT = (0.12 + Math.min(0.4, kb / 1600)) * stunMul(a.st.weight, t.st.weight); t.lastStun = this.time;
+        if (++t.stunChain >= STUN.chain) { t.stunImmune = STUN.immune + t.stT; t.stunChain = 0; } // aguanta: el próximo golpe no lo frena
+      }
+    }
     if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
     for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
