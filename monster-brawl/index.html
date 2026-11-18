@@ -832,11 +832,11 @@ class Monster {
     for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; n.x = P.x + n.ox * this.s; n.y = P.y + n.oy * this.s; n.vx = n.vy = 0; }
   }
 
-  // ---------- Aura de Awakened: partículas de su color que suben (mientras tenga la ultimate lista) ----------
+  // ---------- Aura de Awakened: partículas de su color que suben, sólo al cargar la ultimate y mientras dura su efecto ----------
   auraStep(dt) {
     const s = this.s;
-    if (this.ultReady && !this.dead) {
-      this.auraBoost = Math.max(0, this.auraBoost - dt);
+    this.auraBoost = Math.max(0, this.auraBoost - dt);
+    if (!this.dead && (this.state === 'ultcharge' || this.ulting || this.buffs.all > 0)) {
       this.auraAcc += dt * (this.auraBoost > 0 ? 80 : 24);
       const w = Math.max(this.seg.up.w, this.seg.mi.w, this.seg.lo.w) * 0.55 * s;
       while (this.auraAcc > 1) {
@@ -1694,7 +1694,7 @@ class Battle {
   // ---------- Ultimate ----------
   startUlt(m) {
     this.cine = { m, t: 0 }; m.state = 'free';
-    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 1.6; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
+    m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 1.6; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
   cineStep(dt) {
     const c = this.cine, m = c.m; c.t += dt;
@@ -1706,7 +1706,7 @@ class Battle {
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
   execUlt(m) {
-    m.ultReady = false; m.aura = [];
+    m.ultReady = false; m.ulting = false; // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
@@ -2499,7 +2499,6 @@ function growStep(dt) {
         G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
         burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
         $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó! Ultimate: ${ULTS[G.newM.ultType].name}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!`;
-        if (G.rec.stage === 'awakened') G.newM.auraBoost = 2.5;
         if (last) { G.phase = 'done'; $('growOk').hidden = false; }
         else { G.phase = 'between'; G.betweenT = G.t; } // ¡y todavía le falta crecer más!
       }

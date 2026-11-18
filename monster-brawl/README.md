@@ -9,7 +9,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
   Adolescente (Nv. 5-7): más grande y con más partes. Adulto (Nv. 8-11): todas las partes.
-  Awakened (Nv. 12+): mismo cuerpo de adulto, con aura de partículas de su color y una ultimate. Al crecer conserva todas sus partes
+  Awakened (Nv. 12+): mismo cuerpo de adulto y una ultimate; al usarla le sale un aura de partículas de su color que dura lo que dura su efecto. Al crecer conserva todas sus partes
   (agrandadas) y se sortea si le salen partes nuevas; las cantidades sólo suben. Crece recién al volver al menú,
   con una animación a pantalla completa donde le van apareciendo las partes nuevas (si le toca crecer varias etapas,
   crecen una tras otra dentro de la misma animación).
