@@ -100,7 +100,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light` 0,5; era 2 antes del peso por etapa y dejaba a los livianos en 67%).
   Racha máxima bajó de ~18–25 golpes seguidos a ~13. Con el peso por etapa: livianos ~48% / medios ~48–52% / pesados ~51–54% en 1v1. `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
 - **Vuelo de los alados** (`FLY`, `flyer`): según la carga alar (`st.mass` sin tope / tamaño de alas; el peso normal casi siempre está en el máximo 3,5)
-  los pesados **saltan alto** hacia su objetivo (`startLeap`, estado `leap`) y los livianos **flotan** ~1,1–1,7 s a altura `floatZ` (`floatT`), cada ~9–13 s.
+  los pesados (alas chicas para su cuerpo) **saltan alto** hacia su objetivo, con un salto algo lento (gravedad ×`leapG` 0,7; `startLeap`, estado `leap`) y los livianos **flotan para alejarse** ~1,1–1,7 s a altura `floatZ` (`floatT`) cuando el rival está encima, cada ~9–13 s (mientras flotan retroceden y disparan hacia abajo si pueden).
   En el aire (z > `airZ`) no se puede golpear ni ser golpeado cuerpo a cuerpo, no esquivan, no chocan con los del suelo; los disparos suben o bajan
   hasta la altura del objetivo (`z0`/`tz`) y pasan por debajo de los que vuelan si no apuntaban a ellos. Recibir un golpe acorta el vuelo.
   Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
