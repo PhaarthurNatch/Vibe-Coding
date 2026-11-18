@@ -32,7 +32,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   los puntos (brazos más gruesos, torso más ancho, piernas más largas, ojos más grandes).
 - **Personalidad**: Agresivo↔Cauto (distancia, se aleja tras golpear), Terco↔Oportunista (no suelta a su objetivo / va por el
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
-  Cambia al acariciarlo (más valiente), al lanzarlo (más agresivo), con ejercicios (monedas) y según cómo pelea.
+  Cambia con ejercicios (monedas) y según cómo pelea.
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
 - **Ultimate (Awakened)**: depende del stat en que más destaca (Fuerza: onda de choque que lanza a todos al otro lado;
   Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 10 s; Velocidad: se mueve y ataca el doble de rápido por 10 s; Esquiva: doble esquiva por 10 s).

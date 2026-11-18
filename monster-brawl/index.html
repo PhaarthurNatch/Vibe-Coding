@@ -2080,7 +2080,7 @@ function renderTrain() {
   h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
   const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
   if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
-  h += `<p class="tdesc">Cambia con cómo lo crías: acariciarlo lo vuelve más valiente, lanzarlo más agresivo y sus peleas también lo marcan. O con ejercicios:</p>`;
+  h += `<p class="tdesc">Cambia según cómo pelea y con ejercicios:</p>`;
   h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k), maxed = drillMaxed(rec, d); return `<button class="btn dbtn" data-drill="${i}" ${maxed || save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>${maxed ? `ya es lo más ${d.d > 0 ? t.pos : t.neg} posible` : `más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}`}</small></button>`; }).join('')}</div></div>`;
   h += `<div class="tsec"><div class="thead">Momento de la ultimate</div>`;
   if (rec.stage === 'awakened') {
@@ -2251,7 +2251,7 @@ function release(t) {
   show.held = false;
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
   if (performance.now() - b[2] > 120) { show.vx = 0; show.vz = 0; } // estaba quieto: sólo lo sueltas
-  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); if (Math.hypot(show.vx, show.vz) > 450) { adjustTemper(cur(), 'agr', 0.012); persist(); } } // lo lanzas (lanzarlo lo vuelve más audaz)
+  else { show.vx = clamp((b[0] - a[0]) / dt, -900, 900); show.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
 function pet(a, b) {
@@ -2263,7 +2263,7 @@ function pet(a, b) {
   if (!show.sleep) show.setEmo('love', 0.9, 2);
   show.lookAt = null;
   petAcc += d;
-  if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); adjustTemper(cur(), 'valor', 0.004); persist(); } // las caricias le dan valor
+  if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
 }
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
