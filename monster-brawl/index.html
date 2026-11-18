@@ -2213,6 +2213,7 @@ function startBattle(mode, team) {
   } else ARENA_D = 560 * zoom;
   battle = new Battle(list, mode);
   scene = 'battle';
+  keepAwake(true);
 }
 
 function drawBanner(b) {
@@ -2245,7 +2246,18 @@ function updateFighters() {
   battle.ms.forEach((m, i) => { const el = $('f' + i); if (!el) return; el.querySelector('i').style.width = (m.hp / m.st.hp * 100) + '%'; el.classList.toggle('dead', m.dead); const u = $('u' + i); if (u) u.hidden = !m.ultReady; });
 }
 
-function goHome() { scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
+// ---------- Pantalla encendida durante los combates (Wake Lock) ----------
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on) { if (!wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } }
+    else if (wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch (e) { wakeLock = null; } // si el navegador no lo permite, el juego sigue igual
+}
+// al volver a la app en medio de una pelea, el navegador lo suelta: se pide de nuevo
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && scene === 'battle') keepAwake(true); });
+
+function goHome() { keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
 
 // ---------- Crecimiento: ocurre al volver al menú, con animación a pantalla completa ----------
 function newParts(o, n) { // partes que tiene la etapa nueva y no tenía la anterior, en el orden en que aparecen
