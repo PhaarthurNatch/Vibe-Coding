@@ -79,6 +79,9 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Crece recién al volver al menú**, con animación a pantalla completa; si debe crecer varias etapas, todas van en la misma animación.
   "Otra pelea" sigue usando la etapa actual.
 - **Huevo:** se compra en la Tienda (página izquierda) por 60 monedas (`EGG_COST`; el primero de una partida nueva es gratis), **1 al día** (`save.eggDay`, cambia a medianoche; el botón muestra cuánto falta) y **se abre ahí mismo** (tocándolo varias veces; mientras tanto no se puede salir de Adoptar, `adoptLocked`); al nacer pasa al Home y se le pone nombre. La adopción en curso se guarda en `save.adopting`. Una partida nueva empieza así (sin monstruos, en Adoptar). Los huevos que ya estaban en la lista de partidas antiguas siguen naciendo en el Home.
+- **Espacios para monstruos** (`slotCap`, `save.slots`): se parte con **2** y cada monstruo que llega a Awakened desbloquea 1 más (hasta 8, `MAX_MONSTERS`;
+  `awakeCounted` evita contar dos veces; se avisa en el título de la animación de despertar). Adoptar y criar requieren espacio libre.
+  Migración: partidas antiguas reciben 2 + sus Awakened (y nunca menos que los monstruos que ya tienen).
 - **Criadero** (4.ª página; se puede ver, pero muestra "🔒 Bloqueado" con el progreso hasta tener 2 Awakened; se desbloquea para siempre con un aviso, `save.breedUnlocked`, `checkBreedUnlock`): cruza **dos Awakened** por 150 monedas (`BREED_COST`). Los padres quedan **durmiendo 30 min** (`napUntil`, `napping`; no pelean, sin botón de curar)
   y el huevo **incuba 3 horas** (`save.breeding = {rec, readyAt}`) antes de poder abrirlo a toques en el nido; al nacer pasa al Home. Un huevo a la vez. **Cada monstruo puede tener crías una sola vez** (`bred`).
   **Cada pelea ganada (1.er lugar) adelanta la incubación 2 min** (`INCUBATE_FIGHT_MS`; se avisa en el resultado).

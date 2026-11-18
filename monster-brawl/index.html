@@ -333,6 +333,9 @@ const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, t
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
 const MAX_MONSTERS = 8;
+// Espacios para monstruos: se parte con 2 y cada monstruo que llega a Awakened desbloquea 1 más (hasta 8)
+const SLOTS_START = 2;
+const slotCap = () => Math.min(MAX_MONSTERS, save.slots || SLOTS_START);
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -2062,7 +2065,8 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
-      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [], sel: 0, coins: 0, ults: [], adopting: newRec() }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
+      if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
+      s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [], sel: 0, coins: 0, ults: [], adopting: newRec(), slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
@@ -2405,10 +2409,10 @@ $('nameBox').onclick = async () => {
 // recién cuando nace pasa al Home y le pones nombre. La adopción en curso se guarda (save.adopting).
 let adoptRec = save.adopting || newRec(), adoptEgg = new EggView(adoptRec), hatching = false;
 function renderAdopt() {
-  const n = save.monsters.length, full = n >= MAX_MONSTERS, mine = !!save.adopting;
-  $('aSub').textContent = mine ? `Faltan ${adoptRec.need - adoptRec.taps} toques` : `Tienes ${n}/${MAX_MONSTERS} monstruos`;
+  const n = save.monsters.length, cap = slotCap(), full = n >= cap, mine = !!save.adopting;
+  $('aSub').textContent = mine ? `Faltan ${adoptRec.need - adoptRec.taps} toques` : `Espacios: ${n}/${cap} monstruos`;
   $('adoptTxt').innerHTML = mine ? (n ? '¡Es tuyo! Tócalo varias veces para que nazca.' : '¡Bienvenido! Este huevo es tuyo.<br>Tócalo varias veces para que nazca.')
-    : full ? `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`
+    : full ? (cap < MAX_MONSTERS ? `No te quedan espacios (${n}/${cap}).<br>Cada monstruo que llega a <b>Awakened</b> desbloquea 1 espacio más, o libera uno.` : `Ya tienes el máximo de ${MAX_MONSTERS} monstruos.<br>Libera uno para hacer espacio.`)
     : 'Un huevo misterioso: nadie sabe qué saldrá.<br>Adóptalo, tócalo varias veces para que nazca y ponle nombre.<br><small>Puedes adoptar 1 huevo al día.</small>';
   $('btnNew').hidden = mine;
   renderShopUlts(mine);
@@ -2418,7 +2422,7 @@ function renderAdopt() {
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
 function updateEggBtn() {
-  const full = save.monsters.length >= MAX_MONSTERS, today = eggBoughtToday(), b = $('btnNew');
+  const full = save.monsters.length >= slotCap(), today = eggBoughtToday(), b = $('btnNew');
   b.disabled = full || today || save.coins < EGG_COST;
   if (today) { const m = new Date(); m.setHours(24, 0, 0, 0); const t = Math.ceil((m - Date.now()) / 60000); b.innerHTML = `Próximo huevo en ${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min`; }
   else b.innerHTML = save.coins < EGG_COST && !full ? `Te faltan ${EGG_COST - save.coins} monedas` : `Adoptar este huevo · <span class="ci"></span>${EGG_COST}`;
@@ -2476,14 +2480,14 @@ function renderBreed(thumbs) {
 }
 function updateBreedBtn() {
   const go = $('bdGo'); if (!go) return;
-  const full = save.monsters.length >= MAX_MONSTERS, n = breedSel.size;
+  const full = save.monsters.length >= slotCap(), n = breedSel.size;
   go.disabled = full || n < 2 || save.coins < BREED_COST;
-  go.innerHTML = full ? `Tienes el máximo de ${MAX_MONSTERS} monstruos` : n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
+  go.innerHTML = full ? `Sin espacio para la cría (${save.monsters.length}/${slotCap()})` : n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
   if ($('bdCount')) $('bdCount').textContent = `${n}/2`;
 }
 async function doBreed() {
   const [A, B] = [...breedSel].map(i => save.monsters[i]);
-  if (!A || !B || A.bred || B.bred || save.breeding || save.coins < BREED_COST || save.monsters.length >= MAX_MONSTERS) return;
+  if (!A || !B || A.bred || B.bred || save.breeding || save.coins < BREED_COST || save.monsters.length >= slotCap()) return;
   if (!await ask(`¿Criar a ${A.name} y ${B.name} por ${BREED_COST} monedas? Dormirán ${BREED_NAP_MS / 60000} min y el huevo incubará ${INCUBATE_MS / 3600000} horas.`, { ok: 'Criar' })) return;
   if (save.breeding || save.coins < BREED_COST) return;
   save.coins -= BREED_COST;
@@ -2514,7 +2518,7 @@ function renderShopUlts(hide) {
   });
 }
 $('btnNew').onclick = async () => {
-  if (save.monsters.length >= MAX_MONSTERS || save.adopting || save.coins < EGG_COST || eggBoughtToday()) return;
+  if (save.monsters.length >= slotCap() || save.adopting || save.coins < EGG_COST || eggBoughtToday()) return;
   if (!await ask(`¿Adoptar este huevo por ${EGG_COST} monedas? Tendrás que abrirlo antes de volver.`, { ok: 'Adoptar' })) return;
   if (save.coins < EGG_COST || save.adopting || eggBoughtToday()) return;
   save.coins -= EGG_COST; save.eggDay = dayKey(); $('coins').textContent = save.coins;
@@ -2884,6 +2888,7 @@ function growStep(dt) {
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
       G.rec.stage = G.newM.rec.stage;
       if (G.rec.stage === 'awakened' && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); } // ultimate de regalo al despertar
+      if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) { G.rec.awakeCounted = true; G.newSlot = slotCap() < MAX_MONSTERS; save.slots = Math.min(MAX_MONSTERS, slotCap() + 1); } // +1 espacio para monstruos
       persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
       G.newM.vz = 220; G.newM.mouthOpen = 1; G.newM.setEmo('surprised', 0.8, 3, ['happy', 60]);
@@ -2899,7 +2904,7 @@ function growStep(dt) {
       } else {
         G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
         burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
-        $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó! Ultimate: ${ULTS[G.newM.ultType].name}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!`;
+        $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó! Ultimate: ${ULTS[G.newM.ultType].name}${G.newSlot ? ' · +1 espacio para monstruos' : ''}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!`;
         if (G.rec.stage === 'awakened') G.newM.auraBoost = 2.5;
         if (last) { G.phase = 'done'; $('growOk').hidden = false; }
         else { G.phase = 'between'; G.betweenT = G.t; } // ¡y todavía le falta crecer más!
