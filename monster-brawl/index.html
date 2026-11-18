@@ -14,7 +14,7 @@
 [hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding-block:calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-bottom, 0px) + 10px);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .screen.on{display:flex}
 .screen>*{pointer-events:auto}
@@ -101,6 +101,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .mid{color:var(--acc)}
 .growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
 #growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
+.tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto}
+.tpc{background:var(--panel2);border-radius:14px;padding:6px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;border:2px solid transparent;font-size:12px;color:var(--muted)}
+.tpc b{color:var(--text);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tpc canvas{width:72px;height:72px}
+.tpc.on{border-color:var(--acc);background:#3d3166}
+.tpc:disabled{opacity:.4}
 .win{color:var(--good)}.lose{color:var(--bad)}
 </style>
 </head>
@@ -162,6 +168,18 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="growTitle" id="growTitle"></div>
   <div class="spacer"></div>
   <button class="btn primary" id="growOk" hidden>Continuar</button>
+</div>
+
+<div class="modal" id="teamPick">
+  <div class="card">
+    <h2 style="font-size:22px">Elige tu equipo</h2>
+    <p id="tpInfo"></p>
+    <div class="tplist" id="tpList"></div>
+    <div class="row">
+      <button class="btn" id="tpNo">Cancelar</button>
+      <button class="btn primary" id="tpGo">Pelear</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="result">
@@ -1208,7 +1226,7 @@ class Battle {
   constructor(ms, mode) {
     this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
     this.time = 0; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
-    this.player = ms.find(m => m.isPlayer);
+    this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
     const P = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
     ms.forEach((m, i) => {
       m.x = P[i][0] * ARENA_W; m.y = P[i][1] * ARENA_D;
@@ -1361,10 +1379,12 @@ function teamColor(m, mode) {
 
 function drawArena(ctx) {
   const g0 = TOP, g1 = TOP + ARENA_D * DEPTH;
-  const wg = ctx.createLinearGradient(0, g0 - 80, 0, g0); wg.addColorStop(0, '#3a2d5c'); wg.addColorStop(1, '#4d3c76');
-  ctx.fillStyle = wg; ctx.fillRect(-40, g0 - 80, ARENA_W + 80, 80);
+  // muro del fondo: ocupa todo el espacio sobre el suelo (ahí se ven los cuerpos de los que están atrás)
+  const wh = Math.ceil(TOP / 20) * 20, wy = g0 - wh;
+  const wg = ctx.createLinearGradient(0, wy, 0, g0); wg.addColorStop(0, '#2a2046'); wg.addColorStop(1, '#4d3c76');
+  ctx.fillStyle = wg; ctx.fillRect(-40, wy, ARENA_W + 80, wh);
   ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
-  for (let r = 0; r < 4; r++) { const y = g0 - 80 + r * 20; ctx.beginPath(); ctx.moveTo(-40, y); ctx.lineTo(ARENA_W + 40, y); ctx.stroke(); for (let x = -40 + (r % 2) * 25; x < ARENA_W + 40; x += 50) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20); ctx.stroke(); } }
+  for (let r = 0; r < wh / 20; r++) { const y = wy + r * 20; ctx.beginPath(); ctx.moveTo(-40, y); ctx.lineTo(ARENA_W + 40, y); ctx.stroke(); for (let x = -40 + (r % 2) * 25; x < ARENA_W + 40; x += 50) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20); ctx.stroke(); } }
   const gg = ctx.createLinearGradient(0, g0, 0, g1); gg.addColorStop(0, '#b8925e'); gg.addColorStop(1, '#e0bd80');
   ctx.fillStyle = gg; ctx.fillRect(-40, g0, ARENA_W + 80, g1 - g0);
   ctx.strokeStyle = 'rgba(90,50,20,.12)'; ctx.lineWidth = 1.5;
@@ -1486,6 +1506,7 @@ function celebrate(text, col) {
 // ============================================================================
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Diálogo propio (los alert/confirm/prompt nativos no funcionan en todas partes y se ven feos en una app)
 function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = false } = {}) {
@@ -1524,7 +1545,7 @@ function renderHome() {
   wakeUp();
   if (homePage === 1) setTimeout(renderTrain);
   const rec = cur(), isEgg = rec.stage === 'egg';
-  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = !canFight(rec));
+  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
   $('rest').hidden = !resting(rec);
   updateRest();
@@ -1654,7 +1675,45 @@ $('btnFree').onclick = async () => {
   if (!await ask(`¿Liberar a ${cur().name}? No vuelve.`, { ok: 'Liberar' })) return;
   save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
 };
-document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startBattle(b.dataset.mode));
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === '2v2' ? openTeamPick() : startBattle(b.dataset.mode, [cur()]));
+
+// ---------- Selector de equipo (2 vs 2) ----------
+let lastTeam = null;
+function drawThumb(c2, rec) {
+  const c = c2.getContext('2d'), m = new Monster(rec); m.resetRig();
+  for (let i = 0; i < 20; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
+  const sz = m.estSize(), k = Math.min(112 / Math.max(sz.h, 70), 120 / Math.max(sz.w, 70));
+  c.clearRect(0, 0, 144, 144); c.save(); c.translate(72, 136); c.scale(k, k); m.draw(c); c.restore();
+}
+function openTeamPick() {
+  const sel = new Set(), list = $('tpList'), ready = save.monsters.filter(canFight).length;
+  if (canFight(cur())) sel.add(save.sel);
+  list.innerHTML = '';
+  save.monsters.forEach((r, i) => {
+    if (r.stage === 'egg') return;
+    const b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !canFight(r);
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level} · ${STAGE_NAME[r.stage]}</span><span>${resting(r) ? 'descansando' : hearts(r.lives)}</span>`;
+    drawThumb(b.querySelector('canvas'), r);
+    b.onclick = () => { if (sel.has(i)) sel.delete(i); else { if (sel.size >= 2) sel.delete([...sel][0]); sel.add(i); } refresh(); };
+    list.appendChild(b);
+  });
+  const go = $('tpGo');
+  const refresh = () => {
+    list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel.has(+c.dataset.i)));
+    if (ready >= 2) { go.disabled = sel.size !== 2; go.textContent = sel.size === 2 ? 'Pelear' : `Elige ${2 - sel.size} más`; }
+  };
+  if (ready >= 2) {
+    $('tpInfo').textContent = 'Elige 2 de tus monstruos para pelear juntos.';
+    go.onclick = () => { $('teamPick').classList.remove('on'); startBattle('2v2', [...sel].map(i => save.monsters[i])); };
+  } else {
+    $('tpInfo').textContent = 'Necesitas 2 monstruos nacidos y con vidas para elegir equipo. Puedes pelear con un aliado al azar.';
+    go.disabled = !canFight(cur()); go.textContent = 'Con aliado al azar';
+    go.onclick = () => { $('teamPick').classList.remove('on'); startBattle('2v2', [cur()]); };
+  }
+  $('tpNo').onclick = () => $('teamPick').classList.remove('on');
+  refresh();
+  $('teamPick').classList.add('on');
+}
 
 // Toque corto sobre el monstruo = sacudirlo. Arrastrar el dedo encima = acariciarlo.
 let touch = null, petAcc = 0;
@@ -1721,25 +1780,31 @@ function pet(a, b) {
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
 }
 
-function startBattle(mode) {
-  if (!canFight(cur())) { goHome(); return; }
-  lastMode = mode;
-  const me = cur();
-  const zoom = { baby: 0.6, child: 0.7, teen: 0.82, adult: 1 }[me.stage] || 1;
+function startBattle(mode, team) {
+  team = team || (mode === '2v2' && lastTeam) || [cur()];
+  if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
+    goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
+  }
+  lastMode = mode; lastTeam = mode === '2v2' ? team : null;
+  const me = team[0];
+  const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1 }[r.stage] || 1)));
   ARENA_W = 600 * zoom;
-  const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
-  const foe = () => {
-    const r = newRec(me.stage); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1);
+  const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
+  const foe = ref => { // rival de la misma etapa y nivel parecido
+    const r = newRec(ref.stage); r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
     r.train = {}; for (let i = Math.floor(r.level * 1.2); i > 0; i--) { const t = TRAIN[Math.floor(Math.random() * TRAIN.length)].k; r.train[t] = Math.min(TRAIN_MAX, (r.train[t] || 0) + 1); }
     return new Monster(r);
   };
-  const list = [pm];
-  if (mode === '1v1') { const e = foe(); e.team = 1; list.push(e); }
-  else if (mode === '2v2') { const al = foe(); al.team = 0; list.push(al); for (let i = 0; i < 2; i++) { const e = foe(); e.team = 1; list.push(e); } }
-  else for (let i = 0; i < 3; i++) { const e = foe(); e.team = i + 1; list.push(e); }
+  const list = [...players];
+  if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
+  else if (mode === '2v2') {
+    if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
+    for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
+  }
+  else for (let i = 0; i < 3; i++) { const e = foe(me); e.team = i + 1; list.push(e); }
   $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
   $('modeLbl').textContent = { '1v1': '1 vs 1', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${m.name} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
   // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores
   if (H / W > 1.25) {
     const k = W / (ARENA_W + 60), avail = H - $('fighters').getBoundingClientRect().bottom - 8 - 16;
@@ -1785,10 +1850,10 @@ function partNodes(M, key) {
   return [];
 }
 function checkGrowth() {
-  const rec = cur();
-  if (!rec || rec.stage === 'egg' || rec.legacy || scene !== 'home') return false;
+  const elig = r => r && r.stage !== 'egg' && !r.legacy && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
+  const rec = [cur(), ...save.monsters].find(elig);
+  if (!rec || scene !== 'home') return false;
   const target = stageForLevel(rec.level);
-  if (STAGE_ORDER.indexOf(target) <= STAGE_ORDER.indexOf(rec.stage)) return false;
   const oldM = new Monster(rec), newM = new Monster({ ...rec, stage: target });
   rec.stage = target; persist();
   const oe = oldM.estSize(), ne = newM.estSize();
@@ -1853,35 +1918,36 @@ function drawGrow() {
 $('growOk').onclick = () => {
   growAnim = null; scene = 'home';
   $('growUI').classList.remove('on'); $('home').classList.add('on');
-  renderHome(); show.vz = 240; show.setEmo('happy', 2, 3);
+  renderHome();
+  if (!checkGrowth()) { show.vz = 240; show.setEmo('happy', 2, 3); } // ¿hay otro que también crece?
 };
 $('quit').onclick = async () => { if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome(); };
 $('resHome').onclick = goHome;
 $('resAgain').onclick = () => startBattle(lastMode);
 
 function finishBattle() {
-  const rec = cur(), pm = battle.player, rank = battle.ranking;
-  const place = rank.indexOf(pm.team) + 1, nTeams = rank.length;
+  const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
   const [bx, bc] = (REWARDS[nTeams] || REWARDS[2])[place - 1];
-  const xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
-  rec.xp += xp; save.coins += coins;
-  place === 1 ? rec.wins++ : rec.losses++;
-  // vidas: sólo se pierde una si lo noquearon
-  let lifeTxt = '';
-  if (pm.dead) {
-    rec.lives = Math.max(0, rec.lives - 1);
-    if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
-    else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
-  }
+  const lines = battle.players.map(pm => {
+    const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
+    rec.xp += xp; save.coins += coins;
+    place === 1 ? rec.wins++ : rec.losses++;
+    // vidas: sólo se pierde una si lo noquearon
+    let lifeTxt = '';
+    if (pm.dead) {
+      rec.lives = Math.max(0, rec.lives - 1);
+      if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
+      else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
+    }
+    let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
+    return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
+  });
   wakeUp();
-  let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
-  $('resText').innerHTML = `${rec.name} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.`
-    + lifeTxt
-    + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
-  $('resAgain').disabled = !canFight(rec);
+  $('resText').innerHTML = lines.join('<br><br>');
+  $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
 }
 
