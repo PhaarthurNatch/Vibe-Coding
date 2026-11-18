@@ -69,7 +69,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 | `class Monster` | Esqueleto de nodos con resortes (partes "floaty"), `animate`, `rigStep`, IA en `think` (objetivo, eje de lock-in, ataques, esquiva, ultimate), dibujo de cada parte, expresiones (`face`, `setEmo`), aura |
 | `class Battle` | Paso de simulación, golpes (`hit`), proyectiles, ultimates (`startUlt` → cinemática → `execUlt`), muerte súbita, ranking final |
 | Guardado | `SAVE_KEY = 'monster_brawl_v1'` en localStorage, `newRec`, `loadSave` (incluye migraciones), `persist` |
-| UI | Menú con 3 páginas deslizables: Tienda (izquierda: huevo por adoptar y ultimates, `renderShopUlts`; `adoptRec`/`adoptEgg`, `renderAdopt`; se puede tocar para que bambolee o mantener para tomarlo y lanzarlo, `EggView.homeStep`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar (derecha), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar; en el Home deslizar arriba/abajo cambia de monstruo (`switchMonster`; arriba = siguiente); deslizar a los lados en cualquier parte cambia de página: sobre el monstruo sólo un trazo largo y rápido, y un deslizamiento no aprieta botones), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
+| UI | Menú con 3 páginas deslizables: Tienda (izquierda: huevo por adoptar y ultimates, `renderShopUlts`; `adoptRec`/`adoptEgg`, `renderAdopt`; se puede tocar para que bambolee o mantener para tomarlo y lanzarlo, `EggView.homeStep`) / Home (el monstruo, `homePage` 1, página inicial) / Entrenar (derecha), huevo (`EggView`), gestos (tocar = sacudir, deslizar = acariciar, mantener = tomar/lanzar; en el Home deslizar arriba/abajo cambia de monstruo (`switchMonster`; arriba = siguiente; **no hay flechas**, el dueño las quitó); la pestaña Entrenar brilla dorada si el monstruo tiene puntos por gastar; deslizar a los lados en cualquier parte cambia de página: sobre el monstruo sólo un trazo largo y rápido, y un deslizamiento no aprieta botones), selector de equipo 2v2, combate, resultado, animación de crecimiento (`checkGrowth`/`growStep`) |
 
 ## Reglas y decisiones de diseño vigentes (no revertir sin que el dueño lo pida)
 
@@ -79,7 +79,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   "Otra pelea" sigue usando la etapa actual.
 - **Huevo:** se compra en la Tienda (página izquierda) por 60 monedas (`EGG_COST`; el primero de una partida nueva es gratis) y **se abre ahí mismo** (tocándolo varias veces; mientras tanto no se puede salir de Adoptar, `adoptLocked`); al nacer pasa al Home y se le pone nombre. La adopción en curso se guarda en `save.adopting`. Una partida nueva empieza así (sin monstruos, en Adoptar). Los huevos que ya estaban en la lista de partidas antiguas siguen naciendo en el Home.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
-- **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
+- **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
   La pantalla se mantiene encendida durante los combates (Wake Lock).
 - **IA — objetivo** (`Monster.scoreTarget`): cada 0,5 s puntúa a cada enemigo con factores de 0 a 1 (misma escala en todas las etapas):
@@ -89,6 +89,9 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
+- **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
+  el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light`, compensa que perdió las cadenas).
+  Racha máxima bajó de ~18–25 golpes seguidos a ~13. Livianos ~45% / pesados ~54% en 1v1 (antes 47/51). `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   Pendiente (dueño): un gasto de monedas para el juego avanzado, p. ej. la cría.
@@ -99,7 +102,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Ultimate (Awakened):** equipable y cambiable desde Entrenar (ahí **sólo** aparecen las desbloqueadas). Al despertar trae una de regalo (`starterUlt`); las demás se **compran en la Tienda** por 150 monedas
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
   Una por pelea, se recarga al empezar cada pelea (no hay recarga con monedas). Antes de lanzarla carga 1,3 s y hay acercamiento de cámara.
-  Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
+  Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
   El jugador elige cuándo la usa: apenas pueda / como remate / para salvarse.
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
@@ -120,7 +123,7 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
   y el Prudente huye menos lejos con poca vida (`ffaRetreat`); en equipo disparan más seguido (`teamCover` 0,75; el dueño lo pidió bajar dos veces desde 0,45 porque se veía exagerado, así que el Cauto en 2v2 queda algo bajo, ~41–44%) y el Cauto se aleja menos tras golpear (`teamBackoff`).
   1 vs 1 no cambia. Subir más `ffaFire` casi no baja al Cauto (su ventaja es sobrevivir, no el daño).
   Cambios de objetivo por pelea (todos contra todos): Terco ~0,7, Oportunista ~2,6.
-- Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%). Las de daño usan el ataque más fuerte (`ultPow`).
+- Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%); con el Escudo de hierro invulnerable: ~51% en 1v1 y ~36% en todos contra todos. Las de daño usan el ataque más fuerte (`ultPow`).
 
 ## Ideas pendientes / posibles siguientes pasos
 

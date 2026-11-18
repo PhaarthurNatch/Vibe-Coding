@@ -32,7 +32,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name{flex:1;text-align:center}
 .nav .name b{font-size:20px;display:block}
 .nav .name span{font-size:12px;color:var(--muted)}
-.arrow{width:46px;height:46px;border-radius:50%;font-size:20px;background:var(--panel2)}
 .hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
 .panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
@@ -45,6 +44,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs{display:flex;justify-content:center;gap:6px;margin:4px 0 6px}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
+.tabs button.glow{color:#ffd36b;animation:tabglow 1.6s ease-in-out infinite} /* Entrenar con puntos por gastar */
+@keyframes tabglow{0%,100%{text-shadow:0 0 4px rgba(255,190,60,.45)}50%{text-shadow:0 0 12px rgba(255,200,70,.95),0 0 22px rgba(255,170,40,.55)}}
+@media (prefers-reduced-motion:reduce){.tabs button.glow{animation:none;text-shadow:0 0 8px rgba(255,190,60,.7)}}
 .pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
 .track{display:flex;width:300%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
 .page{width:33.3333%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
@@ -92,7 +94,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #dialog.low{align-items:flex-end;padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);background:rgba(10,6,20,.35)}
 .card input{font:inherit;font-size:17px;padding:12px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);text-align:center;width:100%}
 .card input:focus{outline:none;border-color:var(--acc)}
-.btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .btn:disabled{opacity:.35;pointer-events:none}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -165,9 +167,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   </div>
   <div class="page">
   <div class="nav">
-    <button class="arrow" id="prev">◀</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
-    <button class="arrow" id="next">▶</button>
   </div>
   <div class="spacer" id="showArea"></div>
   <div class="hint" id="hint" hidden></div>
@@ -270,7 +270,7 @@ const ULT_CHARGE_S = 1.3;      // se queda cargando energía antes de lanzarla
 const ULTS = {
   melee: { name: 'Onda de choque', desc: 'golpea todo a su alrededor y lo lanza al otro lado de la arena' },
   ranged: { name: 'Bala gigante', desc: 'dispara una bala enorme que daña todo lo que toca hasta salir de la arena' },
-  defense: { name: 'Escudo de hierro', desc: `recibe 40% menos daño por ${ULT_BUFF_S} s` },
+  defense: { name: 'Escudo de hierro', desc: `no recibe daño por ${ULT_BUFF_S} s` },
   speed: { name: 'Supervelocidad', desc: `se mueve y ataca el doble de rápido por ${ULT_BUFF_S} s` },
   dodge: { name: 'Reflejos fantasma', desc: `esquiva el doble por ${ULT_BUFF_S} s` },
 };
@@ -278,7 +278,7 @@ const ULTS = {
 const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge'];
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
-const SHIELD_MUL = 0.6; // Escudo de hierro: recibe 40% menos daño
+const SHIELD_MUL = 0; // Escudo de hierro: no recibe daño (igual lo empujan)
 const starterUlt = seed => ULT_KEYS[rng((seed ^ 0x1234abcd) >>> 0).i(0, ULT_KEYS.length - 1)]; // la que trae de regalo al despertar
 const ownsUlt = k => (save.ults || []).includes(k);
 function grantUlt(k) { save.ults = save.ults || []; if (!save.ults.includes(k)) save.ults.push(k); }
@@ -296,13 +296,17 @@ const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 -
 const OT_START = 60, OT_RAMP = 12, HARD_LIMIT = 300;
 const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 // Elección de objetivo: cada enemigo recibe un puntaje con factores de 0 a 1 (ver Monster.scoreTarget)
+// Cadenas de golpes: si te interrumpen el golpe no pierdes toda la espera; tras varios aturdimientos seguidos aguantas un rato;
+// los pesados se aturden menos (compensa que son más lentos)
+const STUN = { interruptCd: 0.25, chain: 2, chainGap: 0.8, immune: 0.6, poise: 0.15, light: 2 }; // light: los livianos pegan más fuerte a los más pesados
+const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // más pesado que quien le pega = se aturde menos
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
 // Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
 // en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
-const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
+const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
@@ -704,7 +708,7 @@ class Monster {
     this.gx = 0; this.gy = 0; this.s = 1;
     this.team = 0; this.state = 'free'; this.stT = 0;
     this.target = null; this.targetTimer = 0; this.lockAx = { x: 1, y: 0 };
-    this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0;
+    this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0; this.stunChain = 0; this.lastStun = -9; this.stunImmune = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
     this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
     // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
@@ -1044,7 +1048,7 @@ class Monster {
   // ---------- IA ----------
   think(dt, B) {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
-    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt;
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt;
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
@@ -1708,7 +1712,9 @@ class Battle {
   hit(a, t, pow, dir, kind) {
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
-    const dmg = Math.max(1, pow * ot * allA * allT * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)) * (t.buffs.defense > 0 ? SHIELD_MUL : 1));
+    const lightB = a.st.weight < t.st.weight ? Math.pow(t.st.weight / a.st.weight, STUN.light) : 1; // golpe/disparo preciso del más liviano
+    const shielded = t.buffs.defense > 0;
+    const dmg = shielded ? pow * SHIELD_MUL : Math.max(1, pow * ot * allA * allT * lightB * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)));
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
     t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
@@ -1716,7 +1722,14 @@ class Battle {
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
     t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
-    if (t.state !== 'dead' && t.state !== 'ultcharge') { t.state = 'hitstun'; t.stT = 0.12 + Math.min(0.4, kb / 1600); }
+    if (t.state !== 'dead' && t.state !== 'ultcharge') {
+      if (t.state === 'windup' || t.state === 'strike') t.meleeCd = Math.min(t.meleeCd, STUN.interruptCd); // le cortaron el golpe: puede reintentar pronto
+      if (t.stunImmune <= 0) {
+        if (this.time - t.lastStun > STUN.chainGap) t.stunChain = 0;
+        t.state = 'hitstun'; t.stT = (0.12 + Math.min(0.4, kb / 1600)) * stunMul(a.st.weight, t.st.weight); t.lastStun = this.time;
+        if (++t.stunChain >= STUN.chain) { t.stunImmune = STUN.immune + t.stT; t.stunChain = 0; } // aguanta: el próximo golpe no lo frena
+      }
+    }
     if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
     for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
@@ -1726,7 +1739,7 @@ class Battle {
       const a2 = Math.random() * TAU, sp = 60 + Math.random() * 200;
       this.parts.push({ x: hx, y: hy, vx: Math.cos(a2) * sp + dir.x * 80, vy: Math.sin(a2) * sp - 60, life: 0.35 + Math.random() * 0.25, col: col || hsl(a.g.pal.accent, 15), r: 2 + Math.random() * 2.5 });
     }
-    this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
+    if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
     if (t.hp <= 0 && !t.dead) {
       t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true);
@@ -1784,6 +1797,16 @@ class Battle {
   }
 
   step(dt) {
+    if (this.introT > 0) { // cuenta regresiva: se mueven en el lugar, todavía no pelean
+      const n0 = Math.ceil(this.introT / INTRO_STEP);
+      this.introT -= dt;
+      for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+      this.shake *= Math.exp(-dt * 10);
+      if (this.introT <= 0) { this.fightT = 0; this.shake = 14; for (const m of this.ms) { m.setEmo('angry', 1.2, 3); m.vz = 160; } }
+      else if (Math.ceil(this.introT / INTRO_STEP) !== n0) this.shake = 6;
+      return;
+    }
+    if (this.fightT != null && this.fightT < FIGHT_S) this.fightT += dt;
     if (this.cine) { this.cineStep(dt); return; } // la pelea se pausa durante el acercamiento de cámara
     this.time += dt;
     for (const m of this.ms) m.think(dt, this);
@@ -2070,6 +2093,8 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
+// Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
+const INTRO_STEP = 1.2, INTRO_S = INTRO_STEP * 3, FIGHT_S = 1.3;
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null;
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
@@ -2099,7 +2124,7 @@ function renderHome() {
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; tb.classList.toggle('glow', free > 0); }
   $('rest').hidden = !resting(rec);
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2170,7 +2195,7 @@ addEventListener('pointerup', e => {
     swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
   }
 });
-// Cambiar de monstruo (flechas o deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
+// Cambiar de monstruo (deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
 function switchMonster(d) {
   save.sel = (save.sel + d + save.monsters.length) % save.monsters.length; persist(); renderHome(); checkGrowth();
   if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; } }
@@ -2271,8 +2296,6 @@ function nameNewborn(rec) {
   }, 1100);
 }
 
-$('prev').onclick = () => switchMonster(-1);
-$('next').onclick = () => switchMonster(1);
 $('nameBox').onclick = async () => {
   if (cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Página Adoptar: muestra el huevo que te llevarías. Al adoptarlo se abre ahí mismo (tocándolo varias veces);
@@ -2504,10 +2527,33 @@ function startBattle(mode, team) {
     ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
   } else ARENA_D = 560 * zoom;
   battle = new Battle(list, mode);
+  battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
   scene = 'battle';
   keepAwake(true);
 }
 
+// Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
+function drawIntro(b) {
+  let txt, p, big = false;
+  if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
+  else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
+  else return;
+  ctx.fillStyle = `rgba(10,5,20,${b.introT > 0 ? 0.35 : 0.35 * (1 - p)})`; ctx.fillRect(0, 0, W, H);
+  if (big && p < 0.15) { ctx.fillStyle = `rgba(255,240,210,${0.55 * (1 - p / 0.15)})`; ctx.fillRect(0, 0, W, H); } // destello
+  const pop = 1 - Math.pow(1 - clamp(p / 0.16, 0, 1), 3);
+  const sc = (big ? 2 : 2.6) - (big ? 1 : 1.6) * pop + Math.max(0, p - 0.7) * (big ? 0.5 : 0.3);
+  const a = clamp(p / 0.06, 0, 1) * clamp((1 - p) / 0.22, 0, 1), sh = p < 0.25 ? (1 - p / 0.25) * (big ? 16 : 9) : 0;
+  const fs = Math.min(W * (big ? 0.22 : 0.42), H * 0.3);
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.translate(W / 2 + (Math.random() - 0.5) * sh, H * 0.46 + (Math.random() - 0.5) * sh); ctx.scale(sc, sc); if (big) ctx.rotate(-0.05);
+  ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(txt, 0, fs * 0.04);
+  const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5);
+  (big ? ['#fff6c2', '#ffc21a', '#ff5a12', '#a3100a'] : ['#ffffff', '#ffe08a', '#e0901f', '#7a3a08']).forEach((c, i) => g.addColorStop(i / 3, c));
+  ctx.fillStyle = g; ctx.fillText(txt, 0, 0);
+  ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(txt, 0, 0);
+  ctx.restore(); ctx.globalAlpha = 1;
+}
 function drawBanner(b) {
   const a = clamp(b.t / 0.2, 0, 1) * clamp((2.4 - b.t) / 0.4, 0, 1), y = H * 0.42, sc = 1 + (1 - clamp(b.t / 0.25, 0, 1)) * 0.5;
   ctx.globalAlpha = a; ctx.textAlign = 'center';
@@ -2779,6 +2825,7 @@ function loop(now) {
     ctx.restore();
     if (battle.cine) drawCineOverlay(battle.cine);
     if (battle.banner) drawBanner(battle.banner);
+    drawIntro(battle);
     if (++frame % 6 === 0) updateFighters();
     if (battle.over && battle.endT > 1.8 && !battle.reported) { battle.reported = true; updateFighters(); finishBattle(); }
   }
