@@ -85,6 +85,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .card h2{margin:0;font-size:28px}
 .card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
 #dialog{z-index:6}
+#dialog.low{align-items:flex-end;padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 24px);background:rgba(10,6,20,.35)}
 .card input{font:inherit;font-size:17px;padding:12px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);text-align:center;width:100%}
 .card input:focus{outline:none;border-color:var(--acc)}
 .btn:focus-visible,.arrow:focus-visible,.roundbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
@@ -1449,7 +1450,7 @@ const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 
 // Diálogo propio (los alert/confirm/prompt nativos no funcionan en todas partes y se ven feos en una app)
-function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar' } = {}) {
+function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = false } = {}) {
   return new Promise(res => {
     const d = $('dialog'), inp = $('dlgInput'), yes = $('dlgYes'), no = $('dlgNo');
     $('dlgText').textContent = text;
@@ -1459,7 +1460,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar' } = {}) {
     yes.onclick = () => done(input === null ? true : inp.value);
     no.onclick = () => done(input === null ? false : null);
     inp.onkeydown = e => { if (e.key === 'Enter') yes.onclick(); };
-    d.classList.add('on');
+    d.classList.toggle('low', low); d.classList.add('on');
     if (input !== null) setTimeout(() => { inp.focus(); inp.select(); }, 50);
   });
 }
@@ -1596,7 +1597,17 @@ function tapEgg() {
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
-  celebrate(`¡Nació ${rec.name}!`);
+  celebrate('¡Nació!');
+  // después de verlo nacer, le pones nombre (viene uno al azar sugerido)
+  setTimeout(async () => {
+    const n = await ask('¡Nació tu monstruo! ¿Cómo se llamará?', { input: rec.name, ok: 'Listo', cancel: null, low: true });
+    if (n && n.trim()) rec.name = n.trim().slice(0, 16);
+    persist();
+    if (scene === 'home' && cur() === rec) {
+      $('mName').textContent = rec.name; if (homePage === 1) renderTrain();
+      show.vz = 260; show.setEmo('happy', 2, 3); fx.label = `¡Hola, ${rec.name}!`; fx.labelT = 2.2;
+    }
+  }, 1100);
 }
 
 $('prev').onclick = () => { save.sel = (save.sel - 1 + save.monsters.length) % save.monsters.length; persist(); renderHome(); };
