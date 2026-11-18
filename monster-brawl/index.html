@@ -297,6 +297,9 @@ const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
+// Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
+// en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
+const KITE = { ffaDist: 0.45, ffaFire: 1.6, ffaRetreat: 0.35, teamCover: 0.45, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
@@ -1087,7 +1090,7 @@ class Monster {
       case 'strike':
         this.strikeExt = clamp(1 - this.stT / 0.14, 0, 1);
         this.checkMelee(B);
-        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; if (this.tp.agr < -0.25) this.backoff = 0.6 * -this.tp.agr; }
+        if (this.stT <= 0) { this.state = 'recover'; this.stT = 0.22; if (this.tp.agr < -0.25) this.backoff = 0.6 * -this.tp.agr * (B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamBackoff : 1); }
         break;
       case 'ultcharge':
         if (this.stT <= 0) { if (!B.cine && !B.over) B.startUlt(this); else this.stT = 0.1; }
@@ -1107,11 +1110,11 @@ class Monster {
     this.lockAx.x = Math.cos(na); this.lockAx.y = Math.sin(na);
     const ax = this.lockAx.x, ay = this.lockAx.y, px = -ay, py = ax;
     const reachD = this.r + T.r + this.st.reach * 0.85;
-    const pref = this.kiter ? Math.min(this.st.range * 0.7, 230) * (1 - this.tp.agr * 0.25) : reachD * 0.9;
+    const pref = this.kiter ? Math.max(reachD + 45, Math.min(this.st.range * 0.7, 230) * (1 - this.tp.agr * 0.25) * (B.mode === 'ffa' ? KITE.ffaDist : 1)) : reachD * 0.9;
     let fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
     if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
     const lowHp = this.hp / this.st.hp < this.scaredHp;
-    if (lowHp && this.tp.valor < -0.2 && d < 240) fwd = -1; // Prudente con poca vida: se aleja
+    if (lowHp && this.tp.valor < -0.2 && d < 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1)) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1167,7 +1170,8 @@ class Monster {
   }
 
   shoot(T, B) {
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1);
+    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover;
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;

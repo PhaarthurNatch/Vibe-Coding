@@ -112,8 +112,11 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
 
 - Misma etapa: ~46–60% de victorias para tu monstruo (lo esperado es 50%).
 - Estilos de personalidad en 1v1: todos ganan parecido; cambian la forma de pelear (distancia, cambios de objetivo, comportamiento con poca vida).
-- Con el nuevo objetivo (medido 250 peleas): todos contra todos Agresivo ~20% / Cauto ~38% (esperado 25%); 2v2 Agresivo ~55% / Cauto ~41%.
-  Ese desbalance Agresivo↔Cauto **ya existía antes** del cambio de objetivo (viene del movimiento: el Agresivo se mete al medio). Terco/Oportunista/Valiente/Prudente: 22–28% y 45–53%.
+- Personalidades por modo (900 peleas c/u, tras el ajuste `KITE`): todos contra todos 23–27% (Cauto ~29%; esperado 25%), 2 vs 2 48–52%.
+  Antes del ajuste el Cauto (casi siempre pelea a distancia) ganaba ~38% en todos contra todos y ~41% en 2 vs 2, y el Prudente ~33% en todos contra todos.
+  `KITE` (sólo para los que pelean a distancia, salvo `ffaRetreat`): en todos contra todos se quedan más cerca (`ffaDist`) y disparan más lento (`ffaFire`),
+  y el Prudente huye menos lejos con poca vida (`ffaRetreat`); en equipo disparan más seguido (`teamCover`) y el Cauto se aleja menos tras golpear (`teamBackoff`).
+  1 vs 1 no cambia. Subir más `ffaFire` casi no baja al Cauto (su ventaja es sobrevivir, no el daño).
   Cambios de objetivo por pelea (todos contra todos): Terco ~0,7, Oportunista ~2,6.
 - Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%). Las de daño usan el ataque más fuerte (`ultPow`).
 
