@@ -62,7 +62,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 
 | Parte | Qué hay |
 |---|---|
-| Constantes al inicio | Arena (`ARENA_W/D`, `DEPTH`, `TOP`), ultimates (`ULTS`, `ULT_*`, `SHIELD_MUL`, `ultPow`), muerte súbita (`OT_*`), odio (`HATE_*`), miedo (`SCARED_HP`) |
+| Constantes al inicio | Arena (`ARENA_W/D`, `DEPTH`, `TOP`), ultimates (`ULTS`, `ULT_*`, `SHIELD_MUL`, `ultPow`), muerte súbita (`OT_*`), elección de objetivo (`TGT_*`, pesos `TGT_W`), miedo (`SCARED_HP`) |
 | Genoma | `rng` con semilla, `genGenome(seed, stage, legacy, v3)` → `baseGenome` → `rollGenome`/`growFrom` (crecer conserva partes), `applyVariety` (partes/colores extra, sólo gen 3), `STAGE_LIM` (qué partes permite cada etapa) |
 | Stats | `calcStats(g, level, pts)`, puntos `PTS` (Poder/Aguante/Agilidad/Técnica), `bodyFromTraining` (cambio visual), personalidad `TEMPER`, `DRILLS`, `ULT_MODES` |
 | `class Monster` | Esqueleto de nodos con resortes (partes "floaty"), `animate`, `rigStep`, IA en `think` (objetivo, eje de lock-in, ataques, esquiva, ultimate), dibujo de cada parte, expresiones (`face`, `setEmo`), aura |
@@ -81,7 +81,13 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
   La pantalla se mantiene encendida durante los combates (Wake Lock).
-- **IA:** objetivo = el más cercano; el daño recibido se acumula como odio y pasado un umbral va por quien más le pega ("¡grr!"). Esquivar = salto lateral real.
+- **IA — objetivo** (`Monster.scoreTarget`): cada 0,5 s puntúa a cada enemigo con factores de 0 a 1 (misma escala en todas las etapas):
+  cercanía (tiempo en alcanzarlo según golpe/disparo), amenaza (daño de los últimos ~4 s), rencor (daño de toda la pelea), si lo ataca a él,
+  vulnerable (poca vida / lo remata), distraído (pelea con otro), equipo en 2v2 (mismo objetivo que el compañero, peso bajo a propósito:
+  con más peso se juntaban 97% del tiempo y perjudicaba a los Cautos), amontonamiento en todos contra todos, escudo activo y peligro (DPS relativo).
+  La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
+  Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
+  y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con 30 monedas.
 - **Premios:** XP y monedas según el puesto + bonus por K.O. (`REWARDS`).
 - **Entrenamiento por puntos:** 2 puntos por nivel en Poder/Aguante/Agilidad/Técnica (máx. 20 c/u), reiniciar cuesta 50. El cuerpo cambia con los puntos.
@@ -105,7 +111,10 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
 ## Equilibrio (último estado medido)
 
 - Misma etapa: ~46–60% de victorias para tu monstruo (lo esperado es 50%).
-- Estilos de personalidad: todos ganan parecido; cambian la forma de pelear (distancia, cambios de objetivo, comportamiento con poca vida).
+- Estilos de personalidad en 1v1: todos ganan parecido; cambian la forma de pelear (distancia, cambios de objetivo, comportamiento con poca vida).
+- Con el nuevo objetivo (medido 250 peleas): todos contra todos Agresivo ~20% / Cauto ~38% (esperado 25%); 2v2 Agresivo ~55% / Cauto ~41%.
+  Ese desbalance Agresivo↔Cauto **ya existía antes** del cambio de objetivo (viene del movimiento: el Agresivo se mete al medio). Terco/Oportunista/Valiente/Prudente: 22–28% y 45–53%.
+  Cambios de objetivo por pelea (todos contra todos): Terco ~0,7, Oportunista ~2,6.
 - Ultimates: 44–54% en 1v1 y 24–34% en todos contra todos (esperado 25%). Las de daño usan el ataque más fuerte (`ultPow`).
 
 ## Ideas pendientes / posibles siguientes pasos
