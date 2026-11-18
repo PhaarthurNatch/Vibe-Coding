@@ -188,6 +188,7 @@ let ARENA_D = 560;                    // fondo del suelo (más largo con el celu
 const DEPTH = 0.7;                    // compresión de profundidad (vista 2.5D)
 const TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
 const SAVE_KEY = 'monster_brawl_v1';
+const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 const HATE_THRESHOLD = 0.12; // odio (daño recibido) que debe acumular, como fracción de su vida máx., antes de importar
 const HATE_WEIGHT = 14;       // pasado el umbral, cada punto de odio "acerca" al enemigo 14 unidades
 const MAX_MONSTERS = 8;
@@ -443,6 +444,7 @@ class Monster {
     this.desired = { x: 0, y: 0 }; this.atkDir = { x: 1, y: 0 }; this.atkArm = null; this.strikeExt = 0; this.hitSet = new Set();
     this.walkPh = Math.random() * TAU; this.t = Math.random() * 10; this.look = { x: 0, y: 0 }; this.lookAt = null;
     this.blinkT = 2 + Math.random() * 3; this.blink = 0; this.mouthOpen = 0; this.hurtT = 0;
+    this.emo = 'neutral'; this.emoT = 0; this.emoP = 0; this.emoNext = null; this.baseEmo = null; this.winEmo = null;
     this.dead = false; this.deadT = 0; this.alpha = 1;
     const T = this.g.torso;
     this.r = Math.max(16, Math.max(T.upper.w, T.mid ? T.mid.w : 0, T.lower ? T.lower.w : 0) * 0.42);
@@ -548,6 +550,21 @@ class Monster {
     for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; n.x = P.x + n.ox * this.s; n.y = P.y + n.oy * this.s; n.vx = n.vy = 0; }
   }
 
+  // ---------- Expresiones ----------
+  // Prioridad: K.O. > durmiendo > reacción del momento (golpe, ataque, esquiva…) > fin de pelea > asustado (poca vida) > ánimo base
+  face() {
+    if (this.dead) return 'ko';
+    if (this.sleep) return 'sleep';
+    if (this.emoT > 0) return this.emo;
+    if (this.winEmo) return this.winEmo;
+    if (this.hp / this.st.hp < SCARED_HP) return 'scared';
+    return this.baseEmo || 'neutral';
+  }
+  setEmo(e, dur, prio = 1, next = null) {
+    if (this.emoT > 0 && prio < this.emoP) return;
+    this.emo = e; this.emoT = dur; this.emoP = prio; this.emoNext = next;
+  }
+
   // ---------- Animación: define a dónde "quiere" ir cada parte ----------
   animate(dt) {
     const g = this.g, N = this.nodes, I = this.ix, s = this.s;
@@ -556,6 +573,7 @@ class Monster {
     this.mouthOpen = Math.max(0, this.mouthOpen - dt * 3);
     this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 0.12; this.blinkT = 2 + Math.random() * 3.5; }
     this.blink = this.sleep ? 1 : Math.max(0, this.blink - dt);
+    if (this.emoT > 0) { this.emoT -= dt; if (this.emoT <= 0 && this.emoNext) { const [e, d] = this.emoNext; this.setEmo(e, d, 1); } }
     if (this.dead) return;
 
     const sp = Math.hypot(this.vx, this.vy), moving = clamp(sp / 60, 0, 1);
@@ -569,6 +587,7 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
+    if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
       if (this.state === 'strike') { head.ax += this.atkDir.x * 16 * this.strikeExt; head.ay += this.atkDir.y * DEPTH * 10 * this.strikeExt; }
@@ -645,6 +664,7 @@ class Monster {
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
+    if (!this.sleep) this.setEmo('surprised', 0.35, 2, ['happy', 1.1]);
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
     this.lookAt = { x: px, y: py }; clearTimeout(this._lt); this._lt = setTimeout(() => this.lookAt = null, 1500);
   }
@@ -674,7 +694,7 @@ class Monster {
       if (best !== this.target) {
         const prev = this.target;
         this.target = best; const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
-        if (prev && best !== nearest) B.text(this, '¡grr!', '#ff7a7a'); // cambió de objetivo por odio
+        if (prev && best !== nearest) { B.text(this, '¡grr!', '#ff7a7a'); this.setEmo('angry', 1.4, 3); } // cambió de objetivo por odio
       }
       this.targetTimer = 0.6;
     }
@@ -732,6 +752,7 @@ class Monster {
   startMelee(T, ux, uy, B) {
     this.state = 'windup'; this.stT = 0.14 + this.st.weight * 0.05;
     this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd;
+    this.setEmo('angry', 0.7, 2);
     const arms = this.ix.arms;
     if (arms.length) { const side = ux >= 0 ? 1 : -1; const c = arms.filter(a => a.sd === side); this.atkArm = c[Math.floor(Math.random() * c.length)]; }
     else this.atkArm = null;
@@ -766,6 +787,7 @@ class Monster {
     const rc = 110 / Math.sqrt(this.st.weight); // retroceso al disparar
     this.vx -= ux * rc; this.vy -= uy * rc;
     this.state = 'recoil'; this.stT = 0.16; this.mouthOpen = 1;
+    this.setEmo('focus', 0.45, 1);
     head.vx -= ux * 90; head.vy += 30;
   }
 
@@ -782,6 +804,7 @@ class Monster {
     const sp = 330 + this.st.speed * 0.6;
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
     this.state = 'dodge'; this.stT = 0.28;
+    this.setEmo('surprised', 0.5, 2);
     B.text(this, 'esquiva', '#9fe7ff');
   }
 
@@ -945,68 +968,144 @@ class Monster {
     const W = g.head.w * s, H = g.head.h * s, hw = W / 2, hh = H / 2;
     shapePath(ctx, g.head.shape, 0, 0, W, H); fillStroke(ctx, C.body, C.ol, lw * 1.6);
 
-    // Ojos + pupilas
+    // ---------- Expresión ----------
+    const E = this.face(), t = this.t;
     const er = g.eyes.size * s;
+    const jit = () => E === 'scared' ? (Math.random() - 0.5) * er * 0.22 : 0;
+    const blinkOk = !['scared', 'surprised', 'dizzy', 'hurt', 'happy'].includes(E);
+    const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35] }[E]; // [altura del párpado, inclinación]
+    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85 }[E] || 1;
+
     for (const e of g.eyes.pos) {
-      const ex = e[0] * hw, ey = e[1] * hh;
-      ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU);
-      if (this.blink > 0 || this.dead) {
-        ctx.fillStyle = C.bodyD; ctx.fill();
-        ctx.beginPath(); ctx.moveTo(ex - er, ey); ctx.lineTo(ex + er, ey); ctx.lineWidth = lw; ctx.strokeStyle = C.ol; ctx.stroke();
-        continue;
+      const ex = e[0] * hw, ey = e[1] * hh, side = ex < -0.01 ? -1 : ex > 0.01 ? 1 : 0;
+      ctx.lineWidth = lw * 1.3; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (E === 'ko') { // ojos en X
+        ctx.beginPath(); ctx.moveTo(ex - er * 0.6, ey - er * 0.6); ctx.lineTo(ex + er * 0.6, ey + er * 0.6); ctx.moveTo(ex + er * 0.6, ey - er * 0.6); ctx.lineTo(ex - er * 0.6, ey + er * 0.6); ctx.stroke(); continue;
       }
-      fillStroke(ctx, C.sclera, C.ol, lw);
+      if (E === 'sleep' || (this.blink > 0 && blinkOk)) { // cerrados
+        ctx.beginPath(); ctx.arc(ex, ey - er * 0.3, er * 0.8, Math.PI * 0.2, Math.PI * 0.8); ctx.stroke(); continue;
+      }
+      if (E === 'happy') { // ^ ^
+        ctx.lineWidth = lw * 1.6; ctx.beginPath(); ctx.arc(ex, ey + er * 0.35, er * 0.75, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); continue;
+      }
+      if (E === 'hurt') { // > <
+        const d = -side || 1; ctx.lineWidth = lw * 1.6;
+        ctx.beginPath(); ctx.moveTo(ex - d * er * 0.6, ey - er * 0.5); ctx.lineTo(ex + d * er * 0.5, ey); ctx.lineTo(ex - d * er * 0.6, ey + er * 0.5); ctx.stroke(); continue;
+      }
+      ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); fillStroke(ctx, C.sclera, C.ol, lw);
       ctx.save(); ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.clip();
-      const pr = er * g.eyes.pupilSize, lx = this.look.x * (er - pr) * 0.75, ly = this.look.y * (er - pr) * 0.75;
-      if (g.eyes.pupils === 1) this.drawPupil(ctx, ex + lx, ey + ly, pr, C);
-      else if (g.eyes.pupils === 2) { this.drawPupil(ctx, ex + lx - pr * 0.55, ey + ly, pr * 0.65, C); this.drawPupil(ctx, ex + lx + pr * 0.55, ey + ly, pr * 0.65, C); }
-      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(ex - er * 0.35, ey - er * 0.38, er * 0.22, 0, TAU); ctx.fill();
-      if (g.eyes.lid) {
-        ctx.translate(ex, ey); ctx.rotate(g.eyes.lidAng * (ex < 0 ? 1 : -1));
-        ctx.fillStyle = C.body; ctx.fillRect(-er * 1.5, -er * 1.6, er * 3, er * 1.15);
-        ctx.beginPath(); ctx.moveTo(-er * 1.5, -er * 0.45); ctx.lineTo(er * 1.5, -er * 0.45); ctx.lineWidth = lw; ctx.strokeStyle = C.ol; ctx.stroke();
+      if (E === 'dizzy') { // espiral
+        ctx.beginPath(); for (let a = 0; a < TAU * 2.2; a += 0.3) { const rr = er * 0.08 + a * er * 0.06, aa = a + t * 8; a ? ctx.lineTo(ex + Math.cos(aa) * rr, ey + Math.sin(aa) * rr) : ctx.moveTo(ex, ey); }
+        ctx.lineWidth = lw; ctx.strokeStyle = C.pupil; ctx.stroke();
+      } else {
+        const pr = er * g.eyes.pupilSize * pupScale, lx = this.look.x * (er - pr) * 0.75 + jit(), ly = this.look.y * (er - pr) * 0.75 + jit();
+        if (g.eyes.pupils === 1) this.drawPupil(ctx, ex + lx, ey + ly, pr, C);
+        else if (g.eyes.pupils === 2) { this.drawPupil(ctx, ex + lx - pr * 0.55, ey + ly, pr * 0.65, C); this.drawPupil(ctx, ex + lx + pr * 0.55, ey + ly, pr * 0.65, C); }
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(ex - er * 0.35, ey - er * 0.38, er * 0.22, 0, TAU); ctx.fill();
+      }
+      const lid = lidDef ? [lidDef[0], lidDef[1] * -side] : (g.eyes.lid && E === 'neutral' ? [-0.45, g.eyes.lidAng * (ex < 0 ? 1 : -1)] : null);
+      if (lid) {
+        ctx.translate(ex, ey); ctx.rotate(lid[1]);
+        ctx.fillStyle = C.body; ctx.fillRect(-er * 1.5, -er * 2.2, er * 3, er * 2.2 + lid[0] * er);
+        ctx.beginPath(); ctx.moveTo(-er * 1.5, lid[0] * er); ctx.lineTo(er * 1.5, lid[0] * er); ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.stroke();
       }
       ctx.restore();
+      // cejas
+      if (E === 'angry' || E === 'scared' || E === 'sad' || E === 'surprised') {
+        const ang = E === 'angry' ? -side * 0.5 : E === 'surprised' ? 0 : side * 0.45;
+        const by = ey - er * (E === 'surprised' ? 1.65 : E === 'angry' ? 1.15 : 1.4);
+        ctx.save(); ctx.translate(ex, by); ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(-er * 0.8, 0); ctx.lineTo(er * 0.8, 0); ctx.lineWidth = lw * 1.8; ctx.strokeStyle = C.ol; ctx.stroke();
+        ctx.restore();
+      }
     }
 
-    // Boca
-    const my = g.mouth.y * hh, mw = g.mouth.w * hw, o = this.mouthOpen;
+    // ---------- Boca ----------
+    const my = g.mouth.y * hh, mw = g.mouth.w * hw;
+    let o = this.mouthOpen;
     ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    switch (g.mouth.type) {
-      case 'smile':
-        ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * (0.5 + o * 0.7), mw, my);
-        if (o > 0.15) { ctx.closePath(); ctx.fillStyle = C.mouthIn; ctx.fill(); }
-        ctx.stroke(); break;
-      case 'open': {
-        const oh = mw * (0.32 + o * 0.4);
-        ctx.beginPath(); ctx.ellipse(0, my, mw * 0.8, oh, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
-        ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + oh * 0.75, mw * 0.5, oh * 0.6, 0, 0, TAU); ctx.fill(); ctx.restore();
-        break;
-      }
-      case 'fangs':
-        if (o > 0.15) { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.12, mw * 0.85, mw * 0.35 * o, 0, 0, TAU); ctx.fillStyle = C.mouthIn; ctx.fill(); }
-        ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * 0.2, mw, my); ctx.stroke();
-        for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * mw * 0.5 - mw * 0.13, my + mw * 0.08); ctx.lineTo(sx * mw * 0.5, my + mw * 0.5); ctx.lineTo(sx * mw * 0.5 + mw * 0.13, my + mw * 0.08); ctx.closePath(); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
-        break;
-      case 'teeth': {
-        const th = mw * (0.32 + o * 0.45);
-        ctx.beginPath(); rrect(ctx, -mw, my - th / 2, mw * 2, th, th * 0.4); fillStroke(ctx, C.mouthIn, C.ol, lw);
-        ctx.save(); ctx.clip(); ctx.fillStyle = C.white; const n = 5, tw = mw * 2 / n;
-        for (let i = 0; i < n; i++) {
-          const x0 = -mw + i * tw;
-          ctx.beginPath(); ctx.moveTo(x0, my - th / 2); ctx.lineTo(x0 + tw / 2, my - th / 2 + th * 0.38); ctx.lineTo(x0 + tw, my - th / 2); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(x0 + tw * 0.1, my + th / 2); ctx.lineTo(x0 + tw * 0.6, my + th / 2 - th * 0.32); ctx.lineTo(x0 + tw * 1.1, my + th / 2); ctx.fill();
+    const wavy = (amp, n) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const x = -mw * 0.7 + i * mw * 1.4 / n, y = my + (i % 2 ? -amp : amp) + jit() * 0.3; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); };
+    const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
+    if (custom && E === 'scared') wavy(mw * 0.12, 6);
+    else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    else if (custom && E === 'happy') {
+      ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
+      ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + mw * 0.55, mw * 0.45, mw * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
+    }
+    else if (custom && E === 'surprised') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.3, mw * 0.4, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
+    else if (custom && E === 'hurt') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.75, mw * 0.42, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
+    else if (custom && E === 'sad') { ctx.beginPath(); ctx.moveTo(-mw * 0.65, my + mw * 0.22); ctx.quadraticCurveTo(0, my - mw * 0.25, mw * 0.65, my + mw * 0.22); ctx.stroke(); }
+    else if (E === 'angry' && g.mouth.type === 'smile') { ctx.beginPath(); ctx.moveTo(-mw * 0.8, my + mw * 0.1); ctx.lineTo(mw * 0.8, my - mw * 0.02); ctx.stroke(); }
+    else {
+      if (E === 'angry') o = Math.max(o, 0.45);
+      if (g.mouth.type === 'beak' && ['happy', 'hurt', 'surprised', 'scared'].includes(E)) o = Math.max(o, 0.6);
+      ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      switch (g.mouth.type) {
+        case 'smile':
+          ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * (0.5 + o * 0.7), mw, my);
+          if (o > 0.15) { ctx.closePath(); ctx.fillStyle = C.mouthIn; ctx.fill(); }
+          ctx.stroke(); break;
+        case 'open': {
+          const oh = mw * (0.32 + o * 0.4);
+          ctx.beginPath(); ctx.ellipse(0, my, mw * 0.8, oh, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
+          ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + oh * 0.75, mw * 0.5, oh * 0.6, 0, 0, TAU); ctx.fill(); ctx.restore();
+          break;
         }
-        ctx.restore(); break;
+        case 'fangs':
+          if (o > 0.15) { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.12, mw * 0.85, mw * 0.35 * o, 0, 0, TAU); ctx.fillStyle = C.mouthIn; ctx.fill(); }
+          ctx.beginPath(); ctx.moveTo(-mw, my); ctx.quadraticCurveTo(0, my + mw * 0.2, mw, my); ctx.stroke();
+          for (const sx of [-1, 1]) { ctx.beginPath(); ctx.moveTo(sx * mw * 0.5 - mw * 0.13, my + mw * 0.08); ctx.lineTo(sx * mw * 0.5, my + mw * 0.5); ctx.lineTo(sx * mw * 0.5 + mw * 0.13, my + mw * 0.08); ctx.closePath(); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
+          break;
+        case 'teeth': {
+          const th = mw * (0.32 + o * 0.45);
+          ctx.beginPath(); rrect(ctx, -mw, my - th / 2, mw * 2, th, th * 0.4); fillStroke(ctx, C.mouthIn, C.ol, lw);
+          ctx.save(); ctx.clip(); ctx.fillStyle = C.white; const n = 5, tw = mw * 2 / n;
+          for (let i = 0; i < n; i++) {
+            const x0 = -mw + i * tw;
+            ctx.beginPath(); ctx.moveTo(x0, my - th / 2); ctx.lineTo(x0 + tw / 2, my - th / 2 + th * 0.38); ctx.lineTo(x0 + tw, my - th / 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(x0 + tw * 0.1, my + th / 2); ctx.lineTo(x0 + tw * 0.6, my + th / 2 - th * 0.32); ctx.lineTo(x0 + tw * 1.1, my + th / 2); ctx.fill();
+          }
+          ctx.restore(); break;
+        }
+        case 'beak':
+          if (o > 0.1) { ctx.beginPath(); ctx.moveTo(-mw * 0.45, my); ctx.lineTo(mw * 0.45, my); ctx.lineTo(0, my + mw * (0.35 + o * 0.35)); ctx.closePath(); fillStroke(ctx, hsl(g.pal.accent, -12), C.ol, lw); }
+          ctx.beginPath(); ctx.moveTo(-mw * 0.6, my - mw * 0.25); ctx.lineTo(mw * 0.6, my - mw * 0.25); ctx.lineTo(0, my + mw * 0.45 - o * mw * 0.2); ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw);
+          break;
+        case 'tusks':
+          ctx.beginPath(); ctx.moveTo(-mw * 0.8, my); ctx.quadraticCurveTo(0, my + mw * (0.15 + o * 0.5), mw * 0.8, my); ctx.stroke();
+          for (const sx of [-1, 1]) { hornPath(ctx, sx * mw * 0.7, my + mw * 0.05, sx * mw * 1.0, my - mw * 0.55, mw * 0.28, -sx * 0.4); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
+          break;
       }
-      case 'beak':
-        if (o > 0.1) { ctx.beginPath(); ctx.moveTo(-mw * 0.45, my); ctx.lineTo(mw * 0.45, my); ctx.lineTo(0, my + mw * (0.35 + o * 0.35)); ctx.closePath(); fillStroke(ctx, hsl(g.pal.accent, -12), C.ol, lw); }
-        ctx.beginPath(); ctx.moveTo(-mw * 0.6, my - mw * 0.25); ctx.lineTo(mw * 0.6, my - mw * 0.25); ctx.lineTo(0, my + mw * 0.45 - o * mw * 0.2); ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw);
-        break;
-      case 'tusks':
-        ctx.beginPath(); ctx.moveTo(-mw * 0.8, my); ctx.quadraticCurveTo(0, my + mw * (0.15 + o * 0.5), mw * 0.8, my); ctx.stroke();
-        for (const sx of [-1, 1]) { hornPath(ctx, sx * mw * 0.7, my + mw * 0.05, sx * mw * 1.0, my - mw * 0.55, mw * 0.28, -sx * 0.4); fillStroke(ctx, C.white, C.ol, lw * 0.8); }
-        break;
+    }
+
+    // ---------- Detalles alrededor de la cara ----------
+    if (E === 'scared') { // gotas de sudor
+      for (const k of [0, 0.5]) {
+        const ph = (t * 0.9 + k) % 1, dx = hw * (k ? -0.85 : 0.9), dy = -hh * 0.35 + ph * hh * 0.7, r = Math.max(2, hh * 0.13);
+        ctx.globalAlpha = Math.sin(ph * Math.PI);
+        ctx.beginPath(); ctx.moveTo(dx, dy - r * 1.8); ctx.quadraticCurveTo(dx + r * 1.1, dy, dx, dy + r); ctx.quadraticCurveTo(dx - r * 1.1, dy, dx, dy - r * 1.8);
+        fillStroke(ctx, '#9fd8ff', C.ol, lw * 0.7); ctx.globalAlpha = 1;
+      }
+    }
+    if (E === 'angry') { // marca de enojo
+      const ax = hw * 0.62, ay = -hh * 0.78, r = Math.max(3, hh * 0.2) * (1 + Math.sin(t * 14) * 0.08);
+      ctx.strokeStyle = '#ff3b4e'; ctx.lineWidth = lw * 1.3;
+      for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; ctx.beginPath(); ctx.arc(ax + Math.cos(a) * r * 0.75, ay + Math.sin(a) * r * 0.75, r * 0.45, a + Math.PI * 0.65, a + Math.PI * 1.35); ctx.stroke(); }
+    }
+    if (E === 'dizzy') { // estrellitas girando
+      for (let k = 0; k < 3; k++) {
+        const a = t * 5 + k * TAU / 3, x = Math.cos(a) * hw * 0.85, y = -hh * 1.15 + Math.sin(a) * hh * 0.18, r = Math.max(2.5, hh * 0.14);
+        ctx.beginPath(); for (let i = 0; i < 10; i++) { const aa = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; i ? ctx.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr) : ctx.moveTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr); }
+        ctx.closePath(); fillStroke(ctx, '#ffe066', C.ol, lw * 0.6);
+      }
+    }
+    if (E === 'happy') { // mejillas
+      ctx.fillStyle = 'rgba(255,120,150,.45)';
+      for (const sx of [-1, 1]) { ctx.beginPath(); ctx.ellipse(sx * hw * 0.58, my - mw * 0.25, hw * 0.18, hh * 0.1, 0, 0, TAU); ctx.fill(); }
+    }
+    if (E === 'surprised') { // !
+      ctx.font = `900 ${Math.max(10, hh * 0.9).toFixed(0)}px system-ui`; ctx.textAlign = 'center';
+      ctx.lineWidth = lw * 1.5; ctx.strokeStyle = C.ol; ctx.strokeText('!', hw * 0.85, -hh * 0.95); ctx.fillStyle = '#ffe066'; ctx.fillText('!', hw * 0.85, -hh * 0.95);
     }
     ctx.restore();
   }
@@ -1052,6 +1151,7 @@ class Battle {
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
     t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
     if (t.state !== 'dead') { t.state = 'hitstun'; t.stT = 0.12 + Math.min(0.4, kb / 1600); }
+    if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
     for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
     const hx = tm.x - dir.x * t.r * 0.6, hy = tm.y - dir.y * t.r * 0.3;
@@ -1064,6 +1164,7 @@ class Battle {
     this.shake = Math.min(12, this.shake + kb / 45);
     if (t.hp <= 0 && !t.dead) {
       t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true);
+      if (!a.dead) a.setEmo('happy', 1.5, 3);
       if (!this.ms.some(m => m.team === t.team && !m.dead)) this.elim.push(t.team); // equipo eliminado
     }
   }
@@ -1111,8 +1212,12 @@ class Battle {
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
         this.winTeam = this.ranking[0];
+        for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam ? 'happy' : 'sad'; m.emoT = 0; }
       }
-    } else this.endT += dt;
+    } else {
+      this.endT += dt;
+      for (const m of this.ms) if (m.winEmo === 'happy' && m.z === 0 && Math.random() < dt * 2.5) m.vz = 230;
+    }
   }
 
   draw(ctx) {
@@ -1328,7 +1433,7 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec);
+  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = rec.lives <= 1 ? 'sad' : null;
   $('mName').textContent = rec.name;
   $('mSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)} · ${save.sel + 1}/${save.monsters.length}`;
   const st = show.st;
@@ -1338,7 +1443,7 @@ function renderHome() {
   $('parts').hidden = !nextLv;
   if (rec.evolved) {
     delete rec.evolved; persist();
-    show.vz = 280; show.mouthOpen = 1;
+    show.vz = 280; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
     celebrate(`¡Creció a ${STAGE_NAME[rec.stage]}!`, hsl(show.g.pal.accent, 15));
   }
   $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
@@ -1403,7 +1508,7 @@ function trainStat(k) {
   save.coins -= cost; rec.train[k] = lv + 1; persist();
   const t = TRAIN.find(x => x.k === k);
   renderHome(); renderTrain();
-  show.vz = 230; show.mouthOpen = 1;
+  show.vz = 230; show.mouthOpen = 1; show.setEmo('angry', 0.5, 2, ['happy', 1.2]); // ¡esfuerzo! y luego contento
   for (const n of show.nodes) { n.vx += (Math.random() - 0.5) * 300; n.vy -= Math.random() * 200; }
   fx.label = `+${t.name}`; fx.labelT = 1.6; burst(0, -50, 10, '#ffcf6e', 220, [2, 4]);
 }
@@ -1420,7 +1525,7 @@ function tapEgg() {
   rec.stage = 'baby'; delete rec.taps; delete rec.need; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
   renderHome();
-  show.vz = 320; show.mouthOpen = 1;
+  show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
   celebrate(`¡Nació ${rec.name}!`);
 }
 

@@ -17,6 +17,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Vidas**: 3 por monstruo; si lo noquean pierde una. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
 - **Entrenamiento**: desliza a la página Entrenar y paga monedas para subir Vida, Fuerza, Disparo, Defensa, Velocidad, Peso o Esquiva
   (máx. 10 niveles por stat; cuesta 20, 35, 50… monedas). Los rivales también traen algo de entrenamiento según su nivel.
+- **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
+  mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas.
 - **Premios por posición**: XP y monedas según el lugar en que termina (+10 XP y +5 monedas por K.O.).
 
 ## Llevarlo a Android / iPhone
