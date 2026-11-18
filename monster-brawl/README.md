@@ -24,7 +24,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Entrenamiento**: desliza a la página Entrenar y paga monedas para subir Vida, Fuerza, Disparo, Defensa, Velocidad, Peso o Esquiva
   (máx. 10 niveles por stat; cuesta 20, 35, 50… monedas). Los rivales también traen algo de entrenamiento según su nivel.
 - **Ultimate (Awakened)**: depende del stat en que más destaca (Fuerza: onda de choque que lanza a todos al otro lado;
-  Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 7 s; Velocidad: doble de rápido por 7 s; Esquiva: doble esquiva por 7 s).
+  Disparo: bala gigante que atraviesa todo; Defensa: mitad de daño por 10 s; Velocidad: doble de rápido por 10 s; Esquiva: doble esquiva por 10 s).
+  Al usar cualquier ultimate queda potenciado: +15% a todos sus stats por 8 s.
   Se activa con 5+ golpes en la pelea y 60% de vida o menos: primero se queda 1,3 s cargando energía y luego viene el
   acercamiento de cámara. Tras usarla queda descargada (sin aura) hasta recargarla en el menú por 40 monedas.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
