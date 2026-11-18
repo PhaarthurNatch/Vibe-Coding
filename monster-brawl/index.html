@@ -42,6 +42,30 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .bar{height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:4px;background:var(--acc)}
 .parts{font-size:12px;color:var(--muted);text-align:center;line-height:1.4}
+.tabs{display:flex;justify-content:center;gap:6px;margin:4px 0 6px}
+.tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:13px;padding:7px 14px;border-radius:999px;letter-spacing:.3px}
+.tabs button.on{background:var(--panel2);color:var(--text)}
+.pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
+.track{display:flex;width:200%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.page{width:50%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
+.page>*{pointer-events:auto}
+.page>.spacer{pointer-events:none}
+.tlist{display:flex;flex-direction:column;gap:8px}
+.trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px}
+.trow .tl{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700;min-width:0}
+.trow .tl small{color:var(--muted);font-weight:600;font-size:11px}
+.trow .tv{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.trow .tv b{color:var(--text)}
+.trow .tv em{font-style:normal;color:var(--good)}
+.pips{display:flex;gap:3px;grid-column:1}
+.pips i{width:100%;max-width:18px;height:5px;border-radius:3px;background:rgba(255,255,255,.1)}
+.pips i.on{background:var(--acc)}
+.tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
+.tbtn .ci{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
+#trainArea{flex:1 1 90px;min-height:90px}
+.tpanel{min-height:0;overflow-y:auto;flex:0 1 auto}
+.tinfo{text-align:center;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.track{transition:none}}
 .xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .xp .bar{flex:1}
 .xp .bar i{background:#8f7bff}
@@ -70,7 +94,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .top .title{text-align:left;margin:0}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
-.hearts{color:var(--bad);letter-spacing:1px}
+.hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
 .rest .btn{flex:none;padding:9px 12px;font-size:13px}
 .mid{color:var(--acc)}
@@ -83,6 +107,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
+  <div class="tabs" role="tablist"><button data-page="0" class="on">Monstruo</button><button data-page="1">Entrenar</button></div>
+  <div class="pager"><div class="track" id="track">
+  <div class="page">
   <div class="nav">
     <button class="arrow" id="prev">◀</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
@@ -105,6 +132,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
   </div>
+  </div>
+  <div class="page">
+    <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
+    <div class="spacer" id="trainArea"></div>
+    <div class="panel tpanel">
+      <div class="tlist" id="tlist"></div>
+      <div class="tinfo" id="tinfo"></div>
+    </div>
+  </div>
+  </div></div>
 </div>
 
 <!-- BATTLE -->
@@ -281,7 +318,7 @@ function genGenome(seed, stage = 'adult') {
 }
 
 // Las estadísticas salen del cuerpo: más brazos = más fuerza, más alas = más esquiva, etc.
-function calcStats(g, level = 1) {
+function calcStats(g, level = 1, train = null) {
   const T = g.torso;
   const segs = [T.upper, T.mid, T.lower].filter(Boolean);
   const area = segs.reduce((a, s) => a + s.w * s.h, 0) / 1000;
@@ -310,8 +347,23 @@ function calcStats(g, level = 1) {
   const range = clamp(220 + g.eyes.count * 25 + g.eyes.size * 4, 200, 420);
   const dodge = clamp(0.04 + wingP * 0.07 + speed / 1400 - weight * 0.025 + (g.tail.count ? 0.02 : 0), 0.03, 0.42);
   const lv = 1 + (level - 1) * 0.07;
-  return { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
+  const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc };
+  if (train) for (const t of TRAIN) if (train[t.k]) t.apply(st, train[t.k]);
+  return st;
 }
+
+// Entrenamiento: cada nivel suma esto (máx. TRAIN_MAX niveles por stat)
+const TRAIN_MAX = 10;
+const trainCost = l => 20 + 15 * l;
+const TRAIN = [
+  { k: 'hp', name: 'Vida', desc: '+6% vida', apply: (st, n) => st.hp = Math.round(st.hp * (1 + 0.06 * n)) },
+  { k: 'melee', name: 'Fuerza', desc: '+6% golpe', apply: (st, n) => st.melee *= 1 + 0.06 * n },
+  { k: 'ranged', name: 'Disparo', desc: '+7% disparo', apply: (st, n) => { if (st.ranged > 0) st.ranged *= 1 + 0.07 * n; } },
+  { k: 'defense', name: 'Defensa', desc: '+2.5 defensa', apply: (st, n) => st.defense += 2.5 * n },
+  { k: 'speed', name: 'Velocidad', desc: '+6 velocidad', apply: (st, n) => st.speed = clamp(st.speed + 6 * n, 40, 250) },
+  { k: 'weight', name: 'Peso', desc: '+0.12 peso, menos knockback', apply: (st, n) => st.weight = clamp(st.weight + 0.12 * n, 0.5, 4.8) },
+  { k: 'dodge', name: 'Esquiva', desc: '+1.5% esquiva', apply: (st, n) => st.dodge = clamp(st.dodge + 0.015 * n, 0.03, 0.57) },
+];
 
 function makeCols(P, fl) {
   const H = (c, dl = 0, a = 1) => hsl(c, dl + fl, a);
@@ -376,7 +428,7 @@ class Monster {
     this.g = genGenome(rec.seed, rec.stage === 'egg' ? 'baby' : (rec.stage || 'adult'));
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
-    this.st = calcStats(this.g, this.level);
+    this.st = calcStats(this.g, this.level, rec.train);
     this.hp = this.st.hp;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
@@ -1247,22 +1299,9 @@ const STAT_DEF = [
   ['Esquiva', st => st.dodge, 0.42, v => Math.round(v * 100) + '%'],
 ];
 
-function partsSummary(g) {
-  const p = [];
-  const n = (c, one, many) => c ? `${c} ${c === 1 ? one : many}` : null;
-  if (g.blob) return ['cuerpo de una pieza', n(g.eyes.count, 'ojo', 'ojos'), 'boca'].filter(Boolean).join(' · ');
-  p.push(n(g.eyes.count, 'ojo', 'ojos') || 'sin ojos');
-  p.push(n(g.arms.pairs * 2, 'brazo', 'brazos') || 'sin brazos');
-  p.push(g.legs.pairs ? n(g.legs.pairs * 2, 'pierna', 'piernas') : 'flota');
-  if (g.wings.pairs) p.push(n(g.wings.pairs * 2, 'ala', 'alas'));
-  if (g.tail.count) p.push(n(g.tail.count, 'cola', 'colas'));
-  if (g.horns.count) p.push(n(g.horns.count, 'cuerno', 'cuernos'));
-  if (g.neck.len > 16) p.push('cuello largo');
-  return p.join(' · ');
-}
-
 function renderHome() {
   wakeUp();
+  if (homePage === 1) setTimeout(renderTrain);
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = !canFight(rec));
   $('coins').textContent = save.coins;
@@ -1274,7 +1313,7 @@ function renderHome() {
     $('mName').textContent = 'Huevo misterioso';
     updateEggSub();
     $('stats').innerHTML = '<p class="eggmsg">Todavía no nace. Tócalo varias veces para romper el cascarón.<br>Nace como bebé y crece con cada nivel.</p>';
-    $('parts').textContent = '';
+    $('parts').textContent = ''; $('parts').hidden = true;
     $('xpTxt').textContent = 'XP 0'; $('xpBar').style.width = '0'; $('record').textContent = '';
     return;
   }
@@ -1285,7 +1324,8 @@ function renderHome() {
   const st = show.st;
   $('stats').innerHTML = STAT_DEF.map(([lb, fn, mx, fmt]) => { const v = fn(st); return `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${fmt(v)}</span></div>`; }).join('');
   const nextLv = rec.stage === 'baby' ? TEEN_LV : rec.stage === 'teen' ? ADULT_LV : 0;
-  $('parts').innerHTML = partsSummary(show.g) + (nextLv ? `<br>crece a ${STAGE_NAME[rec.stage === 'baby' ? 'teen' : 'adult']} en Nv. ${nextLv}` : '');
+  $('parts').textContent = nextLv ? `Crece a ${STAGE_NAME[rec.stage === 'baby' ? 'teen' : 'adult']} en Nv. ${nextLv}` : '';
+  $('parts').hidden = !nextLv;
   if (rec.evolved) {
     delete rec.evolved; persist();
     show.vz = 280; show.mouthOpen = 1;
@@ -1309,6 +1349,55 @@ $('btnHeal').onclick = () => {
   save.coins -= HEAL_COST; delete rec.restUntil; rec.lives = MAX_LIVES; persist();
   renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
 };
+let homePage = 0;
+function setPage(n) {
+  homePage = n; $('track').style.transform = `translateX(${-50 * n}%)`;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
+  if (n === 1) renderTrain();
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
+// Deslizar con el dedo: hacia la izquierda abre Entrenar, hacia la derecha vuelve
+let swipe = null;
+addEventListener('pointerdown', e => { if (scene === 'home' && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY }; });
+addEventListener('pointerup', e => {
+  if (!swipe) return; const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) setPage(dx < 0 ? 1 : 0);
+});
+addEventListener('pointercancel', () => swipe = null);
+
+function renderTrain() {
+  const rec = cur();
+  $('tName').textContent = rec.stage === 'egg' ? 'Huevo misterioso' : rec.name;
+  if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = '<p class="eggmsg">Primero tiene que nacer. Vuelve a la página del monstruo y toca el huevo.</p>'; $('tinfo').textContent = ''; return; }
+  rec.train = rec.train || {};
+  $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
+  const g = genGenome(rec.seed, rec.stage), st = calcStats(g, rec.level, rec.train);
+  $('tlist').innerHTML = TRAIN.map(t => {
+    const lv = rec.train[t.k] || 0, max = lv >= TRAIN_MAX, cost = trainCost(lv);
+    const def = STAT_DEF.find(d => d[0] === t.name), now = def[1](st);
+    const nx = max ? null : def[1](calcStats(g, rec.level, { ...rec.train, [t.k]: lv + 1 }));
+    const noRanged = t.k === 'ranged' && !st.ranged;
+    const val = noRanged ? 'no puede disparar' : `<b>${def[3](now)}</b>${nx == null ? '' : def[3](nx) !== def[3](now) ? ` <em>→ ${def[3](nx)}</em>` : ` <em>${t.desc}</em>`}`;
+    return `<div class="trow">
+      <div class="tl">${t.name} <span class="tv">${val}</span></div>
+      <button class="btn tbtn" data-train="${t.k}" ${max || noRanged || save.coins < cost ? 'disabled' : ''}>${max ? 'Máx.' : `<span class="ci"></span>${cost}`}</button>
+      <div class="pips">${Array.from({ length: TRAIN_MAX }, (_, i) => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div>
+    </div>`;
+  }).join('');
+  $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas · cada entrenamiento cuesta más que el anterior`;
+  document.querySelectorAll('[data-train]').forEach(b => b.onclick = () => trainStat(b.dataset.train));
+}
+function trainStat(k) {
+  const rec = cur(), lv = (rec.train = rec.train || {})[k] || 0, cost = trainCost(lv);
+  if (save.coins < cost || lv >= TRAIN_MAX) return;
+  save.coins -= cost; rec.train[k] = lv + 1; persist();
+  const t = TRAIN.find(x => x.k === k);
+  renderHome(); renderTrain();
+  show.vz = 230; show.mouthOpen = 1;
+  for (const n of show.nodes) { n.vx += (Math.random() - 0.5) * 300; n.vy -= Math.random() * 200; }
+  fx.label = `+${t.name}`; fx.labelT = 1.6; burst(0, -50, 10, '#ffcf6e', 220, [2, 4]);
+}
+
 function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques · ${save.sel + 1}/${save.monsters.length}`; }
 function tapEgg() {
   const rec = cur();
@@ -1356,7 +1445,11 @@ function startBattle(mode) {
   const zoom = { baby: 0.6, teen: 0.8, adult: 1 }[me.stage] || 1;
   ARENA_W = 600 * zoom; ARENA_D = (H / W > 1.25 ? 980 : 560) * zoom;
   const pm = new Monster(me); pm.isPlayer = true; pm.team = 0;
-  const foe = () => { const r = newRec(me.stage); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1); return new Monster(r); };
+  const foe = () => {
+    const r = newRec(me.stage); r.level = Math.max(1, me.level + Math.floor(Math.random() * 3) - 1);
+    r.train = {}; for (let i = Math.floor(r.level * 1.2); i > 0; i--) { const t = TRAIN[Math.floor(Math.random() * TRAIN.length)].k; r.train[t] = Math.min(TRAIN_MAX, (r.train[t] || 0) + 1); }
+    return new Monster(r);
+  };
   const list = [pm];
   if (mode === '1v1') { const e = foe(); e.team = 1; list.push(e); }
   else if (mode === '2v2') { const al = foe(); al.team = 0; list.push(al); for (let i = 0; i < 2; i++) { const e = foe(); e.team = 1; list.push(e); } }
@@ -1426,7 +1519,9 @@ function loop(now) {
       else { show.hop(STEP); show.animate(STEP); show.rigStep(STEP / 2); show.rigStep(STEP / 2); }
     }
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
-    const r = $('showArea').getBoundingClientRect(), sz = egg ? { w: egg.w, h: egg.h } : show.estSize();
+    const ra = $('showArea').getBoundingClientRect(), rb = $('trainArea').getBoundingClientRect();
+    const r = Math.abs(ra.left + ra.width / 2 - W / 2) < Math.abs(rb.left + rb.width / 2 - W / 2) ? ra : rb;
+    const sz = egg ? { w: egg.w, h: egg.h } : show.estSize();
     const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
     homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k };
     const pal = egg ? egg.pal : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
