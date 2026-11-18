@@ -668,6 +668,9 @@ function fillStroke(ctx, fill, ol, lw) { ctx.fillStyle = fill; ctx.fill(); ctx.l
 // ============================================================================
 // MONSTRUO: esqueleto con física de resortes (partes "floaty") + IA de combate
 // ============================================================================
+// Qué tan "floaty" son las partes: resortes más firmes y que frenan más rápido.
+// 1,3 y 1,5 dejan el bamboleo en ~75% del original (medido en 60 peleas).
+const RIG_STIFF = 1.3, RIG_DAMP = 1.5;
 let MID = 0;
 class Monster {
   constructor(rec) {
@@ -948,7 +951,7 @@ class Monster {
       if (dead) { n.vy += 900 * dt; const f = Math.exp(-dt * 1.5); n.vx *= f; }
       else {
         const tx = n.useT ? n.tx : P.x + (n.ox + n.ax) * s, ty = n.useT ? n.ty : P.y + (n.oy + n.ay) * s;
-        const k = n.k * n.boost, c = n.c * Math.sqrt(n.boost);
+        const k = n.k * n.boost * RIG_STIFF, c = n.c * RIG_DAMP * Math.sqrt(n.boost * RIG_STIFF);
         n.vx += (k * (tx - n.x) - c * n.vx) * dt; n.vy += (k * (ty - n.y) - c * n.vy) * dt;
       }
       n.x += n.vx * dt; n.y += n.vy * dt;
