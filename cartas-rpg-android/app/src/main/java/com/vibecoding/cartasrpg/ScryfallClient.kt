@@ -27,7 +27,7 @@ object ScryfallClient {
             val url = "$API/cards/random?q=" + URLEncoder.encode(q, "UTF-8")
             val (code, body) = get(url)
             when {
-                code in 200..299 -> return withRealArt(parse(JSONObject(body)))
+                code in 200..299 -> return withBestArt(parse(JSONObject(body)))
                 code == 404 -> continue
                 else -> {
                     lastError = runCatching { JSONObject(body).optString("details") }
@@ -39,30 +39,29 @@ object ScryfallClient {
         throw IOException(lastError)
     }
 
-    /** Estados de imagen de Scryfall que corresponden a un escaneo real de la carta. */
-    private val GOOD_IMAGES = setOf("highres_scan", "lowres")
-
     /**
-     * Las impresiones sin escanear (muy frecuentes en idiomas distintos del inglés) traen una
-     * imagen de relleno ("localized image not available"). En ese caso buscamos otra
-     * versión de la misma carta que sí tenga ilustración real, eligiendo una al azar.
+     * Las impresiones antiguas suelen tener escaneos de baja resolución, y las de otros
+     * idiomas a menudo solo traen una imagen de relleno ("localized image not available").
+     * Por eso, para cada carta buscamos todas sus impresiones ordenadas de la más reciente
+     * a la más antigua y nos quedamos con la ilustración de la más nueva escaneada en alta
+     * resolución (o, si no hay ninguna, la más nueva con escaneo real).
      */
-    private fun withRealArt(card: MtgCard): MtgCard {
-        if (card.imageStatus in GOOD_IMAGES && card.artUrl != null) return card
+    private fun withBestArt(card: MtgCard): MtgCard {
         val oracleId = card.oracleId ?: return card
         return try {
             Thread.sleep(100) // Scryfall pide espaciar las peticiones.
             val q = "oracleid:$oracleId"
-            val url = "$API/cards/search?unique=art&include_extras=true&q=" + URLEncoder.encode(q, "UTF-8")
+            val url = "$API/cards/search?unique=prints&order=released&dir=desc&include_extras=true&q=" +
+                URLEncoder.encode(q, "UTF-8")
             val (code, body) = get(url)
             if (code !in 200..299) return card
             val data = JSONObject(body).optJSONArray("data") ?: return card
-            val candidates = (0 until data.length()).mapNotNull { i ->
-                val o = data.optJSONObject(i) ?: return@mapNotNull null
-                val p = parse(o)
-                p.takeIf { it.imageStatus in GOOD_IMAGES && it.artUrl != null }
+            val prints = (0 until data.length()).mapNotNull { i ->
+                data.optJSONObject(i)?.let { parse(it) }?.takeIf { it.artUrl != null }
             }
-            val pick = candidates.randomOrNull() ?: return card
+            val pick = prints.firstOrNull { it.imageStatus == "highres_scan" }
+                ?: prints.firstOrNull { it.imageStatus == "lowres" }
+                ?: return card
             card.copy(
                 artUrl = pick.artUrl,
                 artist = pick.artist ?: card.artist,
