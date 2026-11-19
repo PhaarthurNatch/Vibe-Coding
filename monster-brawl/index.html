@@ -1859,8 +1859,7 @@ class Monster {
     ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const wavy = (amp, n) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const x = -mw * 0.7 + i * mw * 1.4 / n, y = my + (i % 2 ? -amp : amp) + jit() * 0.3; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); };
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
-    if (custom && E === 'scared') wavy(mw * 0.12, 6);
-    else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
     else if (custom && E === 'beat') wavy(mw * 0.05, 4);
     else if (false && custom && E === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
     else if (false && custom && E === 'happy') {
@@ -1873,7 +1872,7 @@ class Monster {
     else if (E === 'angry' && g.mouth.type === 'smile') { ctx.beginPath(); ctx.moveTo(-mw * 0.8, my + mw * 0.1); ctx.lineTo(mw * 0.8, my - mw * 0.02); ctx.stroke(); }
     else {
       if (E === 'angry') o = Math.max(o, 0.45);
-      if (g.mouth.type === 'beak' && ['hurt', 'surprised', 'scared'].includes(E)) o = Math.max(o, 0.6);
+      if (g.mouth.type === 'beak' && ['hurt', 'surprised'].includes(E)) o = Math.max(o, 0.6);
       ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       switch (g.mouth.type) {
         case 'smile':
