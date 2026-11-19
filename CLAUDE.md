@@ -137,7 +137,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
   Mientras duerme (sin vidas o tras criar) la cuenta regresiva va **abajo a la derecha del área del monstruo** en el Home (`cTime`, "💤 29:11"; sin frase de estado); en el panel sólo queda el botón "Curar ya" cuando está sin vidas.
-- **Resultado de la pelea:** el texto muestra **sólo** XP y monedas (y K.O.) de cada monstruo tuyo (pedido del dueño): no se muestran cambios de personalidad, vidas perdidas, subidas de nivel ni la incubación (igual ocurren).
+- **Resultado de la pelea:** muestra **sólo** XP y monedas de cada monstruo tuyo como un **resumen con total** (pedido del dueño; `.rwd`): una fila por el puesto (`placeLbl`, "Victoria"/"Derrota"/"2.º lugar"), una por los K.O. y el Total; en 2 vs 2 además "Monedas en total" (van a la misma bolsa). `#resText` es un `div`; no se muestran cambios de personalidad, vidas perdidas, subidas de nivel ni la incubación (igual ocurren).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   Criar (150) es el gasto de monedas para el juego avanzado.
 - **Entrenamiento por puntos:** 2 puntos por nivel en Poder/Aguante/Agilidad/Técnica (máx. 20 c/u), reiniciar cuesta 50. El cuerpo cambia con los puntos.

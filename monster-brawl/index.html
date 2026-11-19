@@ -206,6 +206,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .persona{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .persona b{color:var(--text)}
 .win{color:var(--good)}.lose{color:var(--bad)}
+.restxt{color:var(--muted);font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:10px}
+.rwd{display:grid;grid-template-columns:1fr auto auto;gap:3px 12px;text-align:left;font-variant-numeric:tabular-nums;background:var(--panel2);border-radius:12px;padding:8px 12px}
+.rwd b.nm{grid-column:1/-1;color:var(--text);font-size:15px;margin-bottom:2px}
+.rwd .rx,.rwd .rc{text-align:right;white-space:nowrap;font-weight:700}
+.rwd .tot{border-top:1px solid rgba(255,255,255,.12);padding-top:4px;margin-top:2px;color:var(--text);font-weight:800}
+.rwd .rx{color:#b9adff}.rwd .rc{color:#ffd36b} /* resumen del resultado: de dónde viene cada premio */
 </style>
 </head>
 <body>
@@ -313,7 +319,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div class="modal" id="result">
   <div class="card">
     <h2 id="resTitle">¡Victoria!</h2>
-    <p id="resText"></p>
+    <div id="resText" class="restxt"></div>
     <div class="row">
       <button class="btn" id="resHome">Volver</button>
       <button class="btn" id="resRoom" hidden>🎨 Equipos</button>
@@ -3321,6 +3327,7 @@ $('resAgain').onclick = () => {
 function finishBattle() {
   const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
   const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
+  const placeLbl = nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
   const lines = battle.players.map(pm => {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
@@ -3337,7 +3344,9 @@ function finishBattle() {
     if (pm.dmgM + pm.dmgR > 0) { if (pm.dmgR > pm.dmgM * 1.2) tw('agr', -0.03, 'más Cauto'); else if (pm.dmgM > pm.dmgR * 1.2) tw('agr', 0.03, 'más Agresivo'); }
     if (!pm.dead && pm.minHpF < 0.25) tw('valor', 0.04, 'más Valiente'); else if (pm.dead) tw('valor', -0.03, 'más Prudente');
     if (pm.switches >= 2) tw('terco', -0.03, 'más Oportunista'); else if (pm.switches === 0 && place === 1) tw('terco', 0.02, 'más Terco');
-    return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.`;
+    // resumen: premio por el puesto + K.O. = total (de dónde viene cada cosa)
+    const row = (lbl, x, c, cls = '') => `<span class="${cls}">${lbl}</span><span class="rx ${cls}">+${x} XP</span><span class="rc ${cls}">+${c} 🪙</span>`;
+    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * 10, pm.kills * 5) : ''}${row('Total', xp, coins, 'tot')}</div>`;
   });
   wakeUp();
   const incub = save.monsters.filter(m => m.readyAt > Date.now());
@@ -3347,7 +3356,8 @@ function finishBattle() {
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
-  $('resText').innerHTML = lines.join('<br><br>');
+  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * 5, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
+  $('resText').innerHTML = lines.join('');
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
 }
