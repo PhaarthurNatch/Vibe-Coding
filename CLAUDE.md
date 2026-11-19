@@ -98,6 +98,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   **Cada pelea ganada (1.er lugar) adelanta 2 min la incubación de todos los huevos criados** (`INCUBATE_FIGHT_MS`; no se avisa en el resultado).
   Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
+  **Grupos de genes** (`GENE_GROUPS`): orejas y antenas van separadas y los **hombros van con los brazos** (sólo existen con brazos); migración en `loadSave`: `genes.antennae` = el origen que tenían las orejas.
   **Genes en la Tienda** (pedido del dueño; `renderShopGenes`, modal `#genePick`, `GENE_COST` 40, nombres `GENE_NAMES`): uno por grupo de `GENE_GROUPS`; se le da a cualquier monstruo nacido (`rec.geneLock[grupo] = true`) y en su próxima cría ese grupo **se hereda de él sí o sí** (sin mutación; si ambos padres tienen el mismo, al azar entre ellos). Se gastan al criar. Estadísticas muestra "🧬 Su próxima cría heredará sí o sí: …". Campo opcional: no hace falta migración.
   Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
 - **Pelea local por WiFi, de 2 a 8 jugadores** (botón "📶 Pelea local" en el Home; módulo `LAN`, `LAN_MAX` 8): conexión directa WebRTC sin internet (sin servidores ICE; candidatos de la red local),

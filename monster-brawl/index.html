@@ -535,8 +535,8 @@ function scaleGenome(g, k) {
 // v3 = monstruos nuevos (gen 3): partes y colores extra. Los antiguos no cambian de aspecto.
 // Cría: cada grupo de partes del hijo sale del monstruo "origen" de uno de sus padres (rec.genes[grupo] = {seed, legacy, v3});
 // los grupos que no están (mutación) salen de su propia semilla. Como el origen se calcula en la misma etapa, al crecer conserva todo.
-const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears', 'antennae'],
-  neck: ['neck'], body: ['torso', 'spots', 'shoulders'], arms: ['arms'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] };
+const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears'], antennae: ['antennae'],
+  neck: ['neck'], body: ['torso', 'spots'], arms: ['arms', 'shoulders'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] }; // orejas y antenas separadas; los hombros van con los brazos (sólo existen con brazos)
 function recGenome(rec, stage) {
   const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5);
   if (!rec.genes) return g;
@@ -2309,6 +2309,10 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
+      s.monsters.forEach(m => { // grupos de genes nuevos: antenas separadas de orejas (mismo origen que tenían), hombros ahora con los brazos
+        if (m.genes && m.genes.ears && !m.genes.antennae) m.genes.antennae = m.genes.ears;
+        if (m.geneLock && m.geneLock.ears && !m.geneLock.antennae) m.geneLock.antennae = true;
+      });
       if (!s.lives5) { s.monsters.forEach(m => { if (!m.restUntil) m.lives = Math.min(MAX_LIVES, (m.lives ?? 3) + 2); }); s.lives5 = true; } // de 3 a 5 corazones: +2 a cada uno
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = 5; delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true }; });
@@ -3064,7 +3068,7 @@ function doBreed(A, B) {
 }
 // Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
-const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas y antenas', neck: 'Cuello', body: 'Torso y hombros', arms: 'Brazos', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
+const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
 function renderShopGenes() {
   const el = $('shopGenes');
   el.innerHTML = `<div class="thead">Genes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(k =>
