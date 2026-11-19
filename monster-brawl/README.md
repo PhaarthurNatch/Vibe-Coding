@@ -5,6 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
+- **Estilo de dibujo Clásico o 👾 Pixel**: en la Tienda hay un interruptor; con Pixel el rancho, los monstruos y las peleas se dibujan con píxeles grandes (estilo retro). Los botones y textos siguen nítidos.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
 - **Menú en 3 páginas, una debajo de otra** (deslizar arriba/abajo, o tocar "▲ Tienda" / "Estadísticas ▼" en los bordes; no hay pestañas): Tienda (arriba: ultimates por 150),
   Rancho (al medio, página inicial) y Estadísticas (abajo: entrenar y liberar).

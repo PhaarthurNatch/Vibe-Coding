@@ -19,6 +19,8 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#cv.px{image-rendering:crisp-edges;image-rendering:pixelated} /* estilo Pixel: se dibuja en baja resolución y se agranda sin suavizar */
+.stylepick{display:flex;gap:8px}.stylepick .btn{flex:1}.stylepick .btn.on{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding-block:calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-bottom, 0px) + 10px);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .screen.on{display:flex}
 .screen>*{pointer-events:auto}
@@ -218,6 +220,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
       <div class="tsec" id="shopUlts"></div>
+      <div class="tsec" id="shopStyle"></div>
     </div>
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
@@ -2479,7 +2482,7 @@ function drawRanch(c, r, opt) {
     if (!a.rec || !a.hit) continue; const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
     if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
     const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
-    c.font = `800 ${Math.round(clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
+    c.font = `800 ${Math.round(save.pixel ? clamp(13 + 3 * p.sc, 17, 22) : clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; // en Pixel la letra es más grande para que se lea c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
     const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
@@ -2540,7 +2543,10 @@ function toRanch() {
 }
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
-function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
+// Estilo Pixel (save.pixel): todo el dibujo del canvas se hace con pocos píxeles (1 cada PIX_CSS px de pantalla) y se agranda sin suavizar.
+// Los botones y textos de la interfaz siguen nítidos. Partidas antiguas: sin el campo = Clásico.
+const PIX_CSS = 2.2;
+function resize() { DPR = save.pixel ? 1 / PIX_CSS : Math.min(window.devicePixelRatio || 1, 2.5); cv.classList.toggle('px', !!save.pixel); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 addEventListener('resize', resize); resize();
 
 const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
@@ -2899,12 +2905,19 @@ function renderShopUlts(hide) {
     const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
     return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
   }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Estadísticas.</p>`;
+  renderStylePick();
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
     if (save.coins < ULT_COST || ownsUlt(k)) return;
     save.coins -= ULT_COST; grantUlt(k); persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
   });
+}
+// Interruptor de estilo de dibujo (gratis, se puede cambiar cuando quieras)
+function renderStylePick() {
+  const el = $('shopStyle');
+  el.innerHTML = `<div class="thead">Estilo de dibujo</div><div class="stylepick"><button class="btn ${save.pixel ? '' : 'on'}" data-px="0">Clásico</button><button class="btn ${save.pixel ? 'on' : ''}" data-px="1">👾 Pixel</button></div><p class="tdesc">Cambia cómo se ven el rancho, los monstruos y las peleas.</p>`;
+  el.querySelectorAll('[data-px]').forEach(b => b.onclick = () => { save.pixel = b.dataset.px === '1'; persist(); resize(); renderStylePick(); });
 }
 $('btnFree').onclick = async () => {
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
