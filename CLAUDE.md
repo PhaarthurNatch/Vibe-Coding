@@ -5,6 +5,7 @@ Los archivos `monster-game (3).jsx` y `monster-game (4).jsx` de la raíz son int
 
 **Idioma:** el dueño escribe en español (a veces con errores de tipeo). Responder siempre en español, y toda la UI del juego va en español.
 **Respuestas breves:** al terminar un cambio, decir sólo qué se hizo, en pocas líneas (sin detallar pruebas, tablas ni el proceso), salvo que el dueño pida más detalle.
+**Pull request:** se abre sólo cuando el dueño lo pide, y la respuesta es **sólo el link del pull request** (sin resumen ni preguntas).
 
 ---
 
@@ -71,7 +72,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 |---|---|
 | Constantes al inicio | Arena (`ARENA_W/D`, `DEPTH`, `TOP`), ultimates (`ULTS`, `ULT_*`, `SHIELD_MUL`, `ultPow`), muerte súbita (`OT_*`), elección de objetivo (`TGT_*`, pesos `TGT_W`), miedo (`SCARED_HP`) |
 | Genoma | `rng` con semilla, `genGenome(seed, stage, legacy, v3)` → `baseGenome` → `rollGenome`/`growFrom` (crecer conserva partes), `applyVariety` (partes/colores extra, sólo gen 3), `STAGE_LIM` (qué partes permite cada etapa) |
-| Stats | `calcStats(g, level, pts)`, puntos `PTS` (Poder/Aguante/Agilidad/Técnica), `bodyFromTraining` (cambio visual), personalidad `TEMPER`, `DRILLS`, `ULT_MODES` |
+| Stats | `calcStats(g, level, pts)`, puntos `PTS` (Poder/Aguante/Agilidad/Técnica), `bodyFromTraining` (cambio visual), personalidad `TEMPER`, `snapT`, `ULT_MODES` |
 | `class Monster` | Esqueleto de nodos con resortes (partes "floaty"), `animate`, `rigStep`, IA en `think` (objetivo, eje de lock-in, ataques, esquiva, ultimate), dibujo de cada parte, expresiones (`face`, `setEmo`), aura |
 | `class Battle` | Paso de simulación, golpes (`hit`), proyectiles, ultimates (`startUlt` → cinemática → `execUlt`), muerte súbita, ranking final |
 | Guardado | `SAVE_KEY = 'monster_brawl_v1'` en localStorage, `newRec`, `loadSave` (incluye migraciones), `persist` |
@@ -94,7 +95,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   El huevo criado queda en ese espacio como un monstruo más con `stage: 'egg'` y `readyAt`: **incuba 3 horas** (abajo a la derecha "🥚 2 h 05 min"; tocarlo antes sólo lo mueve) y después se abre a toques.
   Puede haber varios a la vez. Los padres quedan **durmiendo 30 min** (`napUntil`, `napping`; no pelean, sin botón de curar). **Cada monstruo puede tener crías una sola vez** (`bred`).
   Migración: el antiguo `save.breeding = {rec, readyAt}` pasa a `save.monsters` con `readyAt`. 
-  **Cada pelea ganada (1.er lugar) adelanta 2 min la incubación de todos los huevos criados** (`INCUBATE_FIGHT_MS`; se avisa en el resultado).
+  **Cada pelea ganada (1.er lugar) adelanta 2 min la incubación de todos los huevos criados** (`INCUBATE_FIGHT_MS`; no se avisa en el resultado).
   Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
   Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
@@ -136,11 +137,12 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Equilibrio 1v1: sin alas ~47%, saltan ~50%, flotan ~55% (antes de esto: con alas 53%, sin alas 47%; la ventaja de los que flotan viene de ser alados livianos, no del vuelo).
 - **Vidas:** 3 corazones; pierde 1 si lo noquean; recupera 1 cada 5 min; sin vidas descansa 10 min o se cura con monedas según la etapa (`HEAL_COST`: bebé 20 … Awakened 60).
   Mientras duerme (sin vidas o tras criar) la cuenta regresiva va **abajo a la derecha del área del monstruo** en el Home (`cTime`, "💤 29:11"; sin frase de estado); en el panel sólo queda el botón "Curar ya" cuando está sin vidas.
+- **Resultado de la pelea:** muestra **sólo** XP y monedas de cada monstruo tuyo como un **resumen con total** (pedido del dueño; `.rwd`): una fila por el puesto (`placeLbl`, "Victoria"/"Derrota"/"2.º lugar"), una por los K.O. y el Total; en 2 vs 2 además "Monedas en total" (van a la misma bolsa). `#resText` es un `div`; no se muestran cambios de personalidad, vidas perdidas, subidas de nivel ni la incubación (igual ocurren).
 - **Premios** (`REWARDS`, [XP, monedas] por modo y puesto) + K.O. (+10 XP, +5 monedas): 1v1 60/25 · 20/10; 2v2 45/15 · 15/5 (menos porque cada monstruo tuyo cobra el suyo); todos contra todos 80/40 · 50/25 · 30/15 · 15/5.
   Criar (150) es el gasto de monedas para el juego avanzado.
 - **Entrenamiento por puntos:** 2 puntos por nivel en Poder/Aguante/Agilidad/Técnica (máx. 20 c/u), reiniciar cuesta 50. El cuerpo cambia con los puntos.
   **Vista de cerca: un solo botón "⚔️ Luchar"** (`#btnFight`) que abre las opciones (`fightMenu`, clase `fightOpen` en `#homePanel`: Pelea local, ✕ para cerrar, 1 vs 1, 2 vs 2, Todos vs todos); se cierra solo al cambiar de monstruo o volver al rancho. **El Home no muestra estadísticas** (sólo el monstruo, **centrado** en su espacio con un tamaño de 64% del alto, y los botones de pelea): todo está en la pestaña Estadísticas, arriba XP/récord/padres y luego cada stat con su valor, barra, puntos "n/20" y su botón +1 (`MAIN_DEF` en el mismo orden que `PTS`), luego Ultimate y Personalidad. Sólo se muestran esos 4 stats: **no hay "Ver detalle"** con vida/fuerza/peso/esquiva, etc. (el dueño lo pidió quitar).
-- **Personalidad** (3 ejes de −1 a 1): Agresivo↔Cauto, Terco↔Oportunista, Valiente↔Prudente. Cambia **sólo** con ejercicios (15 monedas, bloqueados si el eje ya está al máximo) y según cómo pelea.
+- **Personalidad** (3 ejes de −1 a 1): Agresivo↔Cauto, Terco↔Oportunista, Valiente↔Prudente. **Se ajusta gratis deslizando cada medidor en Estadísticas** (`temperSlider`, pedido del dueño): el medidor queda en uno de 5 puntos con números **2 · 1 · 0 · 1 · 2** (valores −1, −0,5, 0, 0,5, 1; `snapT`, `TEMPER_STEP` 0,5). **Ya no hay ejercicios pagados ni cambia según cómo pelea** (se quitaron `DRILLS`/`adjustTemper`). Arrastrar un medidor no cambia de página ni de monstruo (`swipeStart` ignora `.axslide`). Los hijos (`makeChild`) y los rivales (`makeFoe`) también quedan en esos puntos. Migración: `loadSave` lleva cada eje al punto más cercano.
   **Acariciar o lanzar NO cambia la personalidad** (decisión del dueño). Acariciar lo deja feliz 1 minuto en el menú. Perder un corazón (que lo noqueen, aunque su equipo gane) lo deja triste 1 minuto (`sadUntil`); acariciarlo le quita esa tristeza. Con 1 corazón o menos queda **machacado** (no triste): cara cansada, curitas en la cabeza y ojo morado (`battered`, sólo en el menú).
 - **Ultimate (Awakened):** equipable y cambiable desde Estadísticas (ahí **sólo** aparecen las desbloqueadas). Al despertar trae una de regalo (`starterUlt`); las demás se **compran en la Tienda** por 150 monedas
   y quedan en la biblioteca de la cuenta (`save.ults`) para todos los monstruos. **No depende del stat más alto.**
@@ -150,6 +152,12 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Estadísticas; los **rivales** siguen decidiendo solos (`ultMode` al azar).
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
+
+- **Barra de arriba del Home**: **sin el nombre del juego** (el dueño lo quitó); a la derecha sólo las monedas y ⚙️, que **se ven sólo en el rancho y la Tienda** (`#home:not(.ranch)` las oculta con `visibility` para no mover nada; en la vista de cerca y Estadísticas no están).
+- **Ajustes ⚙️** (`#btnSettings`, modal `#settings` con vistas `.setview` y `setView`): es un menú → **Partida** → **Exportar** (al tocarlo **copia el código solo**, `copyText`: portapapeles o, si no se permite, `execCommand('copy')`; si ambos fallan muestra el código para copiarlo a mano) / **Importar** (abre una ventana para pegar el código) / "Deshacer la última importación" (si hay respaldo).
+  Código = `MB1-` + la partida en base64 (`encodeSave`/`decodeSave`). **Copia local periódica**: cada 2 min y al salir de la app se guarda una copia (`COPY_KEY` = `monster_brawl_copy`, `saveCopy`); exportar la refresca.
+  Importar pregunta con `ask()` mostrando el resumen de ambas partidas, guarda la actual en `UNDO_KEY` (`monster_brawl_undo`) y **reemplaza** la partida (`applyImport`: escribe `SAVE_KEY` y recarga; `importing` evita que `persist` la pise; las migraciones de `loadSave` se aplican al recargar).
+  Sirve para pasar la partida del link de prueba a la web app (son lugares distintos aunque sea el mismo celular).
 
 ## Compatibilidad de partidas guardadas
 

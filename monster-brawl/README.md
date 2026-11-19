@@ -5,6 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
+- **Ajustes ⚙️ (en el rancho, junto a las monedas)** → Partida: Exportar copia un código de tu partida, e Importar la pega en otro lugar (por ejemplo, del link de prueba a la web app instalada, o a otro celular). Al importar se guarda un respaldo para poder deshacerlo. Además, el juego guarda solo una copia de la partida cada 2 minutos.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
 - **Menú en 3 páginas, una debajo de otra** (deslizar arriba/abajo, o tocar "▲ Tienda" / "Estadísticas ▼" en los bordes; no hay pestañas): Tienda (arriba: ultimates por 150),
   Rancho (al medio, página inicial) y Estadísticas (abajo: entrenar y liberar).
@@ -41,7 +42,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   los puntos (brazos más gruesos, torso más ancho, piernas más largas, ojos más grandes).
 - **Personalidad**: Agresivo↔Cauto (distancia, se aleja tras golpear), Terco↔Oportunista (no suelta a su objetivo / va por el
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
-  Cambia con ejercicios (monedas) y según cómo pelea.
+  Se ajusta gratis en Estadísticas deslizando cada medidor, que queda en un número (2 · 1 · 0 · 1 · 2).
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
 - **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Estadísticas. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos

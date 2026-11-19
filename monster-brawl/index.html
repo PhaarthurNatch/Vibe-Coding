@@ -118,7 +118,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
 #home .top,#home .tabs,#home .nav,#home .panel:not(.tpanel){touch-action:none} /* deslizar para cambiar de página sin que el navegador se lo robe */
-.tinfo{text-align:center;font-size:12px;color:var(--muted)}
+.tinfo{text-align:center;font-size:12px;color:var(--muted)}.tinfo:empty{display:none}
 @media (prefers-reduced-motion:reduce){.track{transition:none}}
 .xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .xp .bar{flex:1}
@@ -146,7 +146,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .btn:disabled{opacity:.35;pointer-events:none}
 .slotbtns{grid-column:1/-1}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:34px} /* sin el nombre del juego: sólo monedas y ajustes a la derecha */
 .top .title{text-align:left;margin:0}
 .lancard{max-width:380px;text-align:center}
 .lanlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:4px 0 12px;max-height:46vh;overflow-y:auto;touch-action:pan-y}
@@ -163,6 +163,15 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #lanBtns .btn{flex:1 1 auto}
 .instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
+#home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
+.setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
+.setview{display:flex;flex-direction:column;gap:10px}
+.setitem{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:14px}
+.setitem small{font-size:11px;font-weight:600;color:var(--muted)}
+#setInfo:empty{display:none}#setInfo{color:var(--good)}
+.setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
+.setview textarea:focus{outline:none;border-color:var(--acc)}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
@@ -190,8 +199,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .axis{display:grid;grid-template-columns:76px 1fr 76px;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .axis span:last-child{text-align:right}
 .axis b{color:var(--text)}
+.axslide{position:relative;padding:10px 0 2px;touch-action:none;cursor:pointer} /* personalidad: se desliza y queda en uno de los números */
 .axtrack{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(90,169,255,.35),rgba(255,255,255,.12),rgba(255,122,90,.35))}
-.axtrack i{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--acc);transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel)}
+.axtrack u{position:absolute;top:50%;width:2px;height:12px;background:rgba(255,255,255,.25);transform:translate(-50%,-50%)}
+.axtrack i{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:var(--acc);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--panel),0 2px 4px rgba(0,0,0,.4);transition:left .12s ease-out}
+.axslide.drag .axtrack i{transition:none;transform:translate(-50%,-50%) scale(1.15)}
+.axnums{position:relative;height:16px;margin-top:6px;font-size:11px;font-weight:800;color:var(--muted)}
+.axnums span{position:absolute;transform:translateX(-50%)}
+.axnums span.on{color:var(--acc)}
 .drills{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dbtn small{font-weight:600;color:var(--muted);font-size:10px}
@@ -206,6 +221,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .persona{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .persona b{color:var(--text)}
 .win{color:var(--good)}.lose{color:var(--bad)}
+.restxt{color:var(--muted);font-size:14px;line-height:1.5;display:flex;flex-direction:column;gap:10px}
+.rwd{display:grid;grid-template-columns:1fr auto auto;gap:3px 12px;text-align:left;font-variant-numeric:tabular-nums;background:var(--panel2);border-radius:12px;padding:8px 12px}
+.rwd b.nm{grid-column:1/-1;color:var(--text);font-size:15px;margin-bottom:2px}
+.rwd .rx,.rwd .rc{text-align:right;white-space:nowrap;font-weight:700}
+.rwd .tot{border-top:1px solid rgba(255,255,255,.12);padding-top:4px;margin-top:2px;color:var(--text);font-weight:800}
+.rwd .rx{color:#b9adff}.rwd .rc{color:#ffd36b} /* resumen del resultado: de dónde viene cada premio */
 </style>
 </head>
 <body>
@@ -213,7 +234,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
+  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -287,6 +308,35 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="row" id="lanBtns"></div>
   </div>
 </div>
+<div class="modal" id="settings">
+  <div class="card setcard">
+    <div class="setview" data-view="main">
+      <h2 style="font-size:22px">Ajustes</h2>
+      <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
+      <button class="btn" data-close>Cerrar</button>
+    </div>
+    <div class="setview" data-view="partida" hidden>
+      <h2 style="font-size:22px">Partida</h2>
+      <button class="btn setitem" id="btnExport"><span>📤 Exportar</span><small>copia el código</small></button>
+      <button class="btn setitem" data-go="import"><span>📥 Importar</span><span>›</span></button>
+      <button class="btn setitem" id="btnUndoImp" hidden><span>↩️ Deshacer la última importación</span></button>
+      <p class="tdesc" id="setInfo"></p>
+      <button class="btn" data-go="main">‹ Volver</button>
+    </div>
+    <div class="setview" data-view="import" hidden>
+      <h2 style="font-size:22px">Importar partida</h2>
+      <p class="tdesc">Pega el código que exportaste. Reemplaza la partida de aquí; antes se guarda un respaldo para poder deshacerlo.</p>
+      <textarea id="impCode" placeholder="Pega aquí el código" autocomplete="off" spellcheck="false"></textarea>
+      <div class="row"><button class="btn" data-go="partida">‹ Volver</button><button class="btn primary" id="btnImport">Importar</button></div>
+    </div>
+    <div class="setview" data-view="code" hidden>
+      <h2 style="font-size:22px">Tu código</h2>
+      <p class="tdesc">No se pudo copiar solo: mantén presionado el código, elige «Seleccionar todo» y luego «Copiar».</p>
+      <textarea id="expCode" readonly></textarea>
+      <button class="btn" data-go="partida">‹ Volver</button>
+    </div>
+  </div>
+</div>
 <div class="modal" id="breedPick">
   <div class="card">
     <h2 style="font-size:22px">Elige a los padres</h2>
@@ -313,7 +363,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div class="modal" id="result">
   <div class="card">
     <h2 id="resTitle">¡Victoria!</h2>
-    <p id="resText"></p>
+    <div id="resText" class="restxt"></div>
     <div class="row">
       <button class="btn" id="resHome">Volver</button>
       <button class="btn" id="resRoom" hidden>🎨 Equipos</button>
@@ -726,16 +776,11 @@ const TEMPER = [
   { k: 'terco', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' },
   { k: 'valor', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' },
 ];
-const DRILLS = [ // ejercicios (monedas) que empujan la personalidad
-  { k: 'agr', d: 1, name: 'Sparring' }, { k: 'agr', d: -1, name: 'Tiro a distancia' },
-  { k: 'terco', d: 1, name: 'Ejercicio de foco' }, { k: 'terco', d: -1, name: 'Lectura del combate' },
-  { k: 'valor', d: 1, name: 'Prueba de valor' }, { k: 'valor', d: -1, name: 'Ejercicio de cautela' },
-];
-const DRILL_COST = 15, DRILL_STEP = 0.1;
+// La personalidad se ajusta gratis deslizando cada medidor, que queda en uno de 5 puntos: 2 · 1 · 0 · 1 · 2 (valores −1, −0,5, 0, 0,5, 1)
+const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
-function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: r.f(-0.3, 0.3), terco: r.f(-0.3, 0.3), valor: r.f(-0.3, 0.3) }; }
+function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: snapT(r.f(-0.3, 0.3)), terco: snapT(r.f(-0.3, 0.3)), valor: snapT(r.f(-0.3, 0.3)) }; }
 const temperLabel = (k, v) => { const t = TEMPER.find(x => x.k === k); return v > 0.25 ? t.pos : v < -0.25 ? t.neg : null; };
-function adjustTemper(rec, k, d) { if (!rec.temper) rec.temper = randomTemper(rec.seed); rec.temper[k] = clamp(rec.temper[k] + d, -1, 1); }
 
 function makeCols(P, fl) {
   const H = (c, dl = 0, a = 1) => hsl(c, dl + fl, a);
@@ -2159,13 +2204,14 @@ function newRec(stage = 'egg') {
 }
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && (s.monsters.length || s.adopting)) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
-      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); if (!m.ultMode) m.ultMode = 'save';
+      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = snapT(m.temper[k]); // la personalidad ahora va en puntos fijos if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
+function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
 const cur = () => save.monsters[save.sel];
@@ -2677,6 +2723,7 @@ document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => se
 let swipe = null, swipedAt = 0;
 function swipeStart(x, y, target) {
   if (scene !== 'home' || document.querySelector('.modal.on')) return;
+  if (target && target.closest && target.closest('.axslide')) { swipe = null; return; } // arrastrar un medidor de personalidad no cambia de página ni de monstruo
   const sc = target && target.closest ? target.closest('.tpanel') : null;
   swipe = { x, y, t: performance.now(), touch: touch || (RANCH.drag && RANCH.drag.act ? RANCH.drag : null), top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
 }
@@ -2757,15 +2804,15 @@ function renderTrain() {
   } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
   h += `</div>`;
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
-  h += TEMPER.map(t => { const v = rec.temper[t.k], L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axtrack"><i style="left:${(v + 1) * 50}%"></i></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
+  const NUMS = [2, 1, 0, 1, 2];
+  h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]), L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
   const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
   if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
-  h += `<p class="tdesc">Cambia según cómo pelea y con ejercicios:</p>`;
-  h += `<div class="drills">${DRILLS.map((d, i) => { const t = TEMPER.find(x => x.k === d.k), maxed = drillMaxed(rec, d); return `<button class="btn dbtn" data-drill="${i}" ${maxed || save.coins < DRILL_COST ? 'disabled' : ''}>${d.name}<small>${maxed ? `ya es lo más ${d.d > 0 ? t.pos : t.neg} posible` : `más ${d.d > 0 ? t.pos : t.neg} · ${DRILL_COST}`}</small></button>`; }).join('')}</div></div>`;
+  h += `</div>`;
   $('tlist').innerHTML = h;
-  $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas`;
+  $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
-  document.querySelectorAll('[data-drill]').forEach(b => b.onclick = () => doDrill(+b.dataset.drill));
+  document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
@@ -2784,12 +2831,20 @@ function addPoint(k) {
   rec.pts[k] = (rec.pts[k] || 0) + 1; persist();
   renderHome(); renderTrain(); trainFx(`+${PTS.find(t => t.k === k).name}`);
 }
-const drillMaxed = (rec, d) => (rec.temper[d.k] || 0) * d.d >= 0.999; // ese eje ya está al máximo en esa dirección
-function doDrill(i) {
-  const rec = cur(), d = DRILLS[i], t = TEMPER.find(x => x.k === d.k);
-  if (save.coins < DRILL_COST || drillMaxed(rec, d)) return;
-  save.coins -= DRILL_COST; adjustTemper(rec, d.k, d.d * DRILL_STEP); persist();
-  renderHome(); renderTrain(); trainFx(`más ${d.d > 0 ? t.pos : t.neg}`);
+// Medidor de personalidad: se toca o arrastra y queda en el número más cercano; al soltar se guarda
+function temperSlider(el, rec) {
+  const k = el.dataset.ax, t = TEMPER.find(x => x.k === k), knob = el.querySelector('i'), nums = el.querySelectorAll('.axnums span');
+  let v = snapT(rec.temper[k]), id = null;
+  const at = x => { const r = el.querySelector('.axtrack').getBoundingClientRect(); return snapT(clamp((x - r.left) / r.width, 0, 1) * 2 - 1); };
+  const showV = () => { knob.style.left = (v + 1) * 50 + '%'; nums.forEach((n, i) => n.classList.toggle('on', Math.abs((v + 1) * 2 - i) < 0.01)); };
+  el.onpointerdown = e => { id = e.pointerId; try { el.setPointerCapture(id); } catch (err) { } el.classList.add('drag'); v = at(e.clientX); showV(); };
+  el.onpointermove = e => { if (e.pointerId !== id) return; const nv = at(e.clientX); if (nv !== v) { v = nv; showV(); try { navigator.vibrate && navigator.vibrate(8); } catch (err) { } } };
+  el.onpointerup = el.onpointercancel = e => {
+    if (e.pointerId !== id) return; id = null; el.classList.remove('drag');
+    if (v === snapT(rec.temper[k])) return;
+    rec.temper[k] = v; persist(); renderHome(); renderTrain();
+    const L = temperLabel(k, v); trainFx(L ? (Math.abs(v) >= 1 ? `¡Muy ${L}!` : L) : 'Equilibrado');
+  };
 }
 
 function updateEggSub() {
@@ -2830,7 +2885,7 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = `Tienes ${save.coins} monedas`; renderShopUlts(false); }
+function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); } // las monedas ya se ven arriba
 // Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
@@ -2842,7 +2897,7 @@ function makeChild(A, B) {
   const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3 };
   rec.genes = {};
   for (const grp of Object.keys(GENE_GROUPS)) if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
-  const mix = k => clamp((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4, -1, 1);
+  const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
   rec.parents = [A.name, B.name]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
   rec.ultGift = (Math.random() < 0.5 ? A : B).ult || null; // al despertar trae la ultimate de uno de sus padres
@@ -2926,6 +2981,59 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.datase
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
 $('btnFightClose').onclick = () => fightMenu(false);
+
+// ---------- Ajustes: exportar / importar partida ----------
+// Copia local: cada 2 min (y al salir de la app) se guarda una copia de la partida (COPY_KEY); exportar la refresca y la da como código.
+// Importar reemplaza la partida, guardando antes la anterior (UNDO_KEY) para poder deshacerlo. El código es "MB1-" + la partida en base64.
+const COPY_KEY = 'monster_brawl_copy', UNDO_KEY = 'monster_brawl_undo', COPY_EVERY_MS = 2 * 60 * 1000;
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } };
+function saveCopy() { if (importing) return; const c = { t: Date.now(), data: JSON.stringify(save) }; lsSet(COPY_KEY, JSON.stringify(c)); return c; }
+setInterval(saveCopy, COPY_EVERY_MS);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveCopy(); });
+const encodeSave = json => 'MB1-' + btoa(unescape(encodeURIComponent(json)));
+function decodeSave(code) {
+  const c = (code || '').replace(/\s+/g, ''); if (!c.startsWith('MB1-')) return null;
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(c.slice(4))))); return o && Array.isArray(o.monsters) ? o : null; } catch (e) { return null; }
+}
+const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').length; return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
+// Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
+function setView(v) {
+  document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
+  if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
+  if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
+}
+function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
+$('btnSettings').onclick = openSettings;
+document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
+document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));
+$('expCode').onfocus = () => $('expCode').select();
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; } catch (e) { }
+  try { // respaldo para cuando el portapapeles no está permitido (por ejemplo, dentro de claude.ai)
+    const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+$('btnExport').onclick = async () => {
+  const code = encodeSave(saveCopy().data);
+  if (await copyText(code)) $('setInfo').textContent = '¡Código copiado! Pégalo en Ajustes → Partida → Importar en el otro lugar.';
+  else { $('expCode').value = code; setView('code'); }
+};
+function applyImport(json) { importing = true; lsSet(SAVE_KEY, json); location.reload(); }
+$('btnImport').onclick = async () => {
+  const o = decodeSave($('impCode').value);
+  if (!o) { ask('Ese código no sirve. Revisa que lo hayas copiado completo (empieza con MB1-).', { ok: 'Entendido', cancel: null }); return; }
+  $('settings').classList.remove('on');
+  if (!await ask(`¿Reemplazar esta partida (${saveSummary(save)}) por la del código (${saveSummary(o)})? Se guarda un respaldo por si quieres deshacerlo.`, { ok: 'Importar' })) { $('settings').classList.add('on'); return; }
+  lsSet(UNDO_KEY, JSON.stringify(save)); applyImport(JSON.stringify(o));
+};
+$('btnUndoImp').onclick = async () => {
+  const u = lsGet(UNDO_KEY); let o = null; try { o = JSON.parse(u); } catch (e) { }
+  if (!o || !Array.isArray(o.monsters)) { lsSet(UNDO_KEY, null); $('btnUndoImp').hidden = true; return; }
+  $('settings').classList.remove('on');
+  if (!await ask(`¿Volver a la partida que tenías antes de importar (${saveSummary(o)})?`, { ok: 'Deshacer' })) { $('settings').classList.add('on'); return; }
+  lsSet(UNDO_KEY, null); applyImport(u);
+};
 
 // ---------- Selector de equipo (2 vs 2) ----------
 let lastTeam = null;
@@ -3063,7 +3171,7 @@ function makeFoe(ref) {
   const r = newRec(ref.stage);
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   r.pts = randomPts(r.level);
-  r.temper = { agr: Math.random() * 1.6 - 0.8, terco: Math.random() * 1.6 - 0.8, valor: Math.random() * 1.6 - 0.8 };
+  r.temper = { agr: snapT(Math.random() * 1.6 - 0.8), terco: snapT(Math.random() * 1.6 - 0.8), valor: snapT(Math.random() * 1.6 - 0.8) };
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
   r.ult = ULT_KEYS[Math.floor(Math.random() * ULT_KEYS.length)];
   return new Monster(r);
@@ -3321,39 +3429,32 @@ $('resAgain').onclick = () => {
 function finishBattle() {
   const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
   const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
+  const placeLbl = nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
   const lines = battle.players.map(pm => {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
     place === 1 ? rec.wins++ : rec.losses++;
-    // vidas: sólo se pierde una si lo noquearon
-    let lifeTxt = '';
+    // vidas: sólo se pierde una si lo noquearon (el resultado sólo muestra XP y monedas, pedido del dueño)
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
       rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
-      if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
-      else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
+      if (rec.lives === 0) rec.restUntil = Date.now() + REST_MS;
     }
-    let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
-    // sus peleas moldean su personalidad
-    const ch = [], tw = (k, d, lbl) => { adjustTemper(rec, k, d); ch.push(lbl); };
-    if (pm.dmgM + pm.dmgR > 0) { if (pm.dmgR > pm.dmgM * 1.2) tw('agr', -0.03, 'más Cauto'); else if (pm.dmgM > pm.dmgR * 1.2) tw('agr', 0.03, 'más Agresivo'); }
-    if (!pm.dead && pm.minHpF < 0.25) tw('valor', 0.04, 'más Valiente'); else if (pm.dead) tw('valor', -0.03, 'más Prudente');
-    if (pm.switches >= 2) tw('terco', -0.03, 'más Oportunista'); else if (pm.switches === 0 && place === 1) tw('terco', 0.02, 'más Terco');
-    lifeTxt += (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>! +${ups * PTS_PER_LEVEL} puntos de entrenamiento` : '') + (ch.length ? `<br><small>Personalidad: ${ch.join(', ')}</small>` : '');
-    ups = 0;
-    return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
+    while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
+    // resumen: premio por el puesto + K.O. = total (de dónde viene cada cosa)
+    const row = (lbl, x, c, cls = '') => `<span class="${cls}">${lbl}</span><span class="rx ${cls}">+${x} XP</span><span class="rc ${cls}">+${c} 🪙</span>`;
+    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * 10, pm.kills * 5) : ''}${row('Total', xp, coins, 'tot')}</div>`;
   });
   wakeUp();
   const incub = save.monsters.filter(m => m.readyAt > Date.now());
   if (place === 1 && incub.length) { // ganar adelanta un poquito la incubación de los huevos criados
     for (const m of incub) m.readyAt = Math.max(Date.now(), m.readyAt - INCUBATE_FIGHT_MS);
-    const ready = incub.some(m => m.readyAt <= Date.now());
-    lines.push(`<small>🥚 ${incub.length > 1 ? 'Tus huevos incubaron' : 'Tu huevo incubó'} ${INCUBATE_FIGHT_MS / 60000} min más rápido${ready ? ': ¡ya se puede abrir!' : ''}</small>`);
   }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
-  $('resText').innerHTML = lines.join('<br><br>');
+  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * 5, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
+  $('resText').innerHTML = lines.join('');
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
 }
