@@ -2349,7 +2349,7 @@ function ranchStep(dt) {
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 8; k++) {
           const ang = Math.random() * TAU, dd = 0.2 + Math.random() * 0.45, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
-          if (rr < 0.84 && Math.hypot(nx, nz + 0.8) > 0.32) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
+          if (rr > 0.32 && rr < 0.84 && Math.hypot(nx, nz + 0.8) > 0.32) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
@@ -2371,15 +2371,15 @@ function ranchStep(dt) {
     const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
     if (d < 0.2) { const f = (0.2 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
   }
-  for (const a of A) { const rr = Math.hypot(a.x, a.z); if (rr > 0.86) { a.x *= 0.86 / rr; a.z *= 0.86 / rr; } const bx = a.x, bz = a.z + 0.8, bd = Math.hypot(bx, bz); if (bd < 0.3 && bd > 0) { a.x = bx * 0.3 / bd; a.z = bz * 0.3 / bd - 0.8; } }
+  for (const a of A) { const rr = Math.hypot(a.x, a.z); if (rr > 0.86) { a.x *= 0.86 / rr; a.z *= 0.86 / rr; } const bx = a.x, bz = a.z + 0.8, bd = Math.hypot(bx, bz); if (bd < 0.3 && bd > 0) { a.x = bx * 0.3 / bd; a.z = bz * 0.3 / bd - 0.8; } const r2 = Math.hypot(a.x, a.z); if (r2 < 0.28 && r2 > 0) { a.x *= 0.28 / r2; a.z *= 0.28 / r2; } } // lejos de la cámara (en el centro)
 }
 RANCH.frame = 0;
 function drawRanch(c, r) {
   // Perspectiva de una persona parada DENTRO del rancho (cámara en z = CAM_D, a la altura de los ojos, mirando al otro lado):
   // el rancho es grande comparado con los monstruos, lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
-  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.4, CAM_D = 0.85, NEAR = 0.16;
-  const F = r.width * 0.7, camH = (r.bottom - Yh) * 0.32, kb = r.height * 0.15 / 150;
-  const V = RANCH.view = { cx, RX: F * 1.4, kb, r };
+  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.4, CAM_D = 0, NEAR = 0.16; // cámara en el centro del rancho (el eje): girar es mirar alrededor
+  const F = r.width * 0.7, camH = (r.bottom - Yh) * 0.24, kb = r.height * 0.12 / 150;
+  const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
   const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co, d = CAM_D - wz; return { X: cx + wx * F / Math.max(d, 0.01), Y: Yh + camH / Math.max(d, 0.01), wz, d, sc: 1 / Math.max(d, 0.01), vis: d > NEAR }; };
   const near = p => clamp((p.d - NEAR) / 0.22, 0, 1), nearM = p => clamp((p.d - 0.3) / 0.22, 0, 1); // lo que está casi encima de la cámara se desvanece (los monstruos antes, para no tapar la pantalla)
@@ -2930,7 +2930,7 @@ cv.addEventListener('pointermove', e => {
     if (G.mode === 'pet') { ranchPet(G.act, e.clientX, e.clientY, Math.hypot(e.clientX - G.lx, e.clientY - G.ly)); G.lx = e.clientX; G.ly = e.clientY; return; }
     if (G.mode === 'h') {
       const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000);
-      RANCH.th = G.th0 - dx / RANCH.view.RX; G.v = -(e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; G.lx = e.clientX; G.lt = now;
+      RANCH.th = G.th0 + dx / RANCH.view.RX; G.v = (e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; // el paisaje sigue al dedo G.lx = e.clientX; G.lt = now;
     }
     return;
   }
