@@ -2243,7 +2243,8 @@ function drawArena(ctx) {
 // ============================================================================
 const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolescente', adult: 'Adulto', awakened: 'Awakened' };
 const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
-const MAX_LIVES = 3;
+const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cuántos para abajo se ve machacado
+const BATTERED_LIVES = 2;
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
 const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
@@ -2288,6 +2289,7 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
+      if (!s.lives5) { s.monsters.forEach(m => { if (!m.restUntil) m.lives = Math.min(MAX_LIVES, (m.lives ?? 3) + 2); }); s.lives5 = true; } // de 3 a 5 corazones: +2 a cada uno
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = 5; delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true }; });
         s.gen5 = true; }
@@ -2689,8 +2691,8 @@ function personaText(rec) {
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
 const PET_HAPPY_MS = 5 * 1000, LOSS_SAD_MS = 60 * 1000;
-const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= 1 ? 'beat' : null;
-const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : null;
+const isBattered = rec => rec.lives <= BATTERED_LIVES; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
   if (firstEgg()) ranchMode = false; // partida nueva: sólo el huevo, de cerca

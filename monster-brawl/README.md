@@ -36,7 +36,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   esquivar es un salto lateral real, así que el ataque falla físicamente.
 - Modos 1v1, 2v2 y todos contra todos (velocidad fija x1.5). En 2v2 eliges 2 de tus monstruos para pelear en equipo
   (o un aliado al azar si sólo tienes uno listo); cada uno gana su XP, monedas y pierde sus vidas. XP, monedas y niveles guardados en el dispositivo.
-- **Vidas**: 3 por monstruo; si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
+- **Vidas**: 5 por monstruo (con 2 o menos se ve machacado); si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
 - **Interacción en la vitrina**: toque corto = sacudirlo; deslizar el dedo = acariciarlo (cierra los ojos, se sonroja, salen corazones);
   mantener presionado = tomarlo: cuelga del dedo, lo puedes mover, levantar y lanzar; al caer rebota y vuelve caminando al centro.
 - **Entrenamiento por puntos**: 2 puntos por nivel para repartir en Poder (daño), Aguante (vida y defensa), Agilidad
