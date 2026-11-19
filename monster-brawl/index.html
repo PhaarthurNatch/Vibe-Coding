@@ -571,7 +571,7 @@ function pickParts(seed, stage) {
   const r = rng((seed ^ 0x6a09e667) >>> 0), keys = Object.keys(PART_MAX), tot = {}, c = {};
   for (const k of keys) { tot[k] = 0; c[k] = 0; }
   const last = PICK_STAGES.indexOf(stage === 'egg' ? 'baby' : stage === 'awakened' ? 'adult' : stage);
-  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const k = r.pick([...keys.filter(q => tot[q] < PART_MAX[q]), null]); if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
+  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const k = r.pick([...keys.filter(q => tot[q] < PART_MAX[q] && (q !== 'shoulders' || tot.arms > 0)), null]); /* hombros sólo si ya tiene brazos */ if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
   return c;
 }
 const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart', 'hex', 'mushroom', 'bean'], torso: ['oval', 'box'], hand: ['fist', 'claw', 'blade', 'paw', 'pincer', 'tentacle'],
@@ -598,7 +598,7 @@ function genome5(seed, stage) {
   g.arms.pairs = c.arms; g.legs.pairs = c.legs; g.wings.pairs = c.wings; g.tail.count = c.tail; g.horns.count = c.horns;
   g.torso.mid = c.torso >= 1 ? (g.torso.mid || dims.mid) : null; g.torso.lower = c.torso >= 2 ? (g.torso.lower || dims.lower) : null;
   g.neck.len = c.neck ? (g.neck.len || dims.neck) : 0;
-  g.shoulders.size = c.shoulders ? (g.shoulders.size || dims.shoulder) : 0;
+  g.shoulders.size = c.shoulders && c.arms ? (g.shoulders.size || dims.shoulder) : 0; // los hombros van siempre con los brazos principales
   if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
   else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
   g.stage = stage; g.v3 = true; g.v5 = true;
@@ -795,7 +795,7 @@ const PART_STATS = [ // [clave, nombre, cuántas tiene (genoma → número), má
   ['horns', 'Cuernos', g => g.horns.count, 4, { melee: 0.8, defense: 1, weight: 0.1 }],
   ['ears', 'Orejas (par)', g => g.ears ? 1 : 0, 1, { dodge: 0.04 }],
   ['antennae', 'Antenas', g => g.antennae ? g.antennae.count : 0, 2, { range: 30 }],
-  ['shoulders', 'Hombros (par)', g => g.shoulders.size > 0 ? 1 : 0, 1, { hp: 20, defense: 6, weight: 0.2 }],
+  ['shoulders', 'Hombros (par)', g => g.shoulders.size > 0 && g.arms.pairs > 0 ? 1 : 0, 1, { hp: 20, defense: 6, weight: 0.2 }],
   ['arms', 'Brazos (pares)', g => g.arms.pairs, 3, { melee: 1.5, reach: 4, weight: 0.3, meleeCd: -0.04 }],
   ['legs', 'Piernas (pares)', g => g.legs.pairs, 2, { speed: 18, weight: 0.15 }],
   ['wings', 'Alas (pares)', g => g.wings.pairs, 2, { speed: 14, dodge: 0.06, weight: 0.1 }],
@@ -1546,7 +1546,7 @@ class Monster {
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
     for (const a of I.arms) if (a.p === 0 && !hid('arm:0')) this.drawArm(ctx, a, C, lw);
-    if (g.shoulders.size > 0 && !hid('shoulders')) for (const si of I.shoulders) {
+    if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
       ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
