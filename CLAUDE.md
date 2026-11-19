@@ -100,7 +100,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   revancha desde cualquiera de los dos. Prueba con dos páginas: `--disable-features=WebRtcHideLocalIpsWithMdns` y `lanGotCode(LAN.code)` en vez de la cámara.
   Pendiente (etapa 4): la arena repartida en varias pantallas sobre la mesa.
 - **Rivales:** siempre de la **misma etapa** que tu monstruo (se probó mezclar etapas y el dueño lo pidió quitar). Nivel ±1, puntos y personalidad al azar.
-- **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida sobre las cabezas** (sólo una ★ sobre los monstruos del jugador). Sin indicador de objetivo. Al esquivar no aparece texto.
+- **Combate:** automático, velocidad fija x1.5, sin botón de velocidad. Empieza con cuenta regresiva 3, 2, 1 y "FIGHT!" estilo arcade (`INTRO_*`, `drawIntro`; sólo en `startBattle`, las simulaciones no la tienen). Datos de los peleadores arriba de la arena; **sin barras de vida ni marcas sobre las cabezas** (la ★ sobre tus monstruos también se quitó; tus monstruos se distinguen con la ★ y el borde dorado en los datos de arriba). Sin indicador de objetivo. Al esquivar no aparece texto.
   Desde los 60 s de juego hay **muerte súbita** (el daño sube); antes había un corte a los 90 s que mostraba "Victoria" con enemigos vivos: no volver a eso.
   La pantalla se mantiene encendida durante los combates (Wake Lock).
 - **IA — objetivo** (`Monster.scoreTarget`): cada 0,5 s puntúa a cada enemigo con factores de 0 a 1 (misma escala en todas las etapas):
