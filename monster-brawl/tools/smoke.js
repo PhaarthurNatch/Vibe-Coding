@@ -1,4 +1,4 @@
-// Prueba rápida: abre el juego como iPhone 13, hace nacer el primer huevo, revisa el rancho (tocar al monstruo lo acerca), le pone nombre y juega una pelea 1 vs 1.
+// Prueba rápida: abre el juego como iPhone 13, hace nacer el primer huevo, revisa el rancho (mantener apretado al monstruo lo acerca), le pone nombre y juega una pelea 1 vs 1.
 // Uso: node monster-brawl/tools/smoke.js   (debe terminar con "no errors")
 const path = require('path');
 const { chromium, devices } = require('playwright');
@@ -28,8 +28,8 @@ const { chromium, devices } = require('playwright');
     a = await p.evaluate(() => { const m = RANCH.actors.find(x => x.kind === 'mon' && x.hit && (x.hit.x0 + x.hit.x1) / 2 > 30 && (x.hit.x0 + x.hit.x1) / 2 < innerWidth - 30); if (!m) { RANCH.th += 0.5; return null; } const h = m.hit; return { x: (h.x0 + h.x1) / 2, y: h.y0 * 0.3 + h.y1 * 0.7 }; });
     if (!a) await p.waitForTimeout(150);
   }
-  await p.mouse.click(a.x, a.y); await p.waitForTimeout(700);
-  if (await p.evaluate(() => ranchMode)) { errs.push('tocar al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
+  await p.mouse.move(a.x, a.y); await p.mouse.down(); await p.waitForTimeout(700); await p.mouse.up(); await p.waitForTimeout(600); // mantener apretado = verlo de cerca
+  if (await p.evaluate(() => ranchMode)) { errs.push('mantener apretado al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
   await p.click('[data-mode="1v1"]'); await p.waitForTimeout(500);
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });

@@ -40,7 +40,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #showArea{position:relative}
 #home.ranch #lblStats{display:none}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
-.ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;white-space:nowrap;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #home:not(.ranch) .ranchHint{display:none}
 .edgeLbl{flex:none;align-self:center;background:none;padding:3px 14px;font-size:13px;font-weight:800;letter-spacing:.5px;color:#cfc4ff;text-shadow:0 1px 3px rgba(0,0,0,.7);touch-action:none} /* en lugar de pestañas: arriba/abajo dice qué página hay (y se puede tocar) */
 .edgeLbl.up{margin-bottom:2px;animation:edgeUp 2.4s ease-in-out infinite}.edgeLbl.down{margin-top:4px;animation:edgeDown 2.4s ease-in-out infinite}
@@ -220,7 +220,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="nav">
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
   </div>
-  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
+  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">girar: desliza · golpe: toca · caricia: frota · de cerca: mantén</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
@@ -2298,7 +2298,7 @@ const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjet
 // Cada espacio (monstruo, huevo o espacio libre) es un "habitante" con posición en el disco del rancho (x, z en -1..1).
 // Deslizar a los lados lo gira (RANCH.th); tocar un habitante acerca la cámara a la vista de cerca (zoom → ranchMode = false).
 let ranchMode = true, zoom = null; const ZOOM_S = 0.45;
-const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0 };
+const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0, parts: [], hold: null };
 function ranchDeco() {
   if (RANCH.deco) return RANCH.deco;
   const r = rng(90211), d = [];
@@ -2332,12 +2332,15 @@ function syncRanch() {
 }
 function ranchStep(dt) {
   RANCH.t += dt;
+  for (const q of RANCH.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.k === 'star' ? 400 : -20) * dt; q.life -= dt; }
+  if (RANCH.parts.length) RANCH.parts = RANCH.parts.filter(q => q.life > 0);
   if (!RANCH.drag) { RANCH.th += RANCH.vth * dt; RANCH.vth *= Math.exp(-dt * 3); }
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   for (const a of A) {
     let vx = 0, vz = 0;
-    if (a.kind === 'mon' && !a.m.sleep) {
+    if (a.kt > 0) { a.kt -= dt; const f = Math.max(0, a.kt / 0.45); a.x += a.kx * f * dt * 2; a.z += a.kz * f * dt * 2; } // empujado por un golpe
+    else if (a.kind === 'mon' && !a.m.sleep) {
       if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.075 + (a.m.st.speed || 100) / 4000;
         if (d < 0.02) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
@@ -2451,12 +2454,48 @@ function drawRanch(c, r) {
     const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = a.slot === save.sel ? '#ffcf6e' : '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
+  for (const q of RANCH.parts) { // corazones al acariciar, estrellitas al golpear
+    c.globalAlpha = clamp(q.life * 2, 0, 1);
+    if (q.k === 'heart') { c.fillStyle = '#ff7aa8'; heartPath(c, q.x, q.y, 7); c.fill(); }
+    else { c.fillStyle = '#ffe27a'; c.beginPath(); c.arc(q.x, q.y, 3.5, 0, TAU); c.fill(); }
+  }
+  c.globalAlpha = 1;
+  const Hd = RANCH.hold; // mantener apretado: un círculo que se completa y acerca la cámara
+  if (Hd) { const f = clamp((performance.now() - Hd.t0 - 120) / (RANCH_HOLD_MS - 120), 0, 1); if (f > 0) { c.lineWidth = 4; c.strokeStyle = 'rgba(255,207,110,.9)'; c.beginPath(); c.arc(Hd.x, Hd.y, 26, -Math.PI / 2, -Math.PI / 2 + f * TAU); c.stroke(); } }
 }
+const RANCH_HOLD_MS = 500;
 // Tocar en el rancho: el habitante más adelante bajo el dedo
-function ranchTap(x, y) {
+function ranchHit(x, y) { // el habitante más adelante bajo el dedo
   let best = null;
   for (const a of RANCH.actors) { const h = a.hit; if (h && x > h.x0 && x < h.x1 && y > h.y0 && y < h.y1 && (!best || h.depth > best.hit.depth)) best = a; }
-  if (!best) return;
+  return best;
+}
+function ranchTap(x, y) { const a = ranchHit(x, y); if (a) ranchZoomTo(a); }
+// Golpe en el rancho: salta y sale empujado hacia atrás (lejos de la cámara)
+function ranchPunch(a, x, y) {
+  if (a.kind === 'egg') { a.e.vt += (Math.random() < 0.5 ? -1 : 1) * 6; a.e.sq = 0.12; return; }
+  if (a.kind !== 'mon') return;
+  const m = a.m, co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+  m.vz = 260; m.mouthOpen = 1; m.hurtT = 0.08;
+  if (!m.sleep) m.setEmo('surprised', 0.5, 2, ['angry', 0.8]);
+  for (const n of m.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
+  a.kx = -sn * 0.9; a.kz = -co * 0.9; a.kt = 0.45; a.walk = false; a.idle = 1.2 + Math.random(); // empujón hacia el fondo
+  for (let i = 0; i < 7; i++) { const ang = Math.random() * TAU, v = 80 + Math.random() * 120; RANCH.parts.push({ x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v - 60, life: 0.5, k: 'star' }); }
+  try { navigator.vibrate && navigator.vibrate(12); } catch (err) { }
+}
+// Caricia en el rancho: frotar sobre el monstruo
+function ranchPet(a, x, y, dist) {
+  if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
+  if (a.kind !== 'mon') return;
+  const m = a.m; a.walk = false; a.idle = Math.max(a.idle, 1.5);
+  if (!m.sleep) m.setEmo('love', 0.9, 2);
+  for (const n of m.nodes) { n.vx += (Math.random() - 0.5) * 40; }
+  RANCH.petAcc = (RANCH.petAcc || 0) + dist;
+  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push({ x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
+  rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
+}
+function ranchZoomTo(best) {
   if (best.slot < save.monsters.length) { save.sel = best.slot; homeEmpty = null; } else homeEmpty = best.slot;
   persist(); fx.parts = [];
   zoom = { t: 0, dir: 1, px: (best.hit.x0 + best.hit.x1) / 2, py: (best.hit.y0 + best.hit.y1) / 2 };
@@ -2591,7 +2630,7 @@ let swipe = null, swipedAt = 0;
 function swipeStart(x, y, target) {
   if (scene !== 'home' || document.querySelector('.modal.on')) return;
   const sc = target && target.closest ? target.closest('.tpanel') : null;
-  swipe = { x, y, t: performance.now(), touch, top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
+  swipe = { x, y, t: performance.now(), touch: touch || (RANCH.drag && RANCH.drag.act ? RANCH.drag : null), top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
 }
 function swipeEnd(x, y) {
   if (!swipe) return;
@@ -2866,7 +2905,11 @@ let touch = null, petAcc = 0;
 const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY - homeView.gy) / homeView.k });
 cv.addEventListener('pointerdown', e => {
   if (scene === 'home' && homePage === 1 && ranchMode && !zoom && RANCH.view) { // rancho: arrastrar a los lados lo gira, tocar elige
-    RANCH.drag = { x0: e.clientX, y0: e.clientY, th0: RANCH.th, lx: e.clientX, lt: performance.now(), v: 0, mode: null, id: e.pointerId };
+    const act = ranchHit(e.clientX, e.clientY), G = RANCH.drag = { x0: e.clientX, y0: e.clientY, th0: RANCH.th, lx: e.clientX, ly: e.clientY, lt: performance.now(), t0: performance.now(), v: 0, mode: null, id: e.pointerId, act };
+    if (act) { // sobre un habitante: tocar = golpe, frotar = caricia, mantener = verlo de cerca
+      RANCH.hold = { x: e.clientX, y: e.clientY, t0: performance.now() };
+      G.timer = setTimeout(() => { if (RANCH.drag === G && !G.mode) { G.mode = 'hold'; RANCH.hold = null; ranchZoomTo(act); } }, RANCH_HOLD_MS);
+    }
     try { cv.setPointerCapture(e.pointerId); } catch (err) { }
     return;
   }
@@ -2884,7 +2927,12 @@ cv.addEventListener('pointermove', e => {
   const G = RANCH.drag;
   if (G && e.pointerId === G.id) {
     const dx = e.clientX - G.x0, dy = e.clientY - G.y0;
-    if (!G.mode && Math.hypot(dx, dy) > 10) G.mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    if (!G.mode && Math.hypot(dx, dy) > 10) {
+      clearTimeout(G.timer); RANCH.hold = null;
+      const fast = Math.hypot(dx, dy) / Math.max(1, performance.now() - G.t0) > 0.9; // rápido = girar; despacio sobre un monstruo = acariciar
+      G.mode = G.act && G.act.kind !== 'free' && !fast ? 'pet' : Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if (G.mode === 'pet') { ranchPet(G.act, e.clientX, e.clientY, Math.hypot(e.clientX - G.lx, e.clientY - G.ly)); G.lx = e.clientX; G.ly = e.clientY; return; }
     if (G.mode === 'h') {
       const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000);
       RANCH.th = G.th0 - dx / RANCH.view.RX; G.v = -(e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; G.lx = e.clientX; G.lt = now;
@@ -2909,14 +2957,14 @@ cv.addEventListener('pointermove', e => {
 });
 cv.addEventListener('pointerup', e => {
   const G = RANCH.drag;
-  if (G && e.pointerId === G.id) { RANCH.drag = null; if (!G.mode) ranchTap(e.clientX, e.clientY); else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
+  if (G && e.pointerId === G.id) { RANCH.drag = null; clearTimeout(G.timer); RANCH.hold = null; if (!G.mode) { if (G.act) { if (G.act.kind === 'free') ranchZoomTo(G.act); else ranchPunch(G.act, e.clientX, e.clientY); } } else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
-cv.addEventListener('pointercancel', () => { RANCH.drag = null; if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
+cv.addEventListener('pointercancel', () => { if (RANCH.drag) clearTimeout(RANCH.drag.timer); RANCH.drag = null; RANCH.hold = null; if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
 const GRAB_HOLD_MS = 280;
 const grabbed = t => show; // lo que tiene el dedo: el monstruo
 function grab(t) {
