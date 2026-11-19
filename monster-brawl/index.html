@@ -40,7 +40,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #showArea{position:relative}
 .corner{position:absolute;font-weight:800;font-size:16px;color:var(--text);text-shadow:0 2px 3px rgba(0,0,0,.5);line-height:1.15}
 .corner.tl{top:4px;left:2px}.corner.tr{top:4px;right:2px;text-align:right}.corner.bl,.corner.br{bottom:4px;left:2px;color:var(--muted);font-size:14px}.corner.br{left:auto;right:2px;text-align:right}
-.corner .hearts{font-size:20px}.corner.br .hearts{font-size:inherit}
+.corner .hearts{font-size:20px}.corner.br{color:#cfc4ff;font-size:22px;font-weight:900}
 .corner small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
 .hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
 .panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
@@ -2298,7 +2298,9 @@ function renderHome() {
 function updateSub() {
   const rec = cur(); if (rec.stage === 'egg') return;
   $('mSub').textContent = ''; // nivel arriba a la izquierda, corazones arriba a la derecha, número de monstruo abajo a la izquierda
-  $('cLv').textContent = `Nv. ${rec.level}`; $('cHearts').innerHTML = hearts(rec.lives); $('cTime').innerHTML = rec.heartAt ? `<span class="hearts">♥</span> +1 en ${mmss(rec.heartAt - Date.now())}` : '';
+  $('cLv').textContent = `Nv. ${rec.level}`; $('cHearts').innerHTML = hearts(rec.lives) + (rec.heartAt ? `<small>+1 en ${mmss(rec.heartAt - Date.now())}</small>` : '');
+  const zz = rec.restUntil > Date.now() ? rec.restUntil : napping(rec) ? rec.napUntil : 0; // durmiendo (sin vidas o tras criar): cuánto le falta, abajo a la derecha
+  $('cTime').innerHTML = zz ? `💤 ${mmss(zz - Date.now())}` : '';
   $('cIdx').textContent = `${save.sel + 1}/${save.monsters.length}`;
 }
 function updateRest() {
@@ -3062,8 +3064,7 @@ function loop(now) {
     const E = onAdopt ? adoptEgg : onBreed ? breedEgg : egg, empty = onBreed && !breedEgg; // Criadero sin huevo: sólo el nido
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
     const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
-    const sleepy = !E && !empty && show.sleep; // dormido: un poco más chico para que quepa la cuenta regresiva arriba
-    const k = Math.min(r.height * (sleepy ? 0.6 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
+    const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
     homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k, adopt: onAdopt, breed: onBreed };
     const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
     if (onAdopt) adoptBounds = bounds; else if (!onBreed) homeBounds = bounds;
@@ -3091,14 +3092,6 @@ function loop(now) {
     }
     drawFxParts(ctx);
     ctx.restore();
-    if (sleepy) { // cuenta regresiva grande arriba del monstruo dormido
-      const rec = cur(), rest = rec.restUntil > Date.now(), left = rest ? rec.restUntil - Date.now() : (rec.napUntil || 0) - Date.now();
-      if (left > 0) {
-        const y = Math.max(homeView.gy - Math.max(sz.h, 60) * k - 16, r.top + 44);
-        ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(20,10,30,.85)';
-        ctx.font = '900 42px system-ui'; ctx.lineWidth = 7; ctx.strokeText(mmss(left), homeView.cx, y); ctx.fillStyle = rest ? '#ff9aa6' : '#cfc4ff'; ctx.fillText(mmss(left), homeView.cx, y);
-      }
-    }
     if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
     if (fx.labelT > 0 && fx.label) {
       const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
