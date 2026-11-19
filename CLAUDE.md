@@ -148,9 +148,6 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
   **Tus monstruos la lanzan sólo cuando aprietas el botón ULTIMATE** abajo de la arena (`ultBar`, `setupUltBar`/`updateUltBar`, `ultRequest`; uno por monstruo tuyo con ultimate,
   desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Estadísticas; los **rivales** siguen decidiendo solos (`ultMode` al azar).
-- **Estilo de dibujo Clásico / 👾 Pixel** (`save.pixel`, interruptor gratis al final de la Tienda, `renderStylePick`): con Pixel `resize` baja `DPR` a `1 / PIX_CSS` (1 píxel cada 2,2 px de pantalla)
-  y el canvas se agranda sin suavizar (clase `px` en `#cv`, `image-rendering: pixelated`). No se redibujó nada: todo lo del canvas (rancho, monstruos, peleas, crecimiento) queda pixelado; la interfaz HTML sigue nítida.
-  En Pixel los nombres del rancho son más grandes para que se lean. Partidas antiguas sin el campo = Clásico (no hace falta migración). Las miniaturas de los selectores (equipo, criar, sala LAN) no se pixelan.
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
