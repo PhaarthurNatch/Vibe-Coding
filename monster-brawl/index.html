@@ -3246,7 +3246,7 @@ function pet(a, b) {
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
 function makeFoe(ref) {
-  const r = newRec(ref.stage); r.gen = clamp(ref.gen || 3, 3, r.gen); // rival de la misma generación que tu monstruo (cuerpos comparables)
+  const r = newRec(ref.stage); // los rivales siempre son de la versión más nueva
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   r.pts = randomPts(r.level);
   r.temper = { agr: snapT(Math.random() * 1.6 - 0.8), terco: snapT(Math.random() * 1.6 - 0.8), valor: snapT(Math.random() * 1.6 - 0.8) };
