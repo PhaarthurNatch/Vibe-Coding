@@ -30,6 +30,7 @@ const { chromium, devices } = require('playwright');
   }
   await p.mouse.click(a.x, a.y); await p.waitForTimeout(700); // tocar = verlo de cerca
   if (await p.evaluate(() => ranchMode)) { errs.push('tocar al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
+  await p.click('#btnFight'); await p.waitForTimeout(200); // "Luchar" abre los modos
   await p.click('[data-mode="1v1"]'); await p.waitForTimeout(500);
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });

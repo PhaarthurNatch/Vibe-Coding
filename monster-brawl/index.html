@@ -71,7 +71,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .tabs button.locked{opacity:.5}
 #home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
-#home.vacant .panel>.row{display:none} /* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
+#home.vacant .panel>.row,#home.vacant #btnFight{display:none}
+.fightbtn{font-size:19px;padding:15px 10px;letter-spacing:.5px}
+#homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
+#homePanel.fightOpen #btnFight{display:none}
+#homePanel.fightOpen .fightrow{animation:zoomIn .3s ease-out}
+.fightrow .fightclose{flex:none;width:52px} /* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
 @media (max-width:380px){.tabs{gap:0}.tabs button{font-size:11.5px;padding:7px 6px;letter-spacing:0}} /* celulares angostos: que quepan las 4 pestañas */
 .ultbar{display:flex;gap:8px;justify-content:center;padding-top:6px}
 .ultbtn{flex:1;max-width:260px;padding:10px 8px;border-radius:16px;background:linear-gradient(#ffe08a,#ff9a3c 60%,#e8641c);color:#2a1200;box-shadow:0 4px 0 #8a3a0a,0 0 18px rgba(255,170,60,.55);display:flex;flex-direction:column;align-items:center;gap:1px;animation:ultpulse 1.4s ease-in-out infinite}
@@ -223,13 +228,15 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   </div>
   <div class="spacer" id="showArea"><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
   <div class="hint" id="hint" hidden></div>
-  <div class="panel">
+  <div class="panel" id="homePanel">
     <div class="stats" id="stats"></div>
-    <div class="row">
-      <button class="btn" id="btnLan">📶 Pelea local</button>
-    </div>
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
-    <div class="row">
+    <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
+    <div class="row fightrow">
+      <button class="btn" id="btnLan">📶 Pelea local</button>
+      <button class="btn fightclose" id="btnFightClose" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="row fightrow">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
       <button class="btn primary" data-mode="2v2">2 vs 2</button>
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
@@ -2515,6 +2522,7 @@ function greetFocus(a) {
   a.m.setEmo('happy', 1.8, 2);
 }
 function ranchZoomTo(best) {
+  fightMenu(false);
   greetFocus(best);
   if (best.slot < save.monsters.length) { save.sel = best.slot; homeEmpty = null; } else homeEmpty = best.slot;
   persist(); fx.parts = [];
@@ -2524,6 +2532,7 @@ function ranchZoomTo(best) {
 }
 // Volver al rancho desde la vista de cerca
 function toRanch() {
+  fightMenu(false);
   if (firstEgg()) { nudgeEgg(); return; }
   const a = RANCH.actors[homeEmpty ?? save.sel], h = a && a.hit;
   zoom = { t: 0, dir: -1, px: h ? (h.x0 + h.x1) / 2 : W / 2, py: h ? (h.y0 + h.y1) / 2 : H / 2 };
@@ -2572,6 +2581,7 @@ function renderHome() {
     return;
   }
   $('btnLan').disabled = firstEgg();
+  setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn:not(.fightclose)')].every(b => b.disabled); });
   $('home').classList.toggle('first', firstEgg()); // partida nueva: sin botones hasta que nazca el primer huevo
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
@@ -2699,7 +2709,7 @@ function switchMonster(d, nb) { // recorre también los espacios libres (nb: ir 
   const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
   fx.parts = []; // corazones y chispas del anterior no pasan al siguiente
-  persist(); renderHome(); checkGrowth();
+  fightMenu(false); persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
   const travel = homePage === 1 && !ranchMode; // de cerca en el rancho: la cámara viaja por el rancho hasta el otro
   if (travel) greetFocus(RANCH.actors[homeEmpty ?? save.sel]);
@@ -2906,6 +2916,10 @@ $('btnFree').onclick = async () => {
   save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
 };
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === '2v2' ? openTeamPick() : startBattle(b.dataset.mode, [cur()]));
+// "Luchar" abre los modos de pelea (y la pelea local); ✕ los cierra. Se cierran solos al cambiar de monstruo o volver al rancho.
+const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
+$('btnFight').onclick = () => fightMenu(true);
+$('btnFightClose').onclick = () => fightMenu(false);
 
 // ---------- Selector de equipo (2 vs 2) ----------
 let lastTeam = null;
