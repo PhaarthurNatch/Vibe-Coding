@@ -113,6 +113,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
 .tpanel.shop{flex:1 1 auto;margin-top:6px}
+.genegrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.genebtn{font-size:13px;padding:10px 6px}
 .bdlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bdgo{display:flex;align-items:center;justify-content:center;gap:6px}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
@@ -240,6 +241,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
       <div class="tsec" id="shopUlts"></div>
+      <div class="tsec" id="shopGenes"></div>
     </div>
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
@@ -334,6 +336,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <p class="tdesc">No se pudo copiar solo: mantén presionado el código, elige «Seleccionar todo» y luego «Copiar».</p>
       <textarea id="expCode" readonly></textarea>
       <button class="btn" data-go="partida">‹ Volver</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="genePick">
+  <div class="card">
+    <h2 style="font-size:22px" id="gpTitle">Gen</h2>
+    <p id="gpInfo"></p>
+    <div class="tplist" id="gpList"></div>
+    <div class="row">
+      <button class="btn" id="gpNo">Cancelar</button>
+      <button class="btn primary" id="gpGo">Dar</button>
     </div>
   </div>
 </div>
@@ -2869,6 +2882,7 @@ function renderTrain() {
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = (show && show.rec === rec ? show : new Monster(rec)).st;
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
+    + (rec.geneLock && !rec.bred && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '') + `</div>`;
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
@@ -2971,7 +2985,7 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); } // las monedas ya se ven arriba
+function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
 // Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
@@ -2982,7 +2996,12 @@ let breedSel = new Set();
 function makeChild(A, B) {
   const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3, v4: (P.gen || 0) >= 4, v5: (P.gen || 0) >= 5 };
   rec.genes = {};
-  for (const grp of Object.keys(GENE_GROUPS)) if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
+  for (const grp of Object.keys(GENE_GROUPS)) {
+    const la = !!(A.geneLock && A.geneLock[grp]), lb = !!(B.geneLock && B.geneLock[grp]); // gen comprado en la Tienda: esa parte se hereda sí o sí de ese padre
+    if (la || lb) rec.genes[grp] = origin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
+    else if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
+  }
+  delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
   rec.parents = [A.name, B.name]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
@@ -3037,6 +3056,41 @@ function doBreed(A, B) {
   A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = B.bred = true; // sólo una vez en la vida
   save.monsters.push(rec); save.sel = save.monsters.length - 1; homeEmpty = null; breedSel.clear();
   persist(); renderHome(); if (egg) { egg.sq = 0.2; egg.vz = 200; } fx.label = '¡Un huevo!'; fx.labelT = 2;
+}
+// Tienda: genes. Se le da a un monstruo (que todavía no haya criado) y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
+const GENE_COST = 40;
+const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas y antenas', neck: 'Cuello', body: 'Torso y hombros', arms: 'Brazos', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
+function renderShopGenes() {
+  const el = $('shopGenes');
+  el.innerHTML = `<div class="thead">Genes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(k =>
+    `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-genebuy]').forEach(b => b.onclick = () => openGenePick(b.dataset.genebuy));
+}
+function openGenePick(grp) {
+  let sel = null; const list = $('gpList'), go = $('gpGo');
+  $('gpTitle').textContent = `🧬 ${GENE_NAMES[grp]}`;
+  $('gpInfo').textContent = `¿A quién se lo das? Su próxima cría heredará de él: ${GENE_NAMES[grp].toLowerCase()}.`;
+  list.innerHTML = '';
+  save.monsters.forEach((r, i) => {
+    if (r.stage === 'egg') return;
+    const has = !!(r.geneLock && r.geneLock[grp]), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = r.bred || has;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : has ? 'ya lo tiene' : ''}</span>`;
+    drawThumb(b.querySelector('canvas'), r);
+    b.onclick = () => { sel = i; refresh(); };
+    list.appendChild(b);
+  });
+  const refresh = () => {
+    list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel === +c.dataset.i));
+    go.disabled = sel == null || save.coins < GENE_COST;
+    go.innerHTML = sel == null ? 'Elige uno' : save.coins < GENE_COST ? `Te faltan ${GENE_COST - save.coins} monedas` : `Dar · <span class="ci"></span>${GENE_COST}`;
+  };
+  go.onclick = () => {
+    const r = save.monsters[sel]; if (!r || r.bred || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
+    save.coins -= GENE_COST; r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
+    $('genePick').classList.remove('on'); renderHome(); fx.label = `🧬 ${GENE_NAMES[grp]}`; fx.labelT = 2;
+  };
+  $('gpNo').onclick = () => $('genePick').classList.remove('on');
+  refresh(); $('genePick').classList.add('on');
 }
 // Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
 function renderShopUlts(hide) {
