@@ -1397,9 +1397,13 @@ class Monster {
       ctx.globalAlpha = this.alpha;
     }
     const hid = k => this.hidden && this.hidden.has(k); // partes que aún no aparecen (animación de crecer)
-    for (const w of I.wings) if (w.p === 1 && !hid('wing:1')) this.drawWing(ctx, w, C, lw);
-    for (const w of I.wings) if (w.p === 0 && !hid('wing:0')) this.drawWing(ctx, w, C, lw);
-    I.tails.forEach((tl, i) => { if (!hid('tail:' + i)) this.drawTail(ctx, tl, C, lw); });
+    const back = this.back; // de espaldas (en el rancho, caminando lejos de la cámara): sin cara ni panza, alas y cola por delante
+    const wingsTail = () => {
+      for (const w of I.wings) if (w.p === 1 && !hid('wing:1')) this.drawWing(ctx, w, C, lw);
+      for (const w of I.wings) if (w.p === 0 && !hid('wing:0')) this.drawWing(ctx, w, C, lw);
+      I.tails.forEach((tl, i) => { if (!hid('tail:' + i)) this.drawTail(ctx, tl, C, lw); });
+    };
+    if (!back) wingsTail();
     for (const L of I.legs) if (L.p === 1 && !hid('leg:1')) this.drawLeg(ctx, L, C.limbD, C, lw);
     for (const L of I.legs) if (L.p === 0 && !hid('leg:0')) this.drawLeg(ctx, L, C.limb, C, lw);
     if (I.neck.length && !hid('neck')) {
@@ -1415,6 +1419,7 @@ class Monster {
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
       ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
     }
+    if (back) wingsTail();
     this.drawHead(ctx, C, lw);
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
@@ -1441,7 +1446,7 @@ class Monster {
       else { ctx.fillStyle = C.pat; const o = nm.length; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(n.x + Math.sin(k * 2.3 + o) * w * 0.32, n.y + Math.cos(k * 1.7 + o) * h * 0.28, w * 0.17, h * 0.2, k + o, 0, TAU); ctx.fill(); } }
       ctx.restore();
     }
-    if (T.belly) {
+    if (T.belly && !this.back) {
       ctx.fillStyle = C.belly;
       for (const [sg, ni, , nm] of segs) { if (nm === 'upper' && T.mid) continue; const n = N[ni]; ctx.beginPath(); ctx.ellipse(n.x, n.y + sg.h * 0.08 * s, sg.w * 0.28 * s, sg.h * 0.36 * s, 0, 0, TAU); ctx.fill(); }
     }
@@ -1633,6 +1638,12 @@ class Monster {
     ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(tilt);
     const W = g.head.w * s, H = g.head.h * s, hw = W / 2, hh = H / 2;
     shapePath(ctx, g.head.shape, 0, 0, W, H); fillStroke(ctx, C.body, C.ol, lw * 1.6);
+    if (this.back) { // nuca: sin ojos ni boca, un poco más oscura abajo
+      ctx.save(); shapePath(ctx, g.head.shape, 0, 0, W, H); ctx.clip();
+      ctx.fillStyle = 'rgba(0,0,0,.13)'; ctx.beginPath(); ctx.ellipse(0, hh * 0.55, hw * 1.1, hh * 0.6, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.beginPath(); ctx.ellipse(-hw * 0.25, -hh * 0.45, hw * 0.35, hh * 0.18, -0.3, 0, TAU); ctx.fill();
+      ctx.restore(); ctx.restore(); return;
+    }
 
     // ---------- Expresión ----------
     const E = this.face(), t = this.t;
@@ -2332,14 +2343,18 @@ function ranchStep(dt) {
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 8; k++) {
-          const ang = Math.random() * TAU, dd = 0.12 + Math.random() * 0.35, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
+          const ang = Math.random() * TAU, dd = 0.2 + Math.random() * 0.45, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
           if (rr > 0.32 && rr < 0.84) { a.tx = nx; a.tz = nz; a.walk = true; break; }
         }
         if (!a.walk) a.idle = 0.5;
         if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
       }
     }
-    if (a.m) { // animación: camina hacia el lado que se ve en pantalla
+    if (a.m) { // animación: camina hacia el lado que se ve en pantalla; si se aleja de la cámara se ve de espaldas
+      const toward = vx * sn + vz * c, sp0 = Math.hypot(vx, vz);
+      if (sp0 > 0) { a.awayT = toward < -0.4 * sp0 ? Math.min(0.4, (a.awayT || 0) + dt) : Math.max(-0.4, (a.awayT || 0) - dt); a.turnT = 0; }
+      else if ((a.turnT = (a.turnT || 0) + dt) > 1.3) a.awayT = Math.max(-0.4, (a.awayT || 0) - dt); // quieto un rato: se da vuelta a mirar
+      a.m.back = (a.awayT || 0) > 0.15;
       const svx = (vx * c - vz * sn) * (V ? V.RX : 200) / Math.max(0.05, (V ? V.kb : 1) * (a.sc || 1));
       const spd = Math.hypot(vx, vz) > 0 ? 42 : 0;
       a.m.vx = clamp(svx, -spd, spd); a.m.vy = Math.sqrt(Math.max(0, spd * spd - a.m.vx * a.m.vx));
