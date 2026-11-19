@@ -3372,7 +3372,6 @@ function drawRanchBg(ctx, r, pz) {
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
   drawRanch(ctx, r, { alphaOf, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
-  ctx.fillStyle = `rgba(18,12,36,${0.22 * pz})`; ctx.fillRect(0, r.top, W, r.height); // un poco más oscuro para que resalte el de adelante
   return true;
 }
 // Vista de cerca (un monstruo, su huevo o un espacio libre) en el área r; onHome = página del Rancho (centrado)
