@@ -1,4 +1,4 @@
-// Prueba rápida: abre el juego como iPhone 13, hace nacer el primer huevo (en el Home), le pone nombre y juega una pelea 1 vs 1.
+// Prueba rápida: abre el juego como iPhone 13, hace nacer el primer huevo, revisa el rancho (tocar al monstruo lo acerca), le pone nombre y juega una pelea 1 vs 1.
 // Uso: node monster-brawl/tools/smoke.js   (debe terminar con "no errors")
 const path = require('path');
 const { chromium, devices } = require('playwright');
@@ -16,11 +16,16 @@ const { chromium, devices } = require('playwright');
   await p.waitForSelector('#dialog.on', { timeout: 5000 }); await p.click('#dlgYes'); await p.waitForTimeout(300);
   console.log('nació:', await p.textContent('#mName'), '|', await p.innerText('#mSub'));
   // el Home tiene que quedar centrado (también al volver a abrir el juego)
-  const offCenter = () => p.evaluate(() => { const r = document.getElementById('showArea').getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - innerWidth / 2); });
+  const offCenter = () => p.evaluate(() => Math.abs(document.getElementById('pgHome').getBoundingClientRect().top - document.querySelector('.pager').getBoundingClientRect().top)); // el Rancho (página del medio) a la vista
   if (await offCenter() > 5) errs.push('el Home no está centrado tras nacer');
   await p.reload(); await p.waitForTimeout(400);
   if (await offCenter() > 5) errs.push('el Home no está centrado al abrir el juego');
   if (errs.length) { console.log(errs.join('; ')); await b.close(); process.exit(1); }
+  // al abrir se ve el rancho: se toca al monstruo para verlo de cerca
+  await p.waitForTimeout(600);
+  const a = await p.evaluate(() => { const h = RANCH.actors.find(x => x.kind === 'mon').hit; return { x: (h.x0 + h.x1) / 2, y: h.y0 * 0.3 + h.y1 * 0.7 }; });
+  await p.mouse.click(a.x, a.y); await p.waitForTimeout(700);
+  if (await p.evaluate(() => ranchMode)) { errs.push('tocar al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
   await p.click('[data-mode="1v1"]'); await p.waitForTimeout(500);
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });

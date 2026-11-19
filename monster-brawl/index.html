@@ -38,8 +38,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
-@keyframes cardUp{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
-@keyframes cardDown{from{transform:translateY(-28px);opacity:0}to{transform:none;opacity:1}}
+#home.ranch #pgHome>:not(#showArea),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
+.ranchHint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#home:not(.ranch) .ranchHint{display:none}
+@keyframes zoomIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.zoomIn{animation:zoomIn .45s ease-out}
+@keyframes cardUp{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes cardDown{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
 .cardUp{animation:cardUp .42s cubic-bezier(.2,.8,.2,1)}.cardDown{animation:cardDown .42s cubic-bezier(.2,.8,.2,1)}
 .corner{position:absolute;font-weight:800;font-size:16px;color:var(--text);text-shadow:0 2px 3px rgba(0,0,0,.5);line-height:1.15}
 .corner.tl{top:4px;left:2px}.corner.tr{top:4px;right:2px;text-align:right}.corner.bl,.corner.br{bottom:4px;left:2px;color:var(--muted);font-size:14px}.corner.br{left:auto;right:2px;text-align:right}
@@ -75,9 +80,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.glow{color:#ffd36b;animation:tabglow 1.6s ease-in-out infinite} /* Entrenar con puntos por gastar */
 @keyframes tabglow{0%,100%{text-shadow:0 0 4px rgba(255,190,60,.45)}50%{text-shadow:0 0 12px rgba(255,200,70,.95),0 0 22px rgba(255,170,40,.55)}}
 @media (prefers-reduced-motion:reduce){.tabs button.glow{animation:none;text-shadow:0 0 8px rgba(255,190,60,.7)}}
-.pager{flex:1;display:flex;overflow:hidden;min-height:0;pointer-events:none!important}
-.track{display:flex;width:300%;flex:none;transition:transform .32s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-.page{width:33.3333%;display:flex;flex-direction:column;min-width:0;pointer-events:none}
+.pager{flex:1;position:relative;overflow:hidden;min-height:0;pointer-events:none!important}
+.track{position:absolute;left:0;right:0;top:0;height:300%;display:flex;flex-direction:column;transition:transform .36s cubic-bezier(.2,.8,.2,1);pointer-events:none} /* páginas una debajo de otra: Tienda / Rancho / Estadísticas */
+.page{height:33.3333%;width:100%;display:flex;flex-direction:column;min-height:0;pointer-events:none}
 .page>*{pointer-events:auto}
 .page>.spacer{pointer-events:none}
 .tlist{display:flex;flex-direction:column;gap:8px}
@@ -197,19 +202,21 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Estadísticas</button></div>
-  <div class="pager"><div class="track" id="track" style="transform:translateX(-33.3333%)">
+  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Rancho</button><button data-page="2">Estadísticas</button></div>
+  <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
       <div class="tsec" id="shopUlts"></div>
     </div>
   </div>
-  <div class="page">
+  <div class="page" id="pgHome">
   <div class="nav">
+    <button class="roundbtn" id="btnRanch" title="Volver al rancho">🏡</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
+    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
-  <div class="spacer" id="showArea"><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
+  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
@@ -2270,6 +2277,171 @@ const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 // Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
 const INTRO_STEP = 1.2, INTRO_S = INTRO_STEP * 3, FIGHT_S = 1.3;
 const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjetas)
+// ---------- Rancho: todos los monstruos caminando en un rancho redondo que se gira como un carrusel ----------
+// Cada espacio (monstruo, huevo o espacio libre) es un "habitante" con posición en el disco del rancho (x, z en -1..1).
+// Deslizar a los lados lo gira (RANCH.th); tocar un habitante acerca la cámara a la vista de cerca (zoom → ranchMode = false).
+let ranchMode = true, zoom = null; const ZOOM_S = 0.45;
+const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0 };
+function ranchDeco() {
+  if (RANCH.deco) return RANCH.deco;
+  const r = rng(90211), d = [];
+  for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + r.f(-0.25, 0.25), rr = r.f(0.78, 0.92); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.8, 1.15), h: r.i(100, 150) }); }
+  for (let i = 0; i < 9; i++) { const a = r.f(0, TAU), rr = r.f(0.35, 0.9); d.push({ k: 'bush', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.1), h: r.i(95, 135) }); }
+  for (let i = 0; i < 4; i++) { const a = r.f(0, TAU), rr = r.f(0.4, 0.85); d.push({ k: 'rock', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.2) }); }
+  const NP = 30; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
+  d.push({ k: 'barn', x: 0, z: 0 });
+  const flowers = Array.from({ length: 46 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
+  return RANCH.deco = { d, flowers };
+}
+function syncRanch() {
+  const cap = Math.max(slotCap(), save.monsters.length), A = RANCH.actors;
+  for (let i = 0; i < cap; i++) {
+    const rec = save.monsters[i] || null;
+    let a = A[i];
+    if (!a) { const ang = i / cap * TAU + 0.2, rr = 0.5 + 0.2 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
+    a.slot = i; a.rec = rec;
+    a.kind = !rec ? 'free' : rec.stage === 'egg' ? 'egg' : 'mon';
+    const key = rec ? [rec.seed, rec.stage, rec.level, rec.name, JSON.stringify(rec.pts || {}), rec.legacy].join('|') : 'free';
+    if (a.key !== key) { // sólo se vuelve a armar si cambió (así no "salta" cada vez)
+      a.key = key; a.m = a.e = null;
+      if (a.kind === 'mon') { a.m = new Monster(rec); a.m.resetRig(); a.sz = a.m.estSize(); }
+      else if (a.kind === 'egg') { a.e = new EggView(rec); a.sz = { w: 50, h: 62 }; }
+      else a.sz = { w: 44, h: 56 };
+    }
+    if (a.m) { a.m.sleep = resting(rec); a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
+  }
+  A.length = cap;
+}
+function ranchStep(dt) {
+  RANCH.t += dt;
+  if (!RANCH.drag) { RANCH.th += RANCH.vth * dt; RANCH.vth *= Math.exp(-dt * 3); }
+  const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+  if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  for (const a of A) {
+    let vx = 0, vz = 0;
+    if (a.kind === 'mon' && !a.m.sleep) {
+      if (a.walk) {
+        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.075 + (a.m.st.speed || 100) / 4000;
+        if (d < 0.02) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
+        else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
+      } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
+        for (let k = 0; k < 8; k++) {
+          const ang = Math.random() * TAU, dd = 0.12 + Math.random() * 0.35, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
+          if (rr > 0.32 && rr < 0.84) { a.tx = nx; a.tz = nz; a.walk = true; break; }
+        }
+        if (!a.walk) a.idle = 0.5;
+        if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
+      }
+    }
+    if (a.m) { // animación: camina hacia el lado que se ve en pantalla
+      const svx = (vx * c - vz * sn) * (V ? V.RX : 200) / Math.max(0.05, (V ? V.kb : 1) * (a.sc || 1));
+      const spd = Math.hypot(vx, vz) > 0 ? 42 : 0;
+      a.m.vx = clamp(svx, -spd, spd); a.m.vy = Math.sqrt(Math.max(0, spd * spd - a.m.vx * a.m.vx));
+      a.m.hop(dt); a.m.animate(dt); a.m.rigStep(dt / 2); a.m.rigStep(dt / 2);
+    } else if (a.e) a.e.update(dt);
+  }
+  // no se encimen
+  for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+    const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
+    if (d < 0.2) { const f = (0.2 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
+  }
+  for (const a of A) { const rr = Math.hypot(a.x, a.z); if (rr > 0.86) { a.x *= 0.86 / rr; a.z *= 0.86 / rr; } if (rr < 0.3 && rr > 0) { a.x *= 0.3 / rr; a.z *= 0.3 / rr; } }
+}
+RANCH.frame = 0;
+function drawRanch(c, r) {
+  const D = ranchDeco(), cx = r.left + r.width / 2, RX = Math.min(r.width * 0.62, r.height * 0.42), RY = Math.min(RX * 0.6, r.height * 0.28), cy = r.top + r.height * 0.57, kb = Math.min(r.height * 0.2, r.width * 0.42) / 150;
+  const V = RANCH.view = { cx, cy, RX, RY, kb, r };
+  const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+  const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co; return { X: cx + wx * RX, Y: cy + wz * RY, wz, sc: 0.55 + 0.45 * (wz + 1) / 2 }; };
+  // cielo, estrellas, luna y cerros (los cerros se mueven un poco al girar)
+  const sky = c.createLinearGradient(0, r.top, 0, cy); sky.addColorStop(0, '#191433'); sky.addColorStop(1, '#3d2f63');
+  c.fillStyle = sky; c.fillRect(0, r.top, W, r.height);
+  const sr = rng(77);
+  for (let i = 0; i < 40; i++) { const x = ((sr.f(0, 1) * 1.6 - RANCH.th * 0.05) % 1 + 1) % 1 * W, y = r.top + sr.f(0, 1) * (cy - RY - r.top) * 0.8; c.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * Math.abs(Math.sin(RANCH.t * sr.f(0.5, 1.5) + i))})`; c.fillRect(x, y, 1.6, 1.6); }
+  c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(r.left + r.width * 0.8 - RANCH.th * 6 % r.width, r.top + r.height * 0.1, 18, 0, TAU); c.fill();
+  for (const [col, amp, base, sp] of [['#2c2452', 28, 0.95, 0.12], ['#251f45', 20, 0.6, 0.25]]) {
+    c.fillStyle = col; c.beginPath(); c.moveTo(0, cy);
+    for (let x = 0; x <= W; x += 8) c.lineTo(x, cy - RY * base - amp * (1 + Math.sin(x * 0.012 + RANCH.th * sp * 6) * 0.6 + Math.sin(x * 0.031 + RANCH.th * sp * 9) * 0.3));
+    c.lineTo(W, cy); c.closePath(); c.fill();
+  }
+  // isla de pasto
+  c.fillStyle = '#3a2a24'; c.beginPath(); c.ellipse(cx, cy + 18, RX, RY, 0, 0, TAU); c.fill();
+  const gg = c.createRadialGradient(cx, cy + RY * 0.3, 10, cx, cy, RX); gg.addColorStop(0, '#4f9a55'); gg.addColorStop(1, '#2f6a3c');
+  c.fillStyle = gg; c.beginPath(); c.ellipse(cx, cy, RX, RY, 0, 0, TAU); c.fill();
+  c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 2; c.beginPath(); c.ellipse(cx, cy, RX * 0.55, RY * 0.55, 0, 0, TAU); c.stroke(); // sendero
+  for (const f of D.flowers) { const p = P(f.x, f.z); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(p.X - 3 * p.sc, p.Y); c.lineTo(p.X, p.Y - 6 * p.sc); c.lineTo(p.X + 3 * p.sc, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * p.sc, 0, TAU); c.fill(); } }
+  // cosas con profundidad: se dibujan de atrás hacia adelante
+  const items = [];
+  for (const d of D.d) { const p = P(d.x, d.z); items.push({ y: d.k === 'rail' ? (p.Y + P(d.x2, d.z2).Y) / 2 - 0.5 : p.Y, d, p }); }
+  for (const a of RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; items.push({ y: p.Y + 0.1, a, p }); }
+  items.sort((u, v) => u.y - v.y);
+  const u = kb; // tamaño: el mismo para monstruos y decorado
+  for (const it of items) {
+    const p = it.p, k = u * p.sc;
+    if (it.a) {
+      const a = it.a; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
+      if (a.kind === 'mon') { c.translate(0, -a.m.z); drawOcc(c, { show: a.m }); }
+      else if (a.kind === 'egg') drawOcc(c, { E: a.e });
+      else drawOcc(c, { vacant: true, k });
+      c.restore();
+      const w = Math.max(a.sz.w * 0.6, 40) * k, h = Math.max(a.sz.h, 50) * k;
+      a.hit = { x0: p.X - w, x1: p.X + w, y0: p.Y - h - (a.m ? a.m.z * k : 0), y1: p.Y + 12 * k, depth: p.Y };
+      continue;
+    }
+    const d = it.d; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
+    if ((d.k === 'tree' || d.k === 'bush') && p.wz > 0.15) c.globalAlpha = d.k === 'tree' ? 0.35 : 0.6; // adelante se transparentan para no tapar a nadie
+    if (d.k === 'tree') {
+      const sc = d.s; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
+      c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -70 * sc, 14 * sc, 70 * sc);
+      for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -120, 38, 36], [0, -82, 30, 26]]) { c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
+    } else if (d.k === 'bush') {
+      const sc = d.s; for (const [ox, oy, rr, l] of [[-12, -10, 14, 28], [12, -10, 14, 28], [0, -18, 16, 33]]) { c.fillStyle = `hsl(${d.h},40%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
+    } else if (d.k === 'rock') {
+      c.fillStyle = '#6f6a7d'; c.beginPath(); c.ellipse(0, -6 * d.s, 16 * d.s, 10 * d.s, 0, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,255,255,.15)'; c.beginPath(); c.ellipse(-4 * d.s, -10 * d.s, 6 * d.s, 3 * d.s, 0, 0, TAU); c.fill();
+    } else if (d.k === 'post') {
+      c.fillStyle = '#8a6040'; c.fillRect(-4, -46, 8, 46); c.fillStyle = '#a77a52'; c.fillRect(-5, -50, 10, 6);
+    } else if (d.k === 'rail') {
+      c.restore(); c.save(); const q = P(d.x2, d.z2); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
+      for (const hh of [18, 36]) { c.lineWidth = 4 * u * (p.sc + q.sc) / 2; c.beginPath(); c.moveTo(p.X, p.Y - hh * u * p.sc); c.lineTo(q.X, q.Y - hh * u * q.sc); c.stroke(); }
+    } else if (d.k === 'barn') {
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, 0, 110, 22, 0, 0, TAU); c.fill();
+      c.fillStyle = '#b8443f'; c.fillRect(-80, -110, 160, 110);
+      c.fillStyle = '#7e2b2b'; c.beginPath(); c.moveTo(-95, -108); c.lineTo(0, -175); c.lineTo(95, -108); c.closePath(); c.fill();
+      c.fillStyle = '#f3e6cf'; c.fillRect(-30, -70, 60, 70); c.strokeStyle = '#b8443f'; c.lineWidth = 5; c.beginPath(); c.moveTo(-30, -70); c.lineTo(30, 0); c.moveTo(30, -70); c.lineTo(-30, 0); c.stroke();
+      c.fillStyle = '#f3e6cf'; c.beginPath(); c.arc(0, -130, 12, 0, TAU); c.fill();
+    }
+    c.restore();
+  }
+  // nombres bajo cada monstruo (más visibles adelante)
+  c.textAlign = 'center';
+  for (const a of RANCH.actors) {
+    if (!a.rec || !a.hit) continue; const p = P(a.x, a.z), al = clamp((p.wz + 0.6) / 1.2, 0.25, 1);
+    if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
+    const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
+    c.font = `800 ${Math.round(10 + 4 * p.sc)}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
+    c.strokeText(txt, p.X, p.Y + 16 * p.sc); c.fillStyle = a.slot === save.sel ? '#ffcf6e' : '#fff'; c.fillText(txt, p.X, p.Y + 16 * p.sc);
+  }
+  c.globalAlpha = 1;
+}
+// Tocar en el rancho: el habitante más adelante bajo el dedo
+function ranchTap(x, y) {
+  let best = null;
+  for (const a of RANCH.actors) { const h = a.hit; if (h && x > h.x0 && x < h.x1 && y > h.y0 && y < h.y1 && (!best || h.depth > best.hit.depth)) best = a; }
+  if (!best) return;
+  if (best.slot < save.monsters.length) { save.sel = best.slot; homeEmpty = null; } else homeEmpty = best.slot;
+  persist(); fx.parts = [];
+  zoom = { t: 0, dir: 1, px: (best.hit.x0 + best.hit.x1) / 2, py: (best.hit.y0 + best.hit.y1) / 2 };
+  ranchMode = false; renderHome(); checkGrowth();
+  for (const el of [document.querySelector('#pgHome .nav'), document.querySelector('#pgHome .panel'), $('showArea')]) { el.classList.remove('zoomIn'); void el.offsetWidth; el.classList.add('zoomIn'); }
+}
+// Volver al rancho desde la vista de cerca
+function toRanch() {
+  if (firstEgg()) { nudgeEgg(); return; }
+  const a = RANCH.actors[homeEmpty ?? save.sel], h = a && a.hit;
+  zoom = { t: 0, dir: -1, px: h ? (h.x0 + h.x1) / 2 : W / 2, py: h ? (h.y0 + h.y1) / 2 : H / 2 };
+  ranchMode = true; renderHome();
+}
+$('btnRanch').onclick = toRanch;
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
@@ -2292,6 +2464,9 @@ const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil >
 const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
+  if (firstEgg()) ranchMode = false; // partida nueva: sólo el huevo, de cerca
+  $('home').classList.toggle('ranch', ranchMode);
+  syncRanch();
   renderAdopt();
   checkBreedUnlock();
   $('coins').textContent = save.coins;
@@ -2372,28 +2547,39 @@ const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.st
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 function setPage(n) {
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
-  homePage = n; $('track').style.transform = `translateX(${-100 / 3 * n}%)`;
+  homePage = n; $('track').style.transform = `translateY(${-100 / 3 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
   if (n === 2) renderTrain();
   if (n === 0) renderAdopt();
 }
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setPage(+b.dataset.page));
-// Deslizar con el dedo en cualquier parte: hacia la izquierda va a la página de la derecha (Entrenar), hacia la derecha a la de la izquierda (Adoptar).
-// En el Home, deslizar arriba/abajo cambia de monstruo. Sobre el monstruo también: un trazo largo y rápido cuenta; frotar despacio es acariciar; si lo tienes tomado, no.
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { const n = +b.dataset.page; if (n === 1 && homePage === 1 && !ranchMode) toRanch(); else setPage(n); }); // tocar "Rancho" estando cerca de un monstruo vuelve al rancho
+// Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
+// En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
+// De cerca de un monstruo, deslizar a los lados pasa al siguiente/anterior. En el rancho, a los lados lo gira (ver ranchDown).
+// Se usan eventos touch (no pointer) porque el navegador cancela el pointer cuando un panel empieza a desplazarse.
 let swipe = null, swipedAt = 0;
-addEventListener('pointerdown', e => { if (scene === 'home' && !document.querySelector('.modal.on')) swipe = { x: e.clientX, y: e.clientY, t: performance.now(), touch, id: e.pointerId }; });
-addEventListener('pointerup', e => {
-  if (!swipe || e.pointerId !== swipe.id) return;
-  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y, dt = performance.now() - swipe.t, onMon = swipe.touch; swipe = null;
+function swipeStart(x, y, target) {
+  if (scene !== 'home' || document.querySelector('.modal.on')) return;
+  const sc = target && target.closest ? target.closest('.tpanel') : null;
+  swipe = { x, y, t: performance.now(), touch, top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
+}
+function swipeEnd(x, y) {
+  if (!swipe) return;
+  const dx = x - swipe.x, dy = y - swipe.y, dt = performance.now() - swipe.t, sw = swipe, onMon = sw.touch; swipe = null;
   if (onMon && (onMon.grab || dt > 800 || Math.max(Math.abs(dx), Math.abs(dy)) < 100)) return; // tomado, o caricia (frotar corto o lento)
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-    const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 2);
-    if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
-  } else if (homePage === 1 && Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) {
-    swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
+  if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.3) {
+    const n = homePage + (dy < 0 ? 1 : -1);
+    if (n < 0 || n > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
+    swipedAt = performance.now(); setPage(n);
+  } else if (homePage === 1 && !ranchMode && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) {
+    swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dx < 0 ? 1 : -1); // a la izquierda = siguiente
   }
-});
-// Cambiar de monstruo (deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
+}
+addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') swipeStart(e.clientX, e.clientY, e.target); });
+addEventListener('pointerup', e => { if (e.pointerType === 'mouse') swipeEnd(e.clientX, e.clientY); });
+addEventListener('touchstart', e => { if (e.touches.length === 1) swipeStart(e.touches[0].clientX, e.touches[0].clientY, e.target); else swipe = null; }, { passive: true });
+addEventListener('touchend', e => { const t = e.changedTouches[0]; if (t) swipeEnd(t.clientX, t.clientY); }, { passive: true });
+// Cambiar de monstruo (deslizar a los lados, de cerca): como tarjetas, el nuevo entra desde el lado
 function switchMonster(d) { // recorre también los espacios libres
   const tot = Math.max(slotCap(), save.monsters.length), p = ((homeEmpty ?? save.sel) + d + tot) % tot;
   const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
@@ -2406,7 +2592,6 @@ function switchMonster(d) { // recorre también los espacios libres
     el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
   }
 }
-addEventListener('pointercancel', () => swipe = null);
 addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true); // un deslizamiento no aprieta botones
 
 function renderTrain() {
@@ -2648,6 +2833,11 @@ function openTeamPick() {
 let touch = null, petAcc = 0;
 const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY - homeView.gy) / homeView.k });
 cv.addEventListener('pointerdown', e => {
+  if (scene === 'home' && homePage === 1 && ranchMode && !zoom && RANCH.view) { // rancho: arrastrar a los lados lo gira, tocar elige
+    RANCH.drag = { x0: e.clientX, y0: e.clientY, th0: RANCH.th, lx: e.clientX, lt: performance.now(), v: 0, mode: null, id: e.pointerId };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+    return;
+  }
   if (scene !== 'home' || !homeView) return;
   const p = toLocal(e);
   if (egg) { if (Math.abs(p.x) < egg.w * 0.9 && p.y < 20 && p.y > -egg.h * 1.3) tapEgg(); return; }
@@ -2659,6 +2849,16 @@ cv.addEventListener('pointerdown', e => {
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }
 });
 cv.addEventListener('pointermove', e => {
+  const G = RANCH.drag;
+  if (G && e.pointerId === G.id) {
+    const dx = e.clientX - G.x0, dy = e.clientY - G.y0;
+    if (!G.mode && Math.hypot(dx, dy) > 10) G.mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    if (G.mode === 'h') {
+      const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000);
+      RANCH.th = G.th0 - dx / RANCH.view.RX; G.v = -(e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; G.lx = e.clientX; G.lt = now;
+    }
+    return;
+  }
   if (!touch || e.pointerId !== touch.id || scene !== 'home') return;
   const O = grabbed(touch); if (!O) return;
   const p = toLocal(e);
@@ -2676,13 +2876,15 @@ cv.addEventListener('pointermove', e => {
   touch.last = p;
 });
 cv.addEventListener('pointerup', e => {
+  const G = RANCH.drag;
+  if (G && e.pointerId === G.id) { RANCH.drag = null; if (!G.mode) ranchTap(e.clientX, e.clientY); else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
-cv.addEventListener('pointercancel', () => { if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
+cv.addEventListener('pointercancel', () => { RANCH.drag = null; if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
 const GRAB_HOLD_MS = 280;
 const grabbed = t => show; // lo que tiene el dedo: el monstruo
 function grab(t) {
@@ -3021,13 +3223,58 @@ function finishBattle() {
 // ============================================================================
 let last = performance.now(), acc = 0, frame = 0;
 const STEP = 1 / 60;
+// Vista de cerca (un monstruo, su huevo o un espacio libre) en el área r; onHome = página del Rancho (centrado)
+function drawCloseUp(ctx, r, onHome) {
+  const onAdopt = false;
+  const E = egg, vacant = !onAdopt && !egg && !show, empty = vacant; // espacio libre: huevo fantasma con un ?
+  // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
+  const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
+  const k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
+  const gy = onHome ? Math.min(r.bottom - r.height * 0.06, r.top + r.height / 2 + Math.max(sz.h, 60) * k / 2) : r.bottom - r.height * 0.06;
+  homeView = { cx: r.left + r.width / 2, gy, k, adopt: onAdopt };
+  const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, (gy - r.top) * 0.95 / k - sz.h * 1.05) };
+  if (onAdopt) adoptBounds = bounds; else homeBounds = bounds;
+  const pal = E ? E.pal : empty ? { body: { h: 30, s: 45, l: 45 } } : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
+  const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
+  glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
+  if (slide && slide.prev.pal && !onAdopt) { // el brillo de fondo pasa de un color al otro
+    const e = clamp(slide.t, 0, 1), g0 = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
+    g0.addColorStop(0, hsl(slide.prev.pal.body, -20, 0.35)); g0.addColorStop(1, 'rgba(27,21,48,0)');
+    ctx.globalAlpha = 1 - e; ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = e;
+  }
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+  const occ = { E, show: E ? null : show, vacant, k, pal };
+  const sl = slide && onHome ? slide : null;
+  if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
+    const t = sl.t, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, wid = r.width + 80;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, r.top + 2, W, r.height); ctx.clip(); // no tapa el nombre ni el panel
+    ctx.save(); ctx.globalAlpha = 1 - e * 0.7; ctx.translate(homeView.cx - sl.d * e * wid, homeView.gy); ctx.scale(sl.prev.k, sl.prev.k); drawOcc(ctx, sl.prev); ctx.restore();
+    ctx.save(); ctx.translate(homeView.cx + sl.d * (1 - e) * wid, homeView.gy); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore();
+    ctx.restore();
+  } else { ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore(); }
+  if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
+  if (fx.labelT > 0 && fx.label) {
+    const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
+    ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.font = '900 24px system-ui';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(fx.label, homeView.cx, y);
+    ctx.fillStyle = '#ffcf6e'; ctx.fillText(fx.label, homeView.cx, y); ctx.globalAlpha = 1;
+  }
+}
+// Capas fuera de pantalla para mezclar el rancho y la vista de cerca durante el acercamiento
+const layers = [];
+function layer(i, fn) {
+  let L = layers[i];
+  if (!L || L.width !== cv.width || L.height !== cv.height) { L = layers[i] = document.createElement('canvas'); L.width = cv.width; L.height = cv.height; }
+  const c = L.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, L.width, L.height); c.setTransform(DPR, 0, 0, DPR, 0, 0); fn(c); return L;
+}
 function loop(now) {
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
-  if (scene === 'home' && (show || egg || homeEmpty != null)) {
+  if (scene === 'home' && (show || egg || homeEmpty != null || ranchMode || zoom)) {
     if (slide && (slide.t += dt / SLIDE_S) >= 1) slide = null;
+    if (zoom && (zoom.t += dt / ZOOM_S) >= 1) { const d = zoom.dir; zoom = null; if (d < 0) { homeEmpty = null; if (save.monsters.length) renderHome(); } }
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) {
       acc -= STEP; fxStep(STEP);
@@ -3037,44 +3284,22 @@ function loop(now) {
       }
       if (egg) { egg.update(STEP); const er = cur(); if (er && er.readyAt && Date.now() >= er.readyAt && Math.random() < STEP * 0.9) egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; } // huevo criado listo: se mueve solo
       else if (show) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      if (ranchMode || zoom) ranchStep(STEP);
     }
-    // Se dibuja en el área de la página que está más centrada (Home o Estadísticas)
-    const areas = ['showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.left + q.width / 2 - W / 2);
-    const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onAdopt = false;
-    const E = egg, vacant = !onAdopt && !egg && !show, empty = vacant; // espacio libre: huevo fantasma con un ?
-    // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
-    const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
-    const onHome = r === areas[0]; // en el Home el monstruo va al centro del espacio (no apoyado abajo)
-    const k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
-    const gy = onHome ? Math.min(r.bottom - r.height * 0.06, r.top + r.height / 2 + Math.max(sz.h, 60) * k / 2) : r.bottom - r.height * 0.06;
-    homeView = { cx: r.left + r.width / 2, gy, k, adopt: onAdopt };
-    const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, (gy - r.top) * 0.95 / k - sz.h * 1.05) };
-    if (onAdopt) adoptBounds = bounds; else homeBounds = bounds;
-    const pal = E ? E.pal : empty ? { body: { h: 30, s: 45, l: 45 } } : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
-    const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
-    glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
-    if (slide && slide.prev.pal && !onAdopt) { // el brillo de fondo pasa de un color al otro
-      const e = clamp(slide.t, 0, 1), g0 = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
-      g0.addColorStop(0, hsl(slide.prev.pal.body, -20, 0.35)); g0.addColorStop(1, 'rgba(27,21,48,0)');
-      ctx.globalAlpha = 1 - e; ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = e;
-    }
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
-    const occ = { E, show: E ? null : show, vacant, k, pal };
-    const sl = slide && r === areas[0] ? slide : null;
-    if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
-      const t = sl.t, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, hgt = r.height + 60;
-      ctx.save(); ctx.beginPath(); ctx.rect(0, r.top + 2, W, r.height); ctx.clip(); // no tapa el nombre ni el panel
-      ctx.save(); ctx.globalAlpha = 1 - e * 0.7; ctx.translate(homeView.cx, homeView.gy - sl.d * e * hgt); ctx.scale(sl.prev.k, sl.prev.k); drawOcc(ctx, sl.prev); ctx.restore();
-      ctx.save(); ctx.translate(homeView.cx, homeView.gy + sl.d * (1 - e) * hgt); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore();
-      ctx.restore();
-    } else { ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore(); }
-    if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
-    if (fx.labelT > 0 && fx.label) {
-      const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
-      ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.font = '900 24px system-ui';
-      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(fx.label, homeView.cx, y);
-      ctx.fillStyle = '#ffcf6e'; ctx.fillText(fx.label, homeView.cx, y); ctx.globalAlpha = 1;
-    }
+    // Se dibuja en el área de la página que está más a la vista (Rancho o Estadísticas)
+    const areas = ['showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.top + q.height / 2 - H / 2);
+    const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onHome = r === areas[0];
+    const hasClose = show || egg || homeEmpty != null;
+    if (onHome && zoom) { // acercarse a un monstruo del rancho (o alejarse): el rancho crece y se desvanece, la vista de cerca aparece
+      const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2, pz = zoom.dir > 0 ? e : 1 - e;
+      const L1 = layer(0, c => drawRanch(c, r));
+      ctx.save(); ctx.globalAlpha = 1 - pz; ctx.translate(zoom.px, zoom.py); ctx.scale(1 + 1.8 * pz, 1 + 1.8 * pz); ctx.translate(-zoom.px, -zoom.py); ctx.drawImage(L1, 0, 0, W, H); ctx.restore();
+      if (hasClose) {
+        const L2 = layer(1, c => drawCloseUp(c, r, true)), sc = 0.7 + 0.3 * pz;
+        ctx.save(); ctx.globalAlpha = pz; ctx.translate(zoom.px, zoom.py); ctx.scale(sc, sc); ctx.translate(-zoom.px, -zoom.py); ctx.drawImage(L2, 0, 0, W, H); ctx.restore();
+      }
+    } else if (onHome && ranchMode) drawRanch(ctx, r);
+    else if (hasClose) drawCloseUp(ctx, r, onHome);
   } else if (scene === 'grow' && growAnim) {
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) { acc -= STEP; growStep(STEP); }

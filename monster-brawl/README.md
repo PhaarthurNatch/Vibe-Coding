@@ -6,8 +6,11 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
-- **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: ultimates por 150),
-  Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo), y Estadísticas (entrenar y liberar, a la derecha).
+- **Menú en 3 páginas, una debajo de otra** (deslizar arriba/abajo o tocar las pestañas): Tienda (arriba: ultimates por 150),
+  Rancho (al medio, página inicial) y Estadísticas (abajo: entrenar y liberar).
+- **Rancho**: todos tus monstruos (y huevos y espacios libres) viven en un rancho redondo y caminan solos; deslizar a los lados lo gira
+  como un carrusel. Al tocar a uno, la cámara se acerca y se ve de cerca con sus datos y botones de pelea; 🏡 vuelve al rancho.
+  De cerca, deslizar a los lados pasa al siguiente monstruo.
 - **Espacios libres**: al deslizar entre tus monstruos aparecen los espacios vacíos con un huevo transparente; ahí puedes **Comprar** un huevo (60 monedas, 1 al día) o **Criar** (desde que tienes 2 Awakened): cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas en ese espacio. El hijo hereda partes, colores y
   personalidad de sus padres (a veces muta algo) y al despertar trae la ultimate de uno de ellos.
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
