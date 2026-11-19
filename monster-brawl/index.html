@@ -1109,7 +1109,11 @@ class Monster {
         const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s;
         const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * 1.3;
         if (d > mx || d < mn) {
-          const tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
+          let tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
+          if (!dead && d < mn) { // quedó del lado contrario (p. ej. la cabeza bajo el cuello): se empuja hacia donde debe ir, no hacia atrás, para que no se trabe
+            const ux = (n.ox + n.ax) * s, uy = (n.oy + n.ay) * s, ul = Math.hypot(ux, uy);
+            if (ul > 1e-3 && dx * ux + dy * uy < 0) { nx = P.x + ux / ul * mn; ny = P.y + uy / ul * mn; }
+          }
           if (dead && n.p > 0) { const hx = (n.x - nx) * 0.5, hy = (n.y - ny) * 0.5; n.x -= hx; n.y -= hy; P.x += hx; P.y += hy; }
           else { n.x = nx; n.y = ny; }
         }
@@ -2374,7 +2378,7 @@ function switchMonster(d) { // recorre también los espacios libres
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
   fx.parts = []; // corazones y chispas del anterior no pasan al siguiente
   persist(); renderHome(); checkGrowth();
-  if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; } }
+  if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; show.resetRig(); } } // cae desde arriba: el esqueleto se arma ya en el aire (si no, la cabeza quedaba trabada bajo el cuello)
   else if (egg) { egg.sq = 0.18; egg.vt += d * 5; }
 }
 addEventListener('pointercancel', () => swipe = null);
