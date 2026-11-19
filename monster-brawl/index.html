@@ -118,7 +118,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
 .tpanel{min-height:0;overflow-y:auto;flex:0 1 auto;touch-action:pan-y}
 #home .top,#home .tabs,#home .nav,#home .panel:not(.tpanel){touch-action:none} /* deslizar para cambiar de página sin que el navegador se lo robe */
-.tinfo{text-align:center;font-size:12px;color:var(--muted)}
+.tinfo{text-align:center;font-size:12px;color:var(--muted)}.tinfo:empty{display:none}
 @media (prefers-reduced-motion:reduce){.track{transition:none}}
 .xp{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .xp .bar{flex:1}
@@ -2769,9 +2769,9 @@ function renderTrain() {
   h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]), L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
   const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
   if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
-  h += `<p class="tdesc">Desliza cada medidor para ajustarla (gratis, cuando quieras).</p></div>`;
+  h += `</div>`;
   $('tlist').innerHTML = h;
-  $('tinfo').innerHTML = `Tienes <b>${save.coins}</b> monedas`;
+  $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
