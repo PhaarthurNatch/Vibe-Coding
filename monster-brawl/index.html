@@ -36,6 +36,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name{flex:1;text-align:center}
 .nav .name b{font-size:20px;display:block}
 .nav .name span{font-size:12px;color:var(--muted)}
+.nav .name span:empty{display:none}
+#showArea{position:relative}
+.corner{position:absolute;font-weight:800;font-size:16px;color:var(--text);text-shadow:0 2px 3px rgba(0,0,0,.5);line-height:1.15}
+.corner.tl{top:4px;left:2px}.corner.tr{top:4px;right:2px;text-align:right}.corner.bl{bottom:4px;left:2px;color:var(--muted);font-size:14px}
+.corner .hearts{font-size:20px}
+.corner small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
 .hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
 .panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
@@ -199,7 +205,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="nav">
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
   </div>
-  <div class="spacer" id="showArea"></div>
+  <div class="spacer" id="showArea"><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
@@ -2256,7 +2262,7 @@ function renderHome() {
   renderAdopt();
   checkBreedUnlock();
   $('coins').textContent = save.coins;
-  if (!save.monsters.length) { show = null; egg = null; return; } // todavía no tiene monstruos: sólo la página Adoptar
+  if (!save.monsters.length) { show = null; egg = null; $('cLv').textContent = $('cHearts').textContent = $('cIdx').textContent = ''; return; } // todavía no tiene monstruos: sólo la página Adoptar
   if (homePage === 2) setTimeout(renderTrain);
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
@@ -2291,8 +2297,9 @@ function renderHome() {
 
 function updateSub() {
   const rec = cur(); if (rec.stage === 'egg') return;
-  const tmr = rec.heartAt ? ` <small style="color:var(--muted)">+1 en ${mmss(rec.heartAt - Date.now())}</small>` : '';
-  $('mSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}${tmr} · ${save.sel + 1}/${save.monsters.length}`;
+  $('mSub').textContent = ''; // nivel arriba a la izquierda, corazones arriba a la derecha, número de monstruo abajo a la izquierda
+  $('cLv').textContent = `Nv. ${rec.level}`; $('cHearts').innerHTML = hearts(rec.lives) + (rec.heartAt ? `<small>+1 en ${mmss(rec.heartAt - Date.now())}</small>` : '');
+  $('cIdx').textContent = `${save.sel + 1}/${save.monsters.length}`;
 }
 function updateRest() {
   const rec = cur();
@@ -2417,7 +2424,7 @@ function doDrill(i) {
   renderHome(); renderTrain(); trainFx(`más ${d.d > 0 ? t.pos : t.neg}`);
 }
 
-function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques · ${save.sel + 1}/${save.monsters.length}`; }
+function updateEggSub() { const rec = cur(); $('mSub').textContent = `Faltan ${rec.need - rec.taps} toques`; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = `${save.sel + 1}/${save.monsters.length}`; }
 function tapEgg() {
   const rec = cur();
   rec.taps++;
