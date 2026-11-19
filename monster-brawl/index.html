@@ -3087,10 +3087,8 @@ function loop(now) {
     if (sleepy) { // cuenta regresiva grande arriba del monstruo dormido
       const rec = cur(), rest = rec.restUntil > Date.now(), left = rest ? rec.restUntil - Date.now() : (rec.napUntil || 0) - Date.now();
       if (left > 0) {
-        const y = Math.max(homeView.gy - Math.max(sz.h, 60) * k - 16, r.top + 62);
+        const y = Math.max(homeView.gy - Math.max(sz.h, 60) * k - 16, r.top + 44);
         ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(20,10,30,.85)';
-        ctx.font = '800 14px system-ui'; ctx.lineWidth = 4; const lbl = rest ? 'sin vidas · descansando' : 'durmiendo';
-        ctx.strokeText(lbl, homeView.cx, y - 42); ctx.fillStyle = 'rgba(220,210,255,.95)'; ctx.fillText(lbl, homeView.cx, y - 42);
         ctx.font = '900 42px system-ui'; ctx.lineWidth = 7; ctx.strokeText(mmss(left), homeView.cx, y); ctx.fillStyle = rest ? '#ff9aa6' : '#cfc4ff'; ctx.fillText(mmss(left), homeView.cx, y);
       }
     }
