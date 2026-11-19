@@ -1295,7 +1295,7 @@ class Monster {
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
-    if (!this.sleep) this.setEmo('surprised', 0.35, 2, ['happy', 1.1]);
+    if (!this.sleep) { const tp = this.tp || {}; this.setEmo((tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0 ? 'angry' : 'scared', 5, 3); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
     this.lookAt = { x: px, y: py }; clearTimeout(this._lt); this._lt = setTimeout(() => this.lookAt = null, 1500);
   }
@@ -2652,7 +2652,7 @@ function greetFocus(a) {
   const wasBack = a.m.back || (a.awayT || 0) > 0.15;
   a.m.back = false; a.awayT = -0.4; a.walk = false;
   if (wasBack) a.m.vz = 170;
-  a.m.setEmo('happy', 1.8, 2);
+  a.m.setEmo('happy', 3, 2); // al elegirlo se pone feliz 3 s y luego neutro
 }
 function ranchZoomTo(best) {
   fightMenu(false);
@@ -2688,7 +2688,7 @@ function personaText(rec) {
 }
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
-const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
+const PET_HAPPY_MS = 5 * 1000, LOSS_SAD_MS = 60 * 1000;
 const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= 1 ? 'beat' : null;
 const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
