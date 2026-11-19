@@ -578,7 +578,7 @@ function applyAnatomy(g, seed) {
 // es cada vez menos probable (hay que sacarla varias veces). Al crecer se siguen sorteando: sólo se ganan partes, nunca se pierden.
 // La apariencia de cada parte (tipo de mano, forma de cabeza, punta de cola…) también sale pareja entre todas sus variantes.
 // Sin "cabeza" sorteada, la cara va en el torso de arriba. Los monstruos de antes (gen ≤ 4) no usan esto y se ven igual.
-const PART_MAX = { eyes: 5, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 2, shoulders: 1 }; // torso y ojos: extra (además del primer trozo de torso y del primer ojo, que todos tienen; la boca también la tienen todos)
+const PART_MAX = { eyes: 5, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 3, shoulders: 1 }; // torso y ojos: extra (además del primer trozo de torso y del primer ojo, que todos tienen; la boca también la tienen todos)
 const PART_FROM = { eyes: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
 const PART_PICKS = [2, 3, 4, 4]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
 const PICK_STAGES = ['baby', 'child', 'teen', 'adult'];
@@ -816,7 +816,7 @@ const PART_STATS = [ // [clave, nombre, cuántas tiene (genoma → número), má
   ['shoulders', 'Hombros (par)', g => g.shoulders.size > 0 && g.arms.pairs > 0 ? 1 : 0, 1, { hp: 20, defense: 6, weight: 0.2 }],
   ['arms', 'Brazos (pares)', g => g.arms.pairs, 3, { melee: 1.5, reach: 4, weight: 0.3, meleeCd: -0.04 }],
   ['legs', 'Piernas (pares)', g => g.legs.pairs, 2, { speed: 18, weight: 0.15 }],
-  ['wings', 'Alas (pares)', g => g.wings.pairs, 2, { speed: 14, dodge: 0.06, weight: 0.1 }],
+  ['wings', 'Alas (pares)', g => g.wings.pairs, 3, { speed: 14, dodge: 0.06, weight: 0.1 }],
   ['tail', 'Colas', g => g.tail.count, 3, { melee: 1, dodge: 0.02, weight: 0.1 }],
 ];
 const partCounts = g => Object.fromEntries(PART_STATS.map(([k, , f]) => [k, f(g)]));
@@ -1072,9 +1072,9 @@ class Monster {
     // Alas
     I.wings = [];
     for (let p = 0; p < g.wings.pairs; p++) for (const sd of [-1, 1]) {
-      const span = g.wings.span * (p === 0 ? 1 : 0.72);
-      const base = add(I.upper, sd * up.w * 0.22, -up.h * 0.25 + p * up.h * 0.45, 400, 0.4);
-      const tip = add(base, sd * span * 0.92, -span * (p === 0 ? 0.45 : 0.05), 90, 0.22);
+      const span = (p ? Math.max(g.wings.span, up.w * 0.8) : g.wings.span) * [1, 0.8, 0.65][p]; // pares extra: más chicos, más abajo y más afuera para que se vean (el 3.º apunta hacia abajo)
+      const base = add(I.upper, sd * up.w * (0.22 + 0.14 * p), -up.h * 0.25 + p * up.h * 0.45, 400, 0.4);
+      const tip = add(base, sd * span * 0.92, -span * [0.45, 0.05, -0.4][p], 90, 0.22);
       I.wings.push({ p, sd, base, tip, span });
     }
     // Colas (cadena de segmentos muy blandos)
