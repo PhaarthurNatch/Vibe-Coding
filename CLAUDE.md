@@ -92,11 +92,13 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Herencia (`makeChild`, `recGenome`): cada grupo de partes de `GENE_GROUPS` sale al azar de uno de los padres (10% muta = sale de su propia semilla);
   `rec.genes[grupo]` guarda el monstruo *origen* `{seed, legacy, v3}` (plano, sirve para nietos). Personalidad = promedio ± azar; al despertar trae la ultimate de un padre (`ultGift`).
   Home muestra "Hijo de X y Y · Gen. N" (`parents`, `lineage`). Todos los campos son opcionales: no hace falta migración.
-- **Pelea local por WiFi, de 2 a 4 jugadores** (botón "📶 Pelea local" en el Home; módulo `LAN`, `LAN_MAX`): conexión directa WebRTC sin internet (sin servidores ICE; candidatos de la red local),
+- **Pelea local por WiFi, de 2 a 8 jugadores** (botón "📶 Pelea local" en el Home; módulo `LAN`, `LAN_MAX` 8): conexión directa WebRTC sin internet (sin servidores ICE; candidatos de la red local),
   emparejada con **códigos QR** (`packSDP`/`unpackSDP` achican la conexión a ~100 caracteres; `drawQR` con qrcode-generator, lectura con `BarcodeDetector` o jsQR,
   ambas bibliotecas van incrustadas al inicio del HTML con su licencia). El anfitrión crea y muestra su QR → el invitado toca Unirme y lo escanea → muestra su QR →
   el anfitrión lo escanea; con "+ Agregar jugador" repite para cada amigo (una conexión por invitado en `LAN.peers`; sala con `lanLobbyUpdate`).
-  Modos según jugadores: 2 = 1 vs 1; 3 = todos contra todos; 4 = todos contra todos o 2 vs 2 (anfitrión + 2.º contra 3.º + 4.º, `lanTeams`).
+  Modos según jugadores (`lanModesFor`): 2 = 1 vs 1; impares = todos contra todos; 4 = también 2 vs 2; 6 y 8 = también dos equipos (3 vs 3, 4 vs 4, modo `'2v2'`)
+  o parejas (2 vs 2 vs 2…, modo `'pairs'`). Equipos por orden de llegada (`lanTeams`). Con más de 4, salen en un óvalo (`spawnRing`), la arena crece
+  (×√(n/4)) y el estado se manda 20 veces por segundo (máx. 60 partículas). `teamColor` pinta verde al compañero según el equipo de cada celular.
   Si un invitado se va a mitad de pelea, su monstruo sigue con la IA; si se va el anfitrión, se termina para todos.
   **El anfitrión simula** la pelea (`lanStartHost(mode)`; los monstruos de los otros tienen `remoteCtl` y esperan su botón) y manda el estado ~30/s
   (`lanSnapshot`); **el invitado sólo dibuja** (`battle.puppet`, `lanApply`) y manda `{t:'u'}` al apretar ULTIMATE. Pelea amistosa (`lanFinish`): sin corazones ni premios;

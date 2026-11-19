@@ -1803,7 +1803,8 @@ class Battle {
     this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
-    const P = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
+    const P0 = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
+    const P = ms.length <= P0.length && mode !== 'pairs' ? P0 : spawnRing(ms); // más de 4 (pelea local): equipos repartidos en un óvalo
     ms.forEach((m, i) => {
       m.x = P[i][0] * ARENA_W; m.y = P[i][1] * ARENA_D;
       const dx = ARENA_W / 2 - m.x, dy = ARENA_D / 2 - m.y, d = Math.hypot(dx, dy) || 1; m.lockAx = { x: dx / d, y: dy / d };
@@ -2016,10 +2017,19 @@ class Battle {
   }
 }
 
-function teamColor(m, mode) {
+function teamColor(m, mode, myTeam = 0) {
   if (m.isPlayer) return '#ffcf6e';
-  if (mode === '2v2') return m.team === 0 ? '#5ee08a' : '#ff5d6c';
+  if (mode === '2v2' || mode === 'pairs') return m.team === myTeam ? '#5ee08a' : '#ff5d6c'; // compañero verde, rivales rojo
   return '#ff5d6c';
+}
+// Puntos de salida en un óvalo: cada equipo en un lugar, sus integrantes uno al lado del otro
+function spawnRing(ms) {
+  const teams = [...new Set(ms.map(m => m.team))], T = teams.length;
+  return ms.map(m => {
+    const k = teams.indexOf(m.team), mates = ms.filter(o => o.team === m.team), j = mates.indexOf(m), c = mates.length;
+    const a = Math.PI + k * 2 * Math.PI / T, off = (j - (c - 1) / 2) * (T === 2 ? 0.19 : 0.11);
+    return [clamp(0.5 + 0.36 * Math.cos(a) - Math.sin(a) * off, 0.08, 0.92), clamp(0.5 + 0.36 * Math.sin(a) + Math.cos(a) * off, 0.08, 0.92)];
+  });
 }
 
 function drawArena(ctx) {
@@ -2054,7 +2064,7 @@ const EGG_COST = 60;              // monedas para adoptar un huevo (el primero d
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
 // [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
 const REWARDS = { '1v1': [[60, 25], [20, 10]], '2v2': [[45, 15], [15, 5]], ffa: [[80, 40], [50, 25], [30, 15], [15, 5]] };
-const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar'];
+const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar', '5.º lugar', '6.º lugar', '7.º lugar', '8.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
 const resting = rec => (rec.restUntil && Date.now() < rec.restUntil) || napping(rec);
 const napping = rec => rec.napUntil && Date.now() < rec.napUntil; // durmiendo después de criar
@@ -3077,7 +3087,7 @@ function loop(now) {
     else {
       acc += dt * BATTLE_SPEED; let n = 0;
       while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
-      if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % 2) === 0) lanSend(lanSnapshot());
+      if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
@@ -3101,7 +3111,7 @@ function loop(now) {
 // El anfitrión empareja a cada amigo por separado (una conexión con cada uno), simula la pelea y les manda lo que pasa ~30 veces
 // por segundo; los invitados sólo dibujan y mandan cuándo aprietan su ULTIMATE. Pelea amistosa: no se pierden corazones ni hay premios.
 // ============================================================================
-const LAN_MAX = 4;
+const LAN_MAX = 8;
 // peers: en el anfitrión, una conexión por invitado {pc, dc, open, rec, idx}; en el invitado, sólo la del anfitrión
 const LAN = { role: null, peers: [], pending: null, scan: null, sendT: 0, snap: null, lobby: [], mode: '1v1', me: 0, camOk: false };
 const lanSend = (o, only) => { const s = JSON.stringify(o); for (const p of only ? [only] : LAN.peers) try { if (p.dc && p.dc.readyState === 'open') p.dc.send(s); } catch (e) { } };
@@ -3229,7 +3239,9 @@ function drawQR(canvas, text) {
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect((c + q) * px, (r + q) * px, px, px);
 }
 // ---------- Ventana de la pelea local ----------
-const LAN_MODES = { '1v1': '1 vs 1', ffa: 'Todos contra todos', '2v2': '2 vs 2' };
+// Modos según cuántos son: '2v2' = dos equipos (2 vs 2, 3 vs 3 o 4 vs 4); 'pairs' = parejas (2 vs 2 vs 2…)
+const lanModeName = (mode, n) => mode === '1v1' ? '1 vs 1' : mode === 'ffa' ? 'Todos contra todos' : mode === '2v2' ? `${n / 2} vs ${n / 2}` : Array(n / 2).fill(2).join(' vs ');
+const lanModesFor = n => n === 2 ? ['1v1'] : n % 2 ? ['ffa'] : n === 4 ? ['ffa', '2v2'] : ['ffa', '2v2', 'pairs'];
 function lanUI(st, data) {
   const info = $('lanInfo'), qr = $('lanQR'), vid = $('lanVideo'), btns = $('lanBtns');
   qr.hidden = vid.hidden = true; if (st !== 'scan') stopScan();
@@ -3254,8 +3266,7 @@ function lanUI(st, data) {
     btns.append(B('Desconectar', quit));
     if (host) {
       if (n < LAN_MAX) btns.append(B('+ Agregar jugador', lanHost));
-      const modes = n === 2 ? ['1v1'] : n === 3 ? ['ffa'] : n === 4 ? ['ffa', '2v2'] : [];
-      for (const md of modes) btns.append(B(n === 2 ? '¡Pelear!' : LAN_MODES[md], () => lanStartHost(md), 'primary'));
+      if (n >= 2) for (const md of lanModesFor(n)) btns.append(B(n === 2 ? '¡Pelear!' : lanModeName(md, n), () => lanStartHost(md), 'primary'));
     }
   } else if (st === 'error') {
     info.textContent = data;
@@ -3281,9 +3292,9 @@ function lanMsg(m, peer) {
 // ---------- La pelea ----------
 function lanSetupBattle(list, aw, ad, mode) {
   $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
-  $('modeLbl').textContent = 'Pelea local · ' + LAN_MODES[mode];
+  $('modeLbl').textContent = 'Pelea local · ' + lanModeName(mode, list.length);
   ARENA_W = aw;
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode, (list.find(o => o.isPlayer) || {}).team)}"></i></div></div>`).join('');
   setupUltBar(list);
   if (ad) ARENA_D = ad;
   else if (H / W > 1.25) { const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8; ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420, 1400); }
@@ -3291,15 +3302,15 @@ function lanSetupBattle(list, aw, ad, mode) {
   battle = new Battle(list, mode); battle.lan = true;
   scene = 'battle'; keepAwake(true);
 }
-const lanTeams = (n, mode) => mode === '2v2' ? [0, 0, 1, 1] : [...Array(n).keys()]; // 2 vs 2: el anfitrión y el 2.º contra el 3.º y el 4.º
+const lanTeams = (n, mode) => [...Array(n).keys()].map(i => mode === '2v2' ? (i < n / 2 ? 0 : 1) : mode === 'pairs' ? i >> 1 : i); // equipos por orden de llegada (el anfitrión con los primeros)
 function lanStartHost(mode) {
   const guests = LAN.peers.filter(p => p.open && p.rec).slice(0, LAN_MAX - 1); if (!guests.length) return;
-  const n = guests.length + 1; mode = n === 2 ? '1v1' : mode === '2v2' && n === 4 ? '2v2' : 'ffa'; LAN.mode = mode;
+  const n = guests.length + 1; mode = lanModesFor(n).includes(mode) ? mode : lanModesFor(n)[0]; LAN.mode = mode;
   const recs = [lanRec(cur()), ...guests.map(p => p.rec)], teams = lanTeams(n, mode);
   const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
   const list = recs.map((r, i) => { const m = new Monster(i === 0 ? cur() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
   guests.forEach((p, i) => p.idx = i + 1);
-  lanSetupBattle(list, (mode === '1v1' ? 600 : 640) * zoom, null, mode);
+  lanSetupBattle(list, (mode === '1v1' ? 600 : 640 * Math.sqrt(Math.max(4, n) / 4)) * zoom, null, mode); // más jugadores, arena más grande
   battle.introT = INTRO_S; battle.shake = 6; for (const m of battle.ms) m.setEmo('focus', INTRO_S, 2);
   guests.forEach(p => lanSend({ t: 'start', aw: ARENA_W, ad: ARENA_D, mode, teams, recs, you: p.idx }, p));
 }
@@ -3321,7 +3332,7 @@ function lanSnapshot() {
     pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])])]),
     rg: B.rings.map(r => [R1(r.x), R1(r.y), R1(r.r), r.max, R1(r.life * 100) / 100, r.col]),
     tx: B.texts.map(t => [R1(t.x), R1(t.y), t.str, t.col, R1(t.life * 100) / 100, t.big ? 1 : 0]),
-    pa: B.parts.map(q => [R1(q.x), R1(q.y), R1(q.vx), R1(q.vy), R1(q.life * 100) / 100, q.col, R1(q.r)]) };
+    pa: B.parts.slice(-60).map(q => [R1(q.x), R1(q.y), R1(q.vx), R1(q.vy), R1(q.life * 100) / 100, q.col, R1(q.r)]) };
 }
 function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima las partes localmente
   const B = battle, s = LAN.snap;
@@ -3355,7 +3366,7 @@ function lanFinish() {
   $('resTitle').textContent = B.timedOut ? '¡Se acabó el tiempo!' : nT === 2 ? (place === 1 ? '¡Ganaste!' : 'Perdiste') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1] || 'Perdiste');
   $('resTitle').className = place === 1 ? 'win' : place === nT ? 'lose' : 'mid';
   const others = B.ms.filter(m => m !== me).map(m => esc(m.name)).join(', ');
-  $('resText').innerHTML = `Pelea amistosa (${LAN_MODES[LAN.mode]}) con <b>${others}</b>.<br><small>No se pierden corazones ni se ganan premios.</small>`;
+  $('resText').innerHTML = `Pelea amistosa (${lanModeName(LAN.mode, B.ms.length)}) con <b>${others}</b>.<br><small>No se pierden corazones ni se ganan premios.</small>`;
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha';
   $('result').classList.add('on');
 }
