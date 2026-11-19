@@ -29,7 +29,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   garras de ave y botas. Colores: paletas pastel, neón, oscura (ojos que brillan), tierra, metálica (oro/plata) y caramelo,
   cuerpo de dos tonos y dibujos (rayas, degradado, manchas grandes). Los monstruos antiguos conservan su aspecto.
 - **Partes "floaty"**: cada parte es un nodo con resorte que sigue a su padre con retraso; al recibir golpes se sacuden y al morir caen como ragdoll.
-- **Stats salen del cuerpo**: vida, fuerza, disparo, defensa, velocidad, peso (regula el knockback) y esquiva.
+- **Stats salen de cuántas partes tiene**: cada trozo de torso, cabeza, cuello, ojo, boca, cuerno, orejas, antena, hombros, par de brazos/piernas/alas y cola suma algo (vida, defensa, golpe, disparo, velocidad, esquiva, alcance o peso). El tamaño y la forma sólo se ven.
 - **IA**: elige objetivo mirando a la vez qué tan cerca está, quién le está pegando ahora, quién le ha pegado en toda la pelea, quién lo está atacando, quién está débil o distraído, a quién ataca su compañero (2 vs 2), si ya hay varios encima de uno (todos contra todos), si tiene escudo y qué tan peligroso es. La personalidad decide cuánto pesa cada cosa ("¡grr!" cuando cambia por rabia, "¡ahora!" por oportunidad). No cambia a cada rato: sólo si el nuevo es claramente mejor. Al fijarlo se mueve sobre un eje de lock-in que gira lento.
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.

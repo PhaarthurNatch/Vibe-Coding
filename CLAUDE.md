@@ -127,7 +127,11 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
 - **Peso por etapa** (`WEIGHT_SCALE`): los adultos llegaban casi todos al tope 3,5; ahora su peso se escala (×0,885, tope 4,2) para que el promedio siga ~3,3
   pero haya adultos livianos (~2,6) y pesados (~4,1). Las otras etapas no cambian. `st.mass` es el peso sin escalar ni tope (lo usa el vuelo).
-- **El peso da defensa** (pedido del dueño): `defense += (peso / WEIGHT_AVG[etapa] − 1) · WEIGHT_DEF` (6; promedios por etapa bebé 0,91 · niño 1,33 · adolescente 2,2 · adulto 3,31), así el promedio de defensa no cambia.
+- **Stats = sólo la cantidad de partes** (pedido del dueño; `calcStats`): `STAT_BASE` + lo que suma cada unidad según `PART_STATS` (torso por trozo, cabeza, cuello, cada ojo, boca, cada cuerno, orejas, cada antena, hombros, cada par de brazos/piernas/alas, cada cola; `partCounts(g)`).
+  **Tamaño, forma y tipo no importan** (manos, pupilas, tipo de boca, púas, torso cuadrado, largo de patas: sólo se ven). El peso también sale de las partes; tope 0,5–4,2; `st.mass` = peso sin tope.
+  Los que pelean con más partes ganan algo más (1v1 adultos: brazos 1/2/3 pares ≈ 37/53/64%; sin cuello 33% vs 47%; el resto dentro de ±5); con valores más altos de brazos (+6 golpe) llegaba a 29/76/92%.
+  Vuelo: `flyer` = peso / pares de alas / `WEIGHT_AVG[etapa]` ≥ `FLY.loadSplit` (0,95) → salta; si no, flota.
+- **El peso da defensa** (pedido del dueño): `defense += (peso / WEIGHT_AVG[etapa] − 1) · WEIGHT_DEF` (6; promedios por etapa bebé 1,25 · niño 1,58 · adolescente 2,23 · adulto 3,19, recalcular si cambia `PART_STATS`), así el promedio de defensa no cambia.
   Un adulto pesado (~4,1) gana ~+1,5 de defensa y uno liviano (~2,6) pierde ~1,3. Con 6: livianos ~40% / medios ~44% / pesados ~45–46% en 1v1 (sin esto, todos ~44%); con 12 la brecha llegaba a 38% / 47%.
 - **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
   el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light` 0,5; era 2 antes del peso por etapa y dejaba a los livianos en 67%).
@@ -154,7 +158,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Estadísticas; los **rivales** siguen decidiendo solos (`ultMode` al azar).
 - **Anatomías nuevas (gen 4, pedido del dueño)**: `newRec` crea monstruos `gen: 4`; `genGenome(seed, stage, legacy, v3, v4)` aplica `applyAnatomy` (flujo de azar aparte) **sólo con v4**:
   **sin ojos** (7%), **sin boca** (8%) y **sin cabeza** (15%: `head.none`, la cara va en el trozo más alto del torso, sin cuello; `fitHeadless` copia tamaño y forma del torso de arriba a la "cabeza", que no se dibuja, sólo la cara; el bebé de una pieza no cambia).
-  **No cambian las estadísticas**: se guarda lo que tendría (`eyes.sc`, `mouth.st`, `head.sw/sh/sn/se`) y `calcStats` usa eso. Los gen 3 no cambian (comprobado con 5000 semillas). En la cría el origen lleva `v4` y `recGenome` llama a `fitHeadless` al final.
+  Desde que las stats salen sólo de la cantidad de partes, **no tener ojos/boca/cabeza sí resta** lo que da esa parte (los campos `eyes.sc`, `mouth.st`, `head.sw/sh/sn/se` quedaron sin uso). Los gen 3 no cambian (comprobado con 5000 semillas). En la cría el origen lleva `v4` y `recGenome` llama a `fitHeadless` al final.
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
