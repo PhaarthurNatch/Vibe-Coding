@@ -2480,7 +2480,7 @@ function drawRanch(c, r, opt) {
     if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
     const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
     c.font = `800 ${Math.round(clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
-    const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = a.slot === save.sel ? '#ffcf6e' : '#fff'; c.fillText(txt, p.X, ly);
+    const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
   for (const q of RANCH.parts) { // corazones al acariciar
