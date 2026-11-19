@@ -2400,6 +2400,7 @@ function drawRanch(c, r, opt) {
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
   const D = ranchDeco(), C = ranchCam(r), { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P } = C;
   const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
+  const ghost = opt && opt.ghost != null ? opt.ghost : 1; // vista de cerca: lo demás del rancho se vuelve transparente para no estorbar
   const cut = p => opt && opt.cullD ? clamp((p.d - opt.cullD) / 0.15 + 1, 0, 1) : 1;
   const near = p => clamp((p.d - NEAR) / 0.22, 0, 1) * cut(p), nearM = p => clamp((p.d - 0.25) / 0.15, 0, 1) * cut(p); // lo que está casi encima de la cámara se desvanece (los monstruos antes, para no tapar la pantalla)
   // cielo, estrellas, luna y cerros (se mueven al girar)
@@ -2431,7 +2432,7 @@ function drawRanch(c, r, opt) {
   for (const it of items) {
     const p = it.p, k = u * p.sc;
     if (it.a) {
-      const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
+      const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1) * (opt && opt.focus && a !== opt.focus ? ghost : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
       if (a.kind === 'mon') drawOcc(c, { show: a.m }); // (la altura de un salto ya viene en el esqueleto)
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else drawOcc(c, { vacant: true, k });
@@ -2441,7 +2442,7 @@ function drawRanch(c, r, opt) {
       continue;
     }
     const d = it.d; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
-    c.globalAlpha = near(p); // sólo lo que queda casi encima de la cámara se desvanece; los árboles son sólidos (los monstruos pasan por detrás)
+    c.globalAlpha = near(p) * (d.k === 'tree' || d.k === 'bush' || d.k === 'rock' ? ghost : 1); // sólo lo que queda casi encima de la cámara se desvanece; los árboles son sólidos (de cerca, transparentes)
     if (d.k === 'tree') {
       const sc = d.s; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
       c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -70 * sc, 14 * sc, 70 * sc);
@@ -3370,7 +3371,7 @@ function drawRanchBg(ctx, r, pz) {
   }
   const Zp = Math.max(1, 1 + (Z - 1) * pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, homeView.gy, pz);
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
-  drawRanch(ctx, r, { alphaOf, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
+  drawRanch(ctx, r, { alphaOf, focus: a, ghost: 1 - 0.65 * pz, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
   return true;
 }
