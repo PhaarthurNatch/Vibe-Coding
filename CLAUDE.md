@@ -87,7 +87,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Espacios para monstruos** (`slotCap`, `save.slots`): se parte con **2** y cada monstruo que llega a Awakened desbloquea 1 más (hasta 8, `MAX_MONSTERS`;
   `awakeCounted` evita contar dos veces; se avisa en el título de la animación de despertar). Comprar y criar se hacen en un espacio libre.
   Migración: partidas antiguas reciben 2 + sus Awakened (y nunca menos que los monstruos que ya tienen).
-- **Espacios libres = comprar o criar** (reemplazó a la página Criadero, pedido del dueño): al deslizar a un espacio libre se ve un huevo transparente con "?" y dos botones (`renderSlotBtns`):
+- **Espacios libres = comprar o criar** (reemplazó a la página Criadero, pedido del dueño): al deslizar a un espacio libre se ve un huevo transparente con "?" y **sólo** dos botones (`renderSlotBtns`; clase `vacant` en `#home` oculta Pelea local y los de pelea):
   **Comprar** (60 monedas, 1 al día, mismas reglas que la Tienda; `buySlotEgg`) agrega un huevo a `save.monsters` y se abre ahí mismo a toques (`tapEgg`);
   **Criar** (gris "🔒 Criar" hasta desbloquearlo con 2 Awakened; aviso único, `save.breedUnlocked`, `checkBreedUnlock`) abre el modal `#breedPick` para elegir 2 Awakened (`openBreedPick` → `doBreed`), 150 monedas (`BREED_COST`).
   El huevo criado queda en ese espacio como un monstruo más con `stage: 'egg'` y `readyAt`: **incuba 3 horas** (abajo a la derecha "🥚 2 h 05 min"; tocarlo antes sólo lo mueve) y después se abre a toques.

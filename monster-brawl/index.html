@@ -59,7 +59,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:12.5px;padding:7px 8px;white-space:nowrap;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .tabs button.locked{opacity:.5}
-#home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */ /* partida nueva: sólo el huevo, sin botones */
+#home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
+#home.vacant .panel>.row{display:none} /* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
 @media (max-width:380px){.tabs{gap:0}.tabs button{font-size:11.5px;padding:7px 6px;letter-spacing:0}} /* celulares angostos: que quepan las 4 pestañas */
 .ultbar{display:flex;gap:8px;justify-content:center;padding-top:6px}
 .ultbtn{flex:1;max-width:260px;padding:10px 8px;border-radius:16px;background:linear-gradient(#ffe08a,#ff9a3c 60%,#e8641c);color:#2a1200;box-shadow:0 4px 0 #8a3a0a,0 0 18px rgba(255,170,60,.55);display:flex;flex-direction:column;align-items:center;gap:1px;animation:ultpulse 1.4s ease-in-out infinite}
@@ -2297,6 +2298,7 @@ function renderHome() {
   if (!save.monsters.length) { show = null; egg = null; $('cLv').textContent = $('cHearts').textContent = $('cIdx').textContent = $('cTime').textContent = ''; return; } // todavía no tiene monstruos: sólo la página Adoptar
   if (homePage === 2) setTimeout(renderTrain);
   if (homeEmpty != null && (homeEmpty < save.monsters.length || homeEmpty >= slotCap())) homeEmpty = null;
+  $('home').classList.toggle('vacant', homeEmpty != null);
   if (homeEmpty != null) { // espacio libre: no hay monstruo aquí
     show = null; egg = null;
     $('mName').textContent = 'Espacio libre'; $('mSub').textContent = '';
