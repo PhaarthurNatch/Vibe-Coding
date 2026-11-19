@@ -5,6 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
+- **Genes (Tienda)**: por 40 monedas le das a un monstruo un gen (brazos, alas, colores, cabeza…) y su próxima cría hereda esa parte de él sí o sí.
 - **Ajustes ⚙️ (en el rancho, junto a las monedas)** → Partida: Exportar copia un código de tu partida, e Importar la pega en otro lugar (por ejemplo, del link de prueba a la web app instalada, o a otro celular). Al importar se guarda un respaldo para poder deshacerlo. Además, el juego guarda solo una copia de la partida cada 2 minutos.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
 - **Menú en 3 páginas, una debajo de otra** (deslizar arriba/abajo, o tocar "▲ Tienda" / "Estadísticas ▼" en los bordes; no hay pestañas): Tienda (arriba: ultimates por 150),
@@ -12,7 +13,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Rancho**: todos tus monstruos (y huevos) viven en un rancho redondo y caminan solos (los espacios libres no se ven ahí: se llega a ellos deslizando a los lados en la vista de cerca); deslizar a los lados lo gira
   como un carrusel. Al tocar a uno, la cámara se acerca y se ve de cerca con sus datos y botones de pelea; de cerca, arriba se vuelve al rancho y abajo están las Estadísticas.
   De cerca y en Estadísticas, deslizar a los lados pasa al siguiente monstruo.
-- **Espacios libres**: al deslizar entre tus monstruos aparecen los espacios vacíos con un huevo transparente; ahí puedes **Comprar** un huevo (60 monedas, 1 al día) o **Criar** (desde que tienes 2 Awakened): cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas en ese espacio. El hijo hereda partes, colores y
+- **Espacios libres**: al deslizar entre tus monstruos aparecen los espacios vacíos con un huevo transparente; ahí puedes **Comprar** un huevo (60 monedas, 1 al día) o **Criar** (desde que tienes 2 adultos): cruza dos adultos o Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas en ese espacio. El hijo hereda partes, colores y
   personalidad de sus padres (a veces muta algo) y al despertar trae la ultimate de uno de ellos.
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
@@ -21,6 +22,8 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   (agrandadas) y se sortea si le salen partes nuevas; las cantidades sólo suben. Crece recién al volver al menú,
   con una animación a pantalla completa donde le van apareciendo las partes nuevas (si le toca crecer varias etapas,
   crecen una tras otra dentro de la misma animación).
+- **Partes al azar parejo (monstruos nacidos desde esta versión)**: en cada etapa se sortea una cantidad fija de partes; todas tienen la misma chance (y "no sale nada" también), tener varias de la misma es cada vez más raro, y el aspecto de cada parte también sale parejo. Al crecer sólo se ganan partes.
+- **Sin cabeza**: algunos monstruos no tienen cabeza y la cara va en la parte de arriba del torso. Todos tienen boca y al menos un ojo.
 - **Variedad (monstruos nuevos)**: orejas (gato, redondas, conejo blandas, aleta) que se mueven solas; antenas elásticas
   (bolita, luz que pulsa, hoja); cabezas corazón/hexágono/hongo/frijol; bocas con lengua que se mueve, mandíbulas que se abren
   y cierran, bigotes; pupilas corazón/diamante/espiral que gira; astas y cuernos de carnero; alas de mariposa, fuego que titila
@@ -28,13 +31,13 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   garras de ave y botas. Colores: paletas pastel, neón, oscura (ojos que brillan), tierra, metálica (oro/plata) y caramelo,
   cuerpo de dos tonos y dibujos (rayas, degradado, manchas grandes). Los monstruos antiguos conservan su aspecto.
 - **Partes "floaty"**: cada parte es un nodo con resorte que sigue a su padre con retraso; al recibir golpes se sacuden y al morir caen como ragdoll.
-- **Stats salen del cuerpo**: vida, fuerza, disparo, defensa, velocidad, peso (regula el knockback) y esquiva.
+- **Stats salen de cuántas partes tiene**: cada trozo de torso, cabeza, cuello, ojo, boca, cuerno, orejas, antena, hombros, par de brazos/piernas/alas y cola suma algo (vida, defensa, golpe, disparo, velocidad, esquiva, alcance o peso). El tamaño y la forma sólo se ven.
 - **IA**: elige objetivo mirando a la vez qué tan cerca está, quién le está pegando ahora, quién le ha pegado en toda la pelea, quién lo está atacando, quién está débil o distraído, a quién ataca su compañero (2 vs 2), si ya hay varios encima de uno (todos contra todos), si tiene escudo y qué tan peligroso es. La personalidad decide cuánto pesa cada cosa ("¡grr!" cuando cambia por rabia, "¡ahora!" por oportunidad). No cambia a cada rato: sólo si el nuevo es claramente mejor. Al fijarlo se mueve sobre un eje de lock-in que gira lento.
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.
 - Modos 1v1, 2v2 y todos contra todos (velocidad fija x1.5). En 2v2 eliges 2 de tus monstruos para pelear en equipo
   (o un aliado al azar si sólo tienes uno listo); cada uno gana su XP, monedas y pierde sus vidas. XP, monedas y niveles guardados en el dispositivo.
-- **Vidas**: 3 por monstruo; si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
+- **Vidas**: 5 por monstruo (con 2 o menos se ve machacado); si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
 - **Interacción en la vitrina**: toque corto = sacudirlo; deslizar el dedo = acariciarlo (cierra los ojos, se sonroja, salen corazones);
   mantener presionado = tomarlo: cuelga del dedo, lo puedes mover, levantar y lanzar; al caer rebota y vuelve caminando al centro.
 - **Entrenamiento por puntos**: 2 puntos por nivel para repartir en Poder (daño), Aguante (vida y defensa), Agilidad

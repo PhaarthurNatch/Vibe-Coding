@@ -113,6 +113,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
 .tpanel.shop{flex:1 1 auto;margin-top:6px}
+.genegrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.genebtn{font-size:13px;padding:10px 6px}
 .bdlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bdgo{display:flex;align-items:center;justify-content:center;gap:6px}
 .adoptTxt{margin:0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
@@ -240,6 +241,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
       <div class="tsec" id="shopUlts"></div>
+      <div class="tsec" id="shopGenes"></div>
     </div>
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
@@ -337,6 +339,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     </div>
   </div>
 </div>
+<div class="modal" id="genePick">
+  <div class="card">
+    <h2 style="font-size:22px" id="gpTitle">Gen</h2>
+    <p id="gpInfo"></p>
+    <div class="tplist" id="gpList"></div>
+    <div class="row">
+      <button class="btn" id="gpNo">Cancelar</button>
+      <button class="btn primary" id="gpGo">Dar</button>
+    </div>
+  </div>
+</div>
 <div class="modal" id="breedPick">
   <div class="card">
     <h2 style="font-size:22px">Elige a los padres</h2>
@@ -422,6 +435,9 @@ const ULT_RECHARGE_S = 20; // segundos reales hasta poder volver a usar la ultim
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
 const SHIELD_MUL = 0; // Escudo de hierro: no recibe daño (igual lo empujan)
+const ULT_STAGES = ['teen', 'adult', 'awakened'], canUlt = st => ULT_STAGES.includes(st); // desde adolescente pueden usar ultimate (pedido del dueño)
+const BREED_STAGES = ['adult', 'awakened'], canBreedStage = st => BREED_STAGES.includes(st); // desde adulto pueden tener crías
+const AWAKE_SIZE = 1.15; // los Awakened son más grandes que los adultos
 const starterUlt = seed => ULT_KEYS[rng((seed ^ 0x1234abcd) >>> 0).i(0, ULT_KEYS.length - 1)]; // la que trae de regalo al despertar
 const ownsUlt = k => (save.ults || []).includes(k);
 function grantUlt(k) { save.ults = save.ults || []; if (!save.ults.includes(k)) save.ults.push(k); }
@@ -446,7 +462,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const FLY = { loadSplit: 0.072, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 2.0, floatR: 0.8, cd: 9, cdR: 4 };
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 2.0, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -522,24 +538,104 @@ function scaleGenome(g, k) {
 const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears', 'antennae'],
   neck: ['neck'], body: ['torso', 'spots', 'shoulders'], arms: ['arms'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] };
 function recGenome(rec, stage) {
-  const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3);
+  const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5);
   if (!rec.genes) return g;
   const cache = {};
   for (const [grp, keys] of Object.entries(GENE_GROUPS)) {
     const src = rec.genes[grp]; if (!src) continue;
-    const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}`;
-    const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3));
+    const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}${src.v4 ? 1 : 0}${src.v5 ? 1 : 0}`;
+    const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
   }
+  fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
   // los ojos heredados tienen que caber en la cabeza heredada
   const n = g.eyes.count, maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
   g.eyes.size = Math.max(3, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
   return g;
 }
-function genGenome(seed, stage = 'adult', legacy = false, v3 = false) {
+function genGenome(seed, stage = 'adult', legacy = false, v3 = false, v4 = false, v5 = false) {
+  if (stage === 'awakened') { const g = genGenome(seed, 'adult', legacy, v3, v4, v5); scaleGenome(g, AWAKE_SIZE); return g; } // Awakened: el mismo cuerpo, más grande
+  if (v5 && !legacy) return genome5(seed, stage);
   const g = baseGenome(seed, stage, legacy);
   if (v3 && !legacy) applyVariety(g, seed);
+  if (v4 && !legacy) applyAnatomy(g, seed);
   return g;
+}
+// Anatomías nuevas (gen 4, sólo monstruos nacidos desde esta versión; los anteriores no cambian):
+// sin ojos, sin boca, y sin cabeza: la cara va en el trozo más alto del torso (sin cuello). Mismo seed = mismo resultado en todas las etapas.
+const ANATOMY = { noEyes: 0, noMouth: 0, headless: 0.15 }; // sin ojos / sin boca se quitaron (pedido del dueño)
+function applyAnatomy(g, seed) {
+  const r = rng((seed ^ 0x2545f491) >>> 0);
+  const noEyes = r.chance(ANATOMY.noEyes), noMouth = r.chance(ANATOMY.noMouth), headless = r.chance(ANATOMY.headless);
+  if (noEyes) { g.eyes.sc = g.eyes.count; g.eyes.count = 0; g.eyes.pos = []; } // sc/st: lo que tendría, para las estadísticas (no se debilita)
+  if (noMouth) { g.mouth.st = g.mouth.type; g.mouth.type = 'none'; }
+  if (headless) g.head.none = true;
+  fitHeadless(g);
+}
+// ---------- Gen 5: partes sorteadas parejo (pedido del dueño) ----------
+// En cada etapa se hacen PART_PICKS sorteos; en cada uno, todas las partes que esa etapa permite (y que no llegaron a su máximo) tienen
+// la misma chance, y "no sale nada" es una opción más. Así cada parte tiene la misma chance de aparecer y tener 2 o 3 de la misma
+// es cada vez menos probable (hay que sacarla varias veces). Al crecer se siguen sorteando: sólo se ganan partes, nunca se pierden.
+// La apariencia de cada parte (tipo de mano, forma de cabeza, punta de cola…) también sale pareja entre todas sus variantes.
+// Sin "cabeza" sorteada, la cara va en el torso de arriba. Los monstruos de antes (gen ≤ 4) no usan esto y se ven igual.
+const PART_MAX = { eyes: 5, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 3, shoulders: 1 }; // torso y ojos: extra (además del primer trozo de torso y del primer ojo, que todos tienen; la boca también la tienen todos)
+const PART_FROM = { eyes: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
+const PART_PICKS = [2, 3, 4, 4]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
+const PICK_STAGES = ['baby', 'child', 'teen', 'adult'];
+function pickParts(seed, stage) {
+  // Los sorteos son siempre los mismos para una semilla (se hacen todos): lo que sale en una etapa en que esa parte todavía no
+  // puede existir (ej. alas en un bebé) aparece en la primera etapa que la permite. Así todas tienen la misma chance en el adulto.
+  const r = rng((seed ^ 0x6a09e667) >>> 0), keys = Object.keys(PART_MAX), tot = {}, c = {};
+  for (const k of keys) { tot[k] = 0; c[k] = 0; }
+  const last = PICK_STAGES.indexOf(stage === 'egg' ? 'baby' : stage === 'awakened' ? 'adult' : stage);
+  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const W = { nada: 1 }; for (const q of keys) if (tot[q] < PART_MAX[q] && (q !== 'shoulders' || tot.arms > 0)) W[q] = Math.pow(0.5, tot[q]); /* cada copia extra de una parte tiene la mitad de chance que la anterior; hombros sólo si ya tiene brazos */
+      const k0 = r.w(W), k = k0 === 'nada' ? null : k0; if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
+  return c;
+}
+const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart', 'hex', 'mushroom', 'bean'], torso: ['oval', 'box'], hand: ['fist', 'claw', 'blade', 'paw', 'pincer', 'tentacle'],
+  feet: ['round', 'claw', 'hoof', 'flat', 'talon', 'boot'], wing: ['bat', 'feather', 'bug', 'butterfly', 'flame', 'leaf'], tip: ['none', 'spike', 'ball', 'fin', 'flame', 'heart', 'fork', 'stinger', 'tuft'],
+  horn: ['spike', 'antler', 'curl'], ear: ['cat', 'round', 'bunny', 'fin'], antenna: ['ball', 'glow', 'leaf'], mouth: ['smile', 'fangs', 'open', 'beak', 'teeth', 'tusks', 'tongue', 'mandibles', 'whiskers'],
+  pupil: ['round', 'slit', 'bar', 'dot', 'ring', 'star', 'heart', 'diamond', 'spiral'] }; // todas las variantes de cada parte, igual de probables
+function genome5(seed, stage) {
+  if (stage === 'egg') stage = 'baby';
+  if (stage === 'awakened') stage = 'adult';
+  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
+  const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
+  // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
+  const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
+  const dims = { mid: { w: r.f(30, 80), h: r.f(16, 32) }, lower: { w: r.f(28, 80), h: r.f(16, 32) }, neck: r.f(8, 30), shoulder: r.f(7, 15), ear: r.f(0.28, 0.5), antLen: r.f(0.5, 0.95), eyeY: r.f(-0.35, 0.02), eyeSp: r.f(0.36, 0.52) };
+  g.head.shape = look.head; g.torso.shape = look.torso; g.arms.hand = look.hand; g.feet.type = look.feet; g.wings.type = look.wing; g.tail.tip = look.tip; g.horns.style = look.horn;
+  g.eyes.pupilShape = look.pupil; g.eyes.pupils = 1;
+  const ne = 1 + c.eyes; // todos tienen al menos un ojo (pedido del dueño)
+  g.eyes.count = ne; g.eyes.pos = eyeLayout(ne, dims.eyeY, dims.eyeSp);
+  const maxR = ne <= 1 ? 0.5 : ne === 2 ? 0.34 : ne === 3 ? 0.3 : 0.24;
+  g.eyes.size = Math.max(3.5, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
+  g.mouth.type = look.mouth; // todos tienen boca (pedido del dueño)
+  g.ears = c.ears ? { type: look.ear, size: dims.ear } : null;
+  g.antennae = c.antennae ? { tip: look.antenna, count: c.antennae, len: dims.antLen } : null;
+  g.arms.pairs = c.arms; g.legs.pairs = c.legs; g.wings.pairs = c.wings; g.tail.count = c.tail; g.horns.count = c.horns;
+  g.torso.mid = c.torso >= 1 ? (g.torso.mid || dims.mid) : null; g.torso.lower = c.torso >= 2 ? (g.torso.lower || dims.lower) : null;
+  g.neck.len = c.neck ? (g.neck.len || dims.neck) : 0;
+  g.shoulders.size = c.shoulders && c.arms ? (g.shoulders.size || dims.shoulder) : 0; // los hombros van siempre con los brazos principales
+  if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
+  else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
+  g.stage = stage; g.v3 = true; g.v5 = true;
+  const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
+  if (L.blob) { g.blob = true; g.spots = []; g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
+  else if (!c.head) { g.head.none = true; fitHeadless(g); } // sin cabeza sorteada: la cara va en el torso
+  return g;
+}
+
+// Sin cabeza: la "cabeza" pasa a ser el torso de arriba (mismo tamaño y forma, sin cuello) y sólo se dibuja la cara encima.
+// Las estadísticas usan el tamaño de cabeza original (sw/sh) para que no cambie el equilibrio. El bebé (una sola pieza) no cambia.
+function fitHeadless(g) {
+  if (!g.head.none || g.blob) return;
+  const up = g.torso.upper;
+  if (g.head.sw == null) { g.head.sw = g.head.w; g.head.sh = g.head.h; g.head.sn = g.neck.len; g.head.se = g.eyes.size; } // lo que tendría con cabeza (para las estadísticas)
+  g.head.w = up.w; g.head.h = up.h; g.head.shape = g.torso.shape === 'box' ? 'square' : 'round';
+  g.neck.len = 0;
+  const n = g.eyes.count, maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
+  g.eyes.size = Math.max(3, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
 }
 
 // Variedad: mismo seed = mismas elecciones en todas las etapas (sale de un flujo aparte)
@@ -704,41 +800,41 @@ function rollGenome(seed, stage = 'adult') {
   return g;
 }
 
-// Las estadísticas salen del cuerpo: más brazos = más fuerza, más alas = más esquiva, etc.
-const WEIGHT_SCALE = { adult: 0.885 };
+// Las estadísticas salen SÓLO de cuántas partes tiene (pedido del dueño): el tamaño, la forma y el tipo de cada parte no importan.
+// Cada parte suma lo que dice PART_STATS por cada unidad (par de brazos, cada ojo, cada cuerno…) encima de STAT_BASE.
+// Valores elegidos para que el monstruo promedio de cada etapa quede con stats parecidas a las de antes.
+const STAT_BASE = { hp: 56, defense: 6, melee: 11.5, ranged: 1.5, speed: 45, dodge: 0.12, weight: 0.5, reach: 27.5, range: 230, rangedCd: 2.4 };
+const PART_STATS = [ // [clave, nombre, cuántas tiene (genoma → número), máximo, lo que suma cada una]
+  ['torso', 'Torso (trozos)', g => g.blob ? 1 : 1 + (g.torso.mid ? 1 : 0) + (g.torso.lower ? 1 : 0), 3, { hp: 35, defense: 3, weight: 0.55 }],
+  ['head', 'Cabeza', g => g.blob || !g.head.none ? 1 : 0, 1, { hp: 8, weight: 0.2 }],
+  ['neck', 'Cuello', g => g.neck.len > 0 ? 1 : 0, 1, { reach: 3 }],
+  ['eyes', 'Ojos', g => g.eyes.count, 6, { ranged: 0.6, range: 30, rangedCd: -0.15 }],
+  ['mouth', 'Boca', g => g.mouth.type === 'none' ? 0 : 1, 1, { ranged: 1.2, melee: 0.5, rangedCd: -0.1 }],
+  ['horns', 'Cuernos', g => g.horns.count, 4, { melee: 0.8, defense: 1, weight: 0.1 }],
+  ['ears', 'Orejas (par)', g => g.ears ? 1 : 0, 1, { dodge: 0.04 }],
+  ['antennae', 'Antenas', g => g.antennae ? g.antennae.count : 0, 2, { range: 30 }],
+  ['shoulders', 'Hombros (par)', g => g.shoulders.size > 0 && g.arms.pairs > 0 ? 1 : 0, 1, { hp: 20, defense: 6, weight: 0.2 }],
+  ['arms', 'Brazos (pares)', g => g.arms.pairs, 3, { melee: 1.5, reach: 4, weight: 0.3, meleeCd: -0.04 }],
+  ['legs', 'Piernas (pares)', g => g.legs.pairs, 2, { speed: 18, weight: 0.15 }],
+  ['wings', 'Alas (pares)', g => g.wings.pairs, 3, { speed: 14, dodge: 0.06, weight: 0.1 }],
+  ['tail', 'Colas', g => g.tail.count, 3, { melee: 1, dodge: 0.02, weight: 0.1 }],
+];
+const partCounts = g => Object.fromEntries(PART_STATS.map(([k, , f]) => [k, f(g)]));
+// El peso da defensa (pedido del dueño): según cuánto pesa comparado con el promedio de su etapa (así el promedio de defensa no cambia)
+let WEIGHT_DEF = 6; const WEIGHT_AVG = { baby: 1.25, child: 1.4, teen: 2.15, adult: 2.71 }; // promedios gen 5 (recalcular si cambian PART_STATS o los sorteos)
 function calcStats(g, level = 1, train = null) {
-  const T = g.torso;
-  const segs = [T.upper, T.mid, T.lower].filter(Boolean);
-  const area = segs.reduce((a, s) => a + s.w * s.h, 0) / 1000;
-  const headA = g.head.w * g.head.h / 1000;
-  const armP = g.arms.pairs, legP = g.legs.pairs, wingP = g.wings.pairs;
-  const armMass = armP * (g.arms.upper + g.arms.fore) * g.arms.thick / 1000 * 2;
-  const legMass = legP * (g.legs.upper + g.legs.lower) * g.legs.thick / 1000 * 2;
-  let weight = 0.5 + area * 0.32 + headA * 0.25 + armMass * 0.5 + legMass * 0.5 + g.horns.count * g.horns.len * 0.004 + g.tail.count * g.tail.segs * g.tail.thick * 0.004;
-  // Peso por etapa: los adultos son grandes y antes casi todos llegaban al tope (3,5). Se escala para que su promedio
-  // siga igual (~3,3) pero haya adultos livianos y pesados (≈2,6–4,1). Las otras etapas no cambian.
-  weight = clamp(weight * (WEIGHT_SCALE[g.stage] || 1), 0.5, 4.2);
-  const hp = 60 + area * 20 + headA * 10 + g.shoulders.size * 0.8;
-  const defense = 3 + g.shoulders.size * 0.9 + (g.shoulders.spikes ? 4 : 0) + area * 2 + (T.shape === 'box' ? 4 : 0);
-  const legLen = g.legs.upper + g.legs.lower;
-  let speed = legP ? 55 + legLen * 1.3 * (legP === 2 ? 1.15 : 1) : 75;
-  speed = clamp(speed + wingP * g.wings.span * 0.45 - weight * 14, 40, 190);
-  const handB = { fist: 1, claw: 1.2, blade: 1.4, paw: 0.9, pincer: 1.3, tentacle: 1.05 }[g.arms.hand] || 1;
-  let melee = armP ? 5 + armP * 1.6 + g.arms.thick * 0.55 * handB + g.arms.fore * 0.08 : 4 + weight * 3;
-  melee += g.horns.count * g.horns.len * 0.06 + (['fangs', 'tusks', 'mandibles'].includes(g.mouth.type) ? 1.5 : 0) + (g.tail.count && g.tail.tip === 'stinger' ? 1.5 : 0);
-  const reach = armP ? (g.arms.upper + g.arms.fore) * 0.75 * (g.arms.hand === 'tentacle' ? 1.25 : 1) : 8 + (g.horns.count ? g.horns.len * 0.5 : 0) + g.neck.len * 0.3;
-  const meleeCd = clamp(0.75 + weight * 0.18 - armP * 0.08, 0.5, 1.6);
-  const eyeP = g.eyes.count * g.eyes.size * 0.12 * (g.eyes.pupils ? 1 : 0.6);
-  const mouthP = { none: 0, smile: 2, fangs: 2.5, open: 4, beak: 3, teeth: 3, tusks: 2, tongue: 3, mandibles: 2.5, whiskers: 2 }[g.mouth.type] ?? 2;
-  let ranged = (eyeP + mouthP) * 0.9;
-  if (ranged < 1.2) ranged = 0;
+  const b = { ...STAT_BASE, meleeCd: 0.75 };
+  for (const [k, , f, , add] of PART_STATS) { const n = f(g); if (n) for (const q in add) b[q] += add[q] * n; }
+  const mass = b.weight; // peso sin tope (lo usa el vuelo)
+  const weight = clamp(b.weight, 0.5, 4.2);
+  b.defense += (weight / (WEIGHT_AVG[g.stage] || WEIGHT_AVG.adult) - 1) * WEIGHT_DEF; // más pesado que el promedio de su etapa = más defensa
+  const meleeCd = clamp(b.meleeCd + weight * 0.18, 0.5, 1.6); // los pesados golpean más lento
+  const rangedCd = clamp(b.rangedCd, 1.0, 2.6);
+  const eyeP = g.eyes.count * PART_STATS[3][4].ranged, mouthP = g.mouth.type === 'none' ? 0 : PART_STATS[4][4].ranged;
   const rangedSrc = mouthP >= eyeP ? 'mouth' : 'eyes';
-  const rangedCd = clamp(2.4 - g.eyes.count * 0.15 - (g.mouth.type === 'open' ? 0.3 : 0), 1.0, 2.6);
-  const range = clamp(220 + g.eyes.count * 25 + g.eyes.size * 4 + (g.antennae ? 20 : 0), 200, 440);
-  const dodge = clamp(0.12 + wingP * 0.08 + speed / 1000 - weight * 0.025 + (g.tail.count ? 0.03 : 0) + (g.ears ? 0.02 : 0), 0.08, 0.5);
   const lv = 1 + (level - 1) * 0.07;
-  const mass = 0.5 + area * 0.32 + headA * 0.25 + armMass * 0.5 + legMass * 0.5 + g.horns.count * g.horns.len * 0.004 + g.tail.count * g.tail.segs * g.tail.thick * 0.004; // peso sin tope (para volar)
-  const st = { hp: Math.round(hp * lv), melee: melee * lv, ranged: ranged * lv, defense: defense * (1 + (level - 1) * 0.04), speed, weight, dodge, reach, meleeCd, rangedCd, range, rangedSrc, mass };
+  const st = { hp: Math.round(b.hp * lv), melee: b.melee * lv, ranged: b.ranged * lv, defense: b.defense * (1 + (level - 1) * 0.04), speed: clamp(b.speed, 40, 190), weight,
+    dodge: clamp(b.dodge, 0.08, 0.5), reach: b.reach, meleeCd, rangedCd, range: clamp(b.range, 200, 440), rangedSrc, mass };
   if (train) for (const t of PTS) if (train[t.k]) t.apply(st, Math.min(PTS_MAX, train[t.k]));
   return st;
 }
@@ -871,7 +967,7 @@ class Monster {
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.pts);
     this.hp = this.st.hp;
-    { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / (wg.pairs * wg.span) / ((STAGE_LIM[this.g.stage] || STAGE_LIM.adult).size) >= FLY.loadSplit ? 'leap' : 'float') : null; }
+    { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / wg.pairs / (WEIGHT_AVG[this.g.stage] || WEIGHT_AVG.adult) >= FLY.loadSplit ? 'leap' : 'float') : null; /* peso por par de alas (comparado con su etapa): pesados saltan, livianos flotan */ }
     this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0;
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
@@ -895,7 +991,7 @@ class Monster {
     this.awakened = rec.stage === 'awakened';
     this.ultType = rec.ult || rec.ultGift || starterUlt(rec.seed); // la ultimate equipada (los hijos traen la de un padre)
     this.g = bodyFromTraining(this.g, rec.pts); // el entrenamiento se nota en el cuerpo
-    this.ultReady = this.awakened; // se recarga al empezar cada pelea (una por pelea)
+    this.canUlt = canUlt(rec.stage); this.ultReady = this.canUlt; // desde adolescente; se recarga al empezar cada pelea
     this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0 };
     this.aura = []; this.auraAcc = 0; this.auraBoost = 0;
     this.auraCols = [hsl(this.g.pal.body, 22), hsl(this.g.pal.accent, 25), '#fff6d8'];
@@ -923,7 +1019,7 @@ class Monster {
     I.neck = []; let par = I.upper;
     const nl = g.neck.len, ns = nl > 0 ? Math.max(1, Math.round(nl / 10)) : 0;
     for (let i = 0; i < ns; i++) { par = add(par, 0, (i === 0 ? -up.h * 0.42 : 0) - nl / ns, 220 - i * 20, 0.28); I.neck.push(par); }
-    I.head = g.blob ? add(I.upper, 0, -g.head.h * 0.1, 260, 0.2) : add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
+    I.head = g.blob ? add(I.upper, 0, -g.head.h * 0.1, 260, 0.2) : g.head.none ? add(I.upper, 0, -up.h * 0.04, 520, 0.45) /* sin cabeza: la cara va pegada al torso */ : add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
     // Cuernos
     I.horns = [];
     const hn = g.horns.count;
@@ -976,9 +1072,9 @@ class Monster {
     // Alas
     I.wings = [];
     for (let p = 0; p < g.wings.pairs; p++) for (const sd of [-1, 1]) {
-      const span = g.wings.span * (p === 0 ? 1 : 0.72);
-      const base = add(I.upper, sd * up.w * 0.22, -up.h * 0.25 + p * up.h * 0.45, 400, 0.4);
-      const tip = add(base, sd * span * 0.92, -span * (p === 0 ? 0.45 : 0.05), 90, 0.22);
+      const span = (p ? Math.max(g.wings.span, up.w * 0.8) : g.wings.span) * [1, 0.8, 0.65][p]; // pares extra: más chicos, más abajo y más afuera para que se vean (el 3.º apunta hacia abajo)
+      const base = add(I.upper, sd * up.w * (0.22 + 0.14 * p), -up.h * 0.25 + p * up.h * 0.45, 400, 0.4);
+      const tip = add(base, sd * span * 0.92, -span * [0.45, 0.05, -0.4][p], 90, 0.22);
       I.wings.push({ p, sd, base, tip, span });
     }
     // Colas (cadena de segmentos muy blandos)
@@ -1000,7 +1096,7 @@ class Monster {
   // Altura estimada (para encuadrar en la vitrina)
   estSize() {
     const g = this.g, { lo, mi, up } = this.seg;
-    const h = (g.legs.pairs ? this.legSum * 0.9 : this.hover) + (lo.h + mi.h + up.h) * 0.84 + g.neck.len + g.head.h + (g.horns.count ? g.horns.len * 0.8 : 0);
+    const h = (g.legs.pairs ? this.legSum * 0.9 : this.hover) + (lo.h + mi.h + up.h) * 0.84 + (g.head.none ? 0 : g.neck.len + g.head.h) + (g.horns.count ? g.horns.len * 0.8 : 0);
     const w = Math.max(up.w, mi.w, lo.w, g.head.w) + (g.arms.pairs ? (g.arms.upper * 0.5 + g.arms.thick) * 2 : 0);
     const ww = g.wings.pairs ? up.w * 0.44 + g.wings.span * 1.9 : 0;
     const tw = g.tail.count ? lo.w * 0.3 + g.tail.segs * g.tail.seg * 1.5 : 0;
@@ -1208,6 +1304,7 @@ class Monster {
         this.vx += (want - this.vx) * Math.min(1, dt * 5);
       } else this.vx *= Math.exp(-dt * 0.3);
       if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; }
+      if (this.baseEmo === 'energetic' && !this.sleep && this.z === 0 && Math.random() < dt * 0.7) this.vz = 150 + Math.random() * 90; // energético: saltitos
       if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
     }
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
@@ -1217,7 +1314,7 @@ class Monster {
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
-    if (!this.sleep) this.setEmo('surprised', 0.35, 2, ['happy', 1.1]);
+    if (!this.sleep) { const tp = this.tp || {}; this.setEmo((tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0 ? 'angry' : 'scared', 5, 3); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
     this.lookAt = { x: px, y: py }; clearTimeout(this._lt); this._lt = setTimeout(() => this.lookAt = null, 1500);
   }
@@ -1226,7 +1323,7 @@ class Monster {
   think(dt, B) {
     if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
-    if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.awakened) this.ultReady = true; } // ultimate recargada
+    if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
     if (!this.berserkSaid && this.tp.valor > 0.2 && this.hp / this.st.hp < this.scaredHp) { this.berserkSaid = true; B.text(this, '¡no me rindo!', '#ff9a6a'); }
@@ -1468,7 +1565,7 @@ class Monster {
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
     for (const a of I.arms) if (a.p === 0 && !hid('arm:0')) this.drawArm(ctx, a, C, lw);
-    if (g.shoulders.size > 0 && !hid('shoulders')) for (const si of I.shoulders) {
+    if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
       ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
@@ -1691,7 +1788,8 @@ class Monster {
     }
     ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(tilt);
     const W = g.head.w * s, H = g.head.h * s, hw = W / 2, hh = H / 2;
-    shapePath(ctx, g.head.shape, 0, 0, W, H); fillStroke(ctx, C.body, C.ol, lw * 1.6);
+    if (g.head.none) { if (this.back) { ctx.restore(); return; } } // sin cabeza: sólo la cara, dibujada sobre el torso
+    else shapePath(ctx, g.head.shape, 0, 0, W, H), fillStroke(ctx, C.body, C.ol, lw * 1.6);
     if (this.back) { // nuca: sin ojos ni boca, un poco más oscura abajo
       ctx.save(); shapePath(ctx, g.head.shape, 0, 0, W, H); ctx.clip();
       ctx.fillStyle = 'rgba(0,0,0,.13)'; ctx.beginPath(); ctx.ellipse(0, hh * 0.55, hw * 1.1, hh * 0.6, 0, 0, TAU); ctx.fill();
@@ -1705,7 +1803,7 @@ class Monster {
     const jit = () => E === 'scared' ? (Math.random() - 0.5) * er * 0.22 : 0;
     const blinkOk = !['scared', 'surprised', 'dizzy', 'hurt', 'happy', 'love'].includes(E);
     const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35], beat: [0.02, -0.1] }[E]; // [altura del párpado, inclinación]
-    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8 }[E] || 1;
+    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8, energetic: 1.08 }[E] || 1;
     // machacado (1 corazón o menos): ojo morado en el ojo de más a la derecha
     const bruiseEye = this.battered && g.eyes.pos.length ? g.eyes.pos.reduce((a, b) => b[0] > a[0] ? b : a) : null;
 
@@ -1736,6 +1834,7 @@ class Monster {
         if (g.eyes.pupils === 1) this.drawPupil(ctx, ex + lx, ey + ly, pr, C);
         else if (g.eyes.pupils === 2) { this.drawPupil(ctx, ex + lx - pr * 0.55, ey + ly, pr * 0.65, C); this.drawPupil(ctx, ex + lx + pr * 0.55, ey + ly, pr * 0.65, C); }
         ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(ex - er * 0.35, ey - er * 0.38, er * 0.22, 0, TAU); ctx.fill();
+        if (E === 'energetic') { ctx.beginPath(); ctx.arc(ex + er * 0.3, ey + er * 0.28, er * 0.12, 0, TAU); ctx.fill(); } // ojos con brillo extra
       }
       const lid = lidDef ? [lidDef[0], lidDef[1] * -side] : (g.eyes.lid && E === 'neutral' ? [-0.45, g.eyes.lidAng * (ex < 0 ? 1 : -1)] : null);
       if (lid) {
@@ -1760,21 +1859,20 @@ class Monster {
     ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const wavy = (amp, n) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const x = -mw * 0.7 + i * mw * 1.4 / n, y = my + (i % 2 ? -amp : amp) + jit() * 0.3; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); };
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
-    if (custom && E === 'scared') wavy(mw * 0.12, 6);
-    else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
     else if (custom && E === 'beat') wavy(mw * 0.05, 4);
-    else if (custom && E === 'love') { ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
-    else if (custom && E === 'happy') {
+    else if (false && custom && E === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
+    else if (false && custom && E === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
       ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + mw * 0.55, mw * 0.45, mw * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
     }
     else if (custom && E === 'surprised') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.3, mw * 0.4, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
     else if (custom && E === 'hurt') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.75, mw * 0.42, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
-    else if (custom && E === 'sad') { ctx.beginPath(); ctx.moveTo(-mw * 0.65, my + mw * 0.22); ctx.quadraticCurveTo(0, my - mw * 0.25, mw * 0.65, my + mw * 0.22); ctx.stroke(); }
+    else if (false && custom && E === 'sad') { ctx.beginPath(); ctx.moveTo(-mw * 0.65, my + mw * 0.22); ctx.quadraticCurveTo(0, my - mw * 0.25, mw * 0.65, my + mw * 0.22); ctx.stroke(); }
     else if (E === 'angry' && g.mouth.type === 'smile') { ctx.beginPath(); ctx.moveTo(-mw * 0.8, my + mw * 0.1); ctx.lineTo(mw * 0.8, my - mw * 0.02); ctx.stroke(); }
     else {
       if (E === 'angry') o = Math.max(o, 0.45);
-      if (g.mouth.type === 'beak' && ['happy', 'hurt', 'surprised', 'scared'].includes(E)) o = Math.max(o, 0.6);
+      if (g.mouth.type === 'beak' && ['hurt', 'surprised'].includes(E)) o = Math.max(o, 0.6);
       ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       switch (g.mouth.type) {
         case 'smile':
@@ -2164,7 +2262,8 @@ function drawArena(ctx) {
 // ============================================================================
 const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolescente', adult: 'Adulto', awakened: 'Awakened' };
 const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
-const MAX_LIVES = 3;
+const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cuántos para abajo se ve machacado
+const BATTERED_LIVES = 2, ENERGETIC_LIVES = 5; // con 5 corazones se ve energético (ojos brillantes y saltitos)
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
 const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
@@ -2198,17 +2297,22 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 3, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 5, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && (s.monsters.length || s.adopting)) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = snapT(m.temper[k]); // la personalidad ahora va en puntos fijos if (!m.ultMode) m.ultMode = 'save';
-      if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3), m.pts); // la que ya tenía
+      if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3, (m.gen || 0) >= 4, (m.gen || 0) >= 5), m.pts); // la que ya tenía
+      if (canUlt(m.stage) && !m.ult) m.ult = m.ultGift || starterUlt(m.seed); // desde adolescente ya tienen ultimate
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
+      if (!s.lives5) { s.monsters.forEach(m => { if (!m.restUntil) m.lives = Math.min(MAX_LIVES, (m.lives ?? 3) + 2); }); s.lives5 = true; } // de 3 a 5 corazones: +2 a cada uno
+      if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
+        s.monsters.forEach(m => { m.gen = 5; delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true }; });
+        s.gen5 = true; }
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
 function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
@@ -2418,7 +2522,7 @@ function ranchStep(dt) {
           if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
-        if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.45 : 0.15)) a.m.vz = 200; // a veces da un saltito (más si está energético)
       }
     }
     if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
@@ -2570,7 +2674,7 @@ function greetFocus(a) {
   const wasBack = a.m.back || (a.awayT || 0) > 0.15;
   a.m.back = false; a.awayT = -0.4; a.walk = false;
   if (wasBack) a.m.vz = 170;
-  a.m.setEmo('happy', 1.8, 2);
+  a.m.setEmo('happy', 1.5, 2); // al elegirlo se pone feliz 1,5 s y luego neutro
 }
 function ranchZoomTo(best) {
   fightMenu(false);
@@ -2606,9 +2710,9 @@ function personaText(rec) {
 }
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
-const PET_HAPPY_MS = 60 * 1000, LOSS_SAD_MS = 60 * 1000;
-const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= 1 ? 'beat' : null;
-const isBattered = rec => rec.lives <= 1; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
+const PET_HAPPY_MS = 5 * 1000, LOSS_SAD_MS = 60 * 1000;
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : rec.lives >= ENERGETIC_LIVES ? 'energetic' : null;
+const isBattered = rec => rec.lives <= BATTERED_LIVES; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
   if (firstEgg()) ranchMode = false; // partida nueva: sólo el huevo, de cerca
@@ -2684,12 +2788,12 @@ $('btnHeal').onclick = () => {
 // Páginas del menú: 0 = Tienda (huevos y ultimates), 1 = Home (el monstruo), 2 = Estadísticas. Criar se hace desde un espacio libre del Home
 let homePage = 1;
 // Criar se desbloquea (para siempre) cuando tienes 2 monstruos Awakened
-const awakenedCount = () => save.monsters.filter(m => m.stage === 'awakened').length;
+const awakenedCount = () => save.monsters.filter(m => canBreedStage(m.stage)).length; // monstruos que pueden criar (adultos y Awakened)
 const breedOpen = () => !!save.breedUnlocked;
 function checkBreedUnlock() {
   if (!save.breedUnlocked && scene === 'home' && !growAnim && (awakenedCount() >= 2 || save.monsters.some(m => m.readyAt))) {
     save.breedUnlocked = true; persist();
-    setTimeout(() => ask('¡Ya puedes criar! Tienes 2 monstruos Awakened: desliza hasta un espacio libre y toca «Criar» para cruzarlos.', { ok: 'Entendido', cancel: null }), 400);
+    setTimeout(() => ask('¡Ya puedes criar! Tienes 2 monstruos adultos: desliza hasta un espacio libre y toca «Criar» para cruzarlos.', { ok: 'Entendido', cancel: null }), 400);
   }
 }
 // Partida nueva: hasta que nazca el primer huevo no se puede ir a ningún lado (ni páginas ni otros espacios)
@@ -2783,6 +2887,7 @@ function renderTrain() {
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = (show && show.rec === rec ? show : new Monster(rec)).st;
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
+    + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '') + `</div>`;
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
@@ -2793,7 +2898,7 @@ function renderTrain() {
   h += `<p class="tdesc">Ganas ${PTS_PER_LEVEL} puntos por nivel. El cuerpo cambia según cómo lo entrenes.</p>`;
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
   h += `<div class="tsec"><div class="thead">Ultimate</div>`;
-  if (rec.stage === 'awakened') {
+  if (canUlt(rec.stage)) {
     const eq = rec.ult || starterUlt(rec.seed);
     h += `<div class="ultlist">${ULT_KEYS.filter(k => ownsUlt(k) || k === eq).map(k => {
       const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
@@ -2801,7 +2906,7 @@ function renderTrain() {
     }).join('')}</div>`;
     h += `<p class="tdesc">${ULT_KEYS.every(k => ownsUlt(k) || k === eq) ? 'Tienes todas las ultimates.' : 'Desbloquea más en la Tienda.'} Puedes cambiarla cuando quieras.</p>`;
     h += `<p class="tdesc">En la pelea la lanzas tú con el botón <b>ULTIMATE</b> de abajo (una vez por pelea).</p>`;
-  } else h += `<p class="tdesc">Al despertar (Nv. ${STAGE_LV.awakened}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
+  } else h += `<p class="tdesc">Al llegar a Adolescente (Nv. ${STAGE_LV.teen}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
   h += `</div>`;
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
   const NUMS = [2, 1, 0, 1, 2];
@@ -2885,7 +2990,7 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); } // las monedas ya se ven arriba
+function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
 // Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
@@ -2894,9 +2999,14 @@ const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60
 const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
 let breedSel = new Set();
 function makeChild(A, B) {
-  const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3 };
+  const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3, v4: (P.gen || 0) >= 4, v5: (P.gen || 0) >= 5 };
   rec.genes = {};
-  for (const grp of Object.keys(GENE_GROUPS)) if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
+  for (const grp of Object.keys(GENE_GROUPS)) {
+    const la = !!(A.geneLock && A.geneLock[grp]), lb = !!(B.geneLock && B.geneLock[grp]); // gen comprado en la Tienda: esa parte se hereda sí o sí de ese padre
+    if (la || lb) rec.genes[grp] = origin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
+    else if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
+  }
+  delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
   rec.parents = [A.name, B.name]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
@@ -2911,7 +3021,7 @@ function renderSlotBtns() {
   else buy = poor ? `Te faltan ${EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${EGG_COST}`;
   $('stats').innerHTML = `<p class="eggmsg">Aquí puede vivir otro monstruo.</p>
     <div class="row slotbtns"><button class="btn primary" id="slotBuy" ${today || poor ? 'disabled' : ''}>${buy}</button><button class="btn primary" id="slotBreed" ${open ? '' : 'disabled'}>${open ? 'Criar · <span class="ci"></span>' + BREED_COST : '🔒 Criar'}</button></div>
-    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos Awakened.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos Awakened (${Math.min(n, 2)}/2).`}</small></p>`;
+    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2).`}</small></p>`;
   $('slotBuy').onclick = buySlotEgg; $('slotBreed').onclick = openBreedPick;
 }
 async function buySlotEgg() {
@@ -2924,11 +3034,11 @@ async function buySlotEgg() {
 }
 function openBreedPick() {
   if (!breedOpen()) return;
-  const list = $('bpList'), go = $('bpGo'), aw = save.monsters.map((r, i) => [r, i]).filter(([r]) => r.stage === 'awakened');
+  const list = $('bpList'), go = $('bpGo'), aw = save.monsters.map((r, i) => [r, i]).filter(([r]) => canBreedStage(r.stage));
   breedSel.clear(); list.innerHTML = '';
   for (const [r, i] of aw) {
-    const ok = !resting(r) && !r.bred, b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !ok;
-    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span>`;
+    const ok = !resting(r), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !ok;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span>`;
     drawThumb(b.querySelector('canvas'), r);
     b.onclick = () => { if (breedSel.has(i)) breedSel.delete(i); else { if (breedSel.size >= 2) breedSel.delete([...breedSel][0]); breedSel.add(i); } refresh(); };
     list.appendChild(b);
@@ -2938,19 +3048,54 @@ function openBreedPick() {
     const n = breedSel.size; go.disabled = n < 2 || save.coins < BREED_COST;
     go.innerHTML = n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
   };
-  $('bpInfo').innerHTML = `El hijo hereda partes, colores y personalidad de sus padres y al despertar trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
+  $('bpInfo').innerHTML = `El hijo hereda partes, colores y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
   go.onclick = () => { const [A, B] = [...breedSel].map(i => save.monsters[i]); doBreed(A, B); };
   $('bpNo').onclick = () => $('breedPick').classList.remove('on');
   refresh(); $('breedPick').classList.add('on');
 }
 function doBreed(A, B) {
-  if (!A || !B || A.bred || B.bred || resting(A) || resting(B) || save.coins < BREED_COST || save.monsters.length >= slotCap()) return;
+  if (!A || !B || A === B || resting(A) || resting(B) || save.coins < BREED_COST || save.monsters.length >= slotCap()) return;
   $('breedPick').classList.remove('on');
   save.coins -= BREED_COST;
   const rec = makeChild(A, B); rec.readyAt = Date.now() + INCUBATE_MS; // incuba en este espacio
-  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = B.bred = true; // sólo una vez en la vida
+  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = (A.bred || 0) + 1; B.bred = (B.bred || 0) + 1; // pueden volver a criar tras descansar (bred = cuántas crías tuvo)
   save.monsters.push(rec); save.sel = save.monsters.length - 1; homeEmpty = null; breedSel.clear();
   persist(); renderHome(); if (egg) { egg.sq = 0.2; egg.vz = 200; } fx.label = '¡Un huevo!'; fx.labelT = 2;
+}
+// Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
+const GENE_COST = 40;
+const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas y antenas', neck: 'Cuello', body: 'Torso y hombros', arms: 'Brazos', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
+function renderShopGenes() {
+  const el = $('shopGenes');
+  el.innerHTML = `<div class="thead">Genes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(k =>
+    `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-genebuy]').forEach(b => b.onclick = () => openGenePick(b.dataset.genebuy));
+}
+function openGenePick(grp) {
+  let sel = null; const list = $('gpList'), go = $('gpGo');
+  $('gpTitle').textContent = `🧬 ${GENE_NAMES[grp]}`;
+  $('gpInfo').textContent = `¿A quién se lo das? Su próxima cría heredará de él: ${GENE_NAMES[grp].toLowerCase()}.`;
+  list.innerHTML = '';
+  save.monsters.forEach((r, i) => {
+    if (r.stage === 'egg') return;
+    const has = !!(r.geneLock && r.geneLock[grp]), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = has;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${has ? 'ya lo tiene' : ''}</span>`;
+    drawThumb(b.querySelector('canvas'), r);
+    b.onclick = () => { sel = i; refresh(); };
+    list.appendChild(b);
+  });
+  const refresh = () => {
+    list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel === +c.dataset.i));
+    go.disabled = sel == null || save.coins < GENE_COST;
+    go.innerHTML = sel == null ? 'Elige uno' : save.coins < GENE_COST ? `Te faltan ${GENE_COST - save.coins} monedas` : `Dar · <span class="ci"></span>${GENE_COST}`;
+  };
+  go.onclick = () => {
+    const r = save.monsters[sel]; if (!r || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
+    save.coins -= GENE_COST; r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
+    $('genePick').classList.remove('on'); renderHome(); fx.label = `🧬 ${GENE_NAMES[grp]}`; fx.labelT = 2;
+  };
+  $('gpNo').onclick = () => $('genePick').classList.remove('on');
+  refresh(); $('genePick').classList.add('on');
 }
 // Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
 function renderShopUlts(hide) {
@@ -2959,7 +3104,7 @@ function renderShopUlts(hide) {
     const own = ownsUlt(k);
     const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
     return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
-  }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Estadísticas.</p>`;
+  }).join('')}</div><p class="tdesc">Para monstruos desde Adolescente (Nv. ${STAGE_LV.teen}+). Quedan para todos tus monstruos y se equipan desde Estadísticas.</p>`;
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
@@ -3168,7 +3313,7 @@ function pet(a, b) {
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
 function makeFoe(ref) {
-  const r = newRec(ref.stage);
+  const r = newRec(ref.stage); // los rivales siempre son de la versión más nueva
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   r.pts = randomPts(r.level);
   r.temper = { agr: snapT(Math.random() * 1.6 - 0.8), terco: snapT(Math.random() * 1.6 - 0.8), valor: snapT(Math.random() * 1.6 - 0.8) };
@@ -3364,7 +3509,7 @@ function growStep(dt) {
     if (pt >= dur) { // ¡destello y cambia de cuerpo!
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
       G.rec.stage = G.newM.rec.stage;
-      if (G.rec.stage === 'awakened' && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); } // ultimate de regalo al despertar
+      if (canUlt(G.rec.stage) && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); G.newUlt = G.rec.ult; } // ultimate de regalo al llegar a adolescente
       if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) { G.rec.awakeCounted = true; G.newSlot = slotCap() < MAX_MONSTERS; save.slots = Math.min(MAX_MONSTERS, slotCap() + 1); } // +1 espacio para monstruos
       persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
@@ -3381,7 +3526,7 @@ function growStep(dt) {
       } else {
         G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
         burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
-        $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó! Ultimate: ${ULTS[G.newM.ultType].name}${G.newSlot ? ' · +1 espacio para monstruos' : ''}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!`;
+        $('growTitle').textContent = G.rec.stage === 'awakened' ? `¡${name} despertó!${G.newSlot ? ' +1 espacio para monstruos' : ''}` : `¡${name} ahora es ${STAGE_NAME[G.rec.stage]}!${G.newUlt ? ` Ultimate: ${ULTS[G.newUlt].name}` : ''}`; G.newUlt = null;
         if (G.rec.stage === 'awakened') G.newM.auraBoost = 2.5;
         if (last) { G.phase = 'done'; $('growOk').hidden = false; }
         else { G.phase = 'between'; G.betweenT = G.t; } // ¡y todavía le falta crecer más!
