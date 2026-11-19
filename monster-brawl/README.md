@@ -41,7 +41,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   los puntos (brazos más gruesos, torso más ancho, piernas más largas, ojos más grandes).
 - **Personalidad**: Agresivo↔Cauto (distancia, se aleja tras golpear), Terco↔Oportunista (no suelta a su objetivo / va por el
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
-  Cambia con ejercicios (monedas) y según cómo pelea.
+  Se ajusta gratis en Estadísticas deslizando cada medidor, que queda en un número (2 · 1 · 0 · 1 · 2).
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
 - **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Estadísticas. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
