@@ -5,7 +5,7 @@ Los archivos `monster-game (3).jsx` y `monster-game (4).jsx` de la raíz son int
 
 **Idioma:** el dueño escribe en español (a veces con errores de tipeo). Responder siempre en español, y toda la UI del juego va en español.
 **Respuestas breves:** al terminar un cambio, decir sólo qué se hizo, en pocas líneas (sin detallar pruebas, tablas ni el proceso), salvo que el dueño pida más detalle.
-**Pull request:** se abre sólo cuando el dueño lo pide, y la respuesta es **sólo el link del pull request** (sin resumen ni preguntas).
+**Pull request:** se abre sólo cuando el dueño lo pide (también si dice "pasémoslo a main"), y la respuesta es **sólo el link del pull request** (sin resumen ni preguntas). **Nunca juntarlo (merge) a main: eso lo hace sólo el dueño.**
 
 ---
 
