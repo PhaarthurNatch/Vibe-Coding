@@ -580,7 +580,7 @@ function applyAnatomy(g, seed) {
 // Sin "cabeza" sorteada, la cara va en el torso de arriba. Los monstruos de antes (gen ≤ 4) no usan esto y se ven igual.
 const PART_MAX = { eyes: 5, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 2, shoulders: 1 }; // torso y ojos: extra (además del primer trozo de torso y del primer ojo, que todos tienen; la boca también la tienen todos)
 const PART_FROM = { eyes: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
-const PART_PICKS = [2, 4, 5, 5]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
+const PART_PICKS = [2, 3, 4, 4]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
 const PICK_STAGES = ['baby', 'child', 'teen', 'adult'];
 function pickParts(seed, stage) {
   // Los sorteos son siempre los mismos para una semilla (se hacen todos): lo que sale en una etapa en que esa parte todavía no
@@ -588,7 +588,8 @@ function pickParts(seed, stage) {
   const r = rng((seed ^ 0x6a09e667) >>> 0), keys = Object.keys(PART_MAX), tot = {}, c = {};
   for (const k of keys) { tot[k] = 0; c[k] = 0; }
   const last = PICK_STAGES.indexOf(stage === 'egg' ? 'baby' : stage === 'awakened' ? 'adult' : stage);
-  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const k = r.pick([...keys.filter(q => tot[q] < PART_MAX[q] && (q !== 'shoulders' || tot.arms > 0)), null]); /* hombros sólo si ya tiene brazos */ if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
+  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const W = { nada: 1 }; for (const q of keys) if (tot[q] < PART_MAX[q] && (q !== 'shoulders' || tot.arms > 0)) W[q] = Math.pow(0.5, tot[q]); /* cada copia extra de una parte tiene la mitad de chance que la anterior; hombros sólo si ya tiene brazos */
+      const k0 = r.w(W), k = k0 === 'nada' ? null : k0; if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
   return c;
 }
 const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart', 'hex', 'mushroom', 'bean'], torso: ['oval', 'box'], hand: ['fist', 'claw', 'blade', 'paw', 'pincer', 'tentacle'],
@@ -820,7 +821,7 @@ const PART_STATS = [ // [clave, nombre, cuántas tiene (genoma → número), má
 ];
 const partCounts = g => Object.fromEntries(PART_STATS.map(([k, , f]) => [k, f(g)]));
 // El peso da defensa (pedido del dueño): según cuánto pesa comparado con el promedio de su etapa (así el promedio de defensa no cambia)
-let WEIGHT_DEF = 6; const WEIGHT_AVG = { baby: 1.25, child: 1.58, teen: 2.23, adult: 3.19 };
+let WEIGHT_DEF = 6; const WEIGHT_AVG = { baby: 1.25, child: 1.4, teen: 2.15, adult: 2.71 }; // promedios gen 5 (recalcular si cambian PART_STATS o los sorteos)
 function calcStats(g, level = 1, train = null) {
   const b = { ...STAT_BASE, meleeCd: 0.75 };
   for (const [k, , f, , add] of PART_STATS) { const n = f(g); if (n) for (const q in add) b[q] += add[q] * n; }
