@@ -2006,13 +2006,6 @@ class Battle {
     }
     for (const q of this.parts) { ctx.globalAlpha = clamp(q.life * 3, 0, 1); ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
-    // ★ sobre tus monstruos (la vida se ve en los datos de arriba)
-    for (const m of this.ms) {
-      if (m.dead || !m.isPlayer) continue;
-      const h = m.nodes[m.ix.head]; let top = h.y - m.g.head.h * m.s * 0.55;
-      for (const hr of m.ix.horns) top = Math.min(top, m.nodes[hr.tip].y);
-      ctx.fillStyle = '#ffcf6e'; ctx.font = '900 16px system-ui'; ctx.textAlign = 'center'; ctx.fillText('★', m.gx, top - 8);
-    }
     ctx.textAlign = 'center';
     for (const t of this.texts) {
       ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.big ? 24 : 17}px system-ui`;
