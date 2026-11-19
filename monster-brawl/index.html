@@ -2342,7 +2342,7 @@ function syncRanch() {
   }
   A.length = cap;
 }
-const RANCH_RMIN = 0.5, RANCH_RMAX = RANCH_RF * 0.95; // los monstruos andan libres entre el centro (donde está uno parado, sin acercarse a menos de RMIN) y la cerca (radio RANCH_RF)
+const RANCH_RMIN = 0.5, RANCH_RMAX = RANCH_RF * 0.98; // los monstruos andan libres entre el centro (donde está uno parado, sin acercarse a menos de RMIN) y la cerca (radio RANCH_RF)
 function ranchStep(dt) {
   RANCH.t += dt;
   for (const q of RANCH.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.k === 'star' ? 400 : -20) * dt; q.life -= dt; }
@@ -2365,7 +2365,9 @@ function ranchStep(dt) {
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
-          const ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
+          let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
+          if (k < 6 && Math.random() < 0.35) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
+          const rr = Math.hypot(nx, nz);
           if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
