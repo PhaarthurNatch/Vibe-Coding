@@ -522,13 +522,13 @@ function scaleGenome(g, k) {
 const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears', 'antennae'],
   neck: ['neck'], body: ['torso', 'spots', 'shoulders'], arms: ['arms'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] };
 function recGenome(rec, stage) {
-  const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4);
+  const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5);
   if (!rec.genes) return g;
   const cache = {};
   for (const [grp, keys] of Object.entries(GENE_GROUPS)) {
     const src = rec.genes[grp]; if (!src) continue;
-    const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}${src.v4 ? 1 : 0}`;
-    const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4));
+    const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}${src.v4 ? 1 : 0}${src.v5 ? 1 : 0}`;
+    const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
   }
   fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
@@ -537,7 +537,8 @@ function recGenome(rec, stage) {
   g.eyes.size = Math.max(3, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
   return g;
 }
-function genGenome(seed, stage = 'adult', legacy = false, v3 = false, v4 = false) {
+function genGenome(seed, stage = 'adult', legacy = false, v3 = false, v4 = false, v5 = false) {
+  if (v5 && !legacy) return genome5(seed, stage);
   const g = baseGenome(seed, stage, legacy);
   if (v3 && !legacy) applyVariety(g, seed);
   if (v4 && !legacy) applyAnatomy(g, seed);
@@ -554,6 +555,58 @@ function applyAnatomy(g, seed) {
   if (headless) g.head.none = true;
   fitHeadless(g);
 }
+// ---------- Gen 5: partes sorteadas parejo (pedido del dueño) ----------
+// En cada etapa se hacen PART_PICKS sorteos; en cada uno, todas las partes que esa etapa permite (y que no llegaron a su máximo) tienen
+// la misma chance, y "no sale nada" es una opción más. Así cada parte tiene la misma chance de aparecer y tener 2 o 3 de la misma
+// es cada vez menos probable (hay que sacarla varias veces). Al crecer se siguen sorteando: sólo se ganan partes, nunca se pierden.
+// La apariencia de cada parte (tipo de mano, forma de cabeza, punta de cola…) también sale pareja entre todas sus variantes.
+// Sin "cabeza" sorteada, la cara va en el torso de arriba. Los monstruos de antes (gen ≤ 4) no usan esto y se ven igual.
+const PART_MAX = { eyes: 6, mouth: 1, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 2, shoulders: 1 }; // torso: trozos extra (además del primero)
+const PART_FROM = { eyes: 0, mouth: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
+const PART_PICKS = [2, 4, 5, 5]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
+const PICK_STAGES = ['baby', 'child', 'teen', 'adult'];
+function pickParts(seed, stage) {
+  // Los sorteos son siempre los mismos para una semilla (se hacen todos): lo que sale en una etapa en que esa parte todavía no
+  // puede existir (ej. alas en un bebé) aparece en la primera etapa que la permite. Así todas tienen la misma chance en el adulto.
+  const r = rng((seed ^ 0x6a09e667) >>> 0), keys = Object.keys(PART_MAX), tot = {}, c = {};
+  for (const k of keys) { tot[k] = 0; c[k] = 0; }
+  const last = PICK_STAGES.indexOf(stage === 'egg' ? 'baby' : stage === 'awakened' ? 'adult' : stage);
+  PART_PICKS.forEach((n, si) => { for (let i = 0; i < n; i++) { const k = r.pick([...keys.filter(q => tot[q] < PART_MAX[q]), null]); if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
+  return c;
+}
+const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart', 'hex', 'mushroom', 'bean'], torso: ['oval', 'box'], hand: ['fist', 'claw', 'blade', 'paw', 'pincer', 'tentacle'],
+  feet: ['round', 'claw', 'hoof', 'flat', 'talon', 'boot'], wing: ['bat', 'feather', 'bug', 'butterfly', 'flame', 'leaf'], tip: ['none', 'spike', 'ball', 'fin', 'flame', 'heart', 'fork', 'stinger', 'tuft'],
+  horn: ['spike', 'antler', 'curl'], ear: ['cat', 'round', 'bunny', 'fin'], antenna: ['ball', 'glow', 'leaf'], mouth: ['smile', 'fangs', 'open', 'beak', 'teeth', 'tusks', 'tongue', 'mandibles', 'whiskers'],
+  pupil: ['round', 'slit', 'bar', 'dot', 'ring', 'star', 'heart', 'diamond', 'spiral'] }; // todas las variantes de cada parte, igual de probables
+function genome5(seed, stage) {
+  if (stage === 'egg') stage = 'baby';
+  if (stage === 'awakened') stage = 'adult';
+  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
+  const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
+  // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
+  const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
+  const dims = { mid: { w: r.f(30, 80), h: r.f(16, 32) }, lower: { w: r.f(28, 80), h: r.f(16, 32) }, neck: r.f(8, 30), shoulder: r.f(7, 15), ear: r.f(0.28, 0.5), antLen: r.f(0.5, 0.95), eyeY: r.f(-0.35, 0.02), eyeSp: r.f(0.36, 0.52) };
+  g.head.shape = look.head; g.torso.shape = look.torso; g.arms.hand = look.hand; g.feet.type = look.feet; g.wings.type = look.wing; g.tail.tip = look.tip; g.horns.style = look.horn;
+  g.eyes.pupilShape = look.pupil; g.eyes.pupils = 1;
+  g.eyes.count = c.eyes; g.eyes.pos = eyeLayout(c.eyes, dims.eyeY, dims.eyeSp);
+  const maxR = c.eyes <= 1 ? 0.5 : c.eyes === 2 ? 0.34 : c.eyes === 3 ? 0.3 : 0.24;
+  g.eyes.size = Math.max(3.5, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
+  g.mouth.type = c.mouth ? look.mouth : 'none';
+  g.ears = c.ears ? { type: look.ear, size: dims.ear } : null;
+  g.antennae = c.antennae ? { tip: look.antenna, count: c.antennae, len: dims.antLen } : null;
+  g.arms.pairs = c.arms; g.legs.pairs = c.legs; g.wings.pairs = c.wings; g.tail.count = c.tail; g.horns.count = c.horns;
+  g.torso.mid = c.torso >= 1 ? (g.torso.mid || dims.mid) : null; g.torso.lower = c.torso >= 2 ? (g.torso.lower || dims.lower) : null;
+  g.neck.len = c.neck ? (g.neck.len || dims.neck) : 0;
+  g.shoulders.size = c.shoulders ? (g.shoulders.size || dims.shoulder) : 0;
+  if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
+  else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
+  g.stage = stage; g.v3 = true; g.v5 = true;
+  const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
+  if (L.blob) { g.blob = true; g.spots = []; g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
+  else if (!c.head) { g.head.none = true; fitHeadless(g); } // sin cabeza sorteada: la cara va en el torso
+  return g;
+}
+
 // Sin cabeza: la "cabeza" pasa a ser el torso de arriba (mismo tamaño y forma, sin cuello) y sólo se dibuja la cara encima.
 // Las estadísticas usan el tamaño de cabeza original (sw/sh) para que no cambie el equilibrio. El bebé (una sola pieza) no cambia.
 function fitHeadless(g) {
@@ -2223,14 +2276,14 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 4, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 5, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
 function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.monsters && (s.monsters.length || s.adopting)) { let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = snapT(m.temper[k]); // la personalidad ahora va en puntos fijos if (!m.ultMode) m.ultMode = 'save';
-      if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3, (m.gen || 0) >= 4), m.pts); // la que ya tenía
+      if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3, (m.gen || 0) >= 4, (m.gen || 0) >= 5), m.pts); // la que ya tenía
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
@@ -2919,7 +2972,7 @@ const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60
 const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
 let breedSel = new Set();
 function makeChild(A, B) {
-  const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3, v4: (P.gen || 0) >= 4 };
+  const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3, v4: (P.gen || 0) >= 4, v5: (P.gen || 0) >= 5 };
   rec.genes = {};
   for (const grp of Object.keys(GENE_GROUPS)) if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
@@ -3193,7 +3246,7 @@ function pet(a, b) {
 
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
 function makeFoe(ref) {
-  const r = newRec(ref.stage);
+  const r = newRec(ref.stage); r.gen = clamp(ref.gen || 3, 3, r.gen); // rival de la misma generación que tu monstruo (cuerpos comparables)
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   r.pts = randomPts(r.level);
   r.temper = { agr: snapT(Math.random() * 1.6 - 0.8), terco: snapT(Math.random() * 1.6 - 0.8), valor: snapT(Math.random() * 1.6 - 0.8) };
