@@ -2408,7 +2408,7 @@ function drawRanch(c, r, opt) {
   const D = ranchDeco(), C = ranchCam(r), { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P } = C;
   const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
   const ghost = opt && opt.ghost != null ? opt.ghost : 1; // vista de cerca: lo demás del rancho se vuelve transparente para no estorbar
-  const cut = p => opt && opt.cullD ? clamp((p.d - opt.cullD) / 0.15 + 1, 0, 1) : 1;
+  const cut = p => opt && opt.cullD ? clamp((p.d - opt.cullD) / 0.06 + 1, 0, 1) : 1; // de cerca: lo que queda delante del elegido desaparece
   const near = p => clamp((p.d - NEAR) / 0.22, 0, 1) * cut(p), nearM = p => clamp((p.d - 0.25) / 0.15, 0, 1) * cut(p); // lo que está casi encima de la cámara se desvanece (los monstruos antes, para no tapar la pantalla)
   // cielo, estrellas, luna y cerros (se mueven al girar)
   const sky = c.createLinearGradient(0, r.top, 0, Yh); sky.addColorStop(0, '#191433'); sky.addColorStop(1, '#3d2f63');
@@ -2429,7 +2429,7 @@ function drawRanch(c, r, opt) {
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#4a9152'); gg.addColorStop(1, '#55a35b'); c.fillStyle = gg; c.fill();
-  for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis || cut(p) < 0.5) continue; const fk = p.sc * (opt && opt.dotK || 1); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * fk, 0, TAU); c.fill(); } }
+  for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * fk, 0, TAU); c.fill(); } }
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
   for (const d of D.d) { const p = P(d.x, d.z); if (!p.vis) continue; if (d.k === 'rail') { const q = P(d.x2, d.z2); if (!q.vis) continue; items.push({ y: Math.min(p.Y, q.Y) - 0.5, d, p }); } else items.push({ y: p.Y, d, p }); }
@@ -3385,7 +3385,7 @@ function drawRanchBg(ctx, r, pz) {
   }
   const Zp = Math.max(1, 1 + (Z - 1) * pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, homeView.gy, pz);
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
-  drawRanch(ctx, r, { alphaOf, focus: a, focus2: T && slide.prevFocus ? slide.prevFocus.a : null, ghost: 1 - 0.65 * pz, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
+  drawRanch(ctx, r, { alphaOf, focus: a, focus2: T && slide.prevFocus ? slide.prevFocus.a : null, ghost: 1 - 0.65 * pz, cullD: Math.max(0, dd - 0.05) * pz /* todo lo que está delante del monstruo se quita para que no lo tape */, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
   return true;
 }
