@@ -2415,13 +2415,13 @@ function drawRanch(c, r, opt) {
     c.lineTo(W, Yh + 2); c.closePath(); c.fill();
   }
   // pradera hasta el horizonte y, encima, el suelo del rancho (el círculo, desde el borde lejano hasta los pies)
-  const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, '#24452e'); gm.addColorStop(1, '#3a7444');
+  const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, '#356b40'); gm.addColorStop(1, '#3f7a47');
   c.fillStyle = gm; c.fillRect(0, Yh, W, r.bottom - Yh);
   const a0 = Math.acos(clamp((CAM_D - NEAR) / RANCH_RF, -1, 1));
   c.beginPath(); c.moveTo(-W, r.bottom + 400);
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
-  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#2f6a3c'); gg.addColorStop(1, '#5aa95f'); c.fillStyle = gg; c.fill();
+  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#4a9152'); gg.addColorStop(1, '#55a35b'); c.fillStyle = gg; c.fill();
   for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis || cut(p) < 0.5) continue; const fk = p.sc * (opt && opt.dotK || 1); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * fk, 0, TAU); c.fill(); } }
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
@@ -2432,7 +2432,7 @@ function drawRanch(c, r, opt) {
   for (const it of items) {
     const p = it.p, k = u * p.sc;
     if (it.a) {
-      const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1) * (opt && opt.focus && a !== opt.focus ? ghost : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
+      const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1) * (opt && opt.focus && a !== opt.focus && a !== opt.focus2 ? ghost : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
       if (a.kind === 'mon') drawOcc(c, { show: a.m }); // (la altura de un salto ya viene en el esqueleto)
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else drawOcc(c, { vacant: true, k });
@@ -3371,7 +3371,7 @@ function drawRanchBg(ctx, r, pz) {
   }
   const Zp = Math.max(1, 1 + (Z - 1) * pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, homeView.gy, pz);
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
-  drawRanch(ctx, r, { alphaOf, focus: a, ghost: 1 - 0.65 * pz, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
+  drawRanch(ctx, r, { alphaOf, focus: a, focus2: T && slide.prevFocus ? slide.prevFocus.a : null, ghost: 1 - 0.65 * pz, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
   return true;
 }
@@ -3389,11 +3389,13 @@ function drawCloseUp(ctx, r, onHome, pz) {
   const pal = E ? E.pal : empty ? { body: { h: 30, s: 45, l: 45 } } : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
   const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
   glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
-  if (slide && slide.prev.pal && !onAdopt) { // el brillo de fondo pasa de un color al otro
+  const useBg = pz != null && !!RANCH.actors[homeEmpty ?? save.sel];
+  if (slide && slide.prev.pal && !onAdopt && !useBg) { // el brillo de fondo pasa de un color al otro (sin el rancho de fondo)
     const e = clamp(slide.t, 0, 1), g0 = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
     g0.addColorStop(0, hsl(slide.prev.pal.body, -20, 0.35)); g0.addColorStop(1, 'rgba(27,21,48,0)');
     ctx.globalAlpha = 1 - e; ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = e;
   }
+  ctx.globalAlpha = 1; // (antes quedaba a medias al cambiar de monstruo y el rancho se veía oscuro)
   const withBg = pz != null && drawRanchBg(ctx, r, pz); // en el Rancho: de fondo, el rancho en tiempo real donde está el monstruo
   if (!withBg) { ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); }
   ctx.globalAlpha = 1;
