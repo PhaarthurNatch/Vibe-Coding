@@ -2305,8 +2305,9 @@ function ranchDeco() {
   for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + r.f(-0.25, 0.25), rr = r.f(0.78, 0.92); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.8, 1.15), h: r.i(100, 150) }); }
   for (let i = 0; i < 9; i++) { const a = r.f(0, TAU), rr = r.f(0.35, 0.9); d.push({ k: 'bush', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.1), h: r.i(95, 135) }); }
   for (let i = 0; i < 4; i++) { const a = r.f(0, TAU), rr = r.f(0.4, 0.85); d.push({ k: 'rock', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.2) }); }
-  const NP = 30; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
-  d.push({ k: 'barn', x: 0, z: 0 });
+  const NP = 44; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
+  d.push({ k: 'barn', x: 0, z: -0.8 }); // granero junto a la cerca (hay que girar para verlo)
+  for (let i = 0; i < 8; i++) { const a = r.f(0, TAU), rr = r.f(1.25, 1.9); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(1, 1.4), h: r.i(100, 150), out: true }); } // árboles afuera del rancho
   const flowers = Array.from({ length: 46 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
   return RANCH.deco = { d, flowers };
 }
@@ -2344,7 +2345,7 @@ function ranchStep(dt) {
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 8; k++) {
           const ang = Math.random() * TAU, dd = 0.2 + Math.random() * 0.45, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
-          if (rr > 0.32 && rr < 0.84) { a.tx = nx; a.tz = nz; a.walk = true; break; }
+          if (rr < 0.84 && Math.hypot(nx, nz + 0.8) > 0.32) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
@@ -2366,55 +2367,58 @@ function ranchStep(dt) {
     const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
     if (d < 0.2) { const f = (0.2 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
   }
-  for (const a of A) { const rr = Math.hypot(a.x, a.z); if (rr > 0.86) { a.x *= 0.86 / rr; a.z *= 0.86 / rr; } if (rr < 0.3 && rr > 0) { a.x *= 0.3 / rr; a.z *= 0.3 / rr; } }
+  for (const a of A) { const rr = Math.hypot(a.x, a.z); if (rr > 0.86) { a.x *= 0.86 / rr; a.z *= 0.86 / rr; } const bx = a.x, bz = a.z + 0.8, bd = Math.hypot(bx, bz); if (bd < 0.3 && bd > 0) { a.x = bx * 0.3 / bd; a.z = bz * 0.3 / bd - 0.8; } }
 }
 RANCH.frame = 0;
 function drawRanch(c, r) {
-  // Perspectiva real, como parado dentro del rancho: la cámara está cerca del borde de adelante (CAM_D) y a poca altura;
-  // lo cercano se ve enorme, lo del otro lado chico, y los costados quedan fuera de la pantalla: hay que girar para verlos.
-  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.36, CAM_D = 1.5, S0 = 1.05;
-  const F = r.width * 1.35, camH = r.height * 0.3, kb = Math.min(r.height * 0.25, r.width * 0.5) / 150;
-  const V = RANCH.view = { cx, RX: F / CAM_D, kb, r };
+  // Perspectiva de una persona parada DENTRO del rancho (cámara en z = CAM_D, a la altura de los ojos, mirando al otro lado):
+  // el rancho es grande comparado con los monstruos, lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
+  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.4, CAM_D = 0.85, NEAR = 0.16;
+  const F = r.width * 0.7, camH = (r.bottom - Yh) * 0.32, kb = r.height * 0.15 / 150;
+  const V = RANCH.view = { cx, RX: F * 1.4, kb, r };
   const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
-  const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co, d = CAM_D - wz; return { X: cx + wx * F / d, Y: Yh + camH / d, wz, d, sc: S0 / d }; };
-  // cielo, estrellas, luna y cerros (se mueven un poco al girar)
-  const sky = c.createLinearGradient(0, r.top, 0, Yh + r.height * 0.15); sky.addColorStop(0, '#191433'); sky.addColorStop(1, '#3d2f63');
+  const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co, d = CAM_D - wz; return { X: cx + wx * F / Math.max(d, 0.01), Y: Yh + camH / Math.max(d, 0.01), wz, d, sc: 1 / Math.max(d, 0.01), vis: d > NEAR }; };
+  const near = p => clamp((p.d - NEAR) / 0.22, 0, 1), nearM = p => clamp((p.d - 0.3) / 0.22, 0, 1); // lo que está casi encima de la cámara se desvanece (los monstruos antes, para no tapar la pantalla)
+  // cielo, estrellas, luna y cerros (se mueven al girar)
+  const sky = c.createLinearGradient(0, r.top, 0, Yh); sky.addColorStop(0, '#191433'); sky.addColorStop(1, '#3d2f63');
   c.fillStyle = sky; c.fillRect(0, r.top, W, r.height);
   const sr = rng(77);
-  for (let i = 0; i < 40; i++) { const x = ((sr.f(0, 1) * 1.6 - RANCH.th * 0.12) % 1 + 1) % 1 * W, y = r.top + sr.f(0, 1) * (Yh - r.top) * 0.95; c.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * Math.abs(Math.sin(RANCH.t * sr.f(0.5, 1.5) + i))})`; c.fillRect(x, y, 1.6, 1.6); }
-  const mx = ((0.8 - RANCH.th / TAU * 1.5) % 1.5 + 1.5) % 1.5 * W - W * 0.25; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(mx, r.top + r.height * 0.1, 18, 0, TAU); c.fill();
-  for (const [col, amp, base, sp] of [['#2c2452', 34, 0.0, 0.5], ['#251f45', 22, 0.07, 0.9]]) {
-    c.fillStyle = col; c.beginPath(); c.moveTo(0, r.bottom);
-    for (let x = 0; x <= W; x += 8) c.lineTo(x, Yh + r.height * base - amp * (1 + Math.sin(x * 0.012 + RANCH.th * sp * 4) * 0.6 + Math.sin(x * 0.031 + RANCH.th * sp * 7) * 0.3));
-    c.lineTo(W, r.bottom); c.closePath(); c.fill();
+  for (let i = 0; i < 46; i++) { const x = ((sr.f(0, 1) * 1.6 - RANCH.th * 0.25) % 1 + 1) % 1 * W, y = r.top + sr.f(0, 1) * (Yh - r.top) * 0.92; c.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * Math.abs(Math.sin(RANCH.t * sr.f(0.5, 1.5) + i))})`; c.fillRect(x, y, 1.6, 1.6); }
+  const mx = ((0.65 - RANCH.th / TAU * 2) % 2 + 2) % 2 * W - W * 0.5; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(mx, r.top + r.height * 0.12, 18, 0, TAU); c.fill();
+  for (const [col, amp, sp] of [['#2c2452', 30, 0.9], ['#251f45', 16, 1.5]]) {
+    c.fillStyle = col; c.beginPath(); c.moveTo(0, Yh + 2);
+    for (let x = 0; x <= W; x += 8) c.lineTo(x, Yh + 2 - amp * (1 + Math.sin(x * 0.012 + RANCH.th * sp * 3) * 0.6 + Math.sin(x * 0.031 + RANCH.th * sp * 5) * 0.3));
+    c.lineTo(W, Yh + 2); c.closePath(); c.fill();
   }
-  // suelo del rancho (el círculo proyectado) y su borde de tierra
-  const ring = (rr, dy) => { c.beginPath(); for (let k = 0; k <= 96; k++) { const a = k / 96 * TAU, p = P(Math.sin(a) * rr, Math.cos(a) * rr); k ? c.lineTo(p.X, p.Y + dy / p.d) : c.moveTo(p.X, p.Y + dy / p.d); } c.closePath(); };
-  c.fillStyle = '#3a2a24'; ring(1, 26); c.fill();
-  const gg = c.createLinearGradient(0, Yh + camH / (CAM_D + 1), 0, r.bottom); gg.addColorStop(0, '#2f6a3c'); gg.addColorStop(1, '#55a35b');
-  c.fillStyle = gg; ring(1, 0); c.fill();
-  c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 3; ring(0.55, 0); c.stroke(); // sendero
-  for (const f of D.flowers) { const p = P(f.x, f.z); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * p.sc; c.beginPath(); c.moveTo(p.X - 3 * p.sc, p.Y); c.lineTo(p.X, p.Y - 6 * p.sc); c.lineTo(p.X + 3 * p.sc, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * p.sc, 0, TAU); c.fill(); } }
+  // pradera hasta el horizonte y, encima, el suelo del rancho (el círculo, desde el borde lejano hasta los pies)
+  const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, '#24452e'); gm.addColorStop(1, '#3a7444');
+  c.fillStyle = gm; c.fillRect(0, Yh, W, r.bottom - Yh);
+  const a0 = Math.acos(clamp(CAM_D - NEAR, -1, 1));
+  c.beginPath(); c.moveTo(-W, r.bottom + 400);
+  for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - Math.cos(a); c.lineTo(cx + Math.sin(a) * F / dd, Yh + camH / dd); }
+  c.lineTo(2 * W, r.bottom + 400); c.closePath();
+  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#2f6a3c'); gg.addColorStop(1, '#5aa95f'); c.fillStyle = gg; c.fill();
+  for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * p.sc; c.beginPath(); c.moveTo(p.X - 3 * p.sc, p.Y); c.lineTo(p.X, p.Y - 6 * p.sc); c.lineTo(p.X + 3 * p.sc, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * p.sc, 0, TAU); c.fill(); } }
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
-  for (const d of D.d) { const p = P(d.x, d.z); items.push({ y: d.k === 'rail' ? (p.Y + P(d.x2, d.z2).Y) / 2 - 0.5 : p.Y, d, p }); }
-  for (const a of RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; items.push({ y: p.Y + 0.1, a, p }); }
+  for (const d of D.d) { const p = P(d.x, d.z); if (!p.vis) continue; if (d.k === 'rail') { const q = P(d.x2, d.z2); if (!q.vis) continue; items.push({ y: Math.min(p.Y, q.Y) - 0.5, d, p }); } else items.push({ y: p.Y, d, p }); }
+  for (const a of RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; a.hit = null; if (!p.vis) continue; items.push({ y: p.Y + 0.1, a, p }); }
   items.sort((u, v) => u.y - v.y);
   const u = kb; // tamaño: el mismo para monstruos y decorado
   for (const it of items) {
     const p = it.p, k = u * p.sc;
     if (it.a) {
-      const a = it.a; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
+      const a = it.a; c.save(); c.globalAlpha = nearM(p); c.translate(p.X, p.Y); c.scale(k, k);
       if (a.kind === 'mon') { c.translate(0, -a.m.z); drawOcc(c, { show: a.m }); }
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else drawOcc(c, { vacant: true, k });
       c.restore();
       const w = Math.max(a.sz.w * 0.6, 40) * k, h = Math.max(a.sz.h, 50) * k;
-      a.hit = { x0: p.X - w, x1: p.X + w, y0: p.Y - h - (a.m ? a.m.z * k : 0), y1: p.Y + 12 * k, depth: p.Y };
+      if (nearM(p) > 0.5) a.hit = { x0: p.X - w, x1: p.X + w, y0: p.Y - h - (a.m ? a.m.z * k : 0), y1: p.Y + 12 * k, depth: p.Y };
       continue;
     }
     const d = it.d; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
-    if (d.k === 'tree' || d.k === 'bush') c.globalAlpha = clamp((p.d - 0.75) / 0.6, 0, 1) * (p.wz > 0.15 ? (d.k === 'tree' ? 0.45 : 0.75) : 1); // lo de adelante se transparenta (y muy cerca desaparece) para no tapar a nadie
+    c.globalAlpha = near(p) * (d.k === 'tree' && !d.out && p.d < 0.9 ? 0.5 : 1); // lo muy cercano se desvanece; árboles cercanos transparentes para no tapar
     if (d.k === 'tree') {
       const sc = d.s; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
       c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -70 * sc, 14 * sc, 70 * sc);
@@ -2426,7 +2430,7 @@ function drawRanch(c, r) {
     } else if (d.k === 'post') {
       c.fillStyle = '#8a6040'; c.fillRect(-4, -46, 8, 46); c.fillStyle = '#a77a52'; c.fillRect(-5, -50, 10, 6);
     } else if (d.k === 'rail') {
-      c.restore(); c.save(); const q = P(d.x2, d.z2); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
+      c.restore(); c.save(); const q = P(d.x2, d.z2); c.globalAlpha = Math.min(near(p), near(q)); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
       for (const hh of [18, 36]) { c.lineWidth = 4 * u * (p.sc + q.sc) / 2; c.beginPath(); c.moveTo(p.X, p.Y - hh * u * p.sc); c.lineTo(q.X, q.Y - hh * u * q.sc); c.stroke(); }
     } else if (d.k === 'barn') {
       c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, 0, 110, 22, 0, 0, TAU); c.fill();
@@ -2440,11 +2444,11 @@ function drawRanch(c, r) {
   // nombres bajo cada monstruo (más visibles adelante)
   c.textAlign = 'center';
   for (const a of RANCH.actors) {
-    if (!a.rec || !a.hit) continue; const p = P(a.x, a.z), al = clamp((p.wz + 0.6) / 1.2, 0.25, 1);
+    if (!a.rec || !a.hit) continue; const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
     if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
     const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
-    c.font = `800 ${Math.round(10 + 4 * p.sc)}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
-    c.strokeText(txt, p.X, p.Y + 16 * p.sc); c.fillStyle = a.slot === save.sel ? '#ffcf6e' : '#fff'; c.fillText(txt, p.X, p.Y + 16 * p.sc);
+    c.font = `800 ${Math.round(clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
+    const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = a.slot === save.sel ? '#ffcf6e' : '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
 }
