@@ -150,6 +150,9 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Escudo de hierro = **no recibe daño** por 10 s (`SHIELD_MUL` 0; igual lo empujan; pedido del dueño). Al usarla: +30% a todo por 10 s. El aura de partículas (pequeñas) **sólo aparece al cargar la ultimate y mientras dura su efecto** (10 s); no se ve en el menú ni con la ultimate lista. Excepción: la animación de crecer a Awakened sí muestra el aura (`growAura`).
   **Tus monstruos la lanzan sólo cuando aprietas el botón ULTIMATE** abajo de la arena (`ultBar`, `setupUltBar`/`updateUltBar`, `ultRequest`; uno por monstruo tuyo con ultimate,
   desactivado en la cuenta regresiva y mientras recarga). Ya no hay modos "cuándo la usa" en Estadísticas; los **rivales** siguen decidiendo solos (`ultMode` al azar).
+- **Anatomías nuevas (gen 4, pedido del dueño)**: `newRec` crea monstruos `gen: 4`; `genGenome(seed, stage, legacy, v3, v4)` aplica `applyAnatomy` (flujo de azar aparte) **sólo con v4**:
+  **sin ojos** (7%), **sin boca** (8%) y **sin cabeza** (15%: `head.none`, la cara va en el trozo más alto del torso, sin cuello; `fitHeadless` copia tamaño y forma del torso de arriba a la "cabeza", que no se dibuja, sólo la cara; el bebé de una pieza no cambia).
+  **No cambian las estadísticas**: se guarda lo que tendría (`eyes.sc`, `mouth.st`, `head.sw/sh/sn/se`) y `calcStats` usa eso. Los gen 3 no cambian (comprobado con 5000 semillas). En la cría el origen lleva `v4` y `recGenome` llama a `fitHeadless` al final.
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
