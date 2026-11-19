@@ -153,11 +153,11 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
-- **Ajustes ⚙️ (exportar / importar partida)**: botón `#btnSettings` arriba a la derecha de las monedas, **sólo en el rancho** (`#home:not(.ranch) .gearbtn` oculto); abre el modal `#settings`.
-  **Exportar**: muestra un código `MB1-` + la partida en base64 (`encodeSave`) con botón "Copiar código" (portapapeles o, si falla, `execCommand('copy')`).
-  **Copia local periódica**: cada 2 min y al salir de la app se guarda una copia en `localStorage` (`COPY_KEY` = `monster_brawl_copy`, `saveCopy`); exportar la refresca.
-  **Importar**: pega el código (`decodeSave` valida), pregunta con `ask()` mostrando el resumen de ambas partidas, guarda la actual en `UNDO_KEY` (`monster_brawl_undo`) y **reemplaza** la partida (`applyImport`: escribe `SAVE_KEY` y recarga; `importing` evita que `persist` la pise). "Deshacer la última importación" vuelve a la anterior.
-  Sirve para pasar la partida del link de prueba a la web app (son lugares distintos aunque sea el mismo celular). Las migraciones de `loadSave` se aplican al importar porque se recarga.
+- **Barra de arriba del Home**: **sin el nombre del juego** (el dueño lo quitó); a la derecha sólo las monedas y ⚙️, que **se ven sólo en el rancho y la Tienda** (`#home:not(.ranch)` las oculta con `visibility` para no mover nada; en la vista de cerca y Estadísticas no están).
+- **Ajustes ⚙️** (`#btnSettings`, modal `#settings` con vistas `.setview` y `setView`): es un menú → **Partida** → **Exportar** (al tocarlo **copia el código solo**, `copyText`: portapapeles o, si no se permite, `execCommand('copy')`; si ambos fallan muestra el código para copiarlo a mano) / **Importar** (abre una ventana para pegar el código) / "Deshacer la última importación" (si hay respaldo).
+  Código = `MB1-` + la partida en base64 (`encodeSave`/`decodeSave`). **Copia local periódica**: cada 2 min y al salir de la app se guarda una copia (`COPY_KEY` = `monster_brawl_copy`, `saveCopy`); exportar la refresca.
+  Importar pregunta con `ask()` mostrando el resumen de ambas partidas, guarda la actual en `UNDO_KEY` (`monster_brawl_undo`) y **reemplaza** la partida (`applyImport`: escribe `SAVE_KEY` y recarga; `importing` evita que `persist` la pise; las migraciones de `loadSave` se aplican al recargar).
+  Sirve para pasar la partida del link de prueba a la web app (son lugares distintos aunque sea el mismo celular).
 
 ## Compatibilidad de partidas guardadas
 

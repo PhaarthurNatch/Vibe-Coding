@@ -146,7 +146,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .btn:disabled{opacity:.35;pointer-events:none}
 .slotbtns{grid-column:1/-1}
 .eggmsg{grid-column:1/-1;margin:4px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.5}
-.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.top{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:34px} /* sin el nombre del juego: sólo monedas y ajustes a la derecha */
 .top .title{text-align:left;margin:0}
 .lancard{max-width:380px;text-align:center}
 .lanlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:4px 0 12px;max-height:46vh;overflow-y:auto;touch-action:pan-y}
@@ -164,12 +164,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
-#home:not(.ranch) .gearbtn{display:none} /* ajustes: sólo en el rancho */
+#home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
 .setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
-.setsec{display:flex;flex-direction:column;gap:8px;text-align:left;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
-.setsec b{font-size:15px}
-.setsec textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
-.setsec textarea:focus{outline:none;border-color:var(--acc)}
+.setview{display:flex;flex-direction:column;gap:10px}
+.setitem{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:14px}
+.setitem small{font-size:11px;font-weight:600;color:var(--muted)}
+#setInfo:empty{display:none}#setInfo{color:var(--good)}
+.setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
+.setview textarea:focus{outline:none;border-color:var(--acc)}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
@@ -232,7 +234,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
+  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -308,22 +310,31 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 </div>
 <div class="modal" id="settings">
   <div class="card setcard">
-    <h2 style="font-size:22px">Ajustes</h2>
-    <div class="setsec">
-      <b>Exportar partida</b>
-      <p class="tdesc">Copia este código y pégalo en «Importar partida» en el otro lugar (la web app u otro celular).</p>
-      <textarea id="expCode" readonly></textarea>
-      <button class="btn primary" id="btnCopy">Copiar código</button>
-      <p class="tdesc" id="copyInfo"></p>
+    <div class="setview" data-view="main">
+      <h2 style="font-size:22px">Ajustes</h2>
+      <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
+      <button class="btn" data-close>Cerrar</button>
     </div>
-    <div class="setsec">
-      <b>Importar partida</b>
-      <p class="tdesc">Reemplaza la partida de aquí por la del código. Antes se guarda un respaldo para poder deshacerlo.</p>
+    <div class="setview" data-view="partida" hidden>
+      <h2 style="font-size:22px">Partida</h2>
+      <button class="btn setitem" id="btnExport"><span>📤 Exportar</span><small>copia el código</small></button>
+      <button class="btn setitem" data-go="import"><span>📥 Importar</span><span>›</span></button>
+      <button class="btn setitem" id="btnUndoImp" hidden><span>↩️ Deshacer la última importación</span></button>
+      <p class="tdesc" id="setInfo"></p>
+      <button class="btn" data-go="main">‹ Volver</button>
+    </div>
+    <div class="setview" data-view="import" hidden>
+      <h2 style="font-size:22px">Importar partida</h2>
+      <p class="tdesc">Pega el código que exportaste. Reemplaza la partida de aquí; antes se guarda un respaldo para poder deshacerlo.</p>
       <textarea id="impCode" placeholder="Pega aquí el código" autocomplete="off" spellcheck="false"></textarea>
-      <button class="btn" id="btnImport">Importar</button>
-      <button class="btn ghost" id="btnUndoImp" hidden>Deshacer la última importación</button>
+      <div class="row"><button class="btn" data-go="partida">‹ Volver</button><button class="btn primary" id="btnImport">Importar</button></div>
     </div>
-    <button class="btn" id="setClose">Cerrar</button>
+    <div class="setview" data-view="code" hidden>
+      <h2 style="font-size:22px">Tu código</h2>
+      <p class="tdesc">No se pudo copiar solo: mantén presionado el código, elige «Seleccionar todo» y luego «Copiar».</p>
+      <textarea id="expCode" readonly></textarea>
+      <button class="btn" data-go="partida">‹ Volver</button>
+    </div>
   </div>
 </div>
 <div class="modal" id="breedPick">
@@ -2985,21 +2996,28 @@ function decodeSave(code) {
   try { const o = JSON.parse(decodeURIComponent(escape(atob(c.slice(4))))); return o && Array.isArray(o.monsters) ? o : null; } catch (e) { return null; }
 }
 const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').length; return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
-function openSettings() {
-  const c = saveCopy();
-  $('expCode').value = encodeSave(c.data);
-  $('copyInfo').textContent = 'Se guarda una copia sola cada 2 minutos; el código siempre trae la partida al día.';
-  $('impCode').value = ''; $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
-  $('settings').classList.add('on');
+// Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
+function setView(v) {
+  document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
+  if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
+  if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
 }
+function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
 $('btnSettings').onclick = openSettings;
-$('setClose').onclick = () => $('settings').classList.remove('on');
+document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
+document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));
 $('expCode').onfocus = () => $('expCode').select();
-$('btnCopy').onclick = async () => {
-  const ta = $('expCode'); let ok = false;
-  try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) { }
-  if (!ok) { try { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (e) { } }
-  $('copyInfo').textContent = ok ? '¡Código copiado! Ahora pégalo en «Importar partida» en el otro lugar.' : 'No se pudo copiar solo: mantén presionado el código y elige Copiar.';
+async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; } catch (e) { }
+  try { // respaldo para cuando el portapapeles no está permitido (por ejemplo, dentro de claude.ai)
+    const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length); const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+$('btnExport').onclick = async () => {
+  const code = encodeSave(saveCopy().data);
+  if (await copyText(code)) $('setInfo').textContent = '¡Código copiado! Pégalo en Ajustes → Partida → Importar en el otro lugar.';
+  else { $('expCode').value = code; setView('code'); }
 };
 function applyImport(json) { importing = true; lsSet(SAVE_KEY, json); location.reload(); }
 $('btnImport').onclick = async () => {
