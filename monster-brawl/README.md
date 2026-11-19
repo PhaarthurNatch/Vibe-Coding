@@ -13,7 +13,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Rancho**: todos tus monstruos (y huevos) viven en un rancho redondo y caminan solos (los espacios libres no se ven ahí: se llega a ellos deslizando a los lados en la vista de cerca); deslizar a los lados lo gira
   como un carrusel. Al tocar a uno, la cámara se acerca y se ve de cerca con sus datos y botones de pelea; de cerca, arriba se vuelve al rancho y abajo están las Estadísticas.
   De cerca y en Estadísticas, deslizar a los lados pasa al siguiente monstruo.
-- **Espacios libres**: al deslizar entre tus monstruos aparecen los espacios vacíos con un huevo transparente; ahí puedes **Comprar** un huevo (60 monedas, 1 al día) o **Criar** (desde que tienes 2 Awakened): cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas en ese espacio. El hijo hereda partes, colores y
+- **Espacios libres**: al deslizar entre tus monstruos aparecen los espacios vacíos con un huevo transparente; ahí puedes **Comprar** un huevo (60 monedas, 1 al día) o **Criar** (desde que tienes 2 adultos): cruza dos adultos o Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas en ese espacio. El hijo hereda partes, colores y
   personalidad de sus padres (a veces muta algo) y al despertar trae la ultimate de uno de ellos.
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
   Bebé (Nv. 1-2): una sola pieza de cuerpo con ojos y boca. Niño (Nv. 3-4): cabeza y torso chico, a veces bracitos, piernitas, cuernito o colita.
