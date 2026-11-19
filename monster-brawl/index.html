@@ -2652,7 +2652,7 @@ function greetFocus(a) {
   const wasBack = a.m.back || (a.awayT || 0) > 0.15;
   a.m.back = false; a.awayT = -0.4; a.walk = false;
   if (wasBack) a.m.vz = 170;
-  a.m.setEmo('happy', 3, 2); // al elegirlo se pone feliz 3 s y luego neutro
+  a.m.setEmo('happy', 1.5, 2); // al elegirlo se pone feliz 1,5 s y luego neutro
 }
 function ranchZoomTo(best) {
   fightMenu(false);
