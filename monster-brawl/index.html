@@ -1845,7 +1845,7 @@ class Monster {
     else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
     else if (custom && E === 'beat') wavy(mw * 0.05, 4);
     else if (custom && E === 'love') { ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
-    else if (custom && (E === 'happy' || E === 'energetic')) {
+    else if (custom && E === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
       ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + mw * 0.55, mw * 0.45, mw * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
     }
