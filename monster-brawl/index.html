@@ -546,7 +546,7 @@ function genGenome(seed, stage = 'adult', legacy = false, v3 = false, v4 = false
 }
 // Anatomías nuevas (gen 4, sólo monstruos nacidos desde esta versión; los anteriores no cambian):
 // sin ojos, sin boca, y sin cabeza: la cara va en el trozo más alto del torso (sin cuello). Mismo seed = mismo resultado en todas las etapas.
-const ANATOMY = { noEyes: 0.07, noMouth: 0.08, headless: 0.15 };
+const ANATOMY = { noEyes: 0, noMouth: 0, headless: 0.15 }; // sin ojos / sin boca se quitaron (pedido del dueño)
 function applyAnatomy(g, seed) {
   const r = rng((seed ^ 0x2545f491) >>> 0);
   const noEyes = r.chance(ANATOMY.noEyes), noMouth = r.chance(ANATOMY.noMouth), headless = r.chance(ANATOMY.headless);
@@ -561,8 +561,8 @@ function applyAnatomy(g, seed) {
 // es cada vez menos probable (hay que sacarla varias veces). Al crecer se siguen sorteando: sólo se ganan partes, nunca se pierden.
 // La apariencia de cada parte (tipo de mano, forma de cabeza, punta de cola…) también sale pareja entre todas sus variantes.
 // Sin "cabeza" sorteada, la cara va en el torso de arriba. Los monstruos de antes (gen ≤ 4) no usan esto y se ven igual.
-const PART_MAX = { eyes: 6, mouth: 1, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 2, shoulders: 1 }; // torso: trozos extra (además del primero)
-const PART_FROM = { eyes: 0, mouth: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
+const PART_MAX = { eyes: 5, ears: 1, antennae: 2, head: 1, arms: 3, legs: 2, tail: 3, horns: 4, torso: 2, neck: 1, wings: 2, shoulders: 1 }; // torso y ojos: extra (además del primer trozo de torso y del primer ojo, que todos tienen; la boca también la tienen todos)
+const PART_FROM = { eyes: 0, ears: 0, antennae: 0, head: 1, arms: 1, legs: 1, tail: 1, horns: 1, torso: 2, neck: 2, wings: 2, shoulders: 3 }; // etapa desde la que puede aparecer (0 bebé … 3 adulto)
 const PART_PICKS = [2, 4, 5, 5]; // sorteos que se hacen en cada etapa (bebé, niño, adolescente, adulto)
 const PICK_STAGES = ['baby', 'child', 'teen', 'adult'];
 function pickParts(seed, stage) {
@@ -588,10 +588,11 @@ function genome5(seed, stage) {
   const dims = { mid: { w: r.f(30, 80), h: r.f(16, 32) }, lower: { w: r.f(28, 80), h: r.f(16, 32) }, neck: r.f(8, 30), shoulder: r.f(7, 15), ear: r.f(0.28, 0.5), antLen: r.f(0.5, 0.95), eyeY: r.f(-0.35, 0.02), eyeSp: r.f(0.36, 0.52) };
   g.head.shape = look.head; g.torso.shape = look.torso; g.arms.hand = look.hand; g.feet.type = look.feet; g.wings.type = look.wing; g.tail.tip = look.tip; g.horns.style = look.horn;
   g.eyes.pupilShape = look.pupil; g.eyes.pupils = 1;
-  g.eyes.count = c.eyes; g.eyes.pos = eyeLayout(c.eyes, dims.eyeY, dims.eyeSp);
-  const maxR = c.eyes <= 1 ? 0.5 : c.eyes === 2 ? 0.34 : c.eyes === 3 ? 0.3 : 0.24;
+  const ne = 1 + c.eyes; // todos tienen al menos un ojo (pedido del dueño)
+  g.eyes.count = ne; g.eyes.pos = eyeLayout(ne, dims.eyeY, dims.eyeSp);
+  const maxR = ne <= 1 ? 0.5 : ne === 2 ? 0.34 : ne === 3 ? 0.3 : 0.24;
   g.eyes.size = Math.max(3.5, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
-  g.mouth.type = c.mouth ? look.mouth : 'none';
+  g.mouth.type = look.mouth; // todos tienen boca (pedido del dueño)
   g.ears = c.ears ? { type: look.ear, size: dims.ear } : null;
   g.antennae = c.antennae ? { tip: look.antenna, count: c.antennae, len: dims.antLen } : null;
   g.arms.pairs = c.arms; g.legs.pairs = c.legs; g.wings.pairs = c.wings; g.tail.count = c.tail; g.horns.count = c.horns;

@@ -22,7 +22,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   con una animación a pantalla completa donde le van apareciendo las partes nuevas (si le toca crecer varias etapas,
   crecen una tras otra dentro de la misma animación).
 - **Partes al azar parejo (monstruos nacidos desde esta versión)**: en cada etapa se sortea una cantidad fija de partes; todas tienen la misma chance (y "no sale nada" también), tener varias de la misma es cada vez más raro, y el aspecto de cada parte también sale parejo. Al crecer sólo se ganan partes.
-- **Anatomías raras (gen 4)**: algunos no tienen ojos (7%), otros no tienen boca (8%) y otros no tienen cabeza (15%): la cara va en la parte de arriba del torso. No los hace más débiles.
+- **Sin cabeza**: algunos monstruos no tienen cabeza y la cara va en la parte de arriba del torso. Todos tienen boca y al menos un ojo.
 - **Variedad (monstruos nuevos)**: orejas (gato, redondas, conejo blandas, aleta) que se mueven solas; antenas elásticas
   (bolita, luz que pulsa, hoja); cabezas corazón/hexágono/hongo/frijol; bocas con lengua que se mueve, mandíbulas que se abren
   y cierran, bigotes; pupilas corazón/diamante/espiral que gira; astas y cuernos de carnero; alas de mariposa, fuego que titila
