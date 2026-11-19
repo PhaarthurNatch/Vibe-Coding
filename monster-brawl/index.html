@@ -38,11 +38,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
-#home.ranch #pgHome>:not(#showArea),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
-.ranchHint{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
-#home:not(.ranch) .ranchHint,#home:not(.ranch) .edgeLbl{display:none}
-.edgeLbl{position:absolute;left:0;right:0;text-align:center;font-size:13px;font-weight:800;letter-spacing:.5px;color:#cfc4ff;text-shadow:0 1px 3px rgba(0,0,0,.7);opacity:.85} /* para que se sepa que se puede deslizar arriba/abajo */
-.edgeLbl.up{top:2px;animation:edgeUp 2.4s ease-in-out infinite}.edgeLbl.down{bottom:4px;animation:edgeDown 2.4s ease-in-out infinite}
+#home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
+.ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#home:not(.ranch) .ranchHint{display:none}
+.edgeLbl{flex:none;align-self:center;background:none;padding:3px 14px;font-size:13px;font-weight:800;letter-spacing:.5px;color:#cfc4ff;text-shadow:0 1px 3px rgba(0,0,0,.7);touch-action:none} /* en lugar de pestañas: arriba/abajo dice qué página hay (y se puede tocar) */
+.edgeLbl.up{margin-bottom:2px;animation:edgeUp 2.4s ease-in-out infinite}.edgeLbl.down{margin-top:4px;animation:edgeDown 2.4s ease-in-out infinite}
+.edgeLbl.glow{color:#ffd36b;animation:tabglow 1.6s ease-in-out infinite,edgeDown 2.4s ease-in-out infinite} /* puntos por gastar */
 @keyframes edgeUp{0%,100%{transform:none}50%{transform:translateY(-3px)}}@keyframes edgeDown{0%,100%{transform:none}50%{transform:translateY(3px)}}
 @keyframes zoomIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 .zoomIn{animation:zoomIn .45s ease-out}
@@ -205,21 +206,22 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Rancho</button><button data-page="2">Estadísticas</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
       <div class="tsec" id="shopUlts"></div>
     </div>
+    <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
   <div class="page" id="pgHome">
+  <button class="edgeLbl up" data-go="0">▲ Tienda</button>
   <div class="nav">
     <button class="roundbtn" id="btnRanch" title="Volver al rancho">🏡</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
     <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
-  <div class="spacer" id="showArea"><div class="edgeLbl up">▲ Tienda</div><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="edgeLbl down">Estadísticas ▼</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
+  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
@@ -233,8 +235,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
   </div>
+  <button class="edgeLbl down" data-go="2" id="lblStats">Estadísticas ▼</button>
   </div>
   <div class="page">
+    <button class="edgeLbl up" data-go="1">▲ Rancho</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
     <div class="spacer" id="trainArea"></div>
     <div class="panel tpanel">
@@ -2484,7 +2488,7 @@ function renderHome() {
     renderSlotBtns();
     $('rest').hidden = true; $('hint').hidden = true;
     document.querySelectorAll('[data-mode]').forEach(b => b.disabled = true); $('btnLan').disabled = true;
-    const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = 'Estadísticas'; tb.classList.remove('glow');
+    const tb = $('lblStats'); tb.textContent = 'Estadísticas ▼'; tb.classList.remove('glow');
     return;
   }
   $('btnLan').disabled = firstEgg();
@@ -2492,7 +2496,7 @@ function renderHome() {
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Estadísticas (${free})` : 'Estadísticas'; tb.classList.toggle('glow', free > 0); }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = $('lblStats'); tb.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; tb.classList.toggle('glow', free > 0); }
   $('rest').hidden = !resting(rec) || (napping(rec) && !(rec.restUntil > Date.now())); // durmiendo: la cuenta va arriba del monstruo
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2555,7 +2559,7 @@ function setPage(n) {
   if (n === 2) renderTrain();
   if (n === 0) renderAdopt();
 }
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { const n = +b.dataset.page; if (n === 1 && homePage === 1 && !ranchMode) toRanch(); else setPage(n); }); // tocar "Rancho" estando cerca de un monstruo vuelve al rancho
+document.querySelectorAll('.edgeLbl').forEach(b => b.onclick = () => setPage(+b.dataset.go)); // "▲ Tienda" / "Estadísticas ▼" también se pueden tocar
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
 // De cerca de un monstruo, deslizar a los lados pasa al siguiente/anterior. En el rancho, a los lados lo gira (ver ranchDown).
