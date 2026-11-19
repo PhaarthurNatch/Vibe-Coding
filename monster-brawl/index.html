@@ -3325,30 +3325,24 @@ function finishBattle() {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
     place === 1 ? rec.wins++ : rec.losses++;
-    // vidas: sólo se pierde una si lo noquearon
-    let lifeTxt = '';
+    // vidas: sólo se pierde una si lo noquearon (el resultado sólo muestra XP y monedas, pedido del dueño)
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
       rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
-      if (rec.lives === 0) { rec.restUntil = Date.now() + REST_MS; lifeTxt = `<br>Lo noquearon y se quedó sin vidas ${hearts(0)}<br>Descansará ${REST_MS / 60000} min antes de volver a pelear.`; }
-      else lifeTxt = `<br>Lo noquearon: pierde una vida ${hearts(rec.lives)}`;
+      if (rec.lives === 0) rec.restUntil = Date.now() + REST_MS;
     }
-    let ups = 0; while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; ups++; }
+    while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
     // sus peleas moldean su personalidad
-    const ch = [], tw = (k, d, lbl) => { adjustTemper(rec, k, d); ch.push(lbl); };
+    const tw = (k, d) => adjustTemper(rec, k, d);
     if (pm.dmgM + pm.dmgR > 0) { if (pm.dmgR > pm.dmgM * 1.2) tw('agr', -0.03, 'más Cauto'); else if (pm.dmgM > pm.dmgR * 1.2) tw('agr', 0.03, 'más Agresivo'); }
     if (!pm.dead && pm.minHpF < 0.25) tw('valor', 0.04, 'más Valiente'); else if (pm.dead) tw('valor', -0.03, 'más Prudente');
     if (pm.switches >= 2) tw('terco', -0.03, 'más Oportunista'); else if (pm.switches === 0 && place === 1) tw('terco', 0.02, 'más Terco');
-    lifeTxt += (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>! +${ups * PTS_PER_LEVEL} puntos de entrenamiento` : '') + (ch.length ? `<br><small>Personalidad: ${ch.join(', ')}</small>` : '');
-    ups = 0;
-    return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.` + lifeTxt + (ups ? `<br>¡Subió a <b>nivel ${rec.level}</b>!` : '');
+    return `${esc(rec.name)} gana <b>+${xp} XP</b> y <b>+${coins} monedas</b>${pm.kills ? ` (${pm.kills} K.O.)` : ''}.`;
   });
   wakeUp();
   const incub = save.monsters.filter(m => m.readyAt > Date.now());
   if (place === 1 && incub.length) { // ganar adelanta un poquito la incubación de los huevos criados
     for (const m of incub) m.readyAt = Math.max(Date.now(), m.readyAt - INCUBATE_FIGHT_MS);
-    const ready = incub.some(m => m.readyAt <= Date.now());
-    lines.push(`<small>🥚 ${incub.length > 1 ? 'Tus huevos incubaron' : 'Tu huevo incubó'} ${INCUBATE_FIGHT_MS / 60000} min más rápido${ready ? ': ¡ya se puede abrir!' : ''}</small>`);
   }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
