@@ -1286,6 +1286,7 @@ class Monster {
         this.vx += (want - this.vx) * Math.min(1, dt * 5);
       } else this.vx *= Math.exp(-dt * 0.3);
       if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; }
+      if (this.baseEmo === 'energetic' && !this.sleep && this.z === 0 && Math.random() < dt * 0.7) this.vz = 150 + Math.random() * 90; // energético: saltitos
       if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
     }
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
@@ -1784,7 +1785,7 @@ class Monster {
     const jit = () => E === 'scared' ? (Math.random() - 0.5) * er * 0.22 : 0;
     const blinkOk = !['scared', 'surprised', 'dizzy', 'hurt', 'happy', 'love'].includes(E);
     const lidDef = { angry: [-0.25, 0.5], focus: [-0.4, 0.18], sad: [-0.45, -0.35], beat: [0.02, -0.1] }[E]; // [altura del párpado, inclinación]
-    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8 }[E] || 1;
+    const pupScale = { scared: 0.55, surprised: 0.5, angry: 0.95, focus: 0.85, beat: 0.8, energetic: 1.08 }[E] || 1;
     // machacado (1 corazón o menos): ojo morado en el ojo de más a la derecha
     const bruiseEye = this.battered && g.eyes.pos.length ? g.eyes.pos.reduce((a, b) => b[0] > a[0] ? b : a) : null;
 
@@ -1815,6 +1816,7 @@ class Monster {
         if (g.eyes.pupils === 1) this.drawPupil(ctx, ex + lx, ey + ly, pr, C);
         else if (g.eyes.pupils === 2) { this.drawPupil(ctx, ex + lx - pr * 0.55, ey + ly, pr * 0.65, C); this.drawPupil(ctx, ex + lx + pr * 0.55, ey + ly, pr * 0.65, C); }
         ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(ex - er * 0.35, ey - er * 0.38, er * 0.22, 0, TAU); ctx.fill();
+        if (E === 'energetic') { ctx.beginPath(); ctx.arc(ex + er * 0.3, ey + er * 0.28, er * 0.12, 0, TAU); ctx.fill(); } // ojos con brillo extra
       }
       const lid = lidDef ? [lidDef[0], lidDef[1] * -side] : (g.eyes.lid && E === 'neutral' ? [-0.45, g.eyes.lidAng * (ex < 0 ? 1 : -1)] : null);
       if (lid) {
@@ -1824,9 +1826,9 @@ class Monster {
       }
       ctx.restore();
       // cejas
-      if (E === 'angry' || E === 'scared' || E === 'sad' || E === 'surprised') {
-        const ang = E === 'angry' ? -side * 0.5 : E === 'surprised' ? 0 : side * 0.45;
-        const by = ey - er * (E === 'surprised' ? 1.65 : E === 'angry' ? 1.15 : 1.4);
+      if (E === 'angry' || E === 'scared' || E === 'sad' || E === 'surprised' || E === 'energetic') {
+        const ang = E === 'angry' ? -side * 0.5 : E === 'surprised' ? 0 : E === 'energetic' ? -side * 0.22 : side * 0.45;
+        const by = ey - er * (E === 'surprised' ? 1.65 : E === 'angry' ? 1.15 : E === 'energetic' ? 1.55 : 1.4);
         ctx.save(); ctx.translate(ex, by); ctx.rotate(ang);
         ctx.beginPath(); ctx.moveTo(-er * 0.8, 0); ctx.lineTo(er * 0.8, 0); ctx.lineWidth = lw * 1.8; ctx.strokeStyle = C.ol; ctx.stroke();
         ctx.restore();
@@ -1843,7 +1845,7 @@ class Monster {
     else if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
     else if (custom && E === 'beat') wavy(mw * 0.05, 4);
     else if (custom && E === 'love') { ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
-    else if (custom && E === 'happy') {
+    else if (custom && (E === 'happy' || E === 'energetic')) {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
       ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + mw * 0.55, mw * 0.45, mw * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
     }
@@ -2244,7 +2246,7 @@ function drawArena(ctx) {
 const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolescente', adult: 'Adulto', awakened: 'Awakened' };
 const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
 const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cuántos para abajo se ve machacado
-const BATTERED_LIVES = 2;
+const BATTERED_LIVES = 2, ENERGETIC_LIVES = 4; // con 4 corazones o más se ve energético (ojos brillantes, gran sonrisa y saltitos)
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
 const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
@@ -2502,7 +2504,7 @@ function ranchStep(dt) {
           if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
-        if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.45 : 0.15)) a.m.vz = 200; // a veces da un saltito (más si está energético)
       }
     }
     if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
@@ -2691,7 +2693,7 @@ function personaText(rec) {
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
 const PET_HAPPY_MS = 5 * 1000, LOSS_SAD_MS = 60 * 1000;
-const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : null;
+const baseEmoFor = rec => rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : rec.lives >= ENERGETIC_LIVES ? 'energetic' : null;
 const isBattered = rec => rec.lives <= BATTERED_LIVES; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
