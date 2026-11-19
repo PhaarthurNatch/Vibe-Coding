@@ -127,6 +127,8 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
 - **Peso por etapa** (`WEIGHT_SCALE`): los adultos llegaban casi todos al tope 3,5; ahora su peso se escala (×0,885, tope 4,2) para que el promedio siga ~3,3
   pero haya adultos livianos (~2,6) y pesados (~4,1). Las otras etapas no cambian. `st.mass` es el peso sin escalar ni tope (lo usa el vuelo).
+- **El peso da defensa** (pedido del dueño): `defense += (peso / WEIGHT_AVG[etapa] − 1) · WEIGHT_DEF` (6; promedios por etapa bebé 0,91 · niño 1,33 · adolescente 2,2 · adulto 3,31), así el promedio de defensa no cambia.
+  Un adulto pesado (~4,1) gana ~+1,5 de defensa y uno liviano (~2,6) pierde ~1,3. Con 6: livianos ~40% / medios ~44% / pesados ~45–46% en 1v1 (sin esto, todos ~44%); con 12 la brecha llegaba a 38% / 47%.
 - **Cadenas de golpes** (`STUN`): si te interrumpen el golpe, la espera baja a 0,25 s; tras 2 aturdimientos seguidos queda 0,6 s sin aturdirse;
   el más pesado se aturde un poco menos (`poise`) y el más liviano pega más fuerte al más pesado (`light` 0,5; era 2 antes del peso por etapa y dejaba a los livianos en 67%).
   Racha máxima bajó de ~18–25 golpes seguidos a ~13. Con el peso por etapa: livianos ~48% / medios ~48–52% / pesados ~51–54% en 1v1. `KITE.ffaFire` subió a 2,0 para que el Cauto no volviera a dominar todos contra todos.
