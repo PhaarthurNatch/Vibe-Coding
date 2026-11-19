@@ -38,6 +38,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
+#btnRanch{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);pointer-events:auto;font-size:20px;box-shadow:0 3px 0 rgba(0,0,0,.35)} /* volver al rancho: abajo al medio */
+#home.ranch #btnRanch,#home.first #btnRanch{display:none}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #home:not(.ranch) .ranchHint{display:none}
@@ -217,11 +219,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="page" id="pgHome">
   <button class="edgeLbl up" data-go="0">▲ Tienda</button>
   <div class="nav">
-    <button class="roundbtn" id="btnRanch" title="Volver al rancho">🏡</button>
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
-    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
-  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
+  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div><button class="roundbtn" id="btnRanch" title="Volver al rancho">🏡</button></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
