@@ -1844,9 +1844,9 @@ class Monster {
       }
       ctx.restore();
       // cejas
-      if (E === 'angry' || E === 'scared' || E === 'sad' || E === 'surprised' || E === 'energetic') {
-        const ang = E === 'angry' ? -side * 0.5 : E === 'surprised' ? 0 : E === 'energetic' ? -side * 0.22 : side * 0.45;
-        const by = ey - er * (E === 'surprised' ? 1.65 : E === 'angry' ? 1.15 : E === 'energetic' ? 1.55 : 1.4);
+      if (E === 'angry' || E === 'scared' || E === 'sad' || E === 'surprised') {
+        const ang = E === 'angry' ? -side * 0.5 : E === 'surprised' ? 0 : side * 0.45;
+        const by = ey - er * (E === 'surprised' ? 1.65 : E === 'angry' ? 1.15 : 1.4);
         ctx.save(); ctx.translate(ex, by); ctx.rotate(ang);
         ctx.beginPath(); ctx.moveTo(-er * 0.8, 0); ctx.lineTo(er * 0.8, 0); ctx.lineWidth = lw * 1.8; ctx.strokeStyle = C.ol; ctx.stroke();
         ctx.restore();
@@ -2264,7 +2264,7 @@ function drawArena(ctx) {
 const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolescente', adult: 'Adulto', awakened: 'Awakened' };
 const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
 const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cuántos para abajo se ve machacado
-const BATTERED_LIVES = 2, ENERGETIC_LIVES = 4; // con 4 corazones o más se ve energético (ojos brillantes, gran sonrisa y saltitos)
+const BATTERED_LIVES = 2, ENERGETIC_LIVES = 5; // con 5 corazones se ve energético (ojos brillantes y saltitos)
 const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
 const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
 const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
