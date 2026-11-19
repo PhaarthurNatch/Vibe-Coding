@@ -2305,7 +2305,8 @@ function renderHome() {
     const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = 'Estadísticas'; tb.classList.remove('glow');
     return;
   }
-  $('btnLan').disabled = false; $('xpTxt').parentElement.style.display = '';
+  $('btnLan').disabled = firstEgg(); $('xpTxt').parentElement.style.display = '';
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('locked', firstEgg() && b.dataset.page !== '1'));
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
@@ -2372,7 +2373,11 @@ function checkBreedUnlock() {
     setTimeout(() => ask('¡Ya puedes criar! Tienes 2 monstruos Awakened: desliza hasta un espacio libre y toca «Criar» para cruzarlos.', { ok: 'Entendido', cancel: null }), 400);
   }
 }
+// Partida nueva: hasta que nazca el primer huevo no se puede ir a ningún lado (ni páginas ni otros espacios)
+const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.stage === 'egg');
+function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 function setPage(n) {
+  if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
   homePage = n; $('track').style.transform = `translateX(${-100 / 3 * n}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
   if (n === 2) renderTrain();
@@ -2391,7 +2396,7 @@ addEventListener('pointerup', e => {
     const n = clamp(homePage + (dx < 0 ? 1 : -1), 0, 2);
     if (n !== homePage) { swipedAt = performance.now(); setPage(n); }
   } else if (homePage === 1 && Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) {
-    swipedAt = performance.now(); switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
+    swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dy < 0 ? 1 : -1); // en el Home: arriba = siguiente, abajo = anterior
   }
 });
 // Cambiar de monstruo (deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
