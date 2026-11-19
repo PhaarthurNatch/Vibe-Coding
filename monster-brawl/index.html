@@ -2662,7 +2662,7 @@ function swipeEnd(x, y) {
     if (!ranchMode && homePage === 1 && v === 2) toRanch(); // de cerca, hacia abajo se vuelve al rancho
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) { // de cerca o en Estadísticas
-    swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dx < 0 ? 1 : -1); // a la izquierda = siguiente
+    swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
   }
 }
 addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') swipeStart(e.clientX, e.clientY, e.target); });
@@ -2670,8 +2670,18 @@ addEventListener('pointerup', e => { if (e.pointerType === 'mouse') swipeEnd(e.c
 addEventListener('touchstart', e => { if (e.touches.length === 1) swipeStart(e.touches[0].clientX, e.touches[0].clientY, e.target); else swipe = null; }, { passive: true });
 addEventListener('touchend', e => { const t = e.changedTouches[0]; if (t) swipeEnd(t.clientX, t.clientY); }, { passive: true });
 // Cambiar de monstruo (deslizar a los lados, de cerca): como tarjetas, el nuevo entra desde el lado
-function switchMonster(d) { // recorre también los espacios libres
-  const tot = Math.max(slotCap(), save.monsters.length), p = ((homeEmpty ?? save.sel) + d + tot) % tot;
+// De cerca en el rancho: el habitante más cercano hacia un lado de la pantalla (side 1 = derecha: el dedo va a la izquierda y la vista lo sigue)
+function ranchNeighbor(side) {
+  const cur = homeEmpty ?? save.sel, co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th); let best = null, bv = 1e9;
+  for (const a of RANCH.actors) {
+    if (a.slot === cur) continue;
+    const wx = a.x * co - a.z * sn, wz = a.x * sn + a.z * co; let rel = Math.atan2(wx, -wz) * side; if (rel <= 1e-3) rel += TAU;
+    if (rel < bv) { bv = rel; best = a; }
+  }
+  return best ? { slot: best.slot, long: bv > Math.PI } : null;
+}
+function switchMonster(d, nb) { // recorre también los espacios libres (nb: ir directo a ese espacio del rancho)
+  const tot = Math.max(slotCap(), save.monsters.length), p = nb ? nb.slot : ((homeEmpty ?? save.sel) + d + tot) % tot;
   const pf = RANCH.actors[homeEmpty ?? save.sel], prevFocus = pf ? { a: pf, x: pf.x, z: pf.z } : null;
   const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
@@ -2679,7 +2689,7 @@ function switchMonster(d) { // recorre también los espacios libres
   persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
   const travel = homePage === 1 && !ranchMode; // de cerca en el rancho: la cámara viaja por el rancho hasta el otro
-  slide = { t: 0, d, prev, prevFocus, travel, dur: travel ? 0.9 : SLIDE_S }; // como tarjetas (en Estadísticas): arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
+  slide = { t: 0, d, prev, prevFocus, travel, long: !!(nb && nb.long), dur: travel ? 0.9 : SLIDE_S }; // como tarjetas (en Estadísticas): arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
   for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats'), $('tName').parentElement, $('tlist')]) {
     el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
   }
@@ -3332,7 +3342,8 @@ function travelFade() {
 function travelPoint() {
   const T = travelFade(), pf = slide.prevFocus, a = RANCH.actors[homeEmpty ?? save.sel];
   const a0 = Math.atan2(pf.x, pf.z), r0 = Math.hypot(pf.x, pf.z), a1 = Math.atan2(a.x, a.z), r1 = Math.hypot(a.x, a.z);
-  const da = ((a1 - a0 + Math.PI) % TAU + TAU) % TAU - Math.PI, an = a0 + da * T.e, rr = lerpN(r0, r1, T.e);
+  let da = ((a1 - a0 + Math.PI) % TAU + TAU) % TAU - Math.PI; if (slide.long) da -= Math.sign(da) * TAU; // gira hacia el lado del deslizamiento
+  const an = a0 + da * T.e, rr = lerpN(r0, r1, T.e);
   return { x: Math.sin(an) * rr, z: Math.cos(an) * rr };
 }
 function drawRanchBg(ctx, r, pz) {
