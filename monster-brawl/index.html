@@ -55,6 +55,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button{background:transparent;color:var(--muted);font-weight:800;font-size:12.5px;padding:7px 8px;white-space:nowrap;border-radius:999px;letter-spacing:.3px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
 .tabs button.locked{opacity:.5}
+@media (max-width:380px){.tabs{gap:0}.tabs button{font-size:11.5px;padding:7px 6px;letter-spacing:0}} /* celulares angostos: que quepan las 4 pestañas */
 .ultbar{display:flex;gap:8px;justify-content:center;padding-top:6px}
 .ultbtn{flex:1;max-width:260px;padding:10px 8px;border-radius:16px;background:linear-gradient(#ffe08a,#ff9a3c 60%,#e8641c);color:#2a1200;box-shadow:0 4px 0 #8a3a0a,0 0 18px rgba(255,170,60,.55);display:flex;flex-direction:column;align-items:center;gap:1px;animation:ultpulse 1.4s ease-in-out infinite}
 .ultbtn b{font-size:18px;font-weight:900;letter-spacing:2px}
@@ -189,7 +190,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <!-- HOME -->
 <div id="home" class="screen on">
   <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
-  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Entrenar</button><button data-page="3">Criadero</button></div>
+  <div class="tabs" role="tablist"><button data-page="0">Tienda</button><button data-page="1" class="on">Monstruo</button><button data-page="2">Estadísticas</button><button data-page="3">Criadero</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateX(-25%)">
   <div class="page">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -212,7 +213,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="ultinfo" id="ultInfo" hidden></div>
     <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
-      <button class="btn" id="btnFree">Liberar</button>
       <button class="btn" id="btnLan">📶 Pelea local</button>
     </div>
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
@@ -229,6 +229,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="panel tpanel">
       <div class="tlist" id="tlist"></div>
       <div class="tinfo" id="tinfo"></div>
+      <button class="btn" id="btnFree">Liberar</button>
     </div>
   </div>
   <div class="page">
@@ -2275,15 +2276,15 @@ function renderHome() {
     $('cLv').textContent = $('cHearts').textContent = $('cTime').textContent = ''; $('cIdx').textContent = `${homeEmpty + 1}/${slotCap()}`;
     $('stats').innerHTML = '<p class="eggmsg">Aquí puede vivir otro monstruo.<br>Compra un huevo en la <b>Tienda</b> o cría uno en el <b>Criadero</b>.</p>';
     $('ultInfo').hidden = true; $('rest').hidden = true; $('hint').hidden = true; $('xpTxt').parentElement.style.display = 'none';
-    document.querySelectorAll('[data-mode]').forEach(b => b.disabled = true); $('btnFree').disabled = $('btnLan').disabled = true;
-    const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = 'Entrenar'; tb.classList.remove('glow');
+    document.querySelectorAll('[data-mode]').forEach(b => b.disabled = true); $('btnLan').disabled = true;
+    const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = 'Estadísticas'; tb.classList.remove('glow');
     return;
   }
-  $('btnFree').disabled = $('btnLan').disabled = false; $('xpTxt').parentElement.style.display = '';
+  $('btnLan').disabled = false; $('xpTxt').parentElement.style.display = '';
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
-  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; tb.classList.toggle('glow', free > 0); }
+  { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Estadísticas (${free})` : 'Estadísticas'; tb.classList.toggle('glow', free > 0); }
   $('rest').hidden = !resting(rec) || (napping(rec) && !(rec.restUntil > Date.now())); // durmiendo: la cuenta va arriba del monstruo
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
@@ -2580,7 +2581,7 @@ function renderShopUlts(hide) {
     const own = ownsUlt(k);
     const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
     return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
-  }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Entrenar.</p>`;
+  }).join('')}</div><p class="tdesc">Para monstruos Awakened (Nv. ${STAGE_LV.awakened}+). Quedan para todos tus monstruos y se equipan desde Estadísticas.</p>`;
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;

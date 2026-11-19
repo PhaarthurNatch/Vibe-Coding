@@ -7,7 +7,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
 - **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: huevos por 60 monedas, que se abren ahí mismo, y ultimates por 150; máximo 8 monstruos),
-  Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo), Entrenar y Criadero (a la derecha).
+  Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo), Estadísticas (entrenar y liberar) y Criadero (a la derecha).
 - **Criadero**: cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas. El hijo hereda partes, colores y
   personalidad de sus padres (a veces muta algo) y al despertar trae la ultimate de uno de ellos.
 - **Huevo y etapas de vida**: cada monstruo nuevo parte como huevo (tócalo para que nazca y ponle nombre).
@@ -40,7 +40,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
   débil o distraído y lo remata más fuerte), Valiente↔Prudente (con poca vida pega más fuerte / se aleja y esquiva más).
   Cambia con ejercicios (monedas) y según cómo pelea.
   En Awakened eliges el momento de la ultimate: apenas pueda, como remate o para salvarse.
-- **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Entrenar. Al despertar trae una de regalo; las demás
+- **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Estadísticas. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
   al otro lado), Bala gigante (atraviesa todo en línea recta; apunta adelantándose), Escudo de hierro (no recibe daño 10 s), Supervelocidad (se mueve y
   ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
