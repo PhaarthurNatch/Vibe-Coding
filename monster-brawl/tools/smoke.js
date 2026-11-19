@@ -1,4 +1,4 @@
-// Prueba rápida: abre el juego como iPhone 13, adopta y hace nacer el primer huevo, le pone nombre y juega una pelea 1 vs 1.
+// Prueba rápida: abre el juego como iPhone 13, hace nacer el primer huevo (en el Home), le pone nombre y juega una pelea 1 vs 1.
 // Uso: node monster-brawl/tools/smoke.js   (debe terminar con "no errors")
 const path = require('path');
 const { chromium, devices } = require('playwright');
@@ -8,10 +8,9 @@ const { chromium, devices } = require('playwright');
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
   await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(400);
-  // partida nueva: empieza en Adoptar; se adopta el huevo y se abre ahí mismo tocándolo
-  if (await p.isVisible('#btnNew')) { await p.click('#btnNew'); await p.waitForTimeout(300); } // (el primer huevo ya viene adoptado)
-  for (let i = 0; i < 12 && !(await p.evaluate(() => document.querySelector('#dialog.on') !== null)); i++) {
-    const e = await p.evaluate(() => ({ x: homeView.cx + adoptEgg.gx * homeView.k, y: homeView.gy - (adoptEgg.z + adoptEgg.h * 0.45) * homeView.k }));
+  // partida nueva: empieza en el Home con su primer huevo (gratis); se abre tocándolo
+  for (let i = 0; i < 12 && await p.evaluate(() => !!egg); i++) {
+    const e = await p.evaluate(() => ({ x: homeView.cx + egg.gx * homeView.k, y: homeView.gy - (egg.z + egg.h * 0.45) * homeView.k }));
     await p.mouse.click(e.x, e.y); await p.waitForTimeout(150);
   }
   await p.waitForSelector('#dialog.on', { timeout: 5000 }); await p.click('#dlgYes'); await p.waitForTimeout(300);
