@@ -2307,6 +2307,7 @@ const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjet
 // Deslizar a los lados lo gira (RANCH.th); tocar un habitante acerca la cámara a la vista de cerca (zoom → ranchMode = false).
 let ranchMode = true, zoom = null; const ZOOM_S = 0.45;
 const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0, parts: [] };
+const RANCH_CAMH = 0.18, RANCH_TREE = 1.7; // altura de la cámara (más chica = más a ras del suelo) y tamaño de los árboles
 const RANCH_RF = 2.2; // radio de la cerca: el rancho es grande y hay profundidad hasta ella
 function ranchDeco() {
   if (RANCH.deco) return RANCH.deco;
@@ -2394,8 +2395,8 @@ function ranchStep(dt) {
 RANCH.frame = 0;
 // Cámara del rancho para el área r: uno parado en el centro (el eje), baja y mirando paralela al piso; girar (RANCH.th) es mirar alrededor
 function ranchCam(r) {
-  const cx = r.left + r.width / 2, Yh = r.top + r.height * 0.42, CAM_D = 0, NEAR = 0.16;
-  const F = r.width * 0.85, camH = (r.bottom - Yh) * 0.3, kb = r.height * 0.16 / 150;
+  const cx = r.left + r.width / 2, Yh = r.top + r.height * 0.52, CAM_D = 0, NEAR = 0.16; // horizonte un poco bajo: cámara a ras del suelo, los árboles se alzan sobre él
+  const F = r.width * 0.85, camH = (r.bottom - Yh) * RANCH_CAMH, kb = r.height * 0.16 / 150;
   const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co, d = CAM_D - wz; return { X: cx + wx * F / Math.max(d, 0.01), Y: Yh + camH / Math.max(d, 0.01), wz, d, sc: 1 / Math.max(d, 0.01), vis: d > NEAR }; };
   return { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P };
@@ -2451,7 +2452,7 @@ function drawRanch(c, r, opt) {
     const d = it.d; c.save(); c.translate(p.X, p.Y); c.scale(k, k);
     c.globalAlpha = near(p) * (d.k === 'tree' || d.k === 'bush' || d.k === 'rock' ? ghost : 1); // sólo lo que queda casi encima de la cámara se desvanece; los árboles son sólidos (de cerca, transparentes)
     if (d.k === 'tree') {
-      const sc = d.s; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
+      const sc = d.s * RANCH_TREE; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
       c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -70 * sc, 14 * sc, 70 * sc);
       for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -120, 38, 36], [0, -82, 30, 26]]) { c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
     } else if (d.k === 'bush') {
