@@ -38,6 +38,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
+@keyframes cardUp{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
+@keyframes cardDown{from{transform:translateY(-28px);opacity:0}to{transform:none;opacity:1}}
+.cardUp{animation:cardUp .42s cubic-bezier(.2,.8,.2,1)}.cardDown{animation:cardDown .42s cubic-bezier(.2,.8,.2,1)}
 .corner{position:absolute;font-weight:800;font-size:16px;color:var(--text);text-shadow:0 2px 3px rgba(0,0,0,.5);line-height:1.15}
 .corner.tl{top:4px;left:2px}.corner.tr{top:4px;right:2px;text-align:right}.corner.bl,.corner.br{bottom:4px;left:2px;color:var(--muted);font-size:14px}.corner.br{left:auto;right:2px;text-align:right}
 .corner .hearts{font-size:20px}.corner.br{color:#cfc4ff;font-size:22px;font-weight:900}
@@ -2196,6 +2199,31 @@ function heartPath(ctx, x, y, r) {
   ctx.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.6, y - r * 1.1, x, y - r * 0.35);
   ctx.bezierCurveTo(x + r * 0.6, y - r * 1.1, x + r * 1.4, y - r * 0.1, x, y + r * 0.9); ctx.closePath();
 }
+// Lo que hay en un espacio del Home: el monstruo, su huevo o (si está libre) un huevo transparente con "?"
+function drawOcc(ctx, o) {
+  if (o.vacant) {
+    const bob = Math.sin(performance.now() / 700) * 2, ew = 44, eh = 56;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 0, ew * 0.55, ew * 0.16, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(0, bob - 2); eggPath(ctx, ew, eh);
+    ctx.fillStyle = 'rgba(210,200,255,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(210,200,255,.45)'; ctx.lineWidth = 2.5 / Math.max(o.k, 1) * 1.6; ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(225,215,255,.55)'; ctx.font = '900 30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, -eh * 0.42); ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  } else if (o.E) {
+    const E = o.E, ek = clamp(1 - E.z / 150, 0.3, 1);
+    ctx.fillStyle = `rgba(0,0,0,${0.3 * ek})`; ctx.beginPath(); ctx.ellipse(E.gx, 0, E.w * 0.55 * ek, E.w * 0.16 * ek, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(E.gx, -E.z); E.draw(ctx); ctx.restore();
+  } else if (o.show) {
+    const m = o.show, lift = m.z + m.hover, kk = clamp(1 - lift / 120, 0.3, 1);
+    ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(m.gx, 0, m.r * 1.4 * kk, m.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
+    m.draw(ctx);
+    if (m.sleep) { // Zzz mientras descansa
+      const h = m.nodes[m.ix.head];
+      ctx.fillStyle = 'rgba(220,210,255,.85)'; ctx.textAlign = 'center';
+      for (let i = 0; i < 3; i++) { const ph = (performance.now() / 1400 + i / 3) % 1; ctx.globalAlpha = Math.sin(ph * Math.PI); ctx.font = `800 ${10 + ph * 10}px system-ui`; ctx.fillText('z', h.x + m.g.head.w * 0.5 + ph * 22, h.y - m.g.head.h * 0.4 - ph * 34); }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
 function drawFxParts(ctx) {
   for (const q of fx.parts) {
     if (q.heart) { ctx.globalAlpha = clamp(q.life * 1.5, 0, 1); heartPath(ctx, q.x, q.y, q.r); fillStroke(ctx, q.col, '#7a1f45', 1.5); ctx.globalAlpha = 1; continue; }
@@ -2242,6 +2270,7 @@ let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 20
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 // Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
 const INTRO_STEP = 1.2, INTRO_S = INTRO_STEP * 3, FIGHT_S = 1.3;
+const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjetas)
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
@@ -2374,11 +2403,15 @@ addEventListener('pointerup', e => {
 // Cambiar de monstruo (deslizar arriba/abajo en el Home): el nuevo entra saltando (siguiente) o cayendo (anterior)
 function switchMonster(d) { // recorre también los espacios libres
   const tot = Math.max(slotCap(), save.monsters.length), p = ((homeEmpty ?? save.sel) + d + tot) % tot;
+  const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
   fx.parts = []; // corazones y chispas del anterior no pasan al siguiente
   persist(); renderHome(); checkGrowth();
-  if (show && scene === 'home') { if (d > 0) show.vz = 330; else { show.z = Math.min(homeBounds.maxZ, 160); show.vz = 0; show.resetRig(); } } // cae desde arriba: el esqueleto se arma ya en el aire (si no, la cabeza quedaba trabada bajo el cuello)
-  else if (egg) { egg.sq = 0.18; egg.vt += d * 5; }
+  if (scene !== 'home' || growAnim) return;
+  slide = { t: 0, d, prev }; // como tarjetas: arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
+  for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats'), $('ultInfo'), $('xpTxt').parentElement]) {
+    el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
+  }
 }
 addEventListener('pointercancel', () => swipe = null);
 addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true); // un deslizamiento no aprieta botones
@@ -3058,6 +3091,7 @@ function loop(now) {
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
   if (scene === 'home' && (show || egg || adoptLocked() || homeEmpty != null)) {
+    if (slide && (slide.t += dt / SLIDE_S) >= 1) slide = null;
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) {
       acc -= STEP; fxStep(STEP);
@@ -3078,35 +3112,21 @@ function loop(now) {
     const pal = E ? E.pal : empty ? { body: { h: 30, s: 45, l: 45 } } : show.g.pal, rad = Math.max(sz.h, 60) * k * 0.5;
     const glow = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
     glow.addColorStop(0, hsl(pal.body, -20, 0.35)); glow.addColorStop(1, 'rgba(27,21,48,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-    ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k);
-    if (empty) { // nido vacío / espacio libre: un círculo punteado en el suelo
-      if (vacant) { // huevo transparente con un signo de pregunta
-        const bob = Math.sin(performance.now() / 700) * 2, ew = 44, eh = 56;
-        ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, 0, ew * 0.55, ew * 0.16, 0, 0, TAU); ctx.fill();
-        ctx.save(); ctx.translate(0, bob - 2); eggPath(ctx, ew, eh);
-        ctx.fillStyle = 'rgba(210,200,255,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(210,200,255,.45)'; ctx.lineWidth = 2.5 / Math.max(k, 1) * 1.6; ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(225,215,255,.55)'; ctx.font = '900 30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', 0, -eh * 0.42); ctx.textBaseline = 'alphabetic';
-        ctx.restore();
-      }
+    if (slide && slide.prev.pal && !onAdopt) { // el brillo de fondo pasa de un color al otro
+      const e = clamp(slide.t, 0, 1), g0 = ctx.createRadialGradient(homeView.cx, homeView.gy - rad, 10, homeView.cx, homeView.gy - rad, Math.max(r.width, r.height) * 0.7);
+      g0.addColorStop(0, hsl(slide.prev.pal.body, -20, 0.35)); g0.addColorStop(1, 'rgba(27,21,48,0)');
+      ctx.globalAlpha = 1 - e; ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = e;
     }
-    else if (E) {
-      const ek = clamp(1 - E.z / 150, 0.3, 1);
-      ctx.fillStyle = `rgba(0,0,0,${0.3 * ek})`; ctx.beginPath(); ctx.ellipse(E.gx, 0, E.w * 0.55 * ek, E.w * 0.16 * ek, 0, 0, TAU); ctx.fill();
-      ctx.save(); ctx.translate(E.gx, -E.z); E.draw(ctx); ctx.restore();
-    } else {
-      const lift = show.z + show.hover, kk = clamp(1 - lift / 120, 0.3, 1);
-      ctx.fillStyle = `rgba(0,0,0,${0.3 * kk})`; ctx.beginPath(); ctx.ellipse(show.gx, 0, show.r * 1.4 * kk, show.r * 0.4 * kk, 0, 0, TAU); ctx.fill();
-      show.draw(ctx);
-      if (show.sleep) { // Zzz mientras descansa
-        const h = show.nodes[show.ix.head];
-        ctx.fillStyle = 'rgba(220,210,255,.85)'; ctx.textAlign = 'center';
-        for (let i = 0; i < 3; i++) { const ph = (performance.now() / 1400 + i / 3) % 1; ctx.globalAlpha = Math.sin(ph * Math.PI); ctx.font = `800 ${10 + ph * 10}px system-ui`; ctx.fillText('z', h.x + show.g.head.w * 0.5 + ph * 22, h.y - show.g.head.h * 0.4 - ph * 34); }
-        ctx.globalAlpha = 1;
-      }
-    }
-    drawFxParts(ctx);
-    ctx.restore();
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    const occ = { E, show: E ? null : show, vacant, k, pal };
+    const sl = slide && !onAdopt && r === areas[1] ? slide : null;
+    if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
+      const t = sl.t, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, hgt = r.height + 60;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, r.top + 2, W, r.height); ctx.clip(); // no tapa el nombre ni el panel
+      ctx.save(); ctx.globalAlpha = 1 - e * 0.7; ctx.translate(homeView.cx, homeView.gy - sl.d * e * hgt); ctx.scale(sl.prev.k, sl.prev.k); drawOcc(ctx, sl.prev); ctx.restore();
+      ctx.save(); ctx.translate(homeView.cx, homeView.gy + sl.d * (1 - e) * hgt); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore();
+      ctx.restore();
+    } else { ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore(); }
     if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
     if (fx.labelT > 0 && fx.label) {
       const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
