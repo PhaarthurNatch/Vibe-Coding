@@ -1860,7 +1860,7 @@ class Monster {
     const wavy = (amp, n) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const x = -mw * 0.7 + i * mw * 1.4 / n, y = my + (i % 2 ? -amp : amp) + jit() * 0.3; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); };
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
     if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
-    else if (custom && E === 'beat') wavy(mw * 0.05, 4);
+    // machacado: la boca no cambia (pedido del dueño)
     else if (false && custom && E === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
     else if (false && custom && E === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
