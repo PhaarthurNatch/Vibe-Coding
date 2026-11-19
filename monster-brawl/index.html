@@ -48,6 +48,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .hint{text-align:center;font-size:11px;color:var(--muted);pointer-events:none!important;margin-bottom:6px}
 .panel{background:rgba(37,29,61,.94);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:9px;backdrop-filter:blur(6px)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px}
+.stats:empty{display:none}
 .stat{display:grid;grid-template-columns:62px 1fr 34px;align-items:center;gap:6px;font-size:12px}
 .stat .lb{color:var(--muted)}
 .stat .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
@@ -88,7 +89,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .pips{display:flex;gap:3px;grid-column:1}
 .pips i{width:100%;max-width:18px;height:5px;border-radius:3px;background:rgba(255,255,255,.1)}
 .pips i.on{background:var(--acc)}
-.tbtn{grid-row:1/3;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
+.trow .bar{grid-column:1}
+.trow .tl small{margin-left:auto}
+.tbtn{grid-row:1/4;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
 .tpanel.shop{flex:1 1 auto;margin-top:6px}
@@ -209,8 +212,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
-    <div class="ultinfo" id="ultInfo" hidden></div>
-    <div class="xp"><span id="xpTxt">XP</span><div class="bar"><i id="xpBar" style="width:0"></i></div><span id="record"></span></div>
     <div class="row">
       <button class="btn" id="btnLan">📶 Pelea local</button>
     </div>
@@ -2301,12 +2302,12 @@ function renderHome() {
     $('mName').textContent = 'Espacio libre'; $('mSub').textContent = '';
     $('cLv').textContent = $('cHearts').textContent = $('cTime').textContent = ''; $('cIdx').textContent = `${homeEmpty + 1}/${slotCap()}`;
     renderSlotBtns();
-    $('ultInfo').hidden = true; $('rest').hidden = true; $('hint').hidden = true; $('xpTxt').parentElement.style.display = 'none';
+    $('rest').hidden = true; $('hint').hidden = true;
     document.querySelectorAll('[data-mode]').forEach(b => b.disabled = true); $('btnLan').disabled = true;
     const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = 'Estadísticas'; tb.classList.remove('glow');
     return;
   }
-  $('btnLan').disabled = firstEgg(); $('xpTxt').parentElement.style.display = '';
+  $('btnLan').disabled = firstEgg();
   $('home').classList.toggle('first', firstEgg()); // partida nueva: sin botones hasta que nazca el primer huevo
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
@@ -2321,23 +2322,13 @@ function renderHome() {
     updateEggSub();
     $('stats').innerHTML = rec.readyAt ? `<p class="eggmsg">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b>.<br>Primero tiene que incubar; cuando termine el tiempo, tócalo varias veces para que nazca.<br>Cada pelea que ganes lo adelanta ${INCUBATE_FIGHT_MS / 60000} min.</p>`
       : '<p class="eggmsg">Todavía no nace. Tócalo varias veces para romper el cascarón.<br>Nace como bebé y crece con cada nivel.</p>';
-    $('ultInfo').hidden = true; $('xpTxt').textContent = 'XP 0'; $('xpBar').style.width = '0'; $('record').textContent = '';
     return;
   }
   egg = null;
   show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
   $('mName').textContent = rec.name;
   updateSub();
-  const st = show.st;
-  const row = (lb, v, mx, txt) => `<div class="stat"><span class="lb">${lb}</span><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div><span class="val">${txt}</span></div>`;
-  $('stats').innerHTML = MAIN_DEF.map(([lb, fn, mx]) => row(lb, fn(st), mx, Math.round(fn(st)))).join('')
-    + `<p class="persona">${personaText(rec)}</p>`
-    + (rec.parents ? `<p class="persona">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '');
-  $('ultInfo').hidden = !show.awakened;
-  if (show.awakened) $('ultInfo').innerHTML = `Ultimate: <b>${ULTS[show.ultType].name}</b> · ${ULTS[show.ultType].desc}`;
-  $('xpTxt').textContent = `XP ${rec.xp}/${xpNeed(rec.level)}`;
-  $('xpBar').style.width = (rec.xp / xpNeed(rec.level) * 100) + '%';
-  $('record').textContent = `${rec.wins}V ${rec.losses}D`;
+  $('stats').innerHTML = ''; // las estadísticas están en la pestaña Estadísticas
 }
 
 function updateSub() {
@@ -2409,7 +2400,7 @@ function switchMonster(d) { // recorre también los espacios libres
   persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
   slide = { t: 0, d, prev }; // como tarjetas: arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
-  for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats'), $('ultInfo'), $('xpTxt').parentElement]) {
+  for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats')]) {
     el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
   }
 }
@@ -2424,11 +2415,14 @@ function renderTrain() {
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = `<p class="eggmsg">Aún no hay nada aquí: las estadísticas aparecen cuando nazca.<br>${rec.readyAt > Date.now() ? 'Primero tiene que terminar de incubar.' : 'Vuelve a la página del monstruo y tócalo varias veces para abrirlo.'}</p>`; $('tinfo').textContent = ''; return; }
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
-  const free = ptsTotal(rec.level) - ptsUsed(rec.pts);
-  let h = `<div class="tsec"><div class="thead">Puntos de entrenamiento <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'disponible' : 'disponibles'}</span></div>`;
-  h += PTS.map(t => { const n = rec.pts[t.k] || 0; return `<div class="trow">
-      <div class="tl">${t.name} <span class="tv"><b>${n}</b>/${PTS_MAX}</span></div>
+  const free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = (show && show.rec === rec ? show : new Monster(rec)).st;
+  let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
+    + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '') + `</div>`;
+  h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
+  h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
+      <div class="tl">${t.name} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
       <button class="btn tbtn" data-pt="${t.k}" ${!free || n >= PTS_MAX ? 'disabled' : ''}>+1</button>
+      <div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div>
       <div class="tdesc">${t.desc}</div></div>`; }).join('');
   h += `<p class="tdesc">Ganas ${PTS_PER_LEVEL} puntos por nivel. El cuerpo cambia según cómo lo entrenes.</p>`;
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
