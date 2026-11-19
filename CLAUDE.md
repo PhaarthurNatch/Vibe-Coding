@@ -4,7 +4,8 @@ Repositorio personal de juegos/prototipos. El proyecto activo es **Monster Brawl
 Los archivos `monster-game (3).jsx` y `monster-game (4).jsx` de la raíz son intentos anteriores del dueño: **no tocarlos**.
 
 **Idioma:** el dueño escribe en español (a veces con errores de tipeo). Responder siempre en español, y toda la UI del juego va en español.
-**Respuestas:** al terminar un cambio, responder **sólo con el link del Artifact** (https://claude.ai/artifact/5PSe9xvkZVHRRoQdiyMWBs), sin explicación, salvo que el dueño pregunte algo o pida más detalle (pedido del dueño).
+**Respuestas breves:** al terminar un cambio, decir sólo qué se hizo, en pocas líneas (sin detallar pruebas, tablas ni el proceso), salvo que el dueño pida más detalle.
+**Pull request:** se abre sólo cuando el dueño lo pide, y la respuesta es **sólo el link del pull request** (sin resumen ni preguntas).
 
 ---
 
