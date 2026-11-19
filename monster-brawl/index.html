@@ -136,6 +136,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
 .rest .btn{flex:none;padding:9px 12px;font-size:13px}
+.rest.only{justify-content:center;background:none;padding:0}
 .mid{color:var(--acc)}
 .growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
 #growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
@@ -2261,7 +2262,7 @@ function renderHome() {
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
   { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); const tb = document.querySelector('.tabs button[data-page="2"]'); tb.textContent = free > 0 ? `Entrenar (${free})` : 'Entrenar'; tb.classList.toggle('glow', free > 0); }
-  $('rest').hidden = !resting(rec);
+  $('rest').hidden = !resting(rec) || (napping(rec) && !(rec.restUntil > Date.now())); // durmiendo: la cuenta va arriba del monstruo
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
   if (isEgg) {
@@ -2297,9 +2298,8 @@ function updateRest() {
   const rec = cur();
   if (!resting(rec)) return;
   const nap = napping(rec) && !(rec.restUntil > Date.now());
-  $('btnHeal').hidden = nap;
-  if (nap) { $('restTxt').innerHTML = `Durmiendo después de criar. Despierta en <b>${mmss(rec.napUntil - Date.now())}</b>.`; return; }
-  $('restTxt').innerHTML = `Sin vidas. Descansa <b>${mmss(rec.restUntil - Date.now())}</b> para volver a pelear.`;
+  if (nap) return; // la cuenta regresiva se dibuja en grande arriba de él (sólo queda el botón de curar cuando descansa sin vidas)
+  $('rest').classList.add('only'); $('restTxt').textContent = '';
   $('btnHeal').textContent = `Curar ya · ${healCost(rec)}`;
   $('btnHeal').disabled = save.coins < healCost(rec);
 }
@@ -3055,7 +3055,8 @@ function loop(now) {
     const E = onAdopt ? adoptEgg : onBreed ? breedEgg : egg, empty = onBreed && !breedEgg; // Criadero sin huevo: sólo el nido
     // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
     const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
-    const k = Math.min(r.height * 0.78 / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
+    const sleepy = !E && !empty && show.sleep; // dormido: un poco más chico para que quepa la cuenta regresiva arriba
+    const k = Math.min(r.height * (sleepy ? 0.6 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), 3.2);
     homeView = { cx: r.left + r.width / 2, gy: r.bottom - r.height * 0.06, k, adopt: onAdopt, breed: onBreed };
     const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, r.height * 0.92 / k - sz.h * 1.05) };
     if (onAdopt) adoptBounds = bounds; else if (!onBreed) homeBounds = bounds;
@@ -3083,6 +3084,16 @@ function loop(now) {
     }
     drawFxParts(ctx);
     ctx.restore();
+    if (sleepy) { // cuenta regresiva grande arriba del monstruo dormido
+      const rec = cur(), rest = rec.restUntil > Date.now(), left = rest ? rec.restUntil - Date.now() : (rec.napUntil || 0) - Date.now();
+      if (left > 0) {
+        const y = Math.max(homeView.gy - Math.max(sz.h, 60) * k - 16, r.top + 62);
+        ctx.textAlign = 'center'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(20,10,30,.85)';
+        ctx.font = '800 14px system-ui'; ctx.lineWidth = 4; const lbl = rest ? 'sin vidas · descansando' : 'durmiendo';
+        ctx.strokeText(lbl, homeView.cx, y - 42); ctx.fillStyle = 'rgba(220,210,255,.95)'; ctx.fillText(lbl, homeView.cx, y - 42);
+        ctx.font = '900 42px system-ui'; ctx.lineWidth = 7; ctx.strokeText(mmss(left), homeView.cx, y); ctx.fillStyle = rest ? '#ff9aa6' : '#cfc4ff'; ctx.fillText(mmss(left), homeView.cx, y);
+      }
+    }
     if (fx.flash > 0) { ctx.fillStyle = `rgba(255,250,235,${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
     if (fx.labelT > 0 && fx.label) {
       const a = clamp(fx.labelT, 0, 1), y = homeView.gy - Math.max(sz.h, 60) * k - 30 - (2.4 - fx.labelT) * 12;
