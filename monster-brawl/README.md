@@ -5,6 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
+- **Ajustes ⚙️ (en el rancho, junto a las monedas)**: exportar la partida como un código para copiar, e importarla en otro lugar (por ejemplo, del link de prueba a la web app instalada, o a otro celular). Al importar se guarda un respaldo para poder deshacerlo. Además, el juego guarda solo una copia de la partida cada 2 minutos.
 - **Pelea local por WiFi**: de 2 a 8 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones). Los equipos se arman con colores: cada uno toca su monstruo en la sala para cambiar de color; los del mismo color son compañeros (1 vs 1, todos contra todos, 2 vs 2, 2 vs 1, etc.).
 - **Menú en 3 páginas, una debajo de otra** (deslizar arriba/abajo, o tocar "▲ Tienda" / "Estadísticas ▼" en los bordes; no hay pestañas): Tienda (arriba: ultimates por 150),
   Rancho (al medio, página inicial) y Estadísticas (abajo: entrenar y liberar).

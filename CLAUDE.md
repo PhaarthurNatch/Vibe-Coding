@@ -153,6 +153,12 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 - **Variedad (gen 3):** monstruos nuevos tienen partes y paletas extra (orejas, antenas, bocas, pinzas, tentáculos, etc.).
   Los monstruos antiguos (gen 2 / `legacy`) **deben verse exactamente igual**: `applyVariety` usa un flujo de azar aparte y sólo se aplica con `v3`.
 
+- **Ajustes ⚙️ (exportar / importar partida)**: botón `#btnSettings` arriba a la derecha de las monedas, **sólo en el rancho** (`#home:not(.ranch) .gearbtn` oculto); abre el modal `#settings`.
+  **Exportar**: muestra un código `MB1-` + la partida en base64 (`encodeSave`) con botón "Copiar código" (portapapeles o, si falla, `execCommand('copy')`).
+  **Copia local periódica**: cada 2 min y al salir de la app se guarda una copia en `localStorage` (`COPY_KEY` = `monster_brawl_copy`, `saveCopy`); exportar la refresca.
+  **Importar**: pega el código (`decodeSave` valida), pregunta con `ask()` mostrando el resumen de ambas partidas, guarda la actual en `UNDO_KEY` (`monster_brawl_undo`) y **reemplaza** la partida (`applyImport`: escribe `SAVE_KEY` y recarga; `importing` evita que `persist` la pise). "Deshacer la última importación" vuelve a la anterior.
+  Sirve para pasar la partida del link de prueba a la web app (son lugares distintos aunque sea el mismo celular). Las migraciones de `loadSave` se aplican al importar porque se recarga.
+
 ## Compatibilidad de partidas guardadas
 
 `loadSave` migra datos viejos: completa `stage`, `lives`, `pts`, `temper`, `ultMode`; marca adultos antiguos como `legacy`; devuelve las monedas del

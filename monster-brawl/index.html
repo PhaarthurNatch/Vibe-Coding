@@ -163,6 +163,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #lanBtns .btn{flex:1 1 auto}
 .instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
+#home:not(.ranch) .gearbtn{display:none} /* ajustes: sólo en el rancho */
+.setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
+.setsec{display:flex;flex-direction:column;gap:8px;text-align:left;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08)}
+.setsec b{font-size:15px}
+.setsec textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
+.setsec textarea:focus{outline:none;border-color:var(--acc)}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
@@ -225,7 +232,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div></div>
+  <div class="top"><div class="title">MONSTER BRAWL<small>cría · pelea · evoluciona</small></div><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -297,6 +304,26 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <canvas id="lanQR" hidden></canvas>
     <video id="lanVideo" playsinline muted hidden></video>
     <div class="row" id="lanBtns"></div>
+  </div>
+</div>
+<div class="modal" id="settings">
+  <div class="card setcard">
+    <h2 style="font-size:22px">Ajustes</h2>
+    <div class="setsec">
+      <b>Exportar partida</b>
+      <p class="tdesc">Copia este código y pégalo en «Importar partida» en el otro lugar (la web app u otro celular).</p>
+      <textarea id="expCode" readonly></textarea>
+      <button class="btn primary" id="btnCopy">Copiar código</button>
+      <p class="tdesc" id="copyInfo"></p>
+    </div>
+    <div class="setsec">
+      <b>Importar partida</b>
+      <p class="tdesc">Reemplaza la partida de aquí por la del código. Antes se guarda un respaldo para poder deshacerlo.</p>
+      <textarea id="impCode" placeholder="Pega aquí el código" autocomplete="off" spellcheck="false"></textarea>
+      <button class="btn" id="btnImport">Importar</button>
+      <button class="btn ghost" id="btnUndoImp" hidden>Deshacer la última importación</button>
+    </div>
+    <button class="btn" id="setClose">Cerrar</button>
   </div>
 </div>
 <div class="modal" id="breedPick">
@@ -2172,7 +2199,8 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
-function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
+function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
 const cur = () => save.monsters[save.sel];
@@ -2942,6 +2970,52 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.datase
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
 $('btnFightClose').onclick = () => fightMenu(false);
+
+// ---------- Ajustes: exportar / importar partida ----------
+// Copia local: cada 2 min (y al salir de la app) se guarda una copia de la partida (COPY_KEY); exportar la refresca y la da como código.
+// Importar reemplaza la partida, guardando antes la anterior (UNDO_KEY) para poder deshacerlo. El código es "MB1-" + la partida en base64.
+const COPY_KEY = 'monster_brawl_copy', UNDO_KEY = 'monster_brawl_undo', COPY_EVERY_MS = 2 * 60 * 1000;
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } };
+function saveCopy() { if (importing) return; const c = { t: Date.now(), data: JSON.stringify(save) }; lsSet(COPY_KEY, JSON.stringify(c)); return c; }
+setInterval(saveCopy, COPY_EVERY_MS);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveCopy(); });
+const encodeSave = json => 'MB1-' + btoa(unescape(encodeURIComponent(json)));
+function decodeSave(code) {
+  const c = (code || '').replace(/\s+/g, ''); if (!c.startsWith('MB1-')) return null;
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(c.slice(4))))); return o && Array.isArray(o.monsters) ? o : null; } catch (e) { return null; }
+}
+const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').length; return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
+function openSettings() {
+  const c = saveCopy();
+  $('expCode').value = encodeSave(c.data);
+  $('copyInfo').textContent = 'Se guarda una copia sola cada 2 minutos; el código siempre trae la partida al día.';
+  $('impCode').value = ''; $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
+  $('settings').classList.add('on');
+}
+$('btnSettings').onclick = openSettings;
+$('setClose').onclick = () => $('settings').classList.remove('on');
+$('expCode').onfocus = () => $('expCode').select();
+$('btnCopy').onclick = async () => {
+  const ta = $('expCode'); let ok = false;
+  try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) { }
+  if (!ok) { try { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); ok = document.execCommand('copy'); } catch (e) { } }
+  $('copyInfo').textContent = ok ? '¡Código copiado! Ahora pégalo en «Importar partida» en el otro lugar.' : 'No se pudo copiar solo: mantén presionado el código y elige Copiar.';
+};
+function applyImport(json) { importing = true; lsSet(SAVE_KEY, json); location.reload(); }
+$('btnImport').onclick = async () => {
+  const o = decodeSave($('impCode').value);
+  if (!o) { ask('Ese código no sirve. Revisa que lo hayas copiado completo (empieza con MB1-).', { ok: 'Entendido', cancel: null }); return; }
+  $('settings').classList.remove('on');
+  if (!await ask(`¿Reemplazar esta partida (${saveSummary(save)}) por la del código (${saveSummary(o)})? Se guarda un respaldo por si quieres deshacerlo.`, { ok: 'Importar' })) { $('settings').classList.add('on'); return; }
+  lsSet(UNDO_KEY, JSON.stringify(save)); applyImport(JSON.stringify(o));
+};
+$('btnUndoImp').onclick = async () => {
+  const u = lsGet(UNDO_KEY); let o = null; try { o = JSON.parse(u); } catch (e) { }
+  if (!o || !Array.isArray(o.monsters)) { lsSet(UNDO_KEY, null); $('btnUndoImp').hidden = true; return; }
+  $('settings').classList.remove('on');
+  if (!await ask(`¿Volver a la partida que tenías antes de importar (${saveSummary(o)})?`, { ok: 'Deshacer' })) { $('settings').classList.add('on'); return; }
+  lsSet(UNDO_KEY, null); applyImport(u);
+};
 
 // ---------- Selector de equipo (2 vs 2) ----------
 let lastTeam = null;
