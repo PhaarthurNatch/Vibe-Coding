@@ -3787,6 +3787,22 @@ function lanFinish() {
 const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 if ('serviceWorker' in navigator && location.protocol === 'https:' && !inFrame) navigator.serviceWorker.register('sw.js').catch(() => { });
+// Actualizaciones: la app instalada puede quedar abierta días en segundo plano. Al volver a ella se revisa si el juego cambió
+// (fecha del archivo en el servidor) y, si cambió y no hay una pelea en curso, se recarga sola con la versión nueva.
+const verOf = () => fetch(location.pathname, { method: 'HEAD', cache: 'no-store' }).then(r => r.headers.get('last-modified') || r.headers.get('etag') || '').catch(() => '');
+let appVer = null, hiddenAt = 0;
+if (location.protocol === 'https:' && !inFrame) {
+  verOf().then(v => appVer = v);
+  document.addEventListener('visibilitychange', async () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (Date.now() - hiddenAt < 20000 || !appVer) return;
+    const v = await verOf();
+    if (v && v !== appVer && scene === 'home' && !document.querySelector('.modal.on')) {
+      try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e) { }
+      location.reload();
+    }
+  });
+}
 let installEvt = null;
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!inFrame) $('btnInstall').hidden = false; }); // Android/Chrome
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
