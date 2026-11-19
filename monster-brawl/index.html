@@ -2887,7 +2887,7 @@ function renderTrain() {
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = (show && show.rec === rec ? show : new Monster(rec)).st;
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
-    + (rec.geneLock && !rec.bred && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
+    + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '') + `</div>`;
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
@@ -3037,8 +3037,8 @@ function openBreedPick() {
   const list = $('bpList'), go = $('bpGo'), aw = save.monsters.map((r, i) => [r, i]).filter(([r]) => canBreedStage(r.stage));
   breedSel.clear(); list.innerHTML = '';
   for (const [r, i] of aw) {
-    const ok = !resting(r) && !r.bred, b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !ok;
-    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span>`;
+    const ok = !resting(r), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !ok;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${napping(r) ? 'durmiendo' : resting(r) ? 'descansando' : hearts(r.lives)}</span>`;
     drawThumb(b.querySelector('canvas'), r);
     b.onclick = () => { if (breedSel.has(i)) breedSel.delete(i); else { if (breedSel.size >= 2) breedSel.delete([...breedSel][0]); breedSel.add(i); } refresh(); };
     list.appendChild(b);
@@ -3048,21 +3048,21 @@ function openBreedPick() {
     const n = breedSel.size; go.disabled = n < 2 || save.coins < BREED_COST;
     go.innerHTML = n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
   };
-  $('bpInfo').innerHTML = `El hijo hereda partes, colores y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Cada monstruo puede tener crías <b>una sola vez</b>. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
+  $('bpInfo').innerHTML = `El hijo hereda partes, colores y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
   go.onclick = () => { const [A, B] = [...breedSel].map(i => save.monsters[i]); doBreed(A, B); };
   $('bpNo').onclick = () => $('breedPick').classList.remove('on');
   refresh(); $('breedPick').classList.add('on');
 }
 function doBreed(A, B) {
-  if (!A || !B || A.bred || B.bred || resting(A) || resting(B) || save.coins < BREED_COST || save.monsters.length >= slotCap()) return;
+  if (!A || !B || A === B || resting(A) || resting(B) || save.coins < BREED_COST || save.monsters.length >= slotCap()) return;
   $('breedPick').classList.remove('on');
   save.coins -= BREED_COST;
   const rec = makeChild(A, B); rec.readyAt = Date.now() + INCUBATE_MS; // incuba en este espacio
-  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = B.bred = true; // sólo una vez en la vida
+  A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = (A.bred || 0) + 1; B.bred = (B.bred || 0) + 1; // pueden volver a criar tras descansar (bred = cuántas crías tuvo)
   save.monsters.push(rec); save.sel = save.monsters.length - 1; homeEmpty = null; breedSel.clear();
   persist(); renderHome(); if (egg) { egg.sq = 0.2; egg.vz = 200; } fx.label = '¡Un huevo!'; fx.labelT = 2;
 }
-// Tienda: genes. Se le da a un monstruo (que todavía no haya criado) y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
+// Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
 const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas y antenas', neck: 'Cuello', body: 'Torso y hombros', arms: 'Brazos', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
 function renderShopGenes() {
@@ -3078,8 +3078,8 @@ function openGenePick(grp) {
   list.innerHTML = '';
   save.monsters.forEach((r, i) => {
     if (r.stage === 'egg') return;
-    const has = !!(r.geneLock && r.geneLock[grp]), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = r.bred || has;
-    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${r.bred ? 'ya tuvo crías' : has ? 'ya lo tiene' : ''}</span>`;
+    const has = !!(r.geneLock && r.geneLock[grp]), b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = has;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span><span>${has ? 'ya lo tiene' : ''}</span>`;
     drawThumb(b.querySelector('canvas'), r);
     b.onclick = () => { sel = i; refresh(); };
     list.appendChild(b);
@@ -3090,7 +3090,7 @@ function openGenePick(grp) {
     go.innerHTML = sel == null ? 'Elige uno' : save.coins < GENE_COST ? `Te faltan ${GENE_COST - save.coins} monedas` : `Dar · <span class="ci"></span>${GENE_COST}`;
   };
   go.onclick = () => {
-    const r = save.monsters[sel]; if (!r || r.bred || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
+    const r = save.monsters[sel]; if (!r || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
     save.coins -= GENE_COST; r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
     $('genePick').classList.remove('on'); renderHome(); fx.label = `🧬 ${GENE_NAMES[grp]}`; fx.labelT = 2;
   };
