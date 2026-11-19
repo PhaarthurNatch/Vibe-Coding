@@ -2365,6 +2365,8 @@ function ranchStep(dt) {
         if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
       }
     }
+    if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
+    if (a.m && (a.m.gx || a.m.held)) { a.m.held = false; a.m.gx *= Math.exp(-dt * 3); if (Math.abs(a.m.gx) < 0.5) a.m.gx = 0; } // si lo habían lanzado de cerca, vuelve a su lugar
     if (a.m) { // animación: camina hacia el lado que se ve en pantalla; si se aleja de la cámara se ve de espaldas
       const toward = vx * sn + vz * c, sp0 = Math.hypot(vx, vz);
       if (sp0 > 0) { a.awayT = toward < -0.4 * sp0 ? Math.min(0.4, (a.awayT || 0) + dt) : Math.max(-0.4, (a.awayT || 0) - dt); a.turnT = 0; }
@@ -2431,7 +2433,7 @@ function drawRanch(c, r, opt) {
     const p = it.p, k = u * p.sc;
     if (it.a) {
       const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
-      if (a.kind === 'mon') { c.translate(0, -a.m.z); drawOcc(c, { show: a.m }); }
+      if (a.kind === 'mon') drawOcc(c, { show: a.m }); // (la altura de un salto ya viene en el esqueleto)
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else drawOcc(c, { vacant: true, k });
       c.restore();
@@ -2504,10 +2506,19 @@ function ranchPet(a, x, y, dist) {
   const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
+// Al acercarse a un monstruo: si estaba de espaldas se da vuelta a mirarte (con un saltito) y se alegra
+function greetFocus(a) {
+  if (!a || !a.m || a.m.sleep) return;
+  const wasBack = a.m.back || (a.awayT || 0) > 0.15;
+  a.m.back = false; a.awayT = -0.4; a.walk = false;
+  if (wasBack) a.m.vz = 170;
+  a.m.setEmo('happy', 1.8, 2);
+}
 function ranchZoomTo(best) {
+  greetFocus(best);
   if (best.slot < save.monsters.length) { save.sel = best.slot; homeEmpty = null; } else homeEmpty = best.slot;
   persist(); fx.parts = [];
-  zoom = { t: 0, dir: 1, px: (best.hit.x0 + best.hit.x1) / 2, py: (best.hit.y0 + best.hit.y1) / 2 };
+  const bh = best.hit; zoom = { t: 0, dir: 1, px: bh ? (bh.x0 + bh.x1) / 2 : W / 2, py: bh ? (bh.y0 + bh.y1) / 2 : H / 2 };
   ranchMode = false; renderHome(); checkGrowth();
   for (const el of [document.querySelector('#pgHome .nav'), document.querySelector('#pgHome .panel'), $('showArea')]) { el.classList.remove('zoomIn'); void el.offsetWidth; el.classList.add('zoomIn'); }
 }
@@ -2570,7 +2581,7 @@ function renderHome() {
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
   if (isEgg) {
-    show = null; egg = new EggView(rec);
+    const ra = RANCH.actors[save.sel]; show = null; egg = ra && ra.e && ra.rec === rec ? ra.e : new EggView(rec); // el mismo huevo del rancho
     $('mName').textContent = 'Huevo misterioso';
     updateEggSub();
     $('stats').innerHTML = rec.readyAt ? `<p class="eggmsg">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b>.<br>Primero tiene que incubar; cuando termine el tiempo, tócalo varias veces para que nazca.<br>Cada pelea que ganes lo adelanta ${INCUBATE_FIGHT_MS / 60000} min.</p>`
@@ -2578,7 +2589,9 @@ function renderHome() {
     return;
   }
   egg = null;
-  show = new Monster(rec); show.resetRig(); show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
+  const ra = RANCH.actors[save.sel]; // de cerca es el mismo monstruo del rancho (en vivo), no una copia
+  if (ra && ra.m && ra.rec === rec) show = ra.m; else { show = new Monster(rec); show.resetRig(); }
+  show.sleep = resting(rec); show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
   $('mName').textContent = rec.name;
   updateSub();
   $('stats').innerHTML = ''; // las estadísticas están en la pestaña Estadísticas
@@ -2689,6 +2702,7 @@ function switchMonster(d, nb) { // recorre también los espacios libres (nb: ir 
   persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
   const travel = homePage === 1 && !ranchMode; // de cerca en el rancho: la cámara viaja por el rancho hasta el otro
+  if (travel) greetFocus(RANCH.actors[homeEmpty ?? save.sel]);
   slide = { t: 0, d, prev, prevFocus, travel, long: !!(nb && nb.long), dur: travel ? 0.9 : SLIDE_S }; // como tarjetas (en Estadísticas): arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
   for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats'), $('tName').parentElement, $('tlist')]) {
     el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
@@ -3354,11 +3368,10 @@ function drawRanchBg(ctx, r, pz) {
   if (T && slide.prevFocus) { // al pasar a otro monstruo, la cámara viaja por el rancho de uno al otro (se aleja un poco a mitad de camino)
     const pf = slide.prevFocus, fw = travelPoint(), q = C.P(fw.x, fw.z);
     fxp = q.X; fyp = q.Y; Z = homeView.k / (C.kb * q.sc) * (1 - 0.45 * Math.sin(Math.PI * T.e)); dd = q.d;
-    alphaOf = o => o === pf.a ? 1 - T.prev : o === a ? 1 - T.cur : 1; // el de primer plano se cambia por el del rancho mientras viaja
   }
   const Zp = Math.max(1, 1 + (Z - 1) * pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, homeView.gy, pz);
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
-  drawRanch(ctx, r, { hide: a, hideA: 1 - clamp((pz - 0.55) / 0.45, 0, 1), alphaOf, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
+  drawRanch(ctx, r, { alphaOf, cullD: dd * 0.75 * pz, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
   ctx.fillStyle = `rgba(18,12,36,${0.22 * pz})`; ctx.fillRect(0, r.top, W, r.height); // un poco más oscuro para que resalte el de adelante
   return true;
@@ -3385,14 +3398,12 @@ function drawCloseUp(ctx, r, onHome, pz) {
   const withBg = pz != null && drawRanchBg(ctx, r, pz); // en el Rancho: de fondo, el rancho en tiempo real donde está el monstruo
   if (!withBg) { ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); }
   ctx.globalAlpha = 1;
-  const fa = withBg ? clamp((pz - 0.55) / 0.45, 0, 1) : 1; // en el acercamiento, el de primer plano aparece al final
+  const fa = 1;
   if (fa < 1) { ctx.globalAlpha = fa; if (show) show.alpha = fa; }
   const occ = { E, show: E ? null : show, vacant, k, pal };
   const sl = slide, T = withBg ? travelFade() : null; // también en Estadísticas
-  if (sl && T) { // de cerca en el rancho: el anterior se desvanece, la cámara viaja y el nuevo aparece al llegar
-    if (T.prev > 0) { ctx.save(); ctx.globalAlpha = T.prev; if (sl.prev.show) sl.prev.show.alpha = T.prev; ctx.translate(homeView.cx, homeView.gy); ctx.scale(sl.prev.k, sl.prev.k); drawOcc(ctx, sl.prev); ctx.restore(); if (sl.prev.show) sl.prev.show.alpha = 1; }
-    ctx.save(); ctx.globalAlpha = T.cur * fa; if (show) show.alpha = T.cur * fa; ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k); drawOcc(ctx, occ); drawFxParts(ctx); ctx.restore();
-  } else if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
+  if (withBg) { ctx.save(); ctx.translate(homeView.cx, homeView.gy); ctx.scale(k, k); drawFxParts(ctx); ctx.restore(); } // el monstruo ya está en el rancho (en vivo): sólo los efectos encima
+  else if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
     const t = sl.t, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, wid = r.width + 80;
     ctx.save(); ctx.beginPath(); ctx.rect(0, r.top + 2, W, r.height); ctx.clip(); // no tapa el nombre ni el panel
     ctx.save(); ctx.globalAlpha = 1 - e * 0.7; ctx.translate(homeView.cx - sl.d * e * wid, homeView.gy); ctx.scale(sl.prev.k, sl.prev.k); drawOcc(ctx, sl.prev); ctx.restore();
@@ -3430,8 +3441,8 @@ function loop(now) {
         egg.wig = (egg.wig ?? 0.8) - STEP;
         if (egg.wig < 0) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 2.5); egg.sq = 0.07; egg.wig = Math.random() < 0.55 ? 0.16 + Math.random() * 0.08 : 1.1 + Math.random() * 1.6; }
       }
-      if (egg) { egg.update(STEP); const er = cur(); if (er && er.readyAt && Date.now() >= er.readyAt && Math.random() < STEP * 0.9) egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; } // huevo criado listo: se mueve solo
-      else if (show) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      if (egg && !ranchMode) { egg.update(STEP); const er = cur(); if (er && er.readyAt && Date.now() >= er.readyAt && Math.random() < STEP * 0.9) egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; } // huevo criado listo: se mueve solo
+      else if (show && !ranchMode) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
       ranchStep(STEP); // el rancho sigue vivo también de fondo en la vista de cerca
     }
     // Se dibuja en el área de la página que está más a la vista (Rancho o Estadísticas)
@@ -3442,7 +3453,7 @@ function loop(now) {
       const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2;
       drawCloseUp(ctx, r, true, zoom.dir > 0 ? e : 1 - e);
     } else if (onHome && ranchMode) drawRanch(ctx, r);
-    else if (hasClose) drawCloseUp(ctx, r, onHome, onHome ? 1 : null);
+    else if (hasClose) drawCloseUp(ctx, r, onHome, onHome && !firstEgg() ? 1 : null);
   } else if (scene === 'grow' && growAnim) {
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) { acc -= STEP; growStep(STEP); }
