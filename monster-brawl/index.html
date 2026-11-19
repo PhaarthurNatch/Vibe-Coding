@@ -2578,7 +2578,7 @@ function swipeEnd(x, y) {
     const n = homePage + (dy < 0 ? 1 : -1);
     if (n < 0 || n > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now(); setPage(n);
-  } else if (homePage === 1 && !ranchMode && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) {
+  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dx < 0 ? 1 : -1); // a la izquierda = siguiente
   }
 }
@@ -2595,7 +2595,7 @@ function switchMonster(d) { // recorre también los espacios libres
   persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
   slide = { t: 0, d, prev }; // como tarjetas: arriba = la siguiente sube desde abajo; abajo = la anterior baja desde arriba
-  for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats')]) {
+  for (const el of [$('nameBox'), $('cLv'), $('cHearts'), $('cIdx'), $('cTime'), $('stats'), $('tName').parentElement, $('tlist')]) {
     el.classList.remove('cardUp', 'cardDown'); void el.offsetWidth; el.classList.add(d > 0 ? 'cardUp' : 'cardDown');
   }
 }
@@ -3251,7 +3251,7 @@ function drawCloseUp(ctx, r, onHome) {
   }
   ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
   const occ = { E, show: E ? null : show, vacant, k, pal };
-  const sl = slide && onHome ? slide : null;
+  const sl = slide; // también en Estadísticas
   if (sl) { // cambiar de monstruo: tarjetas que se deslizan (la anterior sale, la nueva entra)
     const t = sl.t, e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, wid = r.width + 80;
     ctx.save(); ctx.beginPath(); ctx.rect(0, r.top + 2, W, r.height); ctx.clip(); // no tapa el nombre ni el panel
