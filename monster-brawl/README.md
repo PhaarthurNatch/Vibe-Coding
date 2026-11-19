@@ -5,7 +5,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 
 ## Qué hay
 - **Web app instalable**: se puede instalar desde el navegador (botón Instalar; en iPhone, Compartir → Agregar a pantalla de inicio) y funciona sin internet.
-- **Pelea local por WiFi**: dos celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (amistosa, sin perder corazones).
+- **Pelea local por WiFi**: de 2 a 4 celulares en el mismo WiFi se conectan escaneando códigos QR y pelean sus monstruos (1 vs 1, todos contra todos o 2 vs 2; amistosa, sin perder corazones).
 - **Menú en 3 páginas** (deslizar o tocar las pestañas): Tienda (a la izquierda: huevos por 60 monedas, que se abren ahí mismo, y ultimates por 150; máximo 8 monstruos),
   Monstruo (el "home", página inicial; deslizar arriba/abajo cambia de monstruo), Entrenar y Criadero (a la derecha).
 - **Criadero**: cruza dos Awakened por 150 monedas; los padres duermen 30 min y el huevo incuba 3 horas. El hijo hereda partes, colores y

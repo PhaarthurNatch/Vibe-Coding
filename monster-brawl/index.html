@@ -2966,7 +2966,7 @@ $('quit').onclick = async () => {
 };
 $('resHome').onclick = () => { if (battle && battle.lan) { lanSend({ t: 'bye' }); lanClose(); } $('resAgain').textContent = 'Otra pelea'; goHome(); };
 $('resAgain').onclick = () => {
-  if (battle && battle.lan) { if (LAN.role === 'host') lanStartHost(); else { lanSend({ t: 'again' }); $('resAgain').disabled = true; $('resAgain').textContent = 'Esperando…'; } return; }
+  if (battle && battle.lan) { if (LAN.role === 'host') lanStartHost(LAN.mode); else { lanSend({ t: 'again' }); $('resAgain').disabled = true; $('resAgain').textContent = 'Esperando…'; } return; }
   startBattle(lastMode);
 };
 
@@ -3097,12 +3097,15 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 // ============================================================================
-// PELEA LOCAL POR WIFI: los celulares se conectan directo (WebRTC, sin internet) y se emparejan con códigos QR.
-// El anfitrión simula la pelea y le manda al otro celular lo que pasa ~30 veces por segundo; el invitado sólo dibuja
-// y manda cuándo aprieta su ULTIMATE. Pelea amistosa: no se pierden corazones ni hay premios.
+// PELEA LOCAL POR WIFI (hasta 4 jugadores): los celulares se conectan directo (WebRTC, sin internet) y se emparejan con códigos QR.
+// El anfitrión empareja a cada amigo por separado (una conexión con cada uno), simula la pelea y les manda lo que pasa ~30 veces
+// por segundo; los invitados sólo dibujan y mandan cuándo aprietan su ULTIMATE. Pelea amistosa: no se pierden corazones ni hay premios.
 // ============================================================================
-const LAN = { pc: null, dc: null, role: null, open: false, peer: null, scan: null, sendT: 0, snap: null };
-const lanSend = o => { try { if (LAN.dc && LAN.dc.readyState === 'open') LAN.dc.send(JSON.stringify(o)); } catch (e) { } };
+const LAN_MAX = 4;
+// peers: en el anfitrión, una conexión por invitado {pc, dc, open, rec, idx}; en el invitado, sólo la del anfitrión
+const LAN = { role: null, peers: [], pending: null, scan: null, sendT: 0, snap: null, lobby: [], mode: '1v1', me: 0, camOk: false };
+const lanSend = (o, only) => { const s = JSON.stringify(o); for (const p of only ? [only] : LAN.peers) try { if (p.dc && p.dc.readyState === 'open') p.dc.send(s); } catch (e) { } };
+const lanLinked = () => LAN.peers.some(p => p.open);
 // Descripción de la conexión, achicada para que el QR sea fácil de escanear (sólo lo necesario y los candidatos de la red local)
 function packSDP(desc) {
   const s = desc.sdp, g = re => (s.match(re) || [])[1];
@@ -3124,41 +3127,58 @@ function unpackSDP(str) {
 const iceDone = pc => pc.iceGatheringState === 'complete' ? Promise.resolve() : new Promise(res => {
   const t = setTimeout(res, 3000); pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
 });
-function lanNewPC() {
-  lanClose(true);
-  const pc = LAN.pc = new RTCPeerConnection({ iceServers: [] }); // sin servidores: sólo la red local
-  pc.onconnectionstatechange = () => { if (pc === LAN.pc && ['failed', 'closed'].includes(pc.connectionState)) lanLost(); };
-  return pc;
+function lanNewPeer() {
+  const peer = { pc: new RTCPeerConnection({ iceServers: [] }), dc: null, open: false, rec: null, idx: -1 }; // sin servidores: sólo la red local
+  peer.pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(peer.pc.connectionState)) lanPeerLost(peer); };
+  return peer;
 }
-function lanBindDC(dc) {
-  LAN.dc = dc;
-  dc.onopen = () => { LAN.open = true; const r = cur(); lanSend({ t: 'hi', rec: lanRec(r) }); lanUI('connected'); };
-  dc.onclose = () => lanLost();
-  dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m); };
+function lanBindDC(peer, dc) {
+  peer.dc = dc;
+  dc.onopen = () => {
+    peer.open = true;
+    if (LAN.role === 'host') { if (!LAN.peers.includes(peer)) LAN.peers.push(peer); if (LAN.pending === peer) LAN.pending = null; lanLobbyUpdate(); }
+    else lanSend({ t: 'hi', rec: lanRec(cur()) });
+  };
+  dc.onclose = () => lanPeerLost(peer);
+  dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
 const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes });
-function lanClose(silent) {
+function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
+function lanClose() {
   stopScan();
-  if (LAN.dc) { try { LAN.dc.onclose = null; LAN.dc.close(); } catch (e) { } }
-  if (LAN.pc) { try { LAN.pc.onconnectionstatechange = null; LAN.pc.close(); } catch (e) { } }
-  Object.assign(LAN, { pc: null, dc: null, open: false, peer: null, role: silent ? LAN.role : null });
+  for (const p of LAN.peers) lanDrop(p); lanDrop(LAN.pending);
+  Object.assign(LAN, { role: null, peers: [], pending: null, lobby: [] });
 }
-function lanLost() {
-  if (!LAN.pc && !LAN.dc) return;
-  const wasBattle = battle && battle.lan;
-  lanClose();
-  if (wasBattle) { goHome(); }
-  $('lan').classList.remove('on');
-  ask('Se perdió la conexión con el otro celular.', { ok: 'Entendido', cancel: null });
+function lanPeerLost(peer) {
+  if (peer === LAN.pending && !peer.open) return; // un emparejamiento que no prosperó: se reintenta desde la ventana
+  if (!LAN.peers.includes(peer)) return;
+  if (LAN.role === 'guest') { // se cayó el anfitrión: se termina todo
+    const wasBattle = battle && battle.lan; lanClose(); if (wasBattle) goHome();
+    $('lan').classList.remove('on'); ask('Se perdió la conexión con el anfitrión.', { ok: 'Entendido', cancel: null }); return;
+  }
+  lanDrop(peer); LAN.peers = LAN.peers.filter(p => p !== peer);
+  const name = peer.rec ? peer.rec.name : 'Un jugador';
+  if (battle && battle.lan && peer.idx >= 0 && battle.ms[peer.idx]) { battle.ms[peer.idx].remoteCtl = false; battle.text(battle.ms[peer.idx], 'sin conexión', '#ff9a9a'); } // sigue peleando solo
+  else ask(`${name} se desconectó.`, { ok: 'Entendido', cancel: null });
+  lanLobbyUpdate();
 }
-async function lanHost() {
+// Anfitrión: lista de jugadores (también se la manda a los invitados)
+function lanPlayers() { return [{ name: cur().name, level: cur().level, me: true }, ...LAN.peers.filter(p => p.open).map(p => p.rec ? { name: p.rec.name, level: p.rec.level } : { name: 'conectando…', level: 0 })]; }
+function lanLobbyUpdate() {
+  if (LAN.role !== 'host') return;
+  const names = lanPlayers().map(p => p.name);
+  LAN.peers.filter(p => p.open).forEach((p, i) => lanSend({ t: 'lobby', names, you: i + 1 }, p)); // cada invitado sabe cuál es él
+  if ($('lan').classList.contains('on') && !LAN.pending && !LAN.scan && !(battle && battle.lan)) lanUI('lobby');
+}
+async function lanHost() { // crear pelea, o agregar otro jugador
   LAN.role = 'host'; lanUI('wait', 'Preparando el código…');
   try {
     // pedir la cámara primero (igual se usa para escanear): con ese permiso el navegador muestra su dirección real en la red, y conecta mejor
-    try { const st = await navigator.mediaDevices.getUserMedia({ video: true }); st.getTracks().forEach(t => t.stop()); } catch (e) { }
-    const pc = lanNewPC(); lanBindDC(pc.createDataChannel('mb', { ordered: true }));
-    await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
-    lanUI('qr', packSDP(pc.localDescription));
+    if (!LAN.camOk) { try { const st = await navigator.mediaDevices.getUserMedia({ video: true }); st.getTracks().forEach(t => t.stop()); LAN.camOk = true; } catch (e) { } }
+    lanDrop(LAN.pending); const peer = LAN.pending = lanNewPeer();
+    lanBindDC(peer, peer.pc.createDataChannel('mb', { ordered: true }));
+    await peer.pc.setLocalDescription(await peer.pc.createOffer()); await iceDone(peer.pc);
+    lanUI('qr', packSDP(peer.pc.localDescription));
   } catch (e) { lanUI('error', 'No se pudo crear la pelea en este celular.'); }
 }
 async function lanGotCode(text) { // código escaneado: el invitado recibe la oferta; el anfitrión, la respuesta
@@ -3166,12 +3186,13 @@ async function lanGotCode(text) { // código escaneado: el invitado recibe la of
     const d = unpackSDP(text);
     if (LAN.role === 'guest' && d.type === 'offer') {
       lanUI('wait', 'Conectando…');
-      const pc = lanNewPC(); pc.ondatachannel = ev => lanBindDC(ev.channel);
-      await pc.setRemoteDescription(d); await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
-      lanUI('qr', packSDP(pc.localDescription));
-    } else if (LAN.role === 'host' && d.type === 'answer' && LAN.pc) {
-      lanUI('wait', 'Conectando…'); await LAN.pc.setRemoteDescription(d);
-      setTimeout(() => { if (!LAN.open && LAN.role === 'host') lanUI('error', 'No se pudieron conectar. Revisen que los dos estén en el mismo WiFi (o usen el punto de acceso de un celular) y vuelvan a intentar.'); }, 9000);
+      for (const p of LAN.peers) lanDrop(p);
+      const peer = lanNewPeer(); LAN.peers = [peer]; peer.pc.ondatachannel = ev => lanBindDC(peer, ev.channel);
+      await peer.pc.setRemoteDescription(d); await peer.pc.setLocalDescription(await peer.pc.createAnswer()); await iceDone(peer.pc);
+      lanUI('qr', packSDP(peer.pc.localDescription));
+    } else if (LAN.role === 'host' && d.type === 'answer' && LAN.pending) {
+      const peer = LAN.pending; lanUI('wait', 'Conectando…'); await peer.pc.setRemoteDescription(d);
+      setTimeout(() => { if (LAN.pending === peer && !peer.open) lanUI('error', 'No se pudieron conectar. Revisen que estén en el mismo WiFi (o usen el punto de acceso de un celular) y vuelvan a intentar.'); }, 9000);
     } else lanUI('error', LAN.role === 'host' ? 'Ese es tu propio código: escanea el código que muestra tu amigo.' : 'Escanea el código del celular que creó la pelea.');
   } catch (e) { lanUI('error', e.message || 'No se pudo leer el código.'); }
 }
@@ -3208,69 +3229,84 @@ function drawQR(canvas, text) {
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect((c + q) * px, (r + q) * px, px, px);
 }
 // ---------- Ventana de la pelea local ----------
+const LAN_MODES = { '1v1': '1 vs 1', ffa: 'Todos contra todos', '2v2': '2 vs 2' };
 function lanUI(st, data) {
   const info = $('lanInfo'), qr = $('lanQR'), vid = $('lanVideo'), btns = $('lanBtns');
   qr.hidden = vid.hidden = true; if (st !== 'scan') stopScan();
   const B = (lbl, fn, cls = '') => { const b = document.createElement('button'); b.className = 'btn ' + cls; b.textContent = lbl; b.onclick = fn; return b; };
   btns.innerHTML = '';
-  const cancel = B('Cancelar', () => { lanClose(); $('lan').classList.remove('on'); });
+  const host = LAN.role === 'host', linked = lanLinked();
+  const quit = () => { lanSend({ t: 'bye' }); lanClose(); $('lan').classList.remove('on'); };
+  const back = B(host && linked ? 'Volver' : 'Cancelar', () => { if (host && linked) { lanDrop(LAN.pending); LAN.pending = null; lanUI('lobby'); } else quit(); });
   if (st === 'menu') {
-    info.innerHTML = 'Pelea amistosa con un amigo <b>en el mismo WiFi</b> (o conectados al punto de acceso de un celular). No hace falta internet y no se pierden corazones.<br><br>Pelea tu monstruo elegido: <b>' + esc(cur().name) + '</b>.';
+    info.innerHTML = `Pelea amistosa de <b>2 a ${LAN_MAX} jugadores en el mismo WiFi</b> (o conectados al punto de acceso de un celular). No hace falta internet y no se pierden corazones.<br><br>Pelea tu monstruo elegido: <b>${esc(cur().name)}</b>.`;
     btns.append(B('Cerrar', () => $('lan').classList.remove('on')), B('Unirme', () => { LAN.role = 'guest'; lanUI('scan', 'Escanea el código del celular que creó la pelea.'); }), B('Crear pelea', lanHost, 'primary'));
-  } else if (st === 'wait') { info.textContent = data; btns.append(cancel); }
+  } else if (st === 'wait') { info.textContent = data; btns.append(back); }
   else if (st === 'qr') {
     qr.hidden = false; drawQR(qr, data); LAN.code = data;
-    if (LAN.role === 'host') { info.innerHTML = '<b>1.</b> Tu amigo toca <b>Unirme</b> y escanea este código.<br><b>2.</b> Después escanea tú el código que le aparece.'; btns.append(cancel, B('Escanear su código', () => lanUI('scan', 'Escanea el código que muestra tu amigo.'), 'primary')); }
-    else { info.innerHTML = 'Muéstrale este código al otro celular para que lo escanee. Se conectan solos.'; btns.append(cancel); }
-  } else if (st === 'scan') { vid.hidden = false; info.textContent = data; btns.append(cancel); startScan(); }
-  else if (st === 'connected') {
-    const peer = LAN.peer ? `<b>${esc(LAN.peer.name)}</b> (Nv. ${LAN.peer.level} · ${STAGE_NAME[LAN.peer.stage] || ''})` : 'tu amigo';
-    info.innerHTML = `¡Conectados! Tu <b>${esc(cur().name)}</b> contra ${peer}.` + (LAN.role === 'host' ? '' : '<br><br>Esperando a que el otro celular empiece la pelea…');
-    btns.append(B('Desconectar', () => { lanSend({ t: 'bye' }); lanClose(); $('lan').classList.remove('on'); }));
-    if (LAN.role === 'host') btns.append(B('¡Pelear!', () => { if (LAN.peer) lanStartHost(); }, 'primary'));
-  } else if (st === 'error') { info.textContent = data; btns.append(B('Cerrar', () => { lanClose(); $('lan').classList.remove('on'); }), B('Volver a intentar', () => { lanClose(); lanUI('menu'); }, 'primary')); }
+    if (host) { info.innerHTML = `<b>Jugador ${LAN.peers.filter(p => p.open).length + 2}:</b> toca <b>Unirme</b> y escanea este código.<br>Después escanea tú el código que le aparece.`; btns.append(back, B('Escanear su código', () => lanUI('scan', 'Escanea el código que muestra tu amigo.'), 'primary')); }
+    else { info.innerHTML = 'Muéstrale este código al celular que creó la pelea para que lo escanee. Se conectan solos.'; btns.append(back); }
+  } else if (st === 'scan') { vid.hidden = false; info.textContent = data; btns.append(back); startScan(); }
+  else if (st === 'lobby') {
+    const ps = host ? lanPlayers().map(p => p.name + (p.me ? ' (tú)' : '')) : LAN.lobby.map((n, i) => n + (i === LAN.lobbyMe ? ' (tú)' : ''));
+    const n = host ? lanPlayers().length : LAN.lobby.length;
+    info.innerHTML = `<b>Jugadores (${n}/${LAN_MAX})</b><br>` + ps.map(esc).join('<br>') + (host ? '' : '<br><br>Esperando a que el anfitrión empiece la pelea…');
+    btns.append(B('Desconectar', quit));
+    if (host) {
+      if (n < LAN_MAX) btns.append(B('+ Agregar jugador', lanHost));
+      const modes = n === 2 ? ['1v1'] : n === 3 ? ['ffa'] : n === 4 ? ['ffa', '2v2'] : [];
+      for (const md of modes) btns.append(B(n === 2 ? '¡Pelear!' : LAN_MODES[md], () => lanStartHost(md), 'primary'));
+    }
+  } else if (st === 'error') {
+    info.textContent = data;
+    btns.append(B(host && linked ? 'Volver' : 'Cerrar', () => { if (host && linked) { lanDrop(LAN.pending); LAN.pending = null; lanUI('lobby'); } else quit(); }));
+    if (!(host && linked)) btns.append(B('Volver a intentar', () => { lanClose(); lanUI('menu'); }, 'primary'));
+  }
 }
 $('btnLan').onclick = () => {
   if (!window.RTCPeerConnection) { ask('Este navegador no permite peleas locales.', { ok: 'Entendido', cancel: null }); return; }
   if (!save.monsters.length || cur().stage === 'egg') { ask('Primero necesitas un monstruo nacido.', { ok: 'Entendido', cancel: null }); return; }
-  $('lan').classList.add('on'); LAN.open ? lanUI('connected') : lanUI('menu');
+  $('lan').classList.add('on'); lanLinked() ? lanUI('lobby') : lanUI('menu');
 };
-function lanMsg(m) {
-  if (m.t === 'hi') { LAN.peer = m.rec; if (!battle) lanUI('connected'); }
-  else if (m.t === 'bye') { lanLost(); }
+function lanMsg(m, peer) {
+  if (m.t === 'hi' && LAN.role === 'host') { peer.rec = m.rec; lanLobbyUpdate(); }
+  else if (m.t === 'lobby' && LAN.role === 'guest') { LAN.lobby = m.names; LAN.lobbyMe = m.you; if (!(battle && battle.lan)) { if ($('lan').classList.contains('on')) lanUI('lobby'); } }
+  else if (m.t === 'bye') lanPeerLost(peer);
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
   else if (m.t === 's' && battle && battle.puppet) LAN.snap = m;
-  else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[1]; if (g && g.ultReady && !g.dead) g.ultRequest = true; }
-  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; lanFinish(); }
-  else if (m.t === 'again' && LAN.role === 'host' && LAN.peer && (!battle || battle.over)) lanStartHost(); // el invitado pide revancha
+  else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[peer.idx]; if (g && g.ultReady && !g.dead) g.ultRequest = true; }
+  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; lanFinish(); }
+  else if (m.t === 'again' && LAN.role === 'host' && (!battle || battle.over)) lanStartHost(LAN.mode); // un invitado pide revancha
 }
 // ---------- La pelea ----------
-function lanSetupBattle(list, aw, ad) {
+function lanSetupBattle(list, aw, ad, mode) {
   $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
-  $('modeLbl').textContent = 'Pelea local';
+  $('modeLbl').textContent = 'Pelea local · ' + LAN_MODES[mode];
   ARENA_W = aw;
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, '1v1')}"></i></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
   setupUltBar(list);
   if (ad) ARENA_D = ad;
   else if (H / W > 1.25) { const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8; ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420, 1400); }
   else ARENA_D = 560;
-  battle = new Battle(list, '1v1'); battle.lan = true;
+  battle = new Battle(list, mode); battle.lan = true;
   scene = 'battle'; keepAwake(true);
 }
-function lanStartHost() {
-  const mine = cur(), other = LAN.peer; if (!mine || !other) return;
-  const zoom = Math.max(...[mine, other].map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
-  const A = new Monster(mine); A.isPlayer = true; A.team = 0;
-  const Bm = new Monster(other); Bm.team = 1; Bm.remoteCtl = true; // lo maneja el otro celular (su botón ULTIMATE)
-  lanSetupBattle([A, Bm], 600 * zoom, null);
+const lanTeams = (n, mode) => mode === '2v2' ? [0, 0, 1, 1] : [...Array(n).keys()]; // 2 vs 2: el anfitrión y el 2.º contra el 3.º y el 4.º
+function lanStartHost(mode) {
+  const guests = LAN.peers.filter(p => p.open && p.rec).slice(0, LAN_MAX - 1); if (!guests.length) return;
+  const n = guests.length + 1; mode = n === 2 ? '1v1' : mode === '2v2' && n === 4 ? '2v2' : 'ffa'; LAN.mode = mode;
+  const recs = [lanRec(cur()), ...guests.map(p => p.rec)], teams = lanTeams(n, mode);
+  const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
+  const list = recs.map((r, i) => { const m = new Monster(i === 0 ? cur() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
+  guests.forEach((p, i) => p.idx = i + 1);
+  lanSetupBattle(list, (mode === '1v1' ? 600 : 640) * zoom, null, mode);
   battle.introT = INTRO_S; battle.shake = 6; for (const m of battle.ms) m.setEmo('focus', INTRO_S, 2);
-  lanSend({ t: 'start', aw: ARENA_W, ad: ARENA_D, recs: [lanRec(mine), other] });
+  guests.forEach(p => lanSend({ t: 'start', aw: ARENA_W, ad: ARENA_D, mode, teams, recs, you: p.idx }, p));
 }
 function lanStartGuest(m) {
-  const [hr, gr] = m.recs;
-  const A = new Monster(hr); A.team = 0;
-  const Bm = new Monster(Object.assign({}, cur(), gr)); Bm.team = 1; Bm.isPlayer = true; // el mío
-  lanSetupBattle([A, Bm], m.aw, m.ad);
+  LAN.me = m.you; LAN.mode = m.mode;
+  const list = m.recs.map((r, i) => { const mo = new Monster(i === m.you ? Object.assign({}, cur(), r) : r); mo.team = m.teams[i]; if (i === m.you) mo.isPlayer = true; return mo; }); // el mío
+  lanSetupBattle(list, m.aw, m.ad, m.mode);
   battle.puppet = true; LAN.snap = null;
 }
 // Lo que manda el anfitrión: estado de cada monstruo y del combate (redondeado para que pese poco)
@@ -3313,16 +3349,16 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
 }
 function lanFinish() {
   const B = battle; if (!B || B.reported) return; B.reported = true;
-  const myTeam = LAN.role === 'host' ? 0 : 1, won = B.winTeam === myTeam;
-  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam });
+  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut });
   updateFighters();
-  $('resTitle').textContent = B.timedOut ? '¡Se acabó el tiempo!' : won ? '¡Ganaste!' : 'Perdiste';
-  $('resTitle').className = won ? 'win' : 'lose';
-  $('resText').innerHTML = `Pelea amistosa contra <b>${esc((LAN.role === 'host' ? B.ms[1] : B.ms[0]).name)}</b>.<br><small>No se pierden corazones ni se ganan premios.</small>`;
+  const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
+  $('resTitle').textContent = B.timedOut ? '¡Se acabó el tiempo!' : nT === 2 ? (place === 1 ? '¡Ganaste!' : 'Perdiste') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1] || 'Perdiste');
+  $('resTitle').className = place === 1 ? 'win' : place === nT ? 'lose' : 'mid';
+  const others = B.ms.filter(m => m !== me).map(m => esc(m.name)).join(', ');
+  $('resText').innerHTML = `Pelea amistosa (${LAN_MODES[LAN.mode]}) con <b>${others}</b>.<br><small>No se pierden corazones ni se ganan premios.</small>`;
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha';
   $('result').classList.add('on');
 }
-
 // ---------- Web app instalable (GitHub Pages) ----------
 // Funciona sin internet gracias a sw.js. En el link de prueba (dentro de claude.ai) no se instala nada.
 const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
