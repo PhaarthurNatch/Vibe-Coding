@@ -2301,16 +2301,18 @@ const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjet
 // Deslizar a los lados lo gira (RANCH.th); tocar un habitante acerca la cámara a la vista de cerca (zoom → ranchMode = false).
 let ranchMode = true, zoom = null; const ZOOM_S = 0.45;
 const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0, parts: [] };
+const RANCH_RF = 2.2; // radio de la cerca: el rancho es grande y hay profundidad hasta ella
 function ranchDeco() {
   if (RANCH.deco) return RANCH.deco;
   const r = rng(90211), d = [];
   for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + r.f(-0.25, 0.25), rr = r.f(0.78, 0.92); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.8, 1.15), h: r.i(100, 150) }); }
   for (let i = 0; i < 9; i++) { const a = r.f(0, TAU), rr = r.f(0.35, 0.9); d.push({ k: 'bush', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.1), h: r.i(95, 135) }); }
   for (let i = 0; i < 4; i++) { const a = r.f(0, TAU), rr = r.f(0.4, 0.85); d.push({ k: 'rock', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.2) }); }
-  const NP = 44; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
+  const NP = 72; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
   d.push({ k: 'barn', x: 0, z: -1.3 }); // granero afuera, detrás de la cerca (hay que girar para verlo)
   for (let i = 0; i < 8; i++) { const a = r.f(0, TAU), rr = r.f(1.25, 1.9); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(1, 1.4), h: r.i(100, 150), out: true }); } // árboles afuera del rancho
-  const flowers = Array.from({ length: 46 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
+  const flowers = Array.from({ length: 150 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
+  for (const o of [...d, ...flowers]) { o.x *= RANCH_RF; o.z *= RANCH_RF; if (o.x2 != null) { o.x2 *= RANCH_RF; o.z2 *= RANCH_RF; } } // todo a la escala del rancho
   return RANCH.deco = { d, flowers };
 }
 function syncRanch() {
@@ -2318,7 +2320,7 @@ function syncRanch() {
   for (let i = 0; i < cap; i++) {
     const rec = save.monsters[i] || null;
     let a = A[i];
-    if (!a) { const ang = i / cap * TAU + 0.2, rr = 0.5 + 0.25 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
+    if (!a) { const ang = i / cap * TAU + 0.2, rr = 0.7 + 1.1 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
     a.slot = i; a.rec = rec;
     a.kind = !rec ? 'free' : rec.stage === 'egg' ? 'egg' : 'mon';
     const key = rec ? [rec.seed, rec.stage, rec.level, rec.name, JSON.stringify(rec.pts || {}), rec.legacy].join('|') : 'free';
@@ -2332,7 +2334,7 @@ function syncRanch() {
   }
   A.length = cap;
 }
-const RANCH_RMIN = 0.45; // los monstruos no se acercan a menos de esto del centro (donde está uno parado)
+const RANCH_RMIN = 0.5, RANCH_RMAX = RANCH_RF * 0.95; // los monstruos andan libres entre el centro (donde está uno parado, sin acercarse a menos de RMIN) y la cerca (radio RANCH_RF)
 function ranchStep(dt) {
   RANCH.t += dt;
   for (const q of RANCH.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.k === 'star' ? 400 : -20) * dt; q.life -= dt; }
@@ -2344,13 +2346,13 @@ function ranchStep(dt) {
     let vx = 0, vz = 0;
     if (a.kind === 'mon' && !a.m.sleep) {
       if (a.walk) {
-        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.075 + (a.m.st.speed || 100) / 4000;
-        if (d < 0.02) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
+        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
+        if (d < 0.03) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
-        for (let k = 0; k < 8; k++) {
-          const ang = Math.random() * TAU, dd = 0.2 + Math.random() * 0.45, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
-          if (rr > RANCH_RMIN && rr < 0.8) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
+        for (let k = 0; k < 12; k++) {
+          const ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd, rr = Math.hypot(nx, nz);
+          if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (Math.random() < 0.15) a.m.vz = 200; // a veces da un saltito
@@ -2370,16 +2372,16 @@ function ranchStep(dt) {
   // no se encimen
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
     const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
-    if (d < 0.2) { const f = (0.2 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
+    if (d < 0.3) { const f = (0.3 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
   }
-  for (const a of A) { const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > 0.82) { a.x *= 0.82 / rr; a.z *= 0.82 / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
+  for (const a of A) { const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX + 0.02) { a.x *= (RANCH_RMAX + 0.02) / rr; a.z *= (RANCH_RMAX + 0.02) / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
 }
 RANCH.frame = 0;
 function drawRanch(c, r) {
   // Perspectiva de una persona parada DENTRO del rancho (cámara en z = CAM_D, a la altura de los ojos, mirando al otro lado):
   // el rancho es grande comparado con los monstruos, lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
-  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.47, CAM_D = 0, NEAR = 0.16; // cámara en el centro del rancho (el eje), baja y mirando paralela al piso: girar es mirar alrededor
-  const F = r.width * 0.85, camH = (r.bottom - Yh) * 0.22, kb = r.height * 0.17 / 150;
+  const D = ranchDeco(), cx = r.left + r.width / 2, Yh = r.top + r.height * 0.42, CAM_D = 0, NEAR = 0.16; // cámara en el centro del rancho (el eje), baja y mirando paralela al piso: girar es mirar alrededor
+  const F = r.width * 0.85, camH = (r.bottom - Yh) * 0.3, kb = r.height * 0.16 / 150;
   const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
   const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   const P = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co, d = CAM_D - wz; return { X: cx + wx * F / Math.max(d, 0.01), Y: Yh + camH / Math.max(d, 0.01), wz, d, sc: 1 / Math.max(d, 0.01), vis: d > NEAR }; };
@@ -2398,9 +2400,9 @@ function drawRanch(c, r) {
   // pradera hasta el horizonte y, encima, el suelo del rancho (el círculo, desde el borde lejano hasta los pies)
   const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, '#24452e'); gm.addColorStop(1, '#3a7444');
   c.fillStyle = gm; c.fillRect(0, Yh, W, r.bottom - Yh);
-  const a0 = Math.acos(clamp(CAM_D - NEAR, -1, 1));
+  const a0 = Math.acos(clamp((CAM_D - NEAR) / RANCH_RF, -1, 1));
   c.beginPath(); c.moveTo(-W, r.bottom + 400);
-  for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - Math.cos(a); c.lineTo(cx + Math.sin(a) * F / dd, Yh + camH / dd); }
+  for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#2f6a3c'); gg.addColorStop(1, '#5aa95f'); c.fillStyle = gg; c.fill();
   for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * p.sc; c.beginPath(); c.moveTo(p.X - 3 * p.sc, p.Y); c.lineTo(p.X, p.Y - 6 * p.sc); c.lineTo(p.X + 3 * p.sc, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * p.sc, 0, TAU); c.fill(); } }
