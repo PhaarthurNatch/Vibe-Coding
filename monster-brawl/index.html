@@ -38,8 +38,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
-#btnRanch{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);pointer-events:auto;font-size:20px;box-shadow:0 3px 0 rgba(0,0,0,.35)} /* volver al rancho: abajo al medio */
-#home.ranch #btnRanch,#home.first #btnRanch,#home.ranch #lblStats{display:none}
+#home.ranch #lblStats{display:none}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:12px;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #home:not(.ranch) .ranchHint{display:none}
@@ -217,11 +216,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
   <div class="page" id="pgHome">
-  <button class="edgeLbl up" data-go="0">▲ Tienda</button>
+  <button class="edgeLbl up" data-go="0" id="lblTop">▲ Tienda</button>
   <div class="nav">
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
   </div>
-  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div><button class="roundbtn" id="btnRanch" title="Volver al rancho">🏡</button></div>
+  <div class="spacer" id="showArea"><div class="ranchHint" id="ranchHint">desliza a los lados para girar el rancho · toca un monstruo</div><div class="corner tl" id="cLv"></div><div class="corner tr" id="cHearts"></div><div class="corner bl" id="cIdx"></div><div class="corner br" id="cTime"></div></div>
   <div class="hint" id="hint" hidden></div>
   <div class="panel">
     <div class="stats" id="stats"></div>
@@ -2448,7 +2447,6 @@ function toRanch() {
   zoom = { t: 0, dir: -1, px: h ? (h.x0 + h.x1) / 2 : W / 2, py: h ? (h.y0 + h.y1) / 2 : H / 2 };
   ranchMode = true; renderHome();
 }
-$('btnRanch').onclick = toRanch;
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
 function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
@@ -2473,6 +2471,7 @@ function renderHome() {
   wakeUp();
   if (firstEgg()) ranchMode = false; // partida nueva: sólo el huevo, de cerca
   $('home').classList.toggle('ranch', ranchMode);
+  $('lblTop').textContent = ranchMode ? '▲ Tienda' : '▲ Rancho'; // de cerca, arriba se vuelve al rancho
   syncRanch();
   renderAdopt();
   checkBreedUnlock();
@@ -2560,7 +2559,7 @@ function setPage(n) {
   if (n === 2) renderTrain();
   if (n === 0) renderAdopt();
 }
-document.querySelectorAll('.edgeLbl').forEach(b => b.onclick = () => setPage(+b.dataset.go)); // "▲ Tienda" / "Estadísticas ▼" también se pueden tocar
+document.querySelectorAll('.edgeLbl').forEach(b => b.onclick = () => { if (b.id === 'lblTop' && !ranchMode) toRanch(); else setPage(+b.dataset.go); }); // "▲ Tienda" / "Estadísticas ▼" también se pueden tocar
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
 // De cerca de un monstruo, deslizar a los lados pasa al siguiente/anterior. En el rancho, a los lados lo gira (ver ranchDown).
@@ -2578,7 +2577,9 @@ function swipeEnd(x, y) {
   if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.3) {
     const n = homePage + (dy < 0 ? 1 : -1);
     if (n < 0 || n > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
-    swipedAt = performance.now(); setPage(n);
+    swipedAt = performance.now();
+    if (n === 0 && homePage === 1 && !ranchMode) toRanch(); // de cerca, hacia arriba se vuelve al rancho (la Tienda queda arriba del rancho)
+    else setPage(n);
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && Math.max(slotCap(), save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else switchMonster(dx < 0 ? 1 : -1); // a la izquierda = siguiente
   }
