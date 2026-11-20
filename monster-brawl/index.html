@@ -2613,10 +2613,10 @@ function ranchStep(dt) {
     else if (a.kind === 'mon' && !a.m.sleep) {
       if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
         const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
-        if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', RANCH_GREET_S, 2); }
-        a.awayT = Math.min(a.awayT || 0, -0.4); // de frente a ti
-        for (const h of [0.2, 0.75, 1.3]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 115 + Math.random() * 35;
-        if (t > RANCH_GREET_S) { a.greet = null; a.idle = 0.3 + Math.random() * 1.2; }
+        if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', G.end, 2); }
+        if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4); // de frente a ti (antes de su turno sigue como estaba)
+        for (const h of G.hops) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 100 + Math.random() * 60;
+        if (t > G.end) { a.greet = null; a.idle = 0.3 + Math.random() * 1.2; }
       } else if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
         if (C.off == null) C.off = (Math.random() - 0.5) * 0.5; // un poco a un lado, para que dos no queden en el mismo punto
@@ -2822,11 +2822,15 @@ function ranchAskFx(a, dt, ph) {
     const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
     RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
 }
-const RANCH_GREET_S = 2.6; // cuánto se quedan saludándote al llegar
-// Al entrar a la app (o volver después de un rato) los que están despiertos se dan vuelta donde están y te saludan contentos
+// Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
 function ranchGreetAll() {
   if (!ranchMode || scene !== 'home' || firstEgg()) return;
-  for (const a of RANCH.actors) if (a.kind === 'mon' && a.m && !a.m.sleep && !a.m.held && !a.fly) { a.play = null; a.come = null; a.walk = false; a.greet = { t: -Math.random() * 0.3 }; }
+  const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+  for (const a of RANCH.actors) if (a.kind === 'mon' && a.m && !a.m.sleep && !a.m.held && !a.fly && !a.come) {
+    const wx = a.x * co - a.z * sn, d = -(a.x * sn + a.z * co); if (d < 0.1 || Math.abs(wx / d) > 0.55) continue; // sólo los que ves en pantalla
+    const hops = []; let h = 0.1 + Math.random() * 0.2; for (let k = 2 + (Math.random() < 0.5 ? 1 : 0); k > 0; k--) { hops.push(h); h += 0.45 + Math.random() * 0.3; }
+    a.play = null; a.walk = false; a.greet = { t: -(0.1 + Math.random() * 1.4), hops, end: h + 0.4 + Math.random() * 0.6 }; // cada uno empieza a su tiempo (no todos a la vez)
+  }
 }
 function ranchPet(a, x, y, dist) {
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
@@ -3317,7 +3321,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), tus monstruos se dan vuelta hacia ti y te saludan contentos con saltitos.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
+  { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
   { v: '1.23', d: '2026-11-20', items: ['El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
   { v: '1.22', d: '2026-11-19', items: ['Los monstruos que te piden cariño se ponen frente a ti para que los veas.'] },
