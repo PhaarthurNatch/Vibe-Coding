@@ -2507,6 +2507,8 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
 const RANCH_ASK_S = 1; // cuánto dura el gesto de pedir cariño (se soba la cabeza y la baja)
+const RANCH_ASK_AFTER = 0.5; // tras una caricia espera esto antes de volver a pedir
+const RANCH_ASK_GAP = 1; // si no lo acaricias, vuelve a pedir una 2.ª vez tras esta pausa
 const RANCH_COME_STAY = 8; // segundos que se queda junto a ti después de que lo acaricias en el rancho
 const RANCH_LOOK_ME = 0.8, RANCH_LOOK_OTHER = 0.55; // a esta distancia (radios del rancho) te mira a ti / mira a otro monstruo
 const RANCH_SWIPE_K = 1.35; // cuánto gira el rancho al deslizar a los lados (más = gira más con el mismo trazo; pedido del dueño)
@@ -2593,8 +2595,8 @@ function ranchStep(dt) {
       if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
         if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; }
-        else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.ask = 0; C.stay = RANCH_COME_STAY; } // lo están acariciando: sólo baja la cabeza mientras dura
-        else { C.ask = (C.ask || 0) + dt; a.m.askPet = C.ask < RANCH_ASK_S; if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (se soba la cabeza 1 s) y si no lo acaricias, a los 8 s se va
+        else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
+        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (t > t2 + RANCH_ASK_S + RANCH_COME_STAY) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 1 s y a los 8 s se va
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
