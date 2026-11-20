@@ -1869,7 +1869,7 @@ class Monster {
       if (E === 'ko') { // ojos en X
         ctx.beginPath(); ctx.moveTo(ex - er * 0.6, ey - er * 0.6); ctx.lineTo(ex + er * 0.6, ey + er * 0.6); ctx.moveTo(ex + er * 0.6, ey - er * 0.6); ctx.lineTo(ex - er * 0.6, ey + er * 0.6); ctx.stroke(); continue;
       }
-      if (E === 'sleep' || (this.blink > 0 && blinkOk)) { // cerrados
+      if (E === 'sleep' || E === 'yawn' || (this.blink > 0 && blinkOk)) { // cerrados (también al bostezar)
         ctx.beginPath(); ctx.arc(ex, ey - er * 0.3, er * 0.8, Math.PI * 0.2, Math.PI * 0.8); ctx.stroke(); continue;
       }
       if (E === 'happy' || E === 'love') { // ^ ^
@@ -1924,6 +1924,7 @@ class Monster {
     else if (lineFace && Em === 'sad') curve(mw * 0.22, -mw * 0.25); // hacia abajo
     else if (lineFace && (Em === 'surprised' || Em === 'scared')) { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.22, mw * 0.3, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); } // una "o"
     else if (lineFace && Em === 'hurt') wavy(mw * 0.08, 4);
+    else if (lineFace && Em === 'yawn') { const yo = 0.7 + 0.3 * Math.sin(this.t * 5); ctx.beginPath(); ctx.ellipse(0, my + mw * 0.15, mw * 0.32, mw * 0.5 * yo, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); } // bostezo
     else if (custom && (Em === 'ko' || Em === 'dizzy')) wavy(mw * 0.1, 4);
     // machacado: la boca no cambia (pedido del dueño)
     else if (false && custom && Em === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
@@ -2774,7 +2775,7 @@ function ranchStep(dt) {
         if (!a.walk) a.wlast = null;
         else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P) { a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
+      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { // de noche se sientan más seguido a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
@@ -2783,6 +2784,7 @@ function ranchStep(dt) {
           if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
+        if (RANCH.day && RANCH.day.night && Math.random() < 0.12) a.m.setEmo('yawn', 1.6, 1); // de noche, a veces bostezan
         if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } // a veces da un saltito contento (más si está energético)
       }
     }
@@ -2836,6 +2838,24 @@ function ranchCam(r) {
 }
 // opt (vista de cerca): hide = el habitante que se ve en primer plano (con hideA de opacidad), cullD = lo que queda más cerca que esto desaparece
 // (como si la cámara se hubiera acercado), noNames = sin nombres
+// Hora del día real del celular (pedido del dueño): colores del cielo, sol/luna, estrellas, nubes, luz y luciérnagas
+const DAY_PAL = {
+  night: { top: '#191433', bot: '#3d2f63', h1: '#2c2452', h2: '#251f45', g1: '#356b40', g2: '#3f7a47', r1: '#4a9152', r2: '#55a35b', stars: 1, sun: 0, moon: 1, warm: 0, fly: 1, cloud: 0 },
+  dawn: { top: '#46407e', bot: '#f4a27c', h1: '#5d4b7d', h2: '#4b3e6c', g1: '#3f7a47', g2: '#4a8a50', r1: '#55a05b', r2: '#60ad64', stars: 0.35, sun: 0.9, moon: 0.3, warm: 0.1, fly: 0.15, cloud: 0.5 },
+  day: { top: '#4fa8f5', bot: '#bfe6ff', h1: '#79b673', h2: '#64a463', g1: '#4f9a55', g2: '#5aa95f', r1: '#63b569', r2: '#6fc173', stars: 0, sun: 1, moon: 0, warm: 0, fly: 0, cloud: 1 },
+  sunset: { top: '#3a2b6e', bot: '#ff8f5e', h1: '#503d70', h2: '#41335f', g1: '#3f7a47', g2: '#488850', r1: '#529c58', r2: '#5ca962', stars: 0.3, sun: 0.9, moon: 0.2, warm: 0.12, fly: 0.3, cloud: 0.5 },
+};
+const DAY_KEYS = [[0, 'night'], [5.5, 'night'], [6.5, 'dawn'], [8, 'day'], [17.5, 'day'], [18.7, 'sunset'], [20, 'night'], [24, 'night']];
+const mixHex = (a, b, t) => { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), ch = sh => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
+function dayInfo() {
+  const now = new Date(), h = RANCH.hour != null ? RANCH.hour : now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600; // RANCH.hour: para probar otra hora
+  let i = 0; while (i < DAY_KEYS.length - 2 && h >= DAY_KEYS[i + 1][0]) i++;
+  const [h0, k0] = DAY_KEYS[i], [h1, k1] = DAY_KEYS[i + 1], t = clamp((h - h0) / (h1 - h0), 0, 1), A = DAY_PAL[k0], B = DAY_PAL[k1], o = { h };
+  for (const k in A) o[k] = typeof A[k] === 'number' ? A[k] + (B[k] - A[k]) * t : mixHex(A[k], B[k], t);
+  o.elev = clamp(Math.sin((h - 6) / 13 * Math.PI), 0, 1); // altura del sol (sale 6 h, más alto ~12:30, se pone 19 h)
+  o.night = o.fly > 0.5;
+  return o;
+}
 function drawRanch(c, r, opt) {
   // Perspectiva de una persona parada DENTRO del rancho, en su centro: el rancho es grande comparado con los monstruos,
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
@@ -2846,33 +2866,49 @@ function drawRanch(c, r, opt) {
   const cut = p => opt && opt.cullD ? clamp((p.d - opt.cullD) / 0.06 + 1, 0, 1) : 1; // de cerca: lo que queda delante del elegido desaparece
   const near = p => clamp((p.d - NEAR) / 0.22, 0, 1) * cut(p), nearM = p => clamp((p.d - 0.25) / 0.15, 0, 1) * cut(p); // lo que está casi encima de la cámara se desvanece (los monstruos antes, para no tapar la pantalla)
   // cielo, estrellas, luna y cerros (se mueven al girar)
-  const sky = c.createLinearGradient(0, r.top, 0, Yh); sky.addColorStop(0, '#191433'); sky.addColorStop(1, '#3d2f63');
-  c.fillStyle = sky; c.fillRect(0, r.top, W, r.height);
+  const DI = RANCH.day = dayInfo();
+  const sky = c.createLinearGradient(0, Math.min(0, r.top), 0, Yh); sky.addColorStop(0, DI.top); sky.addColorStop(1, DI.bot);
+  c.fillStyle = sky; c.fillRect(0, Math.min(0, r.top), W, r.height + Math.max(0, r.top)); // el cielo llega hasta arriba de la pantalla (detrás de la barra)
   const sr = rng(77);
-  for (let i = 0; i < 46; i++) { const x = ((sr.f(0, 1) * 1.6 - RANCH.th * 0.25) % 1 + 1) % 1 * W, y = r.top + sr.f(0, 1) * (Yh - r.top) * 0.92; c.fillStyle = `rgba(255,255,255,${0.25 + 0.5 * Math.abs(Math.sin(RANCH.t * sr.f(0.5, 1.5) + i))})`; const sz = 1.6 * (opt && opt.dotK || 1); c.fillRect(x, y, sz, sz); }
-  const mx = ((0.65 - RANCH.th / TAU * 2) % 2 + 2) % 2 * W - W * 0.5; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(mx, r.top + r.height * 0.12, 18, 0, TAU); c.fill();
-  for (const [col, amp, sp] of [['#2c2452', 30, 0.9], ['#251f45', 16, 1.5]]) {
+  for (let i = 0; i < 46; i++) { const x = ((sr.f(0, 1) * 1.6 - RANCH.th * 0.25) % 1 + 1) % 1 * W, y = r.top + sr.f(0, 1) * (Yh - r.top) * 0.92; c.fillStyle = `rgba(255,255,255,${(0.25 + 0.5 * Math.abs(Math.sin(RANCH.t * sr.f(0.5, 1.5) + i))) * DI.stars})`; const sz = 1.6 * (opt && opt.dotK || 1); if (DI.stars > 0.02) c.fillRect(x, y, sz, sz); }
+  const mx = ((0.65 - RANCH.th / TAU * 2) % 2 + 2) % 2 * W - W * 0.5; if (DI.moon > 0.02) { c.globalAlpha = DI.moon; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(mx, r.top + r.height * 0.12, 18, 0, TAU); c.fill(); c.globalAlpha = 1; }
+  if (DI.sun > 0.02) { // sol: sube y baja con la hora, y se mueve al girar (está para el otro lado que la luna)
+    const sx = ((1.55 - RANCH.th / TAU * 2) % 2 + 2) % 2 * W - W * 0.5, sy = r.top + (Yh - r.top) * (0.92 - 0.8 * DI.elev), col = DI.elev < 0.35 ? '#ffb36b' : '#fff2b0';
+    const gl = c.createRadialGradient(sx, sy, 4, sx, sy, 70); gl.addColorStop(0, `rgba(255,236,170,${0.45 * DI.sun})`); gl.addColorStop(1, 'rgba(255,236,170,0)'); c.fillStyle = gl; c.fillRect(sx - 70, sy - 70, 140, 140);
+    c.globalAlpha = DI.sun; c.fillStyle = col; c.beginPath(); c.arc(sx, sy, 22, 0, TAU); c.fill(); c.globalAlpha = 1;
+  }
+  if (DI.cloud > 0.02) { const cr = rng(31), TC = performance.now() / 1000; // nubes que pasan despacio
+    for (let i = 0; i < 6; i++) { const x = ((cr.f(0, 1) * 2 - RANCH.th / TAU * 2 + TC * 0.004 * cr.f(0.5, 1.5)) % 2 + 2) % 2 * W * 1.4 - W * 0.2, y = r.top + (Yh - r.top) * cr.f(0.12, 0.6), sc2 = cr.f(0.7, 1.3);
+      c.fillStyle = `rgba(255,255,255,${0.75 * DI.cloud})`; for (const [ox, oy, rr] of [[-22, 4, 16], [0, -6, 22], [24, 3, 15], [8, 6, 18]]) { c.beginPath(); c.arc(x + ox * sc2, y + oy * sc2, rr * sc2, 0, TAU); c.fill(); } } }
+  for (const [col, amp, sp] of [[DI.h1, 30, 0.9], [DI.h2, 16, 1.5]]) {
     c.fillStyle = col; c.beginPath(); c.moveTo(0, Yh + 2);
     for (let x = 0; x <= W; x += 8) c.lineTo(x, Yh + 2 - amp * (1 + Math.sin(x * 0.012 + RANCH.th * sp * 3) * 0.6 + Math.sin(x * 0.031 + RANCH.th * sp * 5) * 0.3));
     c.lineTo(W, Yh + 2); c.closePath(); c.fill();
   }
   // pradera hasta el horizonte y, encima, el suelo del rancho (el círculo, desde el borde lejano hasta los pies)
-  const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, '#356b40'); gm.addColorStop(1, '#3f7a47');
+  const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, DI.g1); gm.addColorStop(1, DI.g2);
   c.fillStyle = gm; c.fillRect(0, Yh, W, r.bottom - Yh);
   const a0 = Math.acos(clamp((CAM_D - NEAR) / RANCH_RF, -1, 1));
   c.beginPath(); c.moveTo(-W, r.bottom + 400);
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
-  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#4a9152'); gg.addColorStop(1, '#55a35b'); c.fillStyle = gg; c.fill();
+  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, DI.r1); gg.addColorStop(1, DI.r2); c.fillStyle = gg; c.fill();
   for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); const fp = f.x * 5 + f.z * 7; if (f.g) { const gs = Math.sin(TN * 2 + fp) * 1.6 * fk; c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X + gs, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X + Math.sin(TN * 1.3 + fp) * 0.7 * fk, p.Y - Math.abs(Math.sin(TN * 0.9 + fp)) * 0.8 * fk, 2.2 * fk, 0, TAU); c.fill(); } } // el pasto y las flores se mecen
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
   for (const d of D.d) { const p = P(d.x, d.z); if (!p.vis) continue; if (d.k === 'rail') { const q = P(d.x2, d.z2); if (!q.vis) continue; items.push({ y: Math.min(p.Y, q.Y) - 0.5, d, p }); } else items.push({ y: p.Y, d, p }); }
+  if (DI.fly > 0.05) { // luciérnagas de noche (se dibujan por profundidad)
+    if (!RANCH.flies) { const fr = rng(4242); RANCH.flies = Array.from({ length: 60 }, () => { const a = fr.f(0, TAU), rr = fr.f(0.55, 1.8); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, h: fr.f(15, 110), ph: fr.f(0, TAU), sp: fr.f(0.6, 1.4) }; }); }
+    for (const f of RANCH.flies) { const fx = f.x + Math.sin(TN * 0.25 * f.sp + f.ph) * 0.12, fz = f.z + Math.cos(TN * 0.2 * f.sp + f.ph * 1.3) * 0.12, p = P(fx, fz); if (p.vis) items.push({ y: p.Y, fly: f, p }); }
+  }
   for (const a of RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; a.hit = null; if (!p.vis) continue; if (a.kind === 'free' && !(opt && (a === opt.focus || a === opt.focus2))) continue; /* espacio libre: no se ve en el rancho (sólo de cerca) */ items.push({ y: p.Y + 0.1, a, p }); }
   items.sort((u, v) => u.y - v.y);
   const u = kb; // tamaño: el mismo para monstruos y decorado
   for (const it of items) {
     const p = it.p, k = u * p.sc;
+    if (it.fly) { const f = it.fly, bl = Math.max(0, Math.sin(TN * 1.7 * f.sp + f.ph)) ** 2, y = p.Y - (f.h + Math.sin(TN * 0.9 + f.ph) * 8) * k, al = DI.fly * (0.25 + 0.75 * bl) * near(p);
+      if (al > 0.02) { const R = Math.max(5, 16 * k); const gl = c.createRadialGradient(p.X, y, 0, p.X, y, R); gl.addColorStop(0, `rgba(230,255,120,${0.55 * al})`); gl.addColorStop(1, 'rgba(230,255,120,0)'); c.fillStyle = gl; c.fillRect(p.X - R, y - R, 2 * R, 2 * R); c.fillStyle = `rgba(250,255,190,${al})`; c.beginPath(); c.arc(p.X, y, Math.max(1.4, 2.6 * k), 0, TAU); c.fill(); }
+      continue; }
     if (it.a) {
       const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1) * (opt && opt.focus && a !== opt.focus && a !== opt.focus2 ? ghost : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
       if (a.kind === 'mon') drawOcc(c, { show: a.m }); // (la altura de un salto ya viene en el esqueleto)
@@ -2912,6 +2948,7 @@ function drawRanch(c, r, opt) {
     }
     c.restore();
   }
+  if (DI.warm > 0.01) { c.globalAlpha = 1; c.fillStyle = `rgba(255,140,70,${DI.warm})`; c.fillRect(0, r.top, W, r.height); } // luz cálida al amanecer y al atardecer
   // nombres bajo cada monstruo (más visibles adelante)
   if (opt && opt.noNames) { c.globalAlpha = 1; return; }
   c.textAlign = 'center';
@@ -3459,6 +3496,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche hay luciérnagas y los monstruos bostezan y se sientan a descansar más seguido.'] },
   { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
