@@ -224,6 +224,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dbtn small{font-weight:600;color:var(--muted);font-size:10px}
 .ultlist{display:flex;flex-direction:column;gap:6px}
+.foelist{display:flex;flex-direction:column;gap:6px}
+.foec{display:grid;grid-template-columns:64px 1fr auto;gap:2px 10px;align-items:center;background:var(--panel2);border-radius:12px;padding:6px 10px 6px 6px}
+.foec canvas{width:64px;height:64px;grid-row:span 2}
+.foec b{font-size:13px;align-self:end}
+.foec .fr{font-size:11px;color:var(--muted);align-self:start}
+.foec .fr .w{color:#7be08a}.foec .fr .l{color:#ff8a7a}
+.foec button{grid-row:span 2;white-space:nowrap}
 .ultc{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px;border:2px solid transparent}
 .ultc.on{border-color:var(--acc)}
 .ultc.locked b{color:var(--muted)}
@@ -252,6 +259,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
+      <div class="tsec" id="shopFoes"></div>
       <div class="tsec" id="shopUlts"></div>
       <div class="tsec" id="shopGenes"></div>
     </div>
@@ -3310,7 +3318,7 @@ function renderHome() {
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
   if (isEgg) {
     const ra = RANCH.actors[save.sel]; show = null; egg = ra && ra.e && ra.rec === rec ? ra.e : new EggView(rec); // el mismo huevo del rancho
-    $('mName').textContent = 'Huevo misterioso';
+    $('mName').textContent = rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso'; // huevo de un rival del historial
     updateEggSub();
     $('stats').innerHTML = rec.readyAt ? `<p class="eggmsg">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b>.<br>Primero tiene que incubar; cuando termine el tiempo, tócalo varias veces para que nazca.<br>Cada pelea que ganes lo adelanta ${INCUBATE_FIGHT_MS / 60000} min.</p>`
       : '<p class="eggmsg">Todavía no nace. Tócalo varias veces para romper el cascarón.<br>Nace como bebé y crece con cada nivel.</p>';
@@ -3444,7 +3452,7 @@ function renderTrain() {
   const rec = cur(), none = homeEmpty != null || !rec; // espacio libre: no hay nada que mostrar
   $('btnFree').hidden = none || rec.stage === 'egg';
   if (none) { $('tName').textContent = 'Espacio libre'; $('tSub').textContent = ''; $('tlist').innerHTML = '<p class="eggmsg">Aún no hay nada aquí.<br>En la página del monstruo puedes comprar o criar un huevo para este espacio.</p>'; $('tinfo').textContent = ''; return; }
-  $('tName').textContent = rec.stage === 'egg' ? 'Huevo misterioso' : rec.name;
+  $('tName').textContent = rec.stage === 'egg' ? (rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso') : rec.name;
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = `<p class="eggmsg">Aún no hay nada aquí: las estadísticas aparecen cuando nazca.<br>${rec.readyAt > Date.now() ? 'Primero tiene que terminar de incubar.' : 'Vuelve a la página del monstruo y tócalo varias veces para abrirlo.'}</p>`; $('tinfo').textContent = ''; return; }
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
@@ -3527,7 +3535,7 @@ function tapEgg() {
   if (rec.taps < rec.need) { persist(); updateEggSub(); return; }
   // ¡nace!
   const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
-  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; persist();
+  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
@@ -3550,7 +3558,7 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
+function renderAdopt() { $('aSub').textContent = ''; renderShopFoes(); renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
 // Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
@@ -3625,6 +3633,34 @@ function doBreed(A, B) {
 // Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
 const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
+// Historial de combate (pedido del dueño): los últimos 10 rivales; se puede comprar un huevo con la semilla de cada uno (sale igual a él)
+const FOE_HIST = 10, FOE_EGG_COST = 100;
+function recordFoes(b) {
+  const rank = b.ranking || [], me = rank.indexOf(0);
+  const foes = b.ms.filter(m => !m.isPlayer && !m.cloneOf && m.team !== 0 && m.rec);
+  save.foes = save.foes || [];
+  for (const f of foes) { const r = f.rec, them = rank.indexOf(f.team);
+    save.foes.unshift({ seed: r.seed, gen: r.gen, name: r.name, stage: r.stage, level: r.level, pts: r.pts, won: me >= 0 && them >= 0 ? me < them : b.winTeam === 0, t: Date.now() }); }
+  save.foes = save.foes.slice(0, FOE_HIST);
+}
+function renderShopFoes() {
+  const el = $('shopFoes'), L = save.foes || [], full = save.monsters.length >= slotCap();
+  el.innerHTML = `<div class="thead">Historial de combate</div>` + (L.length ? `<p class="tdesc">Tus últimos rivales. Compra un huevo de uno y nacerá igual a él${full ? ' (necesitas un espacio libre en el rancho)' : ''}.</p><div class="foelist">${L.map((f, i) =>
+    `<div class="foec"><canvas width="128" height="128" data-foec="${i}"></canvas><b>${esc(f.name)}</b><button class="btn" data-foebuy="${i}" ${f.bought || full || save.coins < FOE_EGG_COST ? 'disabled' : ''}>${f.bought ? '✓ Comprado' : `🥚 <span class="ci"></span>${FOE_EGG_COST}`}</button><span class="fr">${STAGE_NAME[f.stage] || ''} · Nv.${f.level} · ${f.won ? '<span class="w">Le ganaste</span>' : '<span class="l">Te ganó</span>'}</span></div>`).join('')}</div>`
+    : '<p class="tdesc">Aquí aparecerán los monstruos contra los que peleas.</p>');
+  el.querySelectorAll('[data-foec]').forEach(c => { const f = L[+c.dataset.foec], c2 = document.createElement('canvas'); c2.width = c2.height = 144; drawThumb(c2, { seed: f.seed, gen: f.gen, stage: f.stage, level: f.level, name: f.name, pts: f.pts || {}, lives: MAX_LIVES }); c.getContext('2d').drawImage(c2, 0, 0, 128, 128); });
+  el.querySelectorAll('[data-foebuy]').forEach(b => b.onclick = () => buyFoeEgg(+b.dataset.foebuy));
+}
+async function buyFoeEgg(i) {
+  const f = (save.foes || [])[i]; if (!f || f.bought) return;
+  if (save.monsters.length >= slotCap()) { ask('No tienes espacio libre en el rancho.', { ok: 'Entendido', cancel: null }); return; }
+  if (save.coins < FOE_EGG_COST || !await ask(`¿Comprar un huevo de ${f.name} por ${FOE_EGG_COST} monedas? Nacerá igual a él.`, { ok: 'Comprar' })) return;
+  if (f.bought || save.coins < FOE_EGG_COST || save.monsters.length >= slotCap()) return;
+  const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name;
+  save.coins -= FOE_EGG_COST; f.bought = true; save.monsters.push(rec); const idx = save.monsters.length - 1; save.sel = idx; homeEmpty = null; persist();
+  setPage(1); renderHome(); syncRanch(); const a = RANCH.actors[idx]; if (a) ranchZoomTo(a); // te lleva al huevo para abrirlo
+  if (egg) { egg.sq = 0.2; egg.vt += 6; } fx.label = '¡Tócalo para abrirlo!'; fx.labelT = 2;
+}
 function renderShopGenes() {
   const el = $('shopGenes');
   el.innerHTML = `<div class="thead">Genes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(k =>
@@ -3703,6 +3739,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.39', d: '2026-11-20', items: ['Historial de combate en la Tienda: tus últimos 10 rivales, con su etapa, nivel y si le ganaste o te ganó.', 'Puedes comprar un huevo de cualquiera de esos rivales (100 monedas, necesitas un espacio libre): nace igual a él y crece hasta verse como lo viste.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
@@ -4194,6 +4231,7 @@ $('resAgain').onclick = () => {
 };
 
 function finishBattle() {
+  recordFoes(battle); // historial de combate de la Tienda
   const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
   const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
   const placeLbl = nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
