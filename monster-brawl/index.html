@@ -38,9 +38,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
-#home.ranch #lblBot{display:none}
+#home.ranch #lblBot{display:none} /* en el rancho no se baja a Estadísticas */
 .pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba */
-#home:not(.ranch) .pgStats{order:0}#home:not(.ranch) .pgShop{order:2} /* de cerca: Estadísticas arriba y el rancho abajo (pedido del dueño) */
 .edgeLbl.up.glow{animation:tabglow 1.6s ease-in-out infinite,edgeUp 2.4s ease-in-out infinite}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;white-space:nowrap;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
@@ -74,7 +73,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.locked{opacity:.5}
 #home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
 #home.vacant .panel>.row,#home.vacant #btnFight{display:none}
-#home.vacant #lblTop{visibility:hidden} /* espacio libre: no tiene Estadísticas */
+#home.vacant #lblBot{visibility:hidden} /* espacio libre: no tiene Estadísticas */
 .fightbtn{font-size:19px;padding:15px 10px;letter-spacing:.5px}
 #homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
 #homePanel.fightOpen #btnFight{display:none}
@@ -281,6 +280,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <button class="edgeLbl down" id="lblBot">Rancho ▼</button>
   </div>
   <div class="page pgStats">
+    <button class="edgeLbl up" data-go="1">▲ Monstruo</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
     <div class="spacer" id="trainArea"></div>
     <div class="panel tpanel">
@@ -288,7 +288,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <div class="tinfo" id="tinfo"></div>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
-    <button class="edgeLbl down" data-go="1">Monstruo ▼</button>
   </div>
   </div></div>
 </div>
@@ -3069,10 +3068,10 @@ function checkBreedUnlock() {
 const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.stage === 'egg');
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
-const visPage = n => ranchMode ? n : [2, 1, 0][n]; // de cerca el orden en pantalla es Estadísticas / Monstruo / (Tienda, sin acceso)
+const visPage = n => n; // mismo orden siempre: Tienda / Rancho o monstruo de cerca / Estadísticas (de cerca, arriba se vuelve al rancho)
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
-  if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (abajo está el rancho)
+  if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
   if (n === 2 && homeEmpty != null) return; // los espacios libres no aparecen en Estadísticas
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
   homePage = n; $('track').style.transform = `translateY(${-100 / 3 * visPage(n)}%)`;
@@ -3080,14 +3079,14 @@ function setPage(n) {
   if (n === 2) renderTrain();
   if (n === 0) renderAdopt();
 }
-// Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Estadísticas" (dorado si hay puntos por gastar) y "Rancho ▼"
+// Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Rancho" y "Estadísticas ▼" (dorado si hay puntos por gastar) (pedido del dueño)
 function edgeLabels(free) {
   const t = $('lblTop'), b = $('lblBot');
-  t.textContent = ranchMode ? '▲ Tienda' : free > 0 ? `▲ Estadísticas (${free})` : '▲ Estadísticas'; t.classList.toggle('glow', !ranchMode && free > 0);
-  b.textContent = 'Rancho ▼';
+  t.textContent = ranchMode ? '▲ Tienda' : '▲ Rancho';
+  b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else setPage(2); };
-$('lblBot').onclick = () => toRanch();
+$('lblTop').onclick = () => { if (ranchMode) setPage(0); else toRanch(); };
+$('lblBot').onclick = () => setPage(2);
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
@@ -3108,7 +3107,7 @@ function swipeEnd(x, y) {
     const v = visPage(homePage) + (dy < 0 ? 1 : -1); // posición en pantalla a la que se va (dedo arriba = la de abajo)
     if (v < 0 || v > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now();
-    if (!ranchMode && homePage === 1 && v === 2) toRanch(); // de cerca, deslizar hacia arriba vuelve al rancho (abajo)
+    if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, deslizar el dedo hacia abajo vuelve al rancho (arriba)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (homePage === 2 ? save.monsters.length : Math.max(slotCap(), save.monsters.length)) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
@@ -3409,7 +3408,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
