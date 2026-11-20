@@ -1189,8 +1189,6 @@ class Monster {
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
     if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira)
-    if (this.askPet && !(this.askK > 0)) { const opts = [-0.95, -0.55, 0.55, 0.95].filter(v => v !== this.askAng); this.askAng = opts[Math.floor(Math.random() * opts.length)]; } // cada vez sale por otro lado de la cabeza
-    this.askK = clamp((this.askK || 0) + (this.askPet ? 1 : -1) * dt * 5, 0, 1); // corazón con "?" al pedir cariño
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1597,14 +1595,6 @@ class Monster {
     }
     if (back) wingsTail();
     this.drawHead(ctx, C, lw);
-    if (this.askK > 0.01 && !this._ghost) { // pide cariño: corazón con "?" que sale en diagonal desde un costado de la cabeza (cada vez de otro lado)
-      const h = N[I.head], an = this.askAng || 0.55, ux = Math.sin(an), uy = -Math.cos(an), k = this.askK, e = 1 - (1 - k) * (1 - k);
-      const r = 15 * s * (0.4 + 0.6 * e), d = (0.2 + 1.5 * e) * 15 * s + Math.sin(this.t * 4) * 1.5 * s;
-      const x = h.x + ux * (g.head.w * 0.5 * s + d), y = h.y + uy * (g.head.h * 0.5 * s + d);
-      ctx.globalAlpha = this.alpha * k; heartPath(ctx, x, y, r); fillStroke(ctx, '#ff7aa2', '#7a1f45', Math.max(1.2, 1.6 * s));
-      ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.round(r * 1.05)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + r * 0.05);
-      ctx.globalAlpha = this.alpha;
-    }
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
       const m = N[I.mid], R = this.bubbleR * s * (1 + Math.sin(this.t * 6) * 0.03);
@@ -2603,7 +2593,7 @@ function ranchStep(dt) {
         if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; C.petT = 0; } /* mientras viene no agacha la cabeza */
         else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
         else if (C.petting && (C.petting = false, C.pets = (C.pets || 0) + 1) >= (C.need = C.need || 1 + (Math.random() < 0.5 ? 1 : 0))) { a.come = null; a.idle = 0.5; } // con 1 o 2 caricias ya quedó contento y se va
-        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
+        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
@@ -2786,6 +2776,18 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 }
 function ranchTap(x, y) { const a = ranchHit(x, y); if (a) ranchZoomTo(a); }
 // Caricia en el rancho: frotar sobre el monstruo
+// Al pedir cariño: los mismos corazones de la caricia repartidos por la cabeza y el efecto de acariciado (cara de amor y la cabeza se mece como bajo la mano)
+function ranchAskFx(a, dt) {
+  const m = a.m, S = a.scr, h = m.nodes[m.ix.head], s = m.s, g = m.g;
+  m.setEmo('love', 0.3, 2);
+  const w = Math.sin(RANCH.t * 14) * 40 * s;
+  for (const n of m.nodes) { const dd = Math.hypot(n.x - h.x, n.y - (h.y - g.head.h * 0.3 * s)); if (dd < 45 * s) n.vx += w * (1 - dd / (45 * s)) * dt * 12; }
+  if (!S) return;
+  a.askHeart = (a.askHeart || 0) - dt;
+  if (a.askHeart <= 0) { a.askHeart = 0.13;
+    const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
+    RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+}
 function ranchPet(a, x, y, dist) {
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
   if (a.kind !== 'mon') return;
