@@ -170,6 +170,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
 .setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
 .setview{display:flex;flex-direction:column;gap:10px}
+.newsv{background:var(--panel2);border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:left}
+.newsv h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.newsv h3 small{font-size:11px;font-weight:600;color:var(--muted)}
+.newsv ul{margin:0;padding-left:18px;font-size:13px;line-height:1.35}.newsv li{margin:3px 0}
 .setitem{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:14px}
 .setitem small{font-size:11px;font-weight:600;color:var(--muted)}
 #setInfo:empty{display:none}#setInfo{color:var(--good)}
@@ -317,7 +321,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="main">
       <h2 style="font-size:22px">Ajustes</h2>
       <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
+      <button class="btn setitem" data-go="news"><span>📰 Novedades</span><small id="verLbl"></small></button>
       <button class="btn" data-close>Cerrar</button>
+    </div>
+    <div class="setview" data-view="news" hidden>
+      <h2 style="font-size:22px">Novedades</h2>
+      <div id="newsList"></div>
+      <button class="btn" data-go="main">‹ Volver</button>
     </div>
     <div class="setview" data-view="partida" hidden>
       <h2 style="font-size:22px">Partida</h2>
@@ -3278,12 +3288,44 @@ function decodeSave(code) {
 }
 const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').length; return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
+// Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
+const CHANGELOG = [
+  { v: '1.23', d: '2026-11-20', items: ['Ajustes: nueva ventana de Novedades con las versiones y sus cambios.', 'El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
+  { v: '1.22', d: '2026-11-19', items: ['Los monstruos que te piden cariño se ponen frente a ti para que los veas.'] },
+  { v: '1.21', d: '2026-11-19', items: ['Rancho: si acaricias a un monstruo, se acerca a ti a pedirte más cariño (baja la cabeza y le salen corazones); a veces vienen solos.', 'Con 1 o 2 caricias se van contentos; si no los acaricias, piden otra vez y se van.', 'Los alados a veces cruzan volando el rancho; a veces dos monstruos juegan a saltar o a la pinta.', 'Te siguen con los ojos al pasar cerca y se miran entre ellos; sin nombres en el rancho.', 'Puedes subir a un monstruo sin límite y al soltarlo cae (los alados bajan planeando); si lo lanzas fuera de la pantalla vuelves al rancho.', 'Vista de cerca: Estadísticas arriba y el rancho abajo.'] },
+  { v: '1.20', d: '2026-11-19', items: ['Durmiendo, los monstruos se sientan en el suelo.'] },
+  { v: '1.19', d: '2026-11-19', items: ['La Tienda ya no muestra las ultimates que tienes.'] },
+  { v: '1.18', d: '2026-11-19', items: ['3 ultimates nuevas: Robo de vida, Teletransporte y Clon.', 'Mientras carga la ultimate, el monstruo es invencible.', 'Ajustes a Reflejos fantasma, Escudo de hierro y Robo de vida.'] },
+  { v: '1.17', d: '2026-11-19', items: ['Machacado ya no cambia la boca.'] },
+  { v: '1.16', d: '2026-11-19', items: ['Genes: orejas y antenas por separado; los hombros se heredan con los brazos.'] },
+  { v: '1.15', d: '2026-11-19', items: ['Nueva forma de sortear partes: todas con la misma chance y cada copia extra con la mitad.', 'Las estadísticas salen de la cantidad de partes; el peso da defensa.', 'Hasta 3 pares de alas; hombros sólo con brazos; todos tienen boca y al menos un ojo.', '5 corazones; energético con 5 y machacado con 2 o menos.', 'Cría desde Adulto y las veces que quieras; Awakened 15% más grande; ultimate desde Adolescente.', 'Genes en la Tienda para asegurar qué parte hereda la cría.'] },
+  { v: '1.14', d: '2026-11-19', items: ['Ajustes ⚙️ con exportar e importar la partida y copia local automática.', 'Personalidad gratis con medidores deslizables.', 'El resultado de la pelea muestra un resumen de XP y monedas.'] },
+  { v: '1.13', d: '2026-11-19', items: ['Rancho: cámara más baja, árboles más grandes y monstruos que llegan a la reja.', 'Los espacios libres ya no aparecen en el rancho ni en Estadísticas.'] },
+  { v: '1.12', d: '2026-11-19', items: ['Nombres de los monstruos siempre en blanco.'] },
+  { v: '1.11', d: '2026-11-19', items: ['La web app se actualiza sola al haber una versión nueva.'] },
+  { v: '1.10', d: '2026-11-19', items: ['El inicio es un rancho de noche en 3D donde andan tus monstruos.', 'Tocar un monstruo acerca la cámara; un solo botón "Luchar".', 'Páginas una sobre otra, sin pestañas.'] },
+  { v: '1.9', d: '2026-11-18', items: ['Los espacios libres tienen Comprar y Criar (adiós página Criadero).', 'Partida nueva: sólo el primer huevo hasta que nazca.', 'Estadísticas reúne los stats y los puntos.'] },
+  { v: '1.8', d: '2026-11-18', items: ['Pelea local por WiFi de hasta 8 jugadores con equipos por colores.'] },
+  { v: '1.7', d: '2026-11-18', items: ['Sin estrella sobre tus monstruos en la arena.'] },
+  { v: '1.6', d: '2026-11-18', items: ['Web app instalable que funciona sin internet.', 'Pelea local por WiFi con códigos QR.'] },
+  { v: '1.5', d: '2026-11-18', items: ['Espacios: se parte con 2 y cada Awakened suma uno.', 'Huevos criados incuban 3 horas; un huevo al día.'] },
+  { v: '1.4', d: '2026-11-18', items: ['Los alados saltan o flotan según su peso.', 'Tus monstruos lanzan la ultimate con el botón ULTIMATE.'] },
+  { v: '1.3', d: '2026-11-18', items: ['Criadero: cruza dos Awakened para tener una cría que hereda partes.'] },
+  { v: '1.2', d: '2026-11-18', items: ['Cuenta regresiva 3, 2, 1, FIGHT! antes de pelear.', 'Escudo de hierro bloquea todo el daño.'] },
+  { v: '1.1', d: '2026-11-18', items: ['Tienda de huevos y ultimates.', 'Nueva forma de elegir objetivo según la personalidad.', 'Cara machacada y tristeza al perder un corazón.'] },
+  { v: '1.0', d: '2026-11-18', items: ['Primera versión: monstruos al azar que crecen de bebé a Awakened, pelean solos y se entrenan.', '1 vs 1, 2 vs 2 y todos contra todos; ultimates; personalidad.'] },
+];
+const APP_VER = CHANGELOG[0].v;
+function renderNews() {
+  $('newsList').innerHTML = CHANGELOG.map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
+}
 function setView(v) {
+  if (v === 'news') renderNews();
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
   if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
   if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
 }
-function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
+function openSettings() { $('verLbl').textContent = 'versión ' + APP_VER; $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
 $('btnSettings').onclick = openSettings;
 document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
 document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));

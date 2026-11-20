@@ -177,6 +177,8 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   Código = `MB1-` + la partida en base64 (`encodeSave`/`decodeSave`). **Copia local periódica**: cada 2 min y al salir de la app se guarda una copia (`COPY_KEY` = `monster_brawl_copy`, `saveCopy`); exportar la refresca.
   Importar pregunta con `ask()` mostrando el resumen de ambas partidas, guarda la actual en `UNDO_KEY` (`monster_brawl_undo`) y **reemplaza** la partida (`applyImport`: escribe `SAVE_KEY` y recarga; `importing` evita que `persist` la pise; las migraciones de `loadSave` se aplican al recargar).
   Sirve para pasar la partida del link de prueba a la web app (son lugares distintos aunque sea el mismo celular).
+  **Novedades** (pedido del dueño; vista `news` en Ajustes, `CHANGELOG`, `renderNews`, `APP_VER`): lista por versión y fecha de lo que cambió, la más nueva arriba ("actual"); el menú de Ajustes muestra "versión X".
+  **Cada pull request a main es una versión**: versión `1.(n.º del PR − 2)` (PR #2 = 1.0, PR #25 = 1.23). **Al abrir un pull request, agregar arriba en `CHANGELOG` la versión de ese PR** con sus cambios en español, cortos y sin tecnicismos (si el PR anterior sigue abierto, sumar los cambios a esa misma versión). Fecha = día del PR.
 
 ## Compatibilidad de partidas guardadas
 
