@@ -1095,7 +1095,7 @@ class Monster {
       const knee = add(hip, sd * 3, g.legs.upper, 220, 0.3);
       const foot = add(knee, 0, g.legs.lower, 240, 0.35);
       N[knee].useT = N[foot].useT = true;
-      I.legs.push({ p, sd, hip, knee, foot, hx, ph: (sd > 0 ? Math.PI : 0) + p * Math.PI / 2 });
+      I.legs.push({ p, sd, hip, knee, foot, hx, ph: (sd > 0 ? Math.PI : 0) + p * Math.PI / 2 }); N[knee].leg = N[foot].leg = true;
     }
     // Alas
     I.wings = [];
@@ -1316,7 +1316,7 @@ class Monster {
         const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * (n.stretch || 1.3); // stretch: el brazo que se toca la cabeza puede estirarse más
         if (d > mx || d < mn) {
           let tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
-          if (!dead && d < mn) { // quedó del lado contrario (p. ej. la cabeza bajo el cuello): se empuja hacia donde debe ir, no hacia atrás, para que no se trabe
+          if (!dead && d < mn && !(n.leg && this.sitK > 0.02)) { // quedó del lado contrario (no al sentarse: la rodilla doblada saltaba de golpe hacia abajo) (p. ej. la cabeza bajo el cuello): se empuja hacia donde debe ir, no hacia atrás, para que no se trabe
             const ux = (n.ox + n.ax) * s, uy = (n.oy + n.ay) * s, ul = Math.hypot(ux, uy);
             if (ul > 1e-3 && dx * ux + dy * uy < 0) { nx = P.x + ux / ul * mn; ny = P.y + uy / ul * mn; }
           }
@@ -3548,6 +3548,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.35', d: '2026-11-20', items: ['Arreglado: al sentarse, a veces las piernas daban un tirón (la rodilla saltaba de golpe).'] },
   { v: '1.34', d: '2026-11-20', items: ['En el rancho los monstruos se sientan a descansar más seguido (y se arregló que desde la versión anterior no se sentaban nunca).'] },
   { v: '1.33', d: '2026-11-20', items: ['En el rancho los monstruos ya no se empujan al caminar: el que va pasando rodea al que está quieto.'] },
   { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, despierta de un salto, sorprendido, y luego se alegra).', 'Al ser noqueado, el monstruo pierde todos los efectos de su ultimate (escudo, aura, estelas, copias, etc.).', 'Estaciones del año según dónde estás: primavera con árboles en flor y pétalos, verano verde, otoño con hojas naranjas cayendo e invierno con nieve.'] },
