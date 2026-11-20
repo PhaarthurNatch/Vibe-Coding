@@ -2652,7 +2652,7 @@ function syncRanch() {
       else if (a.kind === 'egg') { a.e = new EggView(rec); a.sz = { w: 50, h: 62 }; }
       else a.sz = { w: 44, h: 56 };
     }
-    if (a.m) { a.m.sleep = resting(rec); a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
+    if (a.m) { a.m.sleep = resting(rec) || !!a.nap; a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
   }
   A.length = cap;
 }
@@ -2668,7 +2668,9 @@ function ranchStep(dt) {
     RANCH.th += (want - RANCH.th) * (slide && slide.travel ? 1 : Math.min(1, dt * 6)); RANCH.vth = 0;
   } else if (!RANCH.drag) { RANCH.th += RANCH.vth * dt; RANCH.vth *= Math.exp(-dt * 3); }
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
-  if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  if (!RANCH.napInit) { RANCH.napInit = true; if (dayInfo().night) for (const a of A) if (a.kind === 'mon' && a.m && !resting(a.rec) && Math.random() < 0.35) { a.nap = { t: 60 + Math.random() * 240 }; a.m.sleep = true; a.walk = false; } } // de noche, al entrar algunos ya están durmiendo
+  for (const a of A) if (a.nap && ((a.nap.t -= dt) < 0 || a === focus)) { a.nap = null; if (a.m) a.m.sleep = resting(a.rec); a.idle = 0.5 + Math.random(); } // despierta al terminar la siesta o si lo eliges
+  if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec) || !!a.nap; a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
   const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.rest && !a.m.held && a.m.z === 0;
   RANCH.famCd = RANCH.famCd || {};
@@ -2775,7 +2777,8 @@ function ranchStep(dt) {
         if (!a.walk) a.wlast = null;
         else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { // de noche se sientan más seguido a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
+      } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
+      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { // de noche se sientan más seguido a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
@@ -2840,10 +2843,10 @@ function ranchCam(r) {
 // (como si la cámara se hubiera acercado), noNames = sin nombres
 // Hora del día real del celular (pedido del dueño): colores del cielo, sol/luna, estrellas, nubes, luz y luciérnagas
 const DAY_PAL = {
-  night: { top: '#191433', bot: '#3d2f63', h1: '#2c2452', h2: '#251f45', g1: '#356b40', g2: '#3f7a47', r1: '#4a9152', r2: '#55a35b', stars: 1, sun: 0, moon: 1, warm: 0, fly: 1, cloud: 0 },
-  dawn: { top: '#46407e', bot: '#f4a27c', h1: '#5d4b7d', h2: '#4b3e6c', g1: '#3f7a47', g2: '#4a8a50', r1: '#55a05b', r2: '#60ad64', stars: 0.35, sun: 0.9, moon: 0.3, warm: 0.1, fly: 0.15, cloud: 0.5 },
-  day: { top: '#4fa8f5', bot: '#bfe6ff', h1: '#79b673', h2: '#64a463', g1: '#4f9a55', g2: '#5aa95f', r1: '#63b569', r2: '#6fc173', stars: 0, sun: 1, moon: 0, warm: 0, fly: 0, cloud: 1 },
-  sunset: { top: '#3a2b6e', bot: '#ff8f5e', h1: '#503d70', h2: '#41335f', g1: '#3f7a47', g2: '#488850', r1: '#529c58', r2: '#5ca962', stars: 0.3, sun: 0.9, moon: 0.2, warm: 0.12, fly: 0.3, cloud: 0.5 },
+  night: { top: '#191433', bot: '#3d2f63', h1: '#2c2452', h2: '#251f45', g1: '#356b40', g2: '#3f7a47', r1: '#4a9152', r2: '#55a35b', stars: 1, sun: 0, moon: 1, warm: 0, fly: 1, cloud: 0 , dark: 0.34 },
+  dawn: { top: '#46407e', bot: '#f4a27c', h1: '#5d4b7d', h2: '#4b3e6c', g1: '#3f7a47', g2: '#4a8a50', r1: '#55a05b', r2: '#60ad64', stars: 0.35, sun: 0.9, moon: 0.3, warm: 0.1, fly: 0.15, cloud: 0.5 , dark: 0.12 },
+  day: { top: '#4fa8f5', bot: '#bfe6ff', h1: '#79b673', h2: '#64a463', g1: '#4f9a55', g2: '#5aa95f', r1: '#63b569', r2: '#6fc173', stars: 0, sun: 1, moon: 0, warm: 0, fly: 0, cloud: 1 , dark: 0 },
+  sunset: { top: '#3a2b6e', bot: '#ff8f5e', h1: '#503d70', h2: '#41335f', g1: '#3f7a47', g2: '#488850', r1: '#529c58', r2: '#5ca962', stars: 0.3, sun: 0.9, moon: 0.2, warm: 0.12, fly: 0.3, cloud: 0.5 , dark: 0.14 },
 };
 const DAY_KEYS = [[0, 'night'], [5.5, 'night'], [6.5, 'dawn'], [8, 'day'], [17.5, 'day'], [18.7, 'sunset'], [20, 'night'], [24, 'night']];
 const mixHex = (a, b, t) => { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), ch = sh => Math.round(((pa >> sh) & 255) * (1 - t) + ((pb >> sh) & 255) * t); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
@@ -2907,7 +2910,7 @@ function drawRanch(c, r, opt) {
   for (const it of items) {
     const p = it.p, k = u * p.sc;
     if (it.fly) { const f = it.fly, bl = Math.max(0, Math.sin(TN * 1.7 * f.sp + f.ph)) ** 2, y = p.Y - (f.h + Math.sin(TN * 0.9 + f.ph) * 8) * k, al = DI.fly * (0.25 + 0.75 * bl) * near(p);
-      if (al > 0.02) { const R = Math.max(5, 16 * k); const gl = c.createRadialGradient(p.X, y, 0, p.X, y, R); gl.addColorStop(0, `rgba(230,255,120,${0.55 * al})`); gl.addColorStop(1, 'rgba(230,255,120,0)'); c.fillStyle = gl; c.fillRect(p.X - R, y - R, 2 * R, 2 * R); c.fillStyle = `rgba(250,255,190,${al})`; c.beginPath(); c.arc(p.X, y, Math.max(1.4, 2.6 * k), 0, TAU); c.fill(); }
+      if (al > 0.02) { const R = Math.max(5, 16 * k); (RANCH.flyGlow = RANCH.flyGlow || []).push([p.X, y, R, al]); const gl = c.createRadialGradient(p.X, y, 0, p.X, y, R); gl.addColorStop(0, `rgba(230,255,120,${0.55 * al})`); gl.addColorStop(1, 'rgba(230,255,120,0)'); c.fillStyle = gl; c.fillRect(p.X - R, y - R, 2 * R, 2 * R); c.fillStyle = `rgba(250,255,190,${al})`; c.beginPath(); c.arc(p.X, y, Math.max(1.4, 2.6 * k), 0, TAU); c.fill(); }
       continue; }
     if (it.a) {
       const a = it.a; a.scr = { X: p.X, Y: p.Y, k }; c.save(); c.globalAlpha = nearM(p) * (opt && opt.alphaOf ? opt.alphaOf(a) : opt && a === opt.hide ? opt.hideA : 1) * (opt && opt.focus && a !== opt.focus && a !== opt.focus2 ? ghost : 1); if (c.globalAlpha <= 0.01) { c.restore(); continue; } c.translate(p.X, p.Y); c.scale(k, k);
@@ -2948,7 +2951,10 @@ function drawRanch(c, r, opt) {
     }
     c.restore();
   }
-  if (DI.warm > 0.01) { c.globalAlpha = 1; c.fillStyle = `rgba(255,140,70,${DI.warm})`; c.fillRect(0, r.top, W, r.height); } // luz cálida al amanecer y al atardecer
+  if (DI.warm > 0.01) { c.globalAlpha = 1; c.fillStyle = `rgba(255,140,70,${DI.warm})`; c.fillRect(0, Math.min(0, r.top), W, r.bottom + 400); } // luz cálida al amanecer y al atardecer
+  if (DI.dark > 0.01) { c.globalAlpha = 1; c.fillStyle = `rgba(12,10,40,${DI.dark})`; c.fillRect(0, Math.min(0, r.top), W, r.bottom + 400); // de noche todo más oscuro (pedido del dueño)...
+    c.globalCompositeOperation = 'lighter'; for (const q of RANCH.flyGlow || []) { const gl = c.createRadialGradient(q[0], q[1], 0, q[0], q[1], q[2]); gl.addColorStop(0, `rgba(200,230,90,${0.5 * q[3]})`); gl.addColorStop(1, 'rgba(200,230,90,0)'); c.fillStyle = gl; c.fillRect(q[0] - q[2], q[1] - q[2], 2 * q[2], 2 * q[2]); } c.globalCompositeOperation = 'source-over'; } // ...pero las luciérnagas brillan
+  RANCH.flyGlow = [];
   // nombres bajo cada monstruo (más visibles adelante)
   if (opt && opt.noNames) { c.globalAlpha = 1; return; }
   c.textAlign = 'center';
@@ -2994,6 +3000,7 @@ function ranchHeart(a) {
   const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
   RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
 }
+const RANCH_NAP_P = 0.03; // de noche, en cada pausa: chance de dormirse 1–4 min
 const RANCH_SIT_P = 0.025; // en cada pausa entre paseos: chance de sentarse a descansar 20–45 s (pasa poco, pedido del dueño)
 const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
 const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
@@ -3026,6 +3033,7 @@ function ranchPet(a, x, y, dist) {
 }
 // Al acercarse a un monstruo: si estaba de espaldas se da vuelta a mirarte (con un saltito) y se alegra
 function greetFocus(a) {
+  if (a && a.nap) { a.nap = null; if (a.m) { a.m.sleep = resting(a.rec); a.m.setEmo('surprised', 0.6, 2, ['happy', 1.2]); } } // si estaba durmiendo la siesta, al elegirlo se despierta
   if (!a || !a.m || a.m.sleep) return;
   const wasBack = a.m.back || (a.awayT || 0) > 0.15;
   a.m.back = false; a.awayT = -0.4; a.walk = false;
@@ -3496,7 +3504,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche hay luciérnagas y los monstruos bostezan y se sientan a descansar más seguido.'] },
+  { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, se despierta).'] },
   { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
