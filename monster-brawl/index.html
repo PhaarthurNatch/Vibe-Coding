@@ -2590,8 +2590,12 @@ function ranchStep(dt) {
     else if (a.kind === 'mon' && !a.m.sleep) {
       if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
-        if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; C.petT = 0; } /* mientras viene no agacha la cabeza */
-        else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
+        if (C.off == null) C.off = (Math.random() - 0.5) * 0.5; // un poco a un lado, para que dos no queden en el mismo punto
+        const ph = Math.atan2(a.x, a.z), front = RANCH.th + Math.PI + C.off, dph = Math.atan2(Math.sin(front - ph), Math.cos(front - ph)); // se pone en tu línea de visión (frente a la cámara)
+        if (Math.abs(dph) > (C.inView ? 0.45 : 0.06) || r > want + 0.02) { C.inView = false; const sp = 0.25 + (a.m.st.speed || 100) / 1600; /* rodea por el anillo, sin cruzar el centro */
+          const dr = clamp(want - r, -sp * dt, sp * dt), dang = clamp(dph, -sp * dt / r, sp * dt / r), nph = ph + dang, nr = r + dr, nx = Math.sin(nph) * nr, nz = Math.cos(nph) * nr;
+          vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; C.petT = 0; } /* mientras viene no agacha la cabeza */
+        else if ((C.inView = true) && C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
         else if (C.petting && (C.petting = false, C.pets = (C.pets || 0) + 1) >= (C.need = C.need || 1 + (Math.random() < 0.5 ? 1 : 0))) { a.come = null; a.idle = 0.5; } // con 1 o 2 caricias ya quedó contento y se va
         else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt, t < t2 ? t : t - t2); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
