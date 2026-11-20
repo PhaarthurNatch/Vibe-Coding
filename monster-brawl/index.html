@@ -2892,6 +2892,7 @@ function drawRanch(c, r, opt) {
   // cielo, estrellas, luna y cerros (se mueven al girar)
   const DI = RANCH.day = dayInfo(), SEA = seasonInfo(), SF = SEASON_FX[SEA];
   for (const k of ['g1', 'g2', 'r1', 'r2']) DI[k] = mixRgb(DI[k], SF.ground[0], SF.ground[1]); // el suelo cambia con la estación
+  if (SEA === 'invierno') DI.fly = 0; // en invierno no hay luciérnagas
   if (SEA === 'invierno') for (const k of ['h1', 'h2']) DI[k] = mixRgb(DI[k], '#e4edf5', 0.45); else if (SEA === 'otoño') for (const k of ['h1', 'h2']) DI[k] = mixRgb(DI[k], '#b8963e', 0.2); // cerros nevados o dorados
   const sky = c.createLinearGradient(0, Math.min(0, r.top), 0, Yh); sky.addColorStop(0, DI.top); sky.addColorStop(1, DI.bot);
   c.fillStyle = sky; c.fillRect(0, Math.min(0, r.top), W, r.height + Math.max(0, r.top)); // el cielo llega hasta arriba de la pantalla (detrás de la barra)
