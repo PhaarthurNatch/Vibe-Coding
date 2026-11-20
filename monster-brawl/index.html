@@ -38,9 +38,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span{font-size:12px;color:var(--muted)}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
-#home.ranch #lblBot{display:none}
+#home.ranch #lblBot{display:none} /* en el rancho no se baja a Estadísticas */
 .pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba */
-#home:not(.ranch) .pgStats{order:0}#home:not(.ranch) .pgShop{order:2} /* de cerca: Estadísticas arriba y el rancho abajo (pedido del dueño) */
 .edgeLbl.up.glow{animation:tabglow 1.6s ease-in-out infinite,edgeUp 2.4s ease-in-out infinite}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;white-space:nowrap;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
@@ -74,12 +73,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.locked{opacity:.5}
 #home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
 #home.vacant .panel>.row,#home.vacant #btnFight{display:none}
-#home.vacant #lblTop{visibility:hidden} /* espacio libre: no tiene Estadísticas */
+#home.vacant #lblBot{visibility:hidden} /* espacio libre: no tiene Estadísticas */
 .fightbtn{font-size:19px;padding:15px 10px;letter-spacing:.5px}
 #homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
 #homePanel.fightOpen #btnFight{display:none}
 #homePanel.fightOpen .fightrow{animation:zoomIn .3s ease-out}
-.fightrow .fightclose{flex:none;width:52px} /* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
+/* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
 @media (max-width:380px){.tabs{gap:0}.tabs button{font-size:11.5px;padding:7px 6px;letter-spacing:0}} /* celulares angostos: que quepan las 4 pestañas */
 .ultbar{display:flex;gap:8px;justify-content:center;padding-top:6px}
 .ultbtn{flex:1;max-width:260px;padding:10px 8px;border-radius:16px;background:linear-gradient(#ffe08a,#ff9a3c 60%,#e8641c);color:#2a1200;box-shadow:0 4px 0 #8a3a0a,0 0 18px rgba(255,170,60,.55);display:flex;flex-direction:column;align-items:center;gap:1px;animation:ultpulse 1.4s ease-in-out infinite}
@@ -271,7 +270,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
     <div class="row fightrow">
       <button class="btn" id="btnLan">📶 Pelea local</button>
-      <button class="btn fightclose" id="btnFightClose" aria-label="Cerrar">✕</button>
     </div>
     <div class="row fightrow">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
@@ -282,6 +280,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <button class="edgeLbl down" id="lblBot">Rancho ▼</button>
   </div>
   <div class="page pgStats">
+    <button class="edgeLbl up" data-go="1">▲ Monstruo</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
     <div class="spacer" id="trainArea"></div>
     <div class="panel tpanel">
@@ -289,7 +288,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <div class="tinfo" id="tinfo"></div>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
-    <button class="edgeLbl down" data-go="1">Monstruo ▼</button>
   </div>
   </div></div>
 </div>
@@ -455,10 +453,12 @@ const ULTS = {
   drain: { name: 'Robo de vida', desc: `cada golpe o disparo le devuelve como vida el 75% del daño por ${ULT_BUFF_S} s` },
   teleport: { name: 'Teletransporte', desc: 'desaparece y aparece detrás de su objetivo con un golpe fuerte' },
   clone: { name: 'Clon', desc: 'se duplica: el clon pelea a su lado y la vida que le queda se reparte entre los dos' },
+  mines: { name: 'Bombas', desc: 'suelta 3 bombas a su alrededor que explotan cuando un rival las pisa' },
 };
+const MINE_POW = 2.2, MINE_SPLASH = 0.5, MINE_R = 95, MINE_D = 120, MINE_TRIG = 30; // Bombas: daño (×ultPow) a quien la pisa, fracción a los demás cerca, radio de la explosión y distancia a la que caen; MINE_TRIG: área invisible alrededor de cada bomba que la activa
 const ULT_DRAIN = 0.75; // Robo de vida: fracción del daño que vuelve como vida
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
-const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone'];
+const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone', 'mines'];
 const ULT_RECHARGE_S = 20; // segundos reales hasta poder volver a usar la ultimate en la misma pelea
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
@@ -490,7 +490,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 2.0, floatR: 0.8, cd: 9, cdR: 4 };
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -1361,7 +1361,9 @@ class Monster {
 
   // ---------- IA ----------
   think(dt, B) {
-    if (this.dead) { this.deadT += dt; this.alpha = this.deadT < 2.2 ? 1 : Math.max(0, 1 - (this.deadT - 2.2) / 1.2); return; }
+    if (this.dead) { // el cuerpo ya no se desvanece (pedido del dueño): queda tirado donde cayó y sirve de obstáculo
+      this.deadT += dt; this.alpha = 1;
+      let sx = 0; for (const n of this.nodes) sx += n.x; this.x = this.gx = clamp(sx / this.nodes.length, 0, ARENA_W); return; }
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
     if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
@@ -1436,8 +1438,10 @@ class Monster {
     let fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
     if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
     const lowHp = this.hp / this.st.hp < this.scaredHp;
-    if (lowHp && this.tp.valor < -0.2 && d < 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1)) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
-    if (this.floatT > 0) fwd = -1; // flotando: se aleja de su objetivo (y le dispara desde arriba si puede)
+    const fleeD = 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1);
+    this.fleeing = lowHp && this.tp.valor < -0.2 && (d < fleeD || (this.fleeing && d < fleeD + 60)); // con margen: antes, justo en el límite cambiaba de idea cada cuadro y se quedaba quieto
+    if (this.fleeing) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
+    if (this.floatT > 0) fwd = d < reachD + 90 ? -0.45 : 0; // flotando: ya no huye, sólo se aleja un poco (y le dispara desde arriba si puede)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1475,8 +1479,9 @@ class Monster {
     }
 
     const air = this.z > FLY.airZ || T.z > FLY.airZ; // alguno en el aire: no hay golpe, sólo disparo (hacia arriba o hacia abajo)
-    if (!air && d <= reachD + 6 && this.meleeCd <= 0) this.startMelee(T, ux, uy, B);
-    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + 30 || air) && d < this.st.range) this.shoot(T, B);
+    this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
+    if (!air && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
+    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
   startLeap(T, d, reach) {
@@ -1510,7 +1515,7 @@ class Monster {
 
   shoot(T, B) {
     const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover;
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
@@ -2052,7 +2057,7 @@ class Monster {
 // ============================================================================
 class Battle {
   constructor(ms, mode) {
-    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
+    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = []; this.mines = [];
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
     const P0 = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
@@ -2124,6 +2129,20 @@ class Battle {
     if (c.t > 0.6) m.hop(dt);
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
+  mineBoom(b, st) {
+    b.done = true; const o = b.owner;
+    this.rings.push({ x: b.x, y: b.y, r: 8, max: MINE_R, life: 0.4, col: '#ffb347' }); this.shake = Math.max(this.shake, 10);
+    const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
+    this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
+    for (const e of this.ms) {
+      if (e.dead || e.team === b.team) continue;
+      let dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy); if (e !== st && d > MINE_R) continue;
+      if (d < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
+      const dir = { x: dx / d, y: dy / d };
+      this.hit(o, e, ultPow(o) * MINE_POW * (e === st ? 1 : MINE_SPLASH), dir, 'melee');
+      if (!e.dead && e.state !== 'ultcharge') { e.vx += dir.x * 320; e.vy += dir.y * 320; e.vz = 300; e.state = 'hitstun'; e.stT = 0.6; e.setEmo('dizzy', 1, 4); }
+    }
+  }
   execUlt(m) {
     m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
@@ -2137,6 +2156,13 @@ class Battle {
         this.proj.push({ giant: true, x: m.x + ux * m.r, y: m.y + uy * m.r, z: Math.max(20, m.gy - head.y), vx: ux * BS, vy: uy * BS, owner: m, team: m.team,
           pow: ultPow(m) * 2.8, r: 30, color: hsl(m.g.pal.accent, 12), kind: 'blob', life: 99, checked: new Set(), hitSet: new Set(), trail: [] });
         m.vx -= ux * 260; m.vy -= uy * 260; m.state = 'recoil'; m.stT = 0.4; this.shake = 8;
+        break;
+      }
+      case 'mines': { // Bombas: 3 bombas, cada una hacia una diagonal distinta (3 de las 4, al azar); se quedan hasta que un rival las pisa
+        const diag = [1, 3, 5, 7].sort(() => Math.random() - 0.5).slice(0, 3), col = hsl(m.g.pal.accent, 15);
+        for (const k of diag) { const a = k * Math.PI / 4, x = clamp(m.x + Math.cos(a) * MINE_D, 20, ARENA_W - 20), y = clamp(m.y + Math.sin(a) * MINE_D, 20, ARENA_D - 20);
+          this.mines.push({ x0: m.x, y0: m.y, x, y, t: 0, fly: 0.45, owner: m, team: m.team, col }); }
+        m.vz = 180; this.shake = 5;
         break;
       }
       case 'melee': { // onda de choque: golpea todo alrededor y lo lanza al otro lado
@@ -2195,12 +2221,36 @@ class Battle {
     this.time += dt;
     for (const m of this.ms) m.think(dt, this);
     for (const m of this.ms) m.physics(dt);
+    for (const b of this.mines) { // Bombas: si en el aire toca a un rival le explota; en el piso, explota cuando un rival entra en su área (invisible)
+      b.t += dt; if (b.done) continue;
+      const fl = b.t < b.fly, e0 = Math.min(1, b.t / b.fly), bx = b.x0 + (b.x - b.x0) * e0, by = b.y0 + (b.y - b.y0) * e0;
+      const st = this.ms.find(e => !e.dead && e.team !== b.team && (fl || e.z < FLY.airZ) && Math.hypot(e.x - bx, e.y - by) < e.r + (fl ? 6 : MINE_TRIG));
+      if (st) { if (fl) { b.x = bx; b.y = by; b.t = b.fly; } this.mineBoom(b, st); }
+    }
+    if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
     // separación entre cuerpos
     const al = this.ms.filter(m => !m.dead);
     for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
       const a = al[i], b = al[j]; if (Math.abs(a.z - b.z) > FLY.airZ) continue;
       const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
       if (d < mn && d > 0.01) { const p = (mn - d) / 2, nx = dx / d, ny = dy / d; a.x -= nx * p; a.y -= ny * p; b.x += nx * p; b.y += ny * p; }
+    }
+    // cuerpos de los noqueados: son un obstáculo; al pasar por encima dan un saltito o lo rodean (pueden seguir atacando por encima)
+    const bodies = this.ms.filter(m => m.dead && m.deadT > 0.8);
+    for (const a of al) {
+      if (a.z > FLY.airZ * 0.5 || a.state === 'leap') continue;
+      for (const b of bodies) {
+        let dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy); const mn = a.r * 0.7 + b.r * 0.9;
+        if (d >= mn) { if (a.onBody === b) a.onBody = null; continue; }
+        const sp = Math.hypot(a.vx, a.vy);
+        if (a.onBody !== b) { a.onBody = b; a.hopBody = Math.random() < 0.5; a.bodySide = Math.random() < 0.5 ? -1 : 1; } // cada vez que se topa con uno decide: saltito o rodearlo
+        if (a.hopBody && sp > 30 && a.z === 0 && (a.state === 'free' || a.state === 'recover')) { a.vz = 190; continue; } // saltito por encima
+        if (d < 0.01) { dx = 1; dy = 0; d = 1; }
+        const nx = dx / d, ny = dy / d; a.x = b.x + nx * mn; a.y = b.y + ny * mn; // lo empuja afuera...
+        const tn = a.vx * -ny + a.vy * nx, side = Math.abs(tn) > 5 ? Math.sign(tn) : a.bodySide; // ...y lo rodea por el lado hacia el que iba
+        a.x += -ny * side * 70 * dt; a.y += nx * side * 70 * dt;
+        a.x = clamp(a.x, a.r, ARENA_W - a.r); a.y = clamp(a.y, a.r, ARENA_D - a.r);
+      }
     }
     // proyectiles
     for (const p of this.proj) {
@@ -2270,11 +2320,12 @@ class Battle {
     for (const r of this.rings) { const gy = TOP + r.y * DEPTH; ctx.globalAlpha = clamp(r.life * 2, 0, 1); ctx.strokeStyle = r.col; ctx.lineWidth = 10; ctx.beginPath(); ctx.ellipse(r.x, gy, r.r, r.r * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1; }
     for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
     // monstruos ordenados por profundidad
-    const sorted = [...this.ms].sort((a, b) => (a.dead - b.dead) || a.y - b.y);
-    for (const m of sorted) m.draw(ctx);
-    // proyectiles
-    for (const p of this.proj) {
-      const Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
+    // monstruos (vivos y noqueados) y proyectiles por profundidad: lo de adelante tapa a lo de atrás (antes los noqueados iban siempre detrás)
+    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...this.proj.map(p => ({ y: p.y, p })), ...this.mines.map(b => ({ y: b.y, b }))].sort((a, b) => a.y - b.y);
+    for (const it of sorted) {
+      if (it.m) { it.m.draw(ctx); continue; }
+      if (it.b) { drawMine(ctx, it.b, this.time); continue; }
+      const p = it.p, Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
       ctx.lineCap = 'round';
       for (let i = 1; i < p.trail.length; i++) { const a = p.trail[i - 1], b = p.trail[i]; ctx.strokeStyle = p.color; ctx.globalAlpha = i / p.trail.length * 0.5; ctx.lineWidth = p.r * (p.kind === 'laser' ? 1.4 : 1.2) * i / p.trail.length; ctx.beginPath(); ctx.moveTo(a[0], Y(a)); ctx.lineTo(b[0], Y(b)); ctx.stroke(); }
       ctx.globalAlpha = 1;
@@ -2295,6 +2346,17 @@ class Battle {
   }
 }
 
+function drawMine(ctx, b, time) { // bomba: vuela en arco hasta su lugar y queda en el piso con la mecha encendida
+  const e = Math.min(1, b.t / b.fly), x = b.x0 + (b.x - b.x0) * e, y = b.y0 + (b.y - b.y0) * e, gy = TOP + y * DEPTH, z = Math.sin(Math.PI * e) * 70, R = 12;
+  ctx.fillStyle = 'rgba(30,15,40,.3)'; ctx.beginPath(); ctx.ellipse(x, gy, R * 1.1 * (1 - z / 140), R * 0.4, 0, 0, TAU); ctx.fill();
+  const cy = gy - R - z;
+  ctx.fillStyle = '#2c2433'; ctx.strokeStyle = '#120c18'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, cy, R, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = b.col; ctx.fillRect(x - R * 0.9, cy - 2, R * 1.8, 4); // franja del color de quien la soltó
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(x - R * 0.35, cy - R * 0.35, R * 0.3, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + R * 0.3, cy - R * 0.9); ctx.quadraticCurveTo(x + R * 0.9, cy - R * 1.6, x + R * 0.5, cy - R * 1.9); ctx.stroke();
+  const on = e >= 1 && Math.sin(time * 14 + x) > 0; // armada: la chispa parpadea
+  ctx.fillStyle = on ? '#ff5d3a' : '#ffd36b'; ctx.globalAlpha = e >= 1 ? 1 : 0.6; ctx.beginPath(); ctx.arc(x + R * 0.5, cy - R * 1.9, on ? 4 : 3, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+}
 function teamColor(m, mode, myTeam = 0) {
   if (mode === 'lan') return LAN_COLORS[m.team % LAN_COLORS.length].c; // pelea local: el color de su equipo
   if (m.isPlayer) return '#ffcf6e';
@@ -2389,6 +2451,7 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = 5; delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true }; });
         s.gen5 = true; }
+      s.monsters.forEach(m => { if (m.parents && !m.parentSeeds) { const ps = m.parents.map(n => (s.monsters.find(o => o !== m && o.name === n) || {}).seed).filter(x => x != null); if (ps.length) m.parentSeeds = ps; } }); // padres por semilla (antes sólo por nombre), para que se reconozcan en el rancho
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
 function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
@@ -2592,7 +2655,14 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
-  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.m.held && a.m.z === 0;
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.m.held && a.m.z === 0;
+  RANCH.famCd = RANCH.famCd || {};
+  for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { // padre e hijo que se cruzan: se saludan y les salen corazones (pedido del dueño)
+    const a = A[i], b = A[j];
+    if (!canPlay(a) || !canPlay(b) || !isFamily(a.rec, b.rec) || Math.hypot(a.x - b.x, a.z - b.z) > RANCH_FAM_D) continue;
+    const key = a.slot + '-' + b.slot; if ((RANCH.famCd[key] || 0) > RANCH.t) continue;
+    RANCH.famCd[key] = RANCH.t + 40; a.fam = { t: 0 }; b.fam = { t: -0.25 }; a.walk = b.walk = false;
+  }
   for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
@@ -2613,7 +2683,14 @@ function ranchStep(dt) {
     let vx = 0, vz = 0; if (a.m && a !== focus) a.m.askPet = a.m.bowHead = false;
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
+      if (a.fam) { // saludo de familia: contentos, saltitos y corazones
+        const F = a.fam, t0 = F.t, t = F.t = t0 + dt; a.walk = false;
+        if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', 2.2, 2); }
+        if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4);
+        for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
+        if (t > 0 && t < RANCH_ASK_HEARTS && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.13; ranchHeart(a); } // los mismos pocos corazones que al pedir caricias
+        if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
+      } else if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
         const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
         if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', G.end, 2); }
         if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4); // de frente a ti (antes de su turno sigue como estaba)
@@ -2757,6 +2834,7 @@ function drawRanch(c, r, opt) {
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else { c.globalAlpha *= clamp((1 - ghost) / 0.65, 0, 1); drawOcc(c, { vacant: true, k }); } // de cerca aparece; al volver al rancho se desvanece
       c.restore();
+      for (const q of RANCH.parts) if (q.a === a) drawRanchPart(c, q, p.X, p.Y); // sus efectos van a su misma profundidad: un árbol de adelante los tapa
       const w = Math.max(a.sz.w * 0.6, 40) * k, h = Math.max(a.sz.h, 50) * k;
       if (nearM(p) > 0.5) a.hit = { x0: p.X - w, x1: p.X + w, y0: p.Y - h - (a.m ? a.m.z * k : 0), y1: p.Y + 12 * k, depth: p.Y };
       continue;
@@ -2796,12 +2874,14 @@ function drawRanch(c, r, opt) {
     const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
-  for (const q of RANCH.parts) { // corazones al acariciar
-    c.globalAlpha = clamp(q.life * 2, 0, 1);
-    if (q.k === 'heart') { c.fillStyle = '#ff7aa8'; heartPath(c, q.x, q.y, 7); c.fill(); }
-    else { c.fillStyle = '#ffe27a'; c.beginPath(); c.arc(q.x, q.y, 3.5, 0, TAU); c.fill(); }
-  }
+  for (const q of RANCH.parts) if (!q.a) drawRanchPart(c, q, 0, 0); // efectos sueltos (sin monstruo)
   c.globalAlpha = 1;
+}
+function drawRanchPart(c, q, ox, oy) { // corazones al acariciar y chispas
+  c.save(); c.globalAlpha = clamp(q.life * 2, 0, 1);
+  if (q.k === 'heart') { c.fillStyle = '#ff7aa8'; heartPath(c, ox + q.x, oy + q.y, 7); c.fill(); }
+  else { c.fillStyle = '#ffe27a'; c.beginPath(); c.arc(ox + q.x, oy + q.y, 3.5, 0, TAU); c.fill(); }
+  c.restore();
 }
 // Tocar en el rancho: el habitante más adelante bajo el dedo
 function ranchHit(x, y) { // el habitante más adelante bajo el dedo
@@ -2820,10 +2900,16 @@ function ranchAskFx(a, dt, ph) {
   for (const n of m.nodes) { const dd = Math.hypot(n.x - h.x, n.y - (h.y - g.head.h * 0.3 * s)); if (dd < 45 * s) n.vx += w * (1 - dd / (45 * s)) * dt * 12; }
   if (!S || ph > RANCH_ASK_HEARTS) return;
   a.askHeart = (a.askHeart || 0) - dt;
-  if (a.askHeart <= 0) { a.askHeart = 0.13;
-    const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
-    RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (a.askHeart <= 0) { a.askHeart = 0.13; ranchHeart(a); }
 }
+// Un corazón (el mismo de la caricia) en un punto al azar de la cabeza
+function ranchHeart(a) {
+  const m = a.m, S = a.scr; if (!S || !m) return;
+  const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
+  RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
+}
+const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
+const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
 // Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
 function ranchGreetAll() {
   if (!ranchMode || scene !== 'home' || firstEgg()) return;
@@ -2846,7 +2932,7 @@ function ranchPet(a, x, y, dist) {
     for (const n of m.nodes) { const dd = Math.hypot(n.x - B.x, n.y - B.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } }
   }
   RANCH.petAcc = (RANCH.petAcc || 0) + dist;
-  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push({ x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
   const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
@@ -2918,7 +3004,7 @@ function renderHome() {
     return;
   }
   $('btnLan').disabled = firstEgg();
-  setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn:not(.fightclose)')].every(b => b.disabled); });
+  setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn')].every(b => b.disabled); });
   $('home').classList.toggle('first', firstEgg()); // partida nueva: sin botones hasta que nazca el primer huevo
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
@@ -2982,10 +3068,10 @@ function checkBreedUnlock() {
 const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.stage === 'egg');
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
-const visPage = n => ranchMode ? n : [2, 1, 0][n]; // de cerca el orden en pantalla es Estadísticas / Monstruo / (Tienda, sin acceso)
+const visPage = n => n; // mismo orden siempre: Tienda / Rancho o monstruo de cerca / Estadísticas (de cerca, arriba se vuelve al rancho)
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
-  if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (abajo está el rancho)
+  if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
   if (n === 2 && homeEmpty != null) return; // los espacios libres no aparecen en Estadísticas
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
   homePage = n; $('track').style.transform = `translateY(${-100 / 3 * visPage(n)}%)`;
@@ -2993,14 +3079,14 @@ function setPage(n) {
   if (n === 2) renderTrain();
   if (n === 0) renderAdopt();
 }
-// Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Estadísticas" (dorado si hay puntos por gastar) y "Rancho ▼"
+// Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Rancho" y "Estadísticas ▼" (dorado si hay puntos por gastar) (pedido del dueño)
 function edgeLabels(free) {
   const t = $('lblTop'), b = $('lblBot');
-  t.textContent = ranchMode ? '▲ Tienda' : free > 0 ? `▲ Estadísticas (${free})` : '▲ Estadísticas'; t.classList.toggle('glow', !ranchMode && free > 0);
-  b.textContent = 'Rancho ▼';
+  t.textContent = ranchMode ? '▲ Tienda' : '▲ Rancho';
+  b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else setPage(2); };
-$('lblBot').onclick = () => toRanch();
+$('lblTop').onclick = () => { if (ranchMode) setPage(0); else toRanch(); };
+$('lblBot').onclick = () => setPage(2);
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
@@ -3021,7 +3107,7 @@ function swipeEnd(x, y) {
     const v = visPage(homePage) + (dy < 0 ? 1 : -1); // posición en pantalla a la que se va (dedo arriba = la de abajo)
     if (v < 0 || v > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now();
-    if (!ranchMode && homePage === 1 && v === 2) toRanch(); // de cerca, deslizar hacia arriba vuelve al rancho (abajo)
+    if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, deslizar el dedo hacia abajo vuelve al rancho (arriba)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (homePage === 2 ? save.monsters.length : Math.max(slotCap(), save.monsters.length)) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
@@ -3188,7 +3274,7 @@ function makeChild(A, B) {
   delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
-  rec.parents = [A.name, B.name]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
+  rec.parents = [A.name, B.name]; rec.parentSeeds = [A.seed, B.seed]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
   rec.ultGift = (Math.random() < 0.5 ? A : B).ult || null; // al despertar trae la ultimate de uno de sus padres
   return rec;
 }
@@ -3302,7 +3388,6 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.datase
 // "Luchar" abre los modos de pelea (y la pelea local); ✕ los cierra. Se cierran solos al cambiar de monstruo o volver al rancho.
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
-$('btnFightClose').onclick = () => fightMenu(false);
 
 // ---------- Ajustes: exportar / importar partida ----------
 // Copia local: cada 2 min (y al salir de la app) se guarda una copia de la partida (COPY_KEY); exportar la refresca y la da como código.
@@ -3323,6 +3408,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
@@ -4227,6 +4313,7 @@ function lanSnapshot() {
       [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
     pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])])]),
     rg: B.rings.map(r => [R1(r.x), R1(r.y), R1(r.r), r.max, R1(r.life * 100) / 100, r.col]),
+    mn: B.mines.map(b => [R1(b.x0), R1(b.y0), R1(b.x), R1(b.y), R1(b.t * 100) / 100, b.fly, b.col]),
     tx: B.texts.map(t => [R1(t.x), R1(t.y), t.str, t.col, R1(t.life * 100) / 100, t.big ? 1 : 0]),
     pa: B.parts.slice(-60).map(q => [R1(q.x), R1(q.y), R1(q.vx), R1(q.vy), R1(q.life * 100) / 100, q.col, R1(q.r)]) };
 }
@@ -4236,6 +4323,7 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null;
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
+    B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)

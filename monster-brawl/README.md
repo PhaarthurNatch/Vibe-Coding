@@ -50,7 +50,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **Ultimate (Awakened)**: se lanza apretando el botón **ULTIMATE** abajo de la arena (una vez por pelea). Se equipa y se cambia cuando quieras desde Estadísticas. Al despertar trae una de regalo; las demás
   se desbloquean con monedas (150) y quedan en tu biblioteca para todos tus monstruos. Disponibles: Onda de choque (lanza a todos
   al otro lado), Bala gigante (atraviesa todo en línea recta; apunta adelantándose), Escudo de hierro (no recibe daño 10 s), Supervelocidad (se mueve y
-  ataca el doble de rápido 10 s), Reflejos fantasma (doble esquiva 10 s). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
+  ataca el doble de rápido 10 s), Reflejos fantasma (esquiva todo 6 s y contraataca), Robo de vida, Teletransporte, Clon y Bombas (3 bombas en diagonal que explotan cuando un rival las pisa). Al usarla queda potenciado (+30% a todo por 10 s). Las de daño usan su ataque más fuerte (golpe o disparo).
   Se usa una por pelea (con carga previa y acercamiento de cámara) y se recarga al empezar cada pelea.
 - **Expresiones**: asustados con poca vida (tiemblan, sudan, cejas preocupadas), enojados al atacar, dolor al recibir golpes,
   mareados con golpes fuertes, sorpresa al esquivar, felices al noquear o ganar, tristes al perder o con pocas vidas. Si lo noquean (pierde un corazón) queda triste 1 minuto en el menú, aunque su equipo gane, pero si lo acaricias se pone feliz. Con 1 corazón o menos se ve machacado: cansado, con curitas y un ojo morado.
