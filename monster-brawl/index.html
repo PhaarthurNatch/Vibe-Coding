@@ -1907,24 +1907,34 @@ class Monster {
 
     // ---------- Boca ----------
     const my = g.mouth.y * hh, mw = g.mouth.w * hw;
-    let o = this.mouthOpen;
+    const calm = typeof scene === 'undefined' || scene !== 'battle', lineM = !['beak', 'mandibles', 'none'].includes(g.mouth.type);
+    const keepM = !lineM; // las bocas cambian con la expresión (fuera y dentro de la pelea), menos las especiales: pico y mandíbulas no cambian nunca (pedido del dueño)
+    const Em = keepM ? 'neutral' : E;
+    let o = calm || keepM ? 0 : this.mouthOpen; // en la pelea se abre al atacar (las especiales no)
     ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const wavy = (amp, n) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const x = -mw * 0.7 + i * mw * 1.4 / n, y = my + (i % 2 ? -amp : amp) + jit() * 0.3; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); };
     const custom = g.mouth.type !== 'none' && g.mouth.type !== 'beak';
-    if (custom && (E === 'ko' || E === 'dizzy')) wavy(mw * 0.1, 4);
+    const lineFace = lineM && Em !== 'neutral'; // la boca toma la forma de la expresión, también en la pelea (energético y machacado no la cambian)
+    const curve = (y0, cy) => { ctx.beginPath(); ctx.moveTo(-mw * 0.75, my + y0); ctx.quadraticCurveTo(0, my + cy, mw * 0.75, my + y0); ctx.stroke(); };
+    if (lineFace && Em === 'happy') curve(-mw * 0.05, mw * 0.85); // sonrisa grande
+    else if (lineFace && Em === 'love') curve(0, mw * 0.5); // sonrisa suave
+    else if (lineFace && Em === 'sad') curve(mw * 0.22, -mw * 0.25); // hacia abajo
+    else if (lineFace && (Em === 'surprised' || Em === 'scared')) { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.22, mw * 0.3, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); } // una "o"
+    else if (lineFace && Em === 'hurt') wavy(mw * 0.08, 4);
+    else if (custom && (Em === 'ko' || Em === 'dizzy')) wavy(mw * 0.1, 4);
     // machacado: la boca no cambia (pedido del dueño)
-    else if (false && custom && E === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
-    else if (false && custom && E === 'happy') {
+    else if (false && custom && Em === 'love') { /* feliz/triste no cambian la boca (pedido del dueño) */ ctx.beginPath(); ctx.moveTo(-mw * 0.6, my); ctx.quadraticCurveTo(0, my + mw * 0.5, mw * 0.6, my); ctx.stroke(); }
+    else if (false && custom && Em === 'happy') {
       ctx.beginPath(); ctx.moveTo(-mw, my - mw * 0.1); ctx.quadraticCurveTo(0, my + mw * 1.1, mw, my - mw * 0.1); ctx.closePath(); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2);
       ctx.save(); ctx.clip(); ctx.fillStyle = C.tongue; ctx.beginPath(); ctx.ellipse(0, my + mw * 0.55, mw * 0.45, mw * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore();
     }
-    else if (custom && E === 'surprised') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.3, mw * 0.4, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
-    else if (custom && E === 'hurt') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.75, mw * 0.42, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
-    else if (false && custom && E === 'sad') { ctx.beginPath(); ctx.moveTo(-mw * 0.65, my + mw * 0.22); ctx.quadraticCurveTo(0, my - mw * 0.25, mw * 0.65, my + mw * 0.22); ctx.stroke(); }
-    else if (E === 'angry' && g.mouth.type === 'smile') { ctx.beginPath(); ctx.moveTo(-mw * 0.8, my + mw * 0.1); ctx.lineTo(mw * 0.8, my - mw * 0.02); ctx.stroke(); }
+    else if (custom && Em === 'surprised') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.3, mw * 0.4, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
+    else if (custom && Em === 'hurt') { ctx.beginPath(); ctx.ellipse(0, my + mw * 0.1, mw * 0.75, mw * 0.42, 0, 0, TAU); fillStroke(ctx, C.mouthIn, C.ol, lw * 1.2); }
+    else if (false && custom && Em === 'sad') { ctx.beginPath(); ctx.moveTo(-mw * 0.65, my + mw * 0.22); ctx.quadraticCurveTo(0, my - mw * 0.25, mw * 0.65, my + mw * 0.22); ctx.stroke(); }
+    else if (Em === 'angry' && g.mouth.type === 'smile') { ctx.beginPath(); ctx.moveTo(-mw * 0.8, my + mw * 0.1); ctx.lineTo(mw * 0.8, my - mw * 0.02); ctx.stroke(); }
     else {
-      if (E === 'angry') o = Math.max(o, 0.45);
-      if (g.mouth.type === 'beak' && ['hurt', 'surprised'].includes(E)) o = Math.max(o, 0.6);
+      if (Em === 'angry') o = Math.max(o, 0.45);
+      if (g.mouth.type === 'beak' && ['hurt', 'surprised'].includes(Em)) o = Math.max(o, 0.6);
       ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       switch (g.mouth.type) {
         case 'smile':
@@ -1976,11 +1986,12 @@ class Monster {
         }
         case 'whiskers': { // boca de gato con bigotes que se mueven
           ctx.beginPath(); ctx.arc(-mw * 0.22, my, mw * 0.22, 0, Math.PI); ctx.moveTo(mw * 0.44, my); ctx.arc(mw * 0.22, my, mw * 0.22, 0, Math.PI); ctx.stroke();
-          ctx.lineWidth = lw * 0.7;
-          for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) { const a = (sx > 0 ? 0 : Math.PI) + sx * (k * 0.2 + Math.sin(this.t * 3 + k) * 0.07), x0 = sx * mw * 0.65, y0 = my - mw * 0.12; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + Math.cos(a) * mw * 1.2, y0 + Math.sin(a) * mw * 1.2); ctx.stroke(); }
           break;
         }
       }
+    }
+    if (g.mouth.type === 'whiskers') { ctx.lineWidth = lw * 0.7; // los bigotes se quedan siempre, cambie como cambie la boca (pedido del dueño)
+      for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) { const a = (sx > 0 ? 0 : Math.PI) + sx * (k * 0.2 + Math.sin(this.t * 3 + k) * 0.07), x0 = sx * mw * 0.65, y0 = my - mw * 0.12; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + Math.cos(a) * mw * 1.2, y0 + Math.sin(a) * mw * 1.2); ctx.stroke(); }
     }
 
     // ---------- Detalles alrededor de la cara ----------
@@ -3408,6 +3419,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
   { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
