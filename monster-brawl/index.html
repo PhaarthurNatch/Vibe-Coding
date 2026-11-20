@@ -3761,8 +3761,8 @@ function barnStep(dt) {
     L.t += dt; const m = L.it.m;
     if (L.phase === 'stand') { if (m) { m.sitting = false; m.sleep = false; m.vx = 0; m.vy = 0; } if (L.t > (m ? 0.7 : 0.3)) { L.phase = 'walk'; L.t = 0; } }
     else if (L.phase === 'walk') { L.x -= 1.15 * dt; if (m) { m.vx = -110; m.vy = 20; } else if (L.it.egg && Math.random() < dt * 4) L.it.egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; if (L.x <= BARN_DOOR) { L.x = BARN_DOOR; L.phase = 'out'; L.t = 0; } }
-    else { if (m) { m.vx = -40; m.vy = 60; } L.alpha = Math.max(0, 1 - L.t / 0.6); if (L.t > 0.65) { BARN.leave = null; barnTake(L.i); BARN.goto = 0; return; } }
-    BARN.x += (clamp(L.x, BARN_DOOR + 0.35, BARN_MAX - 1) - BARN.x) * Math.min(1, dt * 4); // la vista lo sigue
+    else { if (m) { m.vx = -40; m.vy = 60; } L.alpha = Math.max(0, 1 - L.t / 0.6); if (L.t > 0.65) { BARN.leave = null; barnTake(L.i); return; } }
+    // la vista no lo sigue (pedido del dueño): se queda donde estaba y el monstruo se va caminando
     for (const it of BARN.ms) if (it.m) { it.m.animate(dt); it.m.rigStep(dt / 2); it.m.rigStep(dt / 2); } else if (it.egg) it.egg.update(dt);
     return;
   }
