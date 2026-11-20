@@ -1579,6 +1579,7 @@ class Monster {
 
   die(dir, kb) {
     this.dead = true; this.state = 'dead'; this.target = null;
+    for (const k in this.buffs) this.buffs[k] = 0; this.auraBoost = 0; this.ulting = false; this.ultRequest = false; this.floatT = 0; this.growAura = false; this.aura = []; // al morir se apagan todos los efectos de las ultimates (escudo, estelas, copias, aura, robo de vida, potenciado)
     for (const n of this.nodes) { n.vx += dir.x * kb * 0.6 * Math.random() + (Math.random() - 0.5) * 110; n.vy -= 80 + Math.random() * 110; } // sale volando, pero no tan fuerte (pedido del dueño)
   }
 
@@ -3539,7 +3540,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, despierta de un salto, sorprendido, y luego se alegra).', 'Estaciones del año según dónde estás: primavera con árboles en flor y pétalos, verano verde, otoño con hojas naranjas cayendo e invierno con nieve.'] },
+  { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, despierta de un salto, sorprendido, y luego se alegra).', 'Al ser noqueado, el monstruo pierde todos los efectos de su ultimate (escudo, aura, estelas, copias, etc.).', 'Estaciones del año según dónde estás: primavera con árboles en flor y pétalos, verano verde, otoño con hojas naranjas cayendo e invierno con nieve.'] },
   { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
