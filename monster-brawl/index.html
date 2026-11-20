@@ -2824,6 +2824,7 @@ function ranchCam(r) {
 function drawRanch(c, r, opt) {
   // Perspectiva de una persona parada DENTRO del rancho, en su centro: el rancho es grande comparado con los monstruos,
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
+  const TN = performance.now() / 1000; // tiempo para que las plantas se mezan
   const D = ranchDeco(), C = ranchCam(r), { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P } = C;
   const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
   const ghost = opt && opt.ghost != null ? opt.ghost : 1; // vista de cerca: lo demás del rancho se vuelve transparente para no estorbar
@@ -2848,7 +2849,7 @@ function drawRanch(c, r, opt) {
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, '#4a9152'); gg.addColorStop(1, '#55a35b'); c.fillStyle = gg; c.fill();
-  for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); if (f.g) { c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X, p.Y, 2.2 * fk, 0, TAU); c.fill(); } }
+  for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); const fp = f.x * 5 + f.z * 7; if (f.g) { const gs = Math.sin(TN * 2 + fp) * 1.6 * fk; c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X + gs, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X + Math.sin(TN * 1.3 + fp) * 0.7 * fk, p.Y - Math.abs(Math.sin(TN * 0.9 + fp)) * 0.8 * fk, 2.2 * fk, 0, TAU); c.fill(); } } // el pasto y las flores se mecen
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
   for (const d of D.d) { const p = P(d.x, d.z); if (!p.vis) continue; if (d.k === 'rail') { const q = P(d.x2, d.z2); if (!q.vis) continue; items.push({ y: Math.min(p.Y, q.Y) - 0.5, d, p }); } else items.push({ y: p.Y, d, p }); }
@@ -2873,10 +2874,13 @@ function drawRanch(c, r, opt) {
     if (d.k === 'tree') {
       const sc = d.s * RANCH_TREE; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
       const up = 70 * (RANCH_TREE_H - 1); // árboles más altos: tronco más largo y copa más arriba (pedido del dueño)
-      c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -(70 + up) * sc, 14 * sc, (70 + up) * sc);
-      for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -128, 40, 36], [0, -82, 30, 26], [0, -150, 28, 40]]) { c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc(ox * sc, (oy - up) * sc, rr * sc, 0, TAU); c.fill(); }
+      const ph = d.x * 3.1 + d.z * 1.7, sway = Math.sin(TN * 0.9 + ph) * 3 + Math.sin(TN * 0.37 + ph * 0.5) * 2; // se mece con el viento (más arriba, más se mueve)
+      const H0 = 70 + up, tx = sway * 0.6 * sc;
+      c.fillStyle = '#6b4a32'; c.beginPath(); c.moveTo(-7 * sc, 0); c.lineTo(7 * sc, 0); c.lineTo(7 * sc + tx, -H0 * sc); c.lineTo(-7 * sc + tx, -H0 * sc); c.closePath(); c.fill();
+      for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -128, 40, 36], [0, -82, 30, 26], [0, -150, 28, 40]]) { const hk = -(oy - up) / 150, wob = Math.sin(TN * 1.6 + ph + ox * 0.05) * 0.8; c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc((ox + sway * hk + wob) * sc, (oy - up + wob * 0.5) * sc, rr * sc, 0, TAU); c.fill(); }
     } else if (d.k === 'bush') {
-      const sc = d.s; for (const [ox, oy, rr, l] of [[-12, -10, 14, 28], [12, -10, 14, 28], [0, -18, 16, 33]]) { c.fillStyle = `hsl(${d.h},40%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
+      const sc = d.s, ph = d.x * 2.3 + d.z * 3.7, br = 1 + Math.sin(TN * 1.1 + ph) * 0.03; // arbusto: se mece y "respira" un poco
+      [[-12, -10, 14, 28], [12, -10, 14, 28], [0, -18, 16, 33]].forEach(([ox, oy, rr, l], i) => { const sw = Math.sin(TN * 1.4 + ph + i) * 1.4; c.fillStyle = `hsl(${d.h},40%,${l}%)`; c.beginPath(); c.arc((ox + sw * (-oy / 18)) * sc, oy * sc * br, rr * sc * br, 0, TAU); c.fill(); });
     } else if (d.k === 'rock') {
       c.fillStyle = '#6f6a7d'; c.beginPath(); c.ellipse(0, -6 * d.s, 16 * d.s, 10 * d.s, 0, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,255,255,.15)'; c.beginPath(); c.ellipse(-4 * d.s, -10 * d.s, 6 * d.s, 3 * d.s, 0, 0, TAU); c.fill();
     } else if (d.k === 'post') {
@@ -3438,7 +3442,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.'] },
+  { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
   { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
