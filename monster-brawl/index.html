@@ -526,7 +526,7 @@ const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, t
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
-const MAX_MONSTERS = 6; // el rancho tiene siempre 6 espacios (pedido del dueño); los demás se guardan en el granero
+const MAX_MONSTERS = 8; // el rancho tiene siempre 8 espacios (pedido del dueño; antes 6); los demás se guardan en el granero
 const BARN_MAX = 10;     // monstruos que caben en el granero (no pelean; se sacan al rancho cuando hay espacio)
 const SLOTS_START = 2;   // (ya no se usa: antes se partía con 2 espacios y cada Awakened desbloqueaba uno)
 const slotCap = () => MAX_MONSTERS;
@@ -2648,7 +2648,7 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
         s.monsters.forEach(m => { m.gen = Math.max(5, m.gen || 0); delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true, v6: m.genes[k].v6 || false }; }); // (los gen 6 siguen siendo gen 6)
         s.gen5 = true; }
       s.monsters.forEach(m => { if (m.parents && !m.parentSeeds) { const ps = m.parents.map(n => (s.monsters.find(o => o !== m && o.name === n) || {}).seed).filter(x => x != null); if (ps.length) m.parentSeeds = ps; } }); // padres por semilla (antes sólo por nombre), para que se reconozcan en el rancho
-      s.barn = s.barn || []; if (s.monsters.length > MAX_MONSTERS) s.barn.push(...s.monsters.splice(MAX_MONSTERS)); // el rancho tiene 6 espacios: los que sobran van al granero
+      s.barn = s.barn || []; if (s.monsters.length > MAX_MONSTERS) s.barn.push(...s.monsters.splice(MAX_MONSTERS)); // el rancho tiene 8 espacios: los que sobran van al granero
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START, barn: [] }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
 function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
@@ -3801,7 +3801,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['El rancho ahora tiene siempre 6 espacios.', 'Nuevo granero: tócalo en el rancho para guardar hasta 10 monstruos más y pasarlos del rancho al granero y al revés. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
+  { v: '1.39', d: '2026-11-20', items: ['El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para guardar hasta 10 monstruos más y pasarlos del rancho al granero y al revés. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
@@ -4231,7 +4231,7 @@ function growStep(dt) {
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
       G.rec.stage = G.newM.rec.stage;
       if (canUlt(G.rec.stage) && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); G.newUlt = G.rec.ult; } // ultimate de regalo al llegar a adolescente
-      if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) G.rec.awakeCounted = true; // (ya no da espacios: el rancho tiene siempre 6)
+      if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) G.rec.awakeCounted = true; // (ya no da espacios: el rancho tiene siempre 8)
       persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
       G.newM.vz = 220; G.newM.mouthOpen = 1; G.newM.setEmo('surprised', 0.8, 3, ['happy', 60]);
