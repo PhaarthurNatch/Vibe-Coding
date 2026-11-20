@@ -1221,7 +1221,7 @@ class Monster {
     }
     // Colas
     this.earT = (this.earT ?? Math.random() * 3) - dt;
-    if (this.earT < 0) { this.earT = 1.5 + Math.random() * 4; const sd = Math.random() < 0.5 ? -1 : 1; for (const e of I.ears) if (e.sd === sd || Math.random() < 0.4) { const n = N[e.tip]; n.vx += e.sd * 140 * s; n.vy -= 60 * s; } }
+    if (this.earT < 0) { this.earT = 2 + Math.random() * 5; const sd = Math.random() < 0.5 ? -1 : 1; for (const e of I.ears) if (e.sd === sd || Math.random() < 0.4) { const n = N[e.tip]; n.vx += e.sd * 140 * s; n.vy -= 60 * s; } }
     for (const a of I.ants) { N[a.chain[1]].ax = Math.sin(t * 2.2 + a.i * 1.3) * 2.5; N[a.chain[0]].ax = Math.sin(t * 1.7 + a.i) * 1.2; }
     for (const tl of I.tails) tl.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.7) * k * 0.6 * (tl.sd || 1); n.ay = Math.cos(t * 2.6 + k * 0.7) * k * 0.4; });
     // Piernas: los pies buscan el suelo (o cuelgan si está en el aire)
@@ -2562,8 +2562,8 @@ function ranchStep(dt) {
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
   const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.m.held && a.m.z === 0;
   for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
-  if ((RANCH.playCd = (RANCH.playCd ?? 6 + Math.random() * 10) - dt) < 0) {
-    RANCH.playCd = 18 + Math.random() * 25;
+  if ((RANCH.playCd = (RANCH.playCd ?? 9 + Math.random() * 13) - dt) < 0) {
+    RANCH.playCd = 25 + Math.random() * 33;
     const free = A.filter(canPlay);
     if (free.length >= 2) {
       const a = free[Math.floor(Math.random() * free.length)], b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
@@ -2599,14 +2599,14 @@ function ranchStep(dt) {
         const F = a.fly; F.t += dt / F.dur; const e = Math.min(1, F.t), nx = F.x0 + (F.x1 - F.x0) * e, nz = F.z0 + (F.z1 - F.z0) * e;
         vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; a.m.z = Math.sin(Math.PI * e) * F.h; a.m.vz = 0;
         if (F.t >= 1) { a.fly = null; a.m.z = 0; a.walk = false; a.idle = 1 + Math.random() * 2; }
-      } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 8 + Math.random() * 20) - dt) < 0) {
+      } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
         const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
         const x1 = Math.sin(a1) * r1, z1 = Math.cos(a1) * r1, dist = Math.hypot(x1 - a.x, z1 - a.z);
         a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / RANCH_FLY_SPEED, h: 170 + Math.random() * 90 };
-        a.flyCd = 20 + Math.random() * 30; a.m.vz = 220;
+        a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
-        if (d < 0.03) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
+        if (d < 0.03) { a.walk = false; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
@@ -2616,7 +2616,7 @@ function ranchStep(dt) {
           if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
-        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.45 : 0.15)) a.m.vz = 200; // a veces da un saltito (más si está energético)
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) a.m.vz = 200; // a veces da un saltito (más si está energético)
       }
     }
     if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; a.m.lookDir = null; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
