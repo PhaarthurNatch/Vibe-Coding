@@ -627,10 +627,45 @@ const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart'
   pupil: ['round', 'slit', 'bar', 'dot', 'ring', 'star', 'heart', 'diamond', 'spiral'] }; // todas las variantes de cada parte, igual de probables
 const LOOKS_NEW7 = { head: ['drop', 'cloud', 'oct'], torso: ['pear', 'egg'], hand: ['mace', 'finger'], feet: ['roots', 'sock'], wing: ['fin', 'petal'], tip: ['club', 'bow', 'feather'], horn: ['crescent', 'knob'], ear: ['bat', 'tuft'], antenna: ['heart', 'spiral'], mouth: ['snaggle', 'drool'], pupil: ['square', 'flower'] }; // gen 7 (pedido del dueño)
 const LOOKS_NEW = { hand: ['hook', 'mitten'], feet: ['webbed', 'pawpad'], wing: ['crystal'], tip: ['leaf', 'star'], horn: ['twist', 'stub'], ear: ['elf', 'droopy'], antenna: ['star', 'feather'], mouth: ['zigzag', 'buck'], pupil: ['cross', 'moon'] }; // gen 6 (pedido del dueño): sólo los monstruos nuevos; los de antes se ven igual
+// Colores nuevos (gen 8, pedido del dueño): combinaciones nuevas que reemplazan a las de siempre en ~60% de los monstruos nuevos
+const COLOR_MODES8 = {
+  sunset: (C, f, h) => ({ body: C(15 + 25 * f[0], 85, 60), belly: C(45, 90, 78), accent: C(290 + 30 * f[1], 60, 55), limb: C(350 + 20 * f[0], 70, 52), wing: C(320, 65, 66), horn: C(45, 90, 80), spot: C(280, 55, 45) }),
+  ocean: (C, f, h) => ({ body: C(185 + 30 * f[0], 70, 45), belly: C(180, 55, 78), accent: C(10 + 20 * f[1], 85, 65), limb: C(205, 65, 36), wing: C(175, 70, 60), horn: C(40, 30, 92), spot: C(195, 80, 70) }),
+  forest: (C, f, h) => ({ body: C(100 + 40 * f[0], 45, 30), belly: C(80, 40, 62), accent: C(f[1] < 0.5 ? 2 : 38, 80, 52), limb: C(30, 40, 28), wing: C(90, 50, 45), horn: C(35, 30, 75), spot: C(55, 70, 60) }),
+  galaxy: (C, f, h) => ({ body: C(245 + 25 * f[0], 55, 22), belly: C(260, 45, 40), accent: C(f[1] < 0.5 ? 310 : 185, 95, 62), limb: C(250, 50, 16), wing: C(275, 70, 45), horn: C(55, 95, 75), spot: C(0, 0, 98), sclera: C(f[1] < 0.5 ? 310 : 185, 95, 75), pupil: C(250, 40, 8) }),
+  ice: (C, f, h) => ({ body: C(195 + 20 * f[0], 60, 85), belly: C(200, 30, 96), accent: C(190, 90, 55), limb: C(205, 45, 74), wing: C(185, 80, 78), horn: C(200, 40, 96), spot: C(210, 70, 70) }),
+  lava: (C, f, h) => ({ body: C(5 + 10 * f[0], 35, 15), belly: C(10, 40, 26), accent: C(20 + 22 * f[1], 100, 55), limb: C(0, 30, 11), wing: C(15, 90, 45), horn: C(35, 100, 60), spot: C(25, 100, 55), sclera: C(40, 100, 65), pupil: C(0, 60, 10) }),
+  royal: (C, f, h) => ({ body: C(265 + 25 * f[0], 55, 40), belly: C(275, 40, 70), accent: C(45, 90, 55), limb: C(270, 50, 30), wing: C(45, 80, 62), horn: C(45, 95, 58), spot: C(48, 90, 65) }),
+  toxic: (C, f, h) => ({ body: C(80 + 25 * f[0], 90, 50), belly: C(70, 90, 75), accent: C(280 + 30 * f[1], 75, 50), limb: C(95, 80, 38), wing: C(290, 70, 58), horn: C(70, 100, 80), spot: C(285, 80, 40) }),
+  rainbow: (C, f, h) => ({ body: C(h, 75, 58), belly: C(h + 60, 70, 80), accent: C(h + 120, 85, 58), limb: C(h + 180, 70, 52), wing: C(h + 240, 75, 62), horn: C(h + 300, 70, 75), spot: C(h + 150, 80, 66) }),
+  mono: (C, f, h) => ({ body: C(0, 0, 30 + 45 * f[0]), belly: C(0, 0, 88), accent: C(h, 95, 55), limb: C(0, 0, 22 + 40 * f[0]), wing: C(0, 0, 70), horn: C(0, 0, 95), spot: C(h, 90, 55) }),
+  cotton: (C, f, h) => ({ body: C(f[0] < 0.5 ? 330 : 200, 70, 80), belly: C(0, 0, 97), accent: C(f[0] < 0.5 ? 200 : 330, 75, 76), limb: C(f[0] < 0.5 ? 325 : 205, 55, 72), wing: C(f[0] < 0.5 ? 200 : 330, 70, 84), horn: C(50, 90, 85), spot: C(270, 60, 82) }),
+  albino: (C, f, h) => ({ body: C(40, 25, 94), belly: C(30, 30, 98), accent: C(345, 70, 75), limb: C(35, 20, 86), wing: C(350, 50, 88), horn: C(40, 20, 80), spot: C(350, 60, 85), sclera: C(350, 80, 82), pupil: C(350, 80, 45) }),
+  shadow: (C, f, h) => ({ body: C(h, 15, 12), belly: C(h, 12, 22), accent: C(0, 0, 96), limb: C(h, 15, 8), wing: C(h, 20, 20), horn: C(0, 0, 92), spot: C(0, 0, 90), sclera: C(h, 100, 72), pupil: C(0, 0, 100) }),
+  fruit: (C, f, h) => [
+    { body: C(120, 50, 42), belly: C(350, 80, 70), accent: C(350, 85, 60), limb: C(125, 45, 32), wing: C(110, 50, 60), horn: C(0, 0, 15), spot: C(0, 0, 12) }, // sandía
+    { body: C(50, 95, 60), belly: C(55, 90, 82), accent: C(100, 70, 45), limb: C(45, 90, 50), wing: C(95, 60, 55), horn: C(30, 50, 40), spot: C(40, 80, 45) }, // limón
+    { body: C(275, 50, 40), belly: C(285, 45, 70), accent: C(120, 55, 45), limb: C(270, 50, 30), wing: C(110, 50, 50), horn: C(80, 40, 70), spot: C(285, 40, 60) }, // uva
+    { body: C(355, 80, 52), belly: C(10, 70, 75), accent: C(115, 60, 42), limb: C(350, 75, 42), wing: C(110, 55, 50), horn: C(55, 90, 75), spot: C(55, 100, 80) }, // frutilla
+  ][Math.floor(f[1] * 4)],
+  fire: (C, f, h) => ({ body: C(5 + 20 * f[0], 95, 52), belly: C(50, 100, 70), accent: C(48, 100, 58), limb: C(0, 85, 42), wing: C(30, 100, 58), horn: C(55, 100, 80), spot: C(45, 100, 60) }),
+  autumn: (C, f, h) => ({ body: C(18 + 18 * f[0], 60, 42), belly: C(40, 55, 72), accent: C(f[1] < 0.5 ? 5 : 45, 75, 50), limb: C(25, 45, 30), wing: C(30, 75, 50), horn: C(35, 30, 80), spot: C(15, 70, 35) }),
+  mint: (C, f, h) => ({ body: C(150 + 20 * f[0], 50, 70), belly: C(140, 40, 90), accent: C(25 + 15 * f[1], 30, 35), limb: C(155, 45, 60), wing: C(160, 55, 80), horn: C(30, 25, 40), spot: C(30, 35, 30) }),
+  bee: (C, f, h) => ({ body: C(45, 95, 55), belly: C(48, 90, 75), accent: C(0, 0, 12), limb: C(0, 0, 15), wing: C(200, 30, 88), horn: C(0, 0, 15), spot: C(0, 0, 12) }),
+};
+function applyColors8(g, seed) {
+  const r = rng((seed ^ 0x3c6ef372) >>> 0), u = r.f(0, 1), keys = Object.keys(COLOR_MODES8), k = r.pick(keys), f = [r.f(0, 1), r.f(0, 1)], h = r.f(0, 360);
+  if (u >= 0.6) return;
+  const C = (hh, ss, ll) => ({ h: ((hh % 360) + 360) % 360, s: clamp(ss, 0, 100), l: clamp(ll, 0, 100) });
+  const P = g.pal, ob = P.body, np = COLOR_MODES8[k](C, f, h);
+  if (P.two) P.two = C(np.body.h + (P.two.h - ob.h), np.body.s, np.body.l); // dos tonos y dibujo: igual de distintos que antes, pero sobre el color nuevo
+  if (P.pat) P.pat = C(np.body.h + (P.pat.h - ob.h), np.body.s, np.body.l + (P.pat.l - ob.l));
+  Object.assign(P, np);
+}
 function genome5(seed, stage, v6 = false) {
   if (stage === 'egg') stage = 'baby';
   if (stage === 'awakened') stage = 'adult';
-  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
+  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
   const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
   // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
   const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
@@ -2567,7 +2602,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 7, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 8, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -3668,7 +3703,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.38', d: '2026-11-20', items: ['24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
+  { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
   { v: '1.35', d: '2026-11-20', items: ['Arreglado: al sentarse, a veces las piernas daban un tirón (la rodilla saltaba de golpe).'] },
