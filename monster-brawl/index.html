@@ -3725,6 +3725,7 @@ function recordFoes(b) {
 // y se recorren deslizando a los lados. Tocar al de la cama del medio (o "Sacar al rancho") lo saca; "Guardar uno" elige uno del rancho para traerlo.
 const BARN = { x: 0, vx: 0, drag: null, ms: [], last: -1 };
 const barnSp = () => Math.min(W * 0.62, 340); // distancia entre camas
+const BARN_DOOR = -0.78; // la puerta: a la izquierda de la primera cama (en camas)
 function barnBuild() {
   BARN.ms = (save.barn || []).map(r => {
     if (r.stage === 'egg') return { rec: r, egg: new EggView(r) };
@@ -3741,19 +3742,30 @@ function openBarnView() {
 }
 function closeBarnView() { scene = 'home'; BARN.drag = null; $('barnUI').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
 function barnUI(force) {
-  const i = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); if (i === BARN.last && !force) return; BARN.last = i;
+  const i = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); if (BARN.leave) { if (force) { const r = BARN.leave.it.rec; $('barnName').textContent = r.stage === 'egg' ? (r.foeOf ? `Huevo de ${r.foeOf}` : 'Huevo') : r.name; $('barnSub').textContent = 'va camino al rancho'; $('barnOut').disabled = $('barnIn').disabled = true; } return; }
+  if (i === BARN.last && !force) return; BARN.last = i;
   const it = BARN.ms[i], full = save.monsters.length >= MAX_MONSTERS, r = it && it.rec;
   $('barnLbl').textContent = `Granero ${BARN.ms.length}/${BARN_MAX}`;
   $('barnName').textContent = !r ? 'Cama libre' : r.stage === 'egg' ? (r.foeOf ? `Huevo de ${r.foeOf}` : 'Huevo') : r.name;
   $('barnSub').textContent = !r ? (BARN.ms.length ? 'desliza para ver a los demás' : 'aún no guardas monstruos aquí') : r.stage === 'egg' ? '' : `${STAGE_NAME[r.stage]} · Nv.${r.level}`;
-  const out = $('barnOut'); out.disabled = !r || full; out.textContent = r && full ? 'Rancho lleno' : 'Sacar al rancho';
-  const inn = $('barnIn'); inn.disabled = BARN.ms.length >= BARN_MAX; inn.textContent = BARN.ms.length >= BARN_MAX ? 'Granero lleno' : 'Guardar uno';
+  const out = $('barnOut'); out.disabled = !r || full || !!BARN.leave; out.textContent = r && full ? 'Rancho lleno' : 'Sacar al rancho';
+  const inn = $('barnIn'); inn.disabled = BARN.ms.length >= BARN_MAX || !!BARN.leave; inn.textContent = BARN.ms.length >= BARN_MAX ? 'Granero lleno' : 'Guardar uno';
 }
 function barnStep(dt) {
+  const L = BARN.leave;
+  if (L) { // se para, camina hacia la izquierda hasta la puerta y sale (pedido del dueño)
+    L.t += dt; const m = L.it.m;
+    if (L.phase === 'stand') { if (m) { m.sitting = false; m.sleep = false; m.vx = 0; m.vy = 0; } if (L.t > (m ? 0.7 : 0.3)) { L.phase = 'walk'; L.t = 0; } }
+    else if (L.phase === 'walk') { L.x -= 1.15 * dt; if (m) { m.vx = -110; m.vy = 20; } else if (L.it.egg && Math.random() < dt * 4) L.it.egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; if (L.x <= BARN_DOOR) { L.x = BARN_DOOR; L.phase = 'out'; L.t = 0; } }
+    else { if (m) { m.vx = -40; m.vy = 60; } L.alpha = Math.max(0, 1 - L.t / 0.6); if (L.t > 0.65) { BARN.leave = null; barnTake(L.i); BARN.goto = 0; return; } }
+    BARN.x += (clamp(L.x, BARN_DOOR + 0.35, BARN_MAX - 1) - BARN.x) * Math.min(1, dt * 4); // la vista lo sigue
+    for (const it of BARN.ms) if (it.m) { it.m.animate(dt); it.m.rigStep(dt / 2); it.m.rigStep(dt / 2); } else if (it.egg) it.egg.update(dt);
+    return;
+  }
   if (!BARN.drag) {
     if (Math.abs(BARN.vx) > 0.6) { BARN.x += BARN.vx * dt; BARN.vx *= Math.exp(-4 * dt); }
     else { BARN.vx = 0; const t = BARN.goto != null ? BARN.goto : clamp(Math.round(BARN.x), 0, BARN_MAX - 1); BARN.x += (t - BARN.x) * Math.min(1, dt * (BARN.goto != null ? 6 : 9)); if (BARN.goto != null && Math.abs(t - BARN.x) < 0.02) BARN.goto = null; } // se acomoda en la cama más cercana (o va a la que tocaste)
-    if (BARN.x < -0.3 || BARN.x > BARN_MAX - 0.7) { BARN.vx = 0; BARN.x = clamp(BARN.x, -0.3, BARN_MAX - 0.7); }
+    if (BARN.x < -0.6 || BARN.x > BARN_MAX - 0.7) { BARN.vx = 0; BARN.x = clamp(BARN.x, -0.6, BARN_MAX - 0.7); } // a la izquierda se alcanza a ver la puerta
   }
   for (const it of BARN.ms) if (it.m) { it.m.animate(dt); it.m.rigStep(dt / 2); it.m.rigStep(dt / 2); } else if (it.egg) it.egg.update(dt);
   barnUI();
@@ -3801,6 +3813,21 @@ function drawBarn(c) {
     if (x < -20 || x > W + 20) continue; c.strokeStyle = sr.f(0, 1) < 0.5 ? 'rgba(232,200,110,.7)' : 'rgba(200,165,80,.6)'; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.4); c.stroke(); }
   // camas de paja y quien duerme en cada una
   const bedY = floorY + H * 0.1;
+  { // la puerta del granero, a la izquierda de la primera cama: por ella se ve afuera (el mismo cielo y pasto del rancho)
+    const X = W / 2 + (BARN_DOOR - BARN.x) * sp, dw = sp * 0.24, dh = floorY * 0.5;
+    if (X > -sp && X < W + sp) {
+      c.fillStyle = '#2a1a0d'; c.fillRect(X - dw - 10, floorY - dh - 10, dw * 2 + 20, dh + 10);
+      const og = c.createLinearGradient(0, floorY - dh, 0, floorY); og.addColorStop(0, DI.top); og.addColorStop(0.55, DI.bot); og.addColorStop(0.56, DI.g1); og.addColorStop(1, DI.g2); c.fillStyle = og; c.fillRect(X - dw, floorY - dh, dw * 2, dh);
+      if (DI.warm > 0.01) { c.fillStyle = `rgba(255,140,70,${DI.warm})`; c.fillRect(X - dw, floorY - dh, dw * 2, dh); } if (DI.dark > 0.01) { c.fillStyle = `rgba(12,10,40,${DI.dark})`; c.fillRect(X - dw, floorY - dh, dw * 2, dh); }
+      c.fillStyle = '#7a3a2e'; c.fillRect(X - dw - 10 - dw * 0.9, floorY - dh - 4, dw * 0.9, dh + 4); c.strokeStyle = '#5a2620'; c.lineWidth = 4; c.beginPath(); c.moveTo(X - dw - 10 - dw * 0.9, floorY - dh); c.lineTo(X - dw - 10, floorY); c.moveTo(X - dw - 10, floorY - dh); c.lineTo(X - dw - 10 - dw * 0.9, floorY); c.stroke(); // la hoja de la puerta, corrida a un lado
+      if (night < 0.5) { c.fillStyle = `rgba(255,244,205,${0.08 * (1 - night * 2)})`; c.beginPath(); c.moveTo(X - dw, floorY); c.lineTo(X + dw, floorY); c.lineTo(X + dw * 2.2, H); c.lineTo(X - dw * 0.4, H); c.closePath(); c.fill(); } // de día entra luz por la puerta
+    }
+  }
+  const L = BARN.leave; // el que va al rancho: camina junto a la pared (detrás de las camas) hasta la puerta y sale
+  if (L) { const X = W / 2 + (L.x - BARN.x) * sp, y = floorY + H * 0.015, it = L.it; c.save(); c.globalAlpha = L.alpha;
+    if (it.m) { const k = Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)) * 0.85 * (1 - 0.15 * (1 - L.alpha)); c.translate(X, y - (1 - L.alpha) * H * 0.08); c.scale(k, k); it.m.draw(c); }
+    else if (it.egg) { c.translate(X, y); c.scale(1.6, 1.6); it.egg.draw(c); }
+    c.restore(); }
   for (let i = 0; i < BARN_MAX; i++) {
     const X = W / 2 + (i - BARN.x) * sp; if (X < -sp || X > W + sp) continue;
     const bw = sp * 0.46, bh = H * 0.06, br = rng(1000 + i);
@@ -3811,17 +3838,24 @@ function drawBarn(c) {
     for (let k = 0; k < 26; k++) { const a = br.f(Math.PI * 1.05, Math.PI * 1.95), rr = br.f(0.5, 1.05), x0 = X + Math.cos(a) * bw * rr, y0 = bedY + Math.sin(a) * bh * 1.1 * rr, l = br.f(6, 13), d = br.f(-0.8, 0.8);
       c.strokeStyle = k % 2 ? '#c99e3a' : '#f3d885'; c.lineWidth = 1.8; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + Math.cos(d) * l, y0 - Math.abs(Math.sin(d)) * l * 0.6 - 2); c.stroke(); }
     const it = BARN.ms[i], top = bedY - bh * 0.55;
+    if (it && BARN.leave && BARN.leave.it === it) { it.hit = null; continue; } // el que se va camina por el piso (se dibuja después)
     if (it && it.m) { const k = Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)); /* misma escala para todos: un bebé se ve chico y un adulto grande */ c.save(); c.translate(X, top); c.scale(k, k); it.m.draw(c); c.restore(); it.hit = { x0: X - bw, x1: X + bw, y0: top - it.sz.h * k, y1: bedY + bh }; }
     else if (it && it.egg) { c.save(); c.translate(X, top + 4); c.scale(1.6, 1.6); it.egg.draw(c); c.restore(); it.hit = { x0: X - bw, x1: X + bw, y0: top - 110, y1: bedY + bh }; }
   }
   const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.3, W / 2, H * 0.55, Math.max(W, H) * 0.8); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H); // bordes en penumbra
+}
+function barnSelect(i) {
+  BARN.goto = i; BARN.vx = 0; const it = BARN.ms[i]; if (!it) return;
+  if (it.m) { const m = it.m; if (m.sleep) { m.sleep = false; m.setEmo('surprised', 0.9, 3); setTimeout(() => m.setEmo('happy', 1.5, 2), 900); } else m.setEmo('happy', 1.5, 2); for (const n of m.nodes) n.vy -= 120; } // se despierta / se alegra
+  else if (it.egg) it.egg.vt += 6;
 }
 async function barnTakeAsk(i) {
   const it = BARN.ms[i]; if (!it) return;
   if (save.monsters.length >= MAX_MONSTERS) { ask('El rancho está lleno (8 de 8). Guarda uno antes de sacar a otro.', { ok: 'Entendido', cancel: null }); return; }
   const r = it.rec, nm = r.stage === 'egg' ? 'este huevo' : r.name;
   if (!await ask(`¿Sacar a ${nm} al rancho?`, { ok: 'Sacar' })) return;
-  barnTake(i);
+  if (BARN.leave || BARN.ms[i] !== it || save.monsters.length >= MAX_MONSTERS) return;
+  BARN.leave = { i, it, x: i, t: 0, phase: 'stand', alpha: 1 }; BARN.goto = null; BARN.vx = 0; if (it.m) it.m.setEmo('happy', 3, 2); barnUI(true); // se va caminando hasta la puerta
 }
 // Guardar uno del rancho: se elige en una ventana
 function openBarn() {
@@ -3957,7 +3991,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.40', d: '2026-11-20', items: ['Las ventanas del granero muestran el mismo cielo del rancho a esa hora (día, amanecer, atardecer o noche).', 'En el granero hay 1 ventana por cada 3 faroles.'] },
+  { v: '1.40', d: '2026-11-20', items: ['En el granero, tocar a un monstruo lo selecciona: queda al medio y te saluda (si dormía, se despierta).', 'Al sacar un monstruo al rancho, se levanta y camina hacia la izquierda hasta la puerta del granero y sale por ella.', 'Las ventanas del granero muestran el mismo cielo del rancho a esa hora (día, amanecer, atardecer o noche).', 'En el granero hay 1 ventana por cada 3 faroles.'] },
   { v: '1.39', d: '2026-11-20', items: ['En el granero, desliza el dedo hacia abajo o toca «Rancho ▼» para volver al rancho.', 'Dentro del granero hay faroles encendidos y ventanas: por ellas se ve si afuera es de día o de noche, pero adentro siempre está iluminado. De día duermen unos 3 de cada 10 monstruos y de noche unos 7 de cada 10.', 'De noche el granero tiene luz: la ventana y la puerta se iluminan y hay un farol sobre la puerta.', 'Se quitaron los árboles que estaban detrás de la cerca.', 'Arreglado: al girar la vista, el extremo cercano del camino ya no muestra esquinas.', 'Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para entrar. Adentro tus monstruos guardados descansan sentados en camas de paja y los vas viendo deslizando a los lados. Caben 10; puedes guardar uno del rancho o sacarlo al rancho. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
@@ -4097,7 +4131,7 @@ function openTeamPick() {
 let touch = null, petAcc = 0;
 const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY - homeView.gy) / homeView.k });
 cv.addEventListener('pointerdown', e => {
-  if (scene === 'barn') { if (document.querySelector('.modal.on')) return; BARN.drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, lt: performance.now(), t0: performance.now(), v: 0, moved: false, id: e.pointerId, mode: null }; BARN.vx = 0; BARN.goto = null; try { cv.setPointerCapture(e.pointerId); } catch (err) { } return; } // granero: deslizar a los lados
+  if (scene === 'barn') { if (document.querySelector('.modal.on') || BARN.leave) return; BARN.drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, lt: performance.now(), t0: performance.now(), v: 0, moved: false, id: e.pointerId, mode: null }; BARN.vx = 0; BARN.goto = null; try { cv.setPointerCapture(e.pointerId); } catch (err) { } return; } // granero: deslizar a los lados
   if (scene === 'home' && homePage === 1 && ranchMode && !zoom && RANCH.view) { // rancho: arrastrar a los lados lo gira, tocar elige
     const act = ranchHit(e.clientX, e.clientY), G = RANCH.drag = { x0: e.clientX, y0: e.clientY, th0: RANCH.th, lx: e.clientX, ly: e.clientY, lt: performance.now(), t0: performance.now(), v: 0, mode: null, id: e.pointerId, act };
     try { cv.setPointerCapture(e.pointerId); } catch (err) { }
@@ -4153,8 +4187,8 @@ cv.addEventListener('pointerup', e => {
   if (scene === 'barn') { const G = BARN.drag; BARN.drag = null; if (!G || e.pointerId !== G.id) return;
     if (G.mode === 'v') { if (e.clientY - G.y0 > 60) closeBarnView(); return; } // dedo hacia abajo: al rancho
     if (G.moved) { BARN.vx = performance.now() - G.lt < 120 ? clamp(G.v, -12, 12) : 0; return; }
-    const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: si es el del medio, sacarlo; si es otro, ir hacia él
-    if (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1) { if (i === Math.round(BARN.x)) barnTakeAsk(i); else BARN.goto = i; }
+    const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
+    if (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1) barnSelect(i); // tocar a un monstruo lo selecciona (queda al medio y te saluda)
     else if (i !== Math.round(BARN.x)) BARN.goto = i;
     return; }
   const G = RANCH.drag;
