@@ -457,7 +457,7 @@ const ULTS = {
   clone: { name: 'Clon', desc: 'se duplica: el clon pelea a su lado y la vida que le queda se reparte entre los dos' },
   mines: { name: 'Bombas', desc: 'suelta 3 bombas a su alrededor que explotan cuando un rival las pisa' },
 };
-const MINE_POW = 2.6, MINE_SPLASH = 0.5, MINE_R = 95, MINE_D = 120; // Bombas: daño (×ultPow) a quien la pisa, fracción a los demás cerca, radio de la explosión y distancia a la que caen
+const MINE_POW = 2.2, MINE_SPLASH = 0.5, MINE_R = 95, MINE_D = 120, MINE_TRIG = 30; // Bombas: daño (×ultPow) a quien la pisa, fracción a los demás cerca, radio de la explosión y distancia a la que caen; MINE_TRIG: área invisible alrededor de cada bomba que la activa
 const ULT_DRAIN = 0.75; // Robo de vida: fracción del daño que vuelve como vida
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
 const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone', 'mines'];
@@ -2220,10 +2220,11 @@ class Battle {
     this.time += dt;
     for (const m of this.ms) m.think(dt, this);
     for (const m of this.ms) m.physics(dt);
-    for (const b of this.mines) { // Bombas: cuando un rival la pisa, explota
-      b.t += dt; if (b.t < b.fly || b.done) continue;
-      const st = this.ms.find(e => !e.dead && e.team !== b.team && e.z < FLY.airZ && Math.hypot(e.x - b.x, e.y - b.y) < e.r + 14);
-      if (st) this.mineBoom(b, st);
+    for (const b of this.mines) { // Bombas: si en el aire toca a un rival le explota; en el piso, explota cuando un rival entra en su área (invisible)
+      b.t += dt; if (b.done) continue;
+      const fl = b.t < b.fly, e0 = Math.min(1, b.t / b.fly), bx = b.x0 + (b.x - b.x0) * e0, by = b.y0 + (b.y - b.y0) * e0;
+      const st = this.ms.find(e => !e.dead && e.team !== b.team && (fl || e.z < FLY.airZ) && Math.hypot(e.x - bx, e.y - by) < e.r + (fl ? 6 : MINE_TRIG));
+      if (st) { if (fl) { b.x = bx; b.y = by; b.t = b.fly; } this.mineBoom(b, st); }
     }
     if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
     // separación entre cuerpos
@@ -3407,7 +3408,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor que se quedan en el piso hasta que un rival las pisa y explotan.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
