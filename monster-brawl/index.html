@@ -1300,7 +1300,20 @@ class Monster {
   }
 
   // ---------- Física de resortes de las partes ----------
+  deadStep(dt) { // cuerpo noqueado: todas las partes caen juntas y los huesos mantienen su largo (antes se estiraban mucho)
+    const N = this.nodes, s = this.s, V = typeof battle !== 'undefined' && battle && battle.view, mg = 22 * s, f = Math.exp(-dt * 1.5);
+    for (const n of N) { n.px = n.x; n.py = n.y; n.vy += 900 * dt; n.vx *= f; n.x += n.vx * dt; n.y += n.vy * dt; }
+    const clampN = (n, i) => { const gy = this.gy + (i % 3) * 2 * s; if (n.y > gy) n.y = gy; if (V) { n.x = clamp(n.x, V.x0 + mg, V.x1 - mg); if (n.y < V.y0 + mg) n.y = V.y0 + mg; } };
+    for (let it = 0; it < 6; it++) {
+      for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; if (!P || !(n.len > 0.5)) continue;
+        const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s, tL = clamp(d, L * 0.95, L * 1.05);
+        if (d !== tL) { const k = (d - tL) / d * 0.5; n.x -= dx * k; n.y -= dy * k; P.x += dx * k; P.y += dy * k; } }
+      N.forEach(clampN);
+    }
+    N.forEach((n, i) => { n.vx = (n.x - n.px) / dt; n.vy = (n.y - n.py) / dt; const gy = this.gy + (i % 3) * 2 * s; if (n.y >= gy - 0.5) { n.vx *= 0.85; if (n.vy > 0) n.vy *= -0.2; } }); // velocidad según lo que de verdad se movió; en el piso roza
+  }
   rigStep(dt) {
+    if (this.dead) { this.deadStep(dt); return; }
     const N = this.nodes, s = this.s, dead = this.dead;
     for (let i = dead ? 0 : 1; i < N.length; i++) {
       const n = N[i], P = n.p >= 0 ? N[n.p] : null;
@@ -1580,7 +1593,8 @@ class Monster {
   die(dir, kb) {
     this.dead = true; this.state = 'dead'; this.target = null;
     for (const k in this.buffs) this.buffs[k] = 0; this.auraBoost = 0; this.ulting = false; this.ultRequest = false; this.floatT = 0; this.growAura = false; this.aura = []; // al morir se apagan todos los efectos de las ultimates (escudo, estelas, copias, aura, robo de vida, potenciado)
-    for (const n of this.nodes) { n.vx += dir.x * kb * 0.6 * Math.random() + (Math.random() - 0.5) * 110; n.vy -= 80 + Math.random() * 110; } // sale volando, pero no tan fuerte (pedido del dueño)
+    const bvx = dir.x * kb * 0.6 * (0.6 + Math.random() * 0.4) + (Math.random() - 0.5) * 60, bvy = -(80 + Math.random() * 110);
+    for (const n of this.nodes) { n.vx += bvx + (Math.random() - 0.5) * 40; n.vy += bvy + (Math.random() - 0.5) * 40; } // sale volando todo junto (antes cada parte a su velocidad y el cuerpo se estiraba), pero no tan fuerte (pedido del dueño)
   }
 
   // ---------- Dibujo (vista frontal 2D) ----------
@@ -3548,6 +3562,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
   { v: '1.35', d: '2026-11-20', items: ['Arreglado: al sentarse, a veces las piernas daban un tirón (la rodilla saltaba de golpe).'] },
   { v: '1.34', d: '2026-11-20', items: ['En el rancho los monstruos se sientan a descansar más seguido (y se arregló que desde la versión anterior no se sentaban nunca).'] },
   { v: '1.33', d: '2026-11-20', items: ['En el rancho los monstruos ya no se empujan al caminar: el que va pasando rodea al que está quieto.'] },
