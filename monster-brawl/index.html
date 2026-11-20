@@ -1194,7 +1194,7 @@ class Monster {
     this.mouthOpen = Math.max(0, this.mouthOpen - dt * 3);
     this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 0.12; this.blinkT = 2 + Math.random() * 3.5; }
     this.blink = this.sleep ? 1 : Math.max(0, this.blink - dt);
-    this.sitK = (this.sitK || 0) + ((this.sleep && !this.dead ? 1 : 0) - (this.sitK || 0)) * Math.min(1, dt * 3); // se sienta poco a poco al dormirse
+    this.sitK = (this.sitK || 0) + (((this.sleep || this.sitting) && !this.dead ? 1 : 0) - (this.sitK || 0)) * Math.min(1, dt * 3); // se sienta poco a poco al dormirse
     if (this.emoT > 0) { this.emoT -= dt; if (this.emoT <= 0 && this.emoNext) { const [e, d] = this.emoNext; this.setEmo(e, d, 1); } }
     this.auraStep(dt);
     if (this.dead) return;
@@ -2670,7 +2670,7 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
-  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.m.held && a.m.z === 0;
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.rest && !a.m.held && a.m.z === 0;
   RANCH.famCd = RANCH.famCd || {};
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { // padre e hijo que se cruzan: se saludan y les salen corazones (pedido del dueño)
     const a = A[i], b = A[j];
@@ -2696,6 +2696,7 @@ function ranchStep(dt) {
   }
   for (const a of A) {
     let vx = 0, vz = 0; if (a.m && a !== focus) a.m.askPet = a.m.bowHead = false;
+    if (a.rest && (a === focus || a.m.sleep || a.come || a.play || a.greet || a.fam)) { a.rest = null; a.m.sitting = false; } // se levanta si lo eligen, lo llaman a jugar, etc.
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
       if (a.fam) { // saludo de familia: contentos, saltitos y corazones
@@ -2705,6 +2706,9 @@ function ranchStep(dt) {
         for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
         if (t > 0 && t < RANCH_ASK_HEARTS && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.13; ranchHeart(a); } // los mismos pocos corazones que al pedir caricias
         if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
+      } else if (a.rest) { // sentado descansando un rato (pasa poco)
+        a.walk = false; a.m.sitting = true;
+        if ((a.rest.t -= dt) < 0) { a.rest = null; a.m.sitting = false; a.idle = 0.8 + Math.random(); }
       } else if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
         const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
         if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', G.end, 2); }
@@ -2760,7 +2764,8 @@ function ranchStep(dt) {
         if (!a.walk) a.wlast = null;
         else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
+      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P) { a.rest = { t: 8 + Math.random() * 10 }; a.walk = false; // a veces se sienta a descansar (poco)
+      } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
           if (k < 6 && Math.random() < 0.2) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
@@ -2942,6 +2947,7 @@ function ranchHeart(a) {
   const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
   RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
 }
+const RANCH_SIT_P = 0.025; // en cada pausa entre paseos: chance de sentarse a descansar 8–18 s (pasa poco, pedido del dueño)
 const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
 const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
 // Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
@@ -3442,6 +3448,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
