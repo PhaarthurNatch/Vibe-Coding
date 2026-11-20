@@ -2814,9 +2814,20 @@ function ranchDeco() {
   d.push({ k: 'barn', x: 0, z: -1.3 }); // granero afuera, detrás de la cerca (hay que girar para verlo)
   for (let i = 0; i < 8; i++) { const a = r.f(0, TAU), rr = r.f(1.25, 1.9); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(1, 1.4), h: r.i(100, 150), out: true }); } // árboles afuera del rancho
   const flowers = Array.from({ length: 150 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
+  // Camino de tierra (pedido del dueño): del centro (donde está uno) hasta la puerta del granero, con dos curvas suaves; pasa por una abertura en la cerca
+  const PATH_W = 0.045, pathPts = Array.from({ length: 81 }, (_, i) => { const t = i / 80; return { x: 0.075 * Math.sin(TAU * t), z: -1.24 * t }; });
+  const pathDist = (x, z) => Math.min(...pathPts.map(q => Math.hypot(x - q.x, z - q.z)));
+  const gateA = Math.atan2(0.075 * Math.sin(TAU / 1.24), -1); // donde el camino cruza la cerca
+  const angD = (a, b) => Math.abs(((a - b) % TAU + TAU * 1.5) % TAU - TAU / 2);
+  for (let i = d.length - 1; i >= 0; i--) { const o = d[i];
+    if ((o.k === 'tree' || o.k === 'bush' || o.k === 'rock') && pathDist(o.x, o.z) < PATH_W + (o.k === 'tree' ? 0.07 : 0.05)) d.splice(i, 1); // nada encima del camino
+    else if (o.k === 'post' && angD(Math.atan2(o.x, o.z), gateA) < 0.045) d.splice(i, 1); // abertura en la cerca
+    else if (o.k === 'rail' && angD(Math.atan2(o.x + o.x2, o.z + o.z2), gateA) < 0.06) d.splice(i, 1); }
+  for (let i = flowers.length - 1; i >= 0; i--) if (pathDist(flowers[i].x, flowers[i].z) < PATH_W + 0.02) flowers.splice(i, 1);
+  const path = pathPts.map(q => ({ x: q.x * RANCH_RF, z: q.z * RANCH_RF }));
   for (const o of [...d, ...flowers]) { o.x *= RANCH_RF; o.z *= RANCH_RF; if (o.x2 != null) { o.x2 *= RANCH_RF; o.z2 *= RANCH_RF; } } // todo a la escala del rancho
   RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
-  return RANCH.deco = { d, flowers };
+  return RANCH.deco = { d, flowers, path, pathW: PATH_W * RANCH_RF };
 }
 function syncRanch() {
   const cap = Math.max(slotCap(), save.monsters.length), A = RANCH.actors;
@@ -3109,6 +3120,17 @@ function drawRanch(c, r, opt) {
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, DI.r1); gg.addColorStop(1, DI.r2); c.fillStyle = gg; c.fill();
+  { // camino de tierra, sobre el suelo (se dibuja por tramos visibles, con perspectiva)
+    const L = D.path, hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'];
+    for (const [wk, cc] of [[1, col[0]], [0.72, col[1]]]) {
+      let run = [];
+      const flush = () => { if (run.length > 1) { c.beginPath(); run.forEach((q, i) => i ? c.lineTo(q[0].X, q[0].Y) : c.moveTo(q[0].X, q[0].Y)); for (let i = run.length - 1; i >= 0; i--) c.lineTo(run[i][1].X, run[i][1].Y); c.closePath(); c.fillStyle = cc; c.fill(); } run = []; };
+      for (let i = 0; i < L.length; i++) { const a = L[Math.max(0, i - 1)], b = L[Math.min(L.length - 1, i + 1)], tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl * hw * wk, nz = tx / tl * hw * wk;
+        const pl = P(L[i].x + nx, L[i].z + nz), pr = P(L[i].x - nx, L[i].z - nz);
+        if (pl.d > 0.05 && pr.d > 0.05) run.push([pl, pr]); else flush(); }
+      flush();
+    }
+  }
   for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; if (!f.g && (Math.abs(Math.sin(f.x * 12.9 + f.z * 78.2) * 43758.5) % 1) > SF.flowers) continue; /* menos flores en verano/otoño, ninguna en invierno */ if (f.g && SEA === 'invierno') continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); const fp = f.x * 5 + f.z * 7; if (f.g) { const gs = Math.sin(TN * 2 + fp) * 1.6 * fk; c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X + gs, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X + Math.sin(TN * 1.3 + fp) * 0.7 * fk, p.Y - Math.abs(Math.sin(TN * 0.9 + fp)) * 0.8 * fk, 2.2 * fk, 0, TAU); c.fill(); } } // el pasto y las flores se mecen
   // cosas con profundidad: se dibujan de atrás hacia adelante
   const items = [];
@@ -3807,7 +3829,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para guardar hasta 10 monstruos más y pasarlos del rancho al granero y al revés. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
+  { v: '1.39', d: '2026-11-20', items: ['Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para guardar hasta 10 monstruos más y pasarlos del rancho al granero y al revés. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
