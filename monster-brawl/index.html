@@ -1189,7 +1189,8 @@ class Monster {
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
     if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira)
-    this.askK = clamp((this.askK || 0) + (this.askPet ? 1 : -1) * dt * 6, 0, 1); // corazón con "?" sobre la cabeza al pedir cariño
+    if (this.askPet && !(this.askK > 0)) { const opts = [-0.95, -0.55, 0.55, 0.95].filter(v => v !== this.askAng); this.askAng = opts[Math.floor(Math.random() * opts.length)]; } // cada vez sale por otro lado de la cabeza
+    this.askK = clamp((this.askK || 0) + (this.askPet ? 1 : -1) * dt * 5, 0, 1); // corazón con "?" al pedir cariño
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1596,10 +1597,10 @@ class Monster {
     }
     if (back) wingsTail();
     this.drawHead(ctx, C, lw);
-    if (this.askK > 0.01 && !this._ghost) { // pide cariño: corazón con "?" sobre la cabeza
-      const h = N[I.head]; let top = h.y - g.head.h * 0.55 * s;
-      for (const q of [...I.horns.map(o => o.tip), ...I.ears.map(o => o.tip), ...I.ants.map(o => o.chain[1])]) top = Math.min(top, N[q].y);
-      const k = this.askK, r = 15 * s * (0.6 + 0.4 * k), x = h.x, y = top - (14 + Math.sin(this.t * 4) * 2) * s - r * 0.3;
+    if (this.askK > 0.01 && !this._ghost) { // pide cariño: corazón con "?" que sale en diagonal desde un costado de la cabeza (cada vez de otro lado)
+      const h = N[I.head], an = this.askAng || 0.55, ux = Math.sin(an), uy = -Math.cos(an), k = this.askK, e = 1 - (1 - k) * (1 - k);
+      const r = 15 * s * (0.4 + 0.6 * e), d = (0.2 + 1.5 * e) * 15 * s + Math.sin(this.t * 4) * 1.5 * s;
+      const x = h.x + ux * (g.head.w * 0.5 * s + d), y = h.y + uy * (g.head.h * 0.5 * s + d);
       ctx.globalAlpha = this.alpha * k; heartPath(ctx, x, y, r); fillStroke(ctx, '#ff7aa2', '#7a1f45', Math.max(1.2, 1.6 * s));
       ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.round(r * 1.05)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + r * 0.05);
       ctx.globalAlpha = this.alpha;
