@@ -2499,6 +2499,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
+const RANCH_COME_STAY = 8; // segundos que se queda junto a ti después de que lo acaricias en el rancho
 const RANCH_LOOK_ME = 0.8, RANCH_LOOK_OTHER = 0.55; // a esta distancia (radios del rancho) te mira a ti / mira a otro monstruo
 const RANCH_SWIPE_K = 1.35; // cuánto gira el rancho al deslizar a los lados (más = gira más con el mismo trazo; pedido del dueño)
 const WING_FALL = 120, RANCH_FLY_SPEED = 0.55; // RANCH_FLY_SPEED: vuelo de lado a lado del rancho (radios por segundo) // velocidad máxima de caída en el menú de los que tienen alas
@@ -2560,7 +2561,7 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
-  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.m.held && a.m.z === 0;
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.m.held && a.m.z === 0;
   for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
   if ((RANCH.playCd = (RANCH.playCd ?? 9 + Math.random() * 13) - dt) < 0) {
     RANCH.playCd = 25 + Math.random() * 33;
@@ -2574,9 +2575,14 @@ function ranchStep(dt) {
   }
   for (const a of A) {
     let vx = 0, vz = 0;
-    if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
+    if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.play) { // jugando con otro
+      if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
+        const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
+        if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; }
+        else if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; }
+        a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
+      } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
         P.t += dt;
         if (P.phase === 'go') { // se acercan el uno al otro
@@ -2761,6 +2767,7 @@ function ranchPet(a, x, y, dist) {
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
   if (a.kind !== 'mon') return;
   const m = a.m, S = a.scr; a.walk = false; a.idle = Math.max(a.idle, 1.5);
+  if (!m.sleep) { a.play = null; a.fly = null; a.come = { stay: RANCH_COME_STAY }; } // le gustó: se acerca a ti para que lo sigas acariciando y se queda un rato
   if (!m.sleep) m.setEmo('love', 0.9, 2);
   m.lookAt = null;
   if (S && RANCH.drag) { // misma física que al acariciar de cerca: las partes bajo el dedo se dejan llevar (en coordenadas del monstruo)
