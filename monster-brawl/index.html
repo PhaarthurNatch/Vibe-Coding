@@ -1188,7 +1188,7 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
-    if (this.askPet || this.bowHead) { head.ay += 36; head.ax += (this.askPet && g.arms.pairs ? 8 : 0) + Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira); al pedir la inclina hacia la mano
+    if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += (this.askPet && g.arms.pairs ? 8 : 0) + Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira); al pedir la inclina hacia la mano
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1203,8 +1203,8 @@ class Monster {
       ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
       if (this.held || this.z > 25) { const fl = Math.sin(t * 15 + a.sd + a.p) * 5; el.ax += a.sd * 3 + fl; el.ay -= 6; ha.ax += a.sd * 5 - fl; ha.ay -= 10 + fl; } // patalea
       ha.useT = false; ha.boost = 1; el.stretch = ha.stretch = 0;
-      if (this.askPet && a.p === 0 && a.sd === 1) { el.stretch = ha.stretch = 2.2; // pide cariño: se toca la cabeza con la mano
-        ha.useT = true; ha.boost = 4; ha.tx = head.x + Math.sin(t * 7) * 3 * s; ha.ty = head.y - g.head.h * 0.62 * s + Math.cos(t * 7) * 1.2 * s; // la parte de arriba de la cabeza
+      if (this.askPet && a.p === 0 && a.sd === 1) { el.stretch = ha.stretch = 2.2; // pide cariño: se toca la frente con la mano
+        ha.useT = true; ha.boost = 4; ha.tx = head.x + Math.sin(t * 7) * 3 * s; ha.ty = head.y - g.head.h * 0.3 * s + Math.cos(t * 7) * 1.2 * s; // la mano en la frente
         el.ay -= 14; el.ax += 6;
       }
       if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
