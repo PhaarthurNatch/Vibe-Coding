@@ -2561,7 +2561,8 @@ function syncRanch() {
   for (let i = 0; i < cap; i++) {
     const rec = save.monsters[i] || null;
     let a = A[i];
-    if (!a) { const ang = i / cap * TAU + 0.2, rr = 0.7 + 1.1 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
+    if (!RANCH.spots) { const n = Math.max(cap, MAX_MONSTERS), o = Array.from({ length: n }, (_, k) => k).sort(() => Math.random() - 0.5), b = Math.random() * TAU; RANCH.spots = o.map(k => b + (k + (Math.random() - 0.5) * 0.6) / n * TAU); } // al entrar, cada uno aparece en un lugar al azar (pedido del dueño)
+    if (!a) { const ang = RANCH.spots[i % RANCH.spots.length], rr = 0.7 + 1.1 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
     a.slot = i; a.rec = rec;
     a.kind = !rec ? 'free' : rec.stage === 'egg' ? 'egg' : 'mon';
     const key = rec ? [rec.seed, rec.stage, rec.level, rec.name, JSON.stringify(rec.pts || {}), rec.legacy].join('|') : 'free';
@@ -2610,7 +2611,13 @@ function ranchStep(dt) {
     let vx = 0, vz = 0; if (a.m && a !== focus) a.m.askPet = a.m.bowHead = false;
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
+      if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
+        const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
+        if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', G.end, 2); }
+        if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4); // de frente a ti (antes de su turno sigue como estaba)
+        for (const h of G.hops) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 100 + Math.random() * 60;
+        if (t > G.end) { a.greet = null; a.idle = 0.3 + Math.random() * 1.2; }
+      } else if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
         if (C.off == null) C.off = (Math.random() - 0.5) * 0.5; // un poco a un lado, para que dos no queden en el mismo punto
         const ph = Math.atan2(a.x, a.z), front = RANCH.th + Math.PI + C.off, dph = Math.atan2(Math.sin(front - ph), Math.cos(front - ph)); // se pone en tu línea de visión (frente a la cámara)
@@ -2815,11 +2822,21 @@ function ranchAskFx(a, dt, ph) {
     const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
     RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
 }
+// Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
+function ranchGreetAll() {
+  if (!ranchMode || scene !== 'home' || firstEgg()) return;
+  const co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+  for (const a of RANCH.actors) if (a.kind === 'mon' && a.m && !a.m.sleep && !a.m.held && !a.fly && !a.come) {
+    const wx = a.x * co - a.z * sn, d = -(a.x * sn + a.z * co); if (d < 0.1 || Math.abs(wx / d) > 0.55) continue; // sólo los que ves en pantalla
+    const hops = []; let h = 0.1 + Math.random() * 0.2; for (let k = 2 + (Math.random() < 0.5 ? 1 : 0); k > 0; k--) { hops.push(h); h += 0.45 + Math.random() * 0.3; }
+    a.play = null; a.walk = false; a.greet = { t: -(0.1 + Math.random() * 1.4), hops, end: h + 0.4 + Math.random() * 0.6 }; // cada uno empieza a su tiempo (no todos a la vez)
+  }
+}
 function ranchPet(a, x, y, dist) {
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
   if (a.kind !== 'mon') return;
   const m = a.m, S = a.scr; a.walk = false; a.idle = Math.max(a.idle, 1.5);
-  if (!m.sleep) { a.play = null; a.fly = null; a.come = a.come || { stay: RANCH_COME_STAY }; a.come.petT = 0.3; a.come.stay = RANCH_COME_STAY; } // le gustó: se acerca a ti para que lo sigas acariciando y se queda un rato
+  if (!m.sleep) { a.play = null; a.fly = null; a.greet = null; a.come = a.come || { stay: RANCH_COME_STAY }; a.come.petT = 0.3; a.come.stay = RANCH_COME_STAY; } // le gustó: se acerca a ti para que lo sigas acariciando y se queda un rato
   if (!m.sleep) m.setEmo('love', 0.9, 2);
   m.lookAt = null;
   if (S && RANCH.drag) { // misma física que al acariciar de cerca: las partes bajo el dedo se dejan llevar (en coordenadas del monstruo)
@@ -3292,7 +3309,9 @@ const COPY_KEY = 'monster_brawl_copy', UNDO_KEY = 'monster_brawl_undo', COPY_EVE
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } };
 function saveCopy() { if (importing) return; const c = { t: Date.now(), data: JSON.stringify(save) }; lsSet(COPY_KEY, JSON.stringify(c)); return c; }
 setInterval(saveCopy, COPY_EVERY_MS);
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveCopy(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { saveCopy(); greetHidAt = Date.now(); } else if (greetHidAt && Date.now() - greetHidAt > 5 * 60e3) ranchGreetAll(); }); // al volver tras 5 min, te saludan
+let greetHidAt = 0;
+setTimeout(ranchGreetAll, 700); // al entrar a la app
 const encodeSave = json => 'MB1-' + btoa(unescape(encodeURIComponent(json)));
 function decodeSave(code) {
   const c = (code || '').replace(/\s+/g, ''); if (!c.startsWith('MB1-')) return null;
@@ -3302,6 +3321,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
   { v: '1.23', d: '2026-11-20', items: ['El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
   { v: '1.22', d: '2026-11-19', items: ['Los monstruos que te piden cariño se ponen frente a ti para que los veas.'] },
