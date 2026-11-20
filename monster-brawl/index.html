@@ -2684,6 +2684,17 @@ function ranchStep(dt) {
     const free = A.filter(canPlay);
     if (free.length) { const a = free[Math.floor(Math.random() * free.length)]; a.come = { stay: RANCH_COME_STAY }; a.walk = false; }
   }
+  const young = a => a.rec && (a.rec.stage === 'baby' || a.rec.stage === 'child');
+  if ((RANCH.kidCd = (RANCH.kidCd ?? 5 + Math.random() * 8) - dt) < 0) { // bebés y niños juegan bastante más entre ellos (pedido del dueño)
+    RANCH.kidCd = 10 + Math.random() * 12;
+    const kids = A.filter(q => canPlay(q) && young(q));
+    if (kids.length >= 2) {
+      const a = kids[Math.floor(Math.random() * kids.length)], b = kids.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+      const kind = Math.random() < 0.5 ? 'hop' : 'chase';
+      a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
+      a.walk = b.walk = false;
+    }
+  }
   if ((RANCH.playCd = (RANCH.playCd ?? 9 + Math.random() * 13) - dt) < 0) {
     RANCH.playCd = 25 + Math.random() * 33;
     const free = A.filter(canPlay);
@@ -3448,7 +3459,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.'] },
+  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
