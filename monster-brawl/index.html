@@ -2823,7 +2823,7 @@ function ranchDeco() {
   for (let i = 0; i < 4; i++) { const a = r.f(0, TAU), rr = r.f(0.4, 0.85); d.push({ k: 'rock', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.2) }); }
   const NP = 72; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
   d.push({ k: 'barn', x: 0, z: -1.3 }); // granero afuera, detrás de la cerca (hay que girar para verlo)
-  for (let i = 0; i < 8; i++) { const a = r.f(0, TAU), rr = r.f(1.25, 1.9); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(1, 1.4), h: r.i(100, 150), out: true }); } // árboles afuera del rancho
+  // (los árboles de afuera, detrás de la cerca, se quitaron: pedido del dueño)
   const flowers = Array.from({ length: 150 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
   // Camino de tierra (pedido del dueño): del centro (donde está uno) hasta la puerta del granero, con dos curvas suaves; pasa por una abertura en la cerca
   const PATH_W = 0.045, pathPts = Array.from({ length: 81 }, (_, i) => { const t = i / 80; return { x: 0.075 * Math.sin(TAU * t), z: -1.24 * t }; });
@@ -3131,15 +3131,20 @@ function drawRanch(c, r, opt) {
   for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, DI.r1); gg.addColorStop(1, DI.r2); c.fillStyle = gg; c.fill();
-  { // camino de tierra, sobre el suelo (se dibuja por tramos visibles, con perspectiva)
-    const L = D.path, hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'];
+  { // camino de tierra, sobre el suelo: cada tramo se recorta contra el plano cercano antes de proyectarlo (así al girar no se ven esquinas en el extremo cercano)
+    const L = D.path, hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'], DN = 0.03;
+    const cam = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co; return [wx, CAM_D - wz]; };
+    const scr = q => [cx + q[0] * F / q[1], Yh + camH / q[1]];
     for (const [wk, cc] of [[1, col[0]], [0.72, col[1]]]) {
-      let run = [];
-      const flush = () => { if (run.length > 1) { c.beginPath(); run.forEach((q, i) => i ? c.lineTo(q[0].X, q[0].Y) : c.moveTo(q[0].X, q[0].Y)); for (let i = run.length - 1; i >= 0; i--) c.lineTo(run[i][1].X, run[i][1].Y); c.closePath(); c.fillStyle = cc; c.fill(); } run = []; };
-      for (let i = 0; i < L.length; i++) { const a = L[Math.max(0, i - 1)], b = L[Math.min(L.length - 1, i + 1)], tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl * hw * wk, nz = tx / tl * hw * wk;
-        const pl = P(L[i].x + nx, L[i].z + nz), pr = P(L[i].x - nx, L[i].z - nz);
-        if (pl.d > 0.05 && pr.d > 0.05) run.push([pl, pr]); else flush(); }
-      flush();
+      const E = L.map((q, i) => { const a = L[Math.max(0, i - 1)], b = L[Math.min(L.length - 1, i + 1)], tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl * hw * wk, nz = tx / tl * hw * wk;
+        return [cam(q.x + nx, q.z + nz), cam(q.x - nx, q.z - nz)]; });
+      c.beginPath(); let any = false;
+      for (let i = 0; i < E.length - 1; i++) {
+        const poly = [E[i][0], E[i + 1][0], E[i + 1][1], E[i][1]]; if (poly.every(q => q[1] <= DN)) continue;
+        const out = []; for (let j = 0; j < 4; j++) { const A = poly[j], B = poly[(j + 1) % 4], ia = A[1] > DN, ib = B[1] > DN; if (ia) out.push(A); if (ia !== ib) { const t = (DN - A[1]) / (B[1] - A[1]); out.push([A[0] + (B[0] - A[0]) * t, DN]); } }
+        if (out.length < 3) continue; out.forEach((q, k) => { const [X, Y] = scr(q); k ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); any = true;
+      }
+      if (any) { c.fillStyle = cc; c.fill('nonzero'); }
     }
   }
   for (const f of D.flowers) { const p = P(f.x, f.z); if (!p.vis) continue; if (!f.g && (Math.abs(Math.sin(f.x * 12.9 + f.z * 78.2) * 43758.5) % 1) > SF.flowers) continue; /* menos flores en verano/otoño, ninguna en invierno */ if (f.g && SEA === 'invierno') continue; /* las flores del suelo se quedan */ const fk = p.sc * (opt && opt.dotK || 1); const fp = f.x * 5 + f.z * 7; if (f.g) { const gs = Math.sin(TN * 2 + fp) * 1.6 * fk; c.strokeStyle = 'rgba(120,200,110,.55)'; c.lineWidth = 1.5 * fk; c.beginPath(); c.moveTo(p.X - 3 * fk, p.Y); c.lineTo(p.X + gs, p.Y - 6 * fk); c.lineTo(p.X + 3 * fk, p.Y); c.stroke(); } else { c.fillStyle = f.c; c.beginPath(); c.arc(p.X + Math.sin(TN * 1.3 + fp) * 0.7 * fk, p.Y - Math.abs(Math.sin(TN * 0.9 + fp)) * 0.8 * fk, 2.2 * fk, 0, TAU); c.fill(); } } // el pasto y las flores se mecen
@@ -3204,7 +3209,11 @@ function drawRanch(c, r, opt) {
       c.fillStyle = '#b8443f'; c.fillRect(-80, -110, 160, 110);
       c.fillStyle = '#7e2b2b'; c.beginPath(); c.moveTo(-95, -108); c.lineTo(0, -175); c.lineTo(95, -108); c.closePath(); c.fill();
       c.fillStyle = '#f3e6cf'; c.fillRect(-30, -70, 60, 70); c.strokeStyle = '#b8443f'; c.lineWidth = 5; c.beginPath(); c.moveTo(-30, -70); c.lineTo(30, 0); c.moveTo(30, -70); c.lineTo(-30, 0); c.stroke();
-      c.fillStyle = '#f3e6cf'; c.beginPath(); c.arc(0, -130, 12, 0, TAU); c.fill();
+      const nl = clamp(DI.dark / 0.3, 0, 1); // de noche el granero tiene luz (pedido del dueño)
+      c.fillStyle = nl > 0.05 ? mixRgb('rgb(243,230,207)', '#ffd36b', nl) : '#f3e6cf'; c.beginPath(); c.arc(0, -130, 12, 0, TAU); c.fill();
+      if (nl > 0.05) { c.fillStyle = `rgba(255,205,110,${0.85 * nl})`; c.fillRect(-26, -66, 52, 62); c.strokeStyle = '#b8443f'; c.lineWidth = 5; c.beginPath(); c.moveTo(-30, -70); c.lineTo(30, 0); c.moveTo(30, -70); c.lineTo(-30, 0); c.stroke(); // la puerta deja pasar la luz
+        c.fillStyle = '#3a2a1a'; c.fillRect(-2, -96, 4, 10); c.fillStyle = `rgba(255,225,140,${nl})`; c.beginPath(); c.arc(0, -82, 6, 0, TAU); c.fill(); // farol sobre la puerta
+        const kk = k * BK; (RANCH.barnGlow = RANCH.barnGlow || []).push([p.X, p.Y - 82 * kk, 70 * kk, nl], [p.X, p.Y - 130 * kk, 38 * kk, nl * 0.8], [p.X, p.Y - 35 * kk, 60 * kk, nl * 0.7]); }
     }
     c.restore();
   }
@@ -3222,6 +3231,10 @@ function drawRanch(c, r, opt) {
   if (DI.dark > 0.01) { c.globalAlpha = 1; c.fillStyle = `rgba(12,10,40,${DI.dark})`; c.fillRect(0, Math.min(0, r.top), W, r.bottom + 400); // de noche todo más oscuro (pedido del dueño)...
     c.globalCompositeOperation = 'lighter'; for (const q of RANCH.flyGlow || []) { const gl = c.createRadialGradient(q[0], q[1], 0, q[0], q[1], q[2]); gl.addColorStop(0, `rgba(200,230,90,${0.5 * q[3]})`); gl.addColorStop(1, 'rgba(200,230,90,0)'); c.fillStyle = gl; c.fillRect(q[0] - q[2], q[1] - q[2], 2 * q[2], 2 * q[2]); } c.globalCompositeOperation = 'source-over'; } // ...pero las luciérnagas brillan
   RANCH.flyGlow = [];
+  if (RANCH.barnGlow && RANCH.barnGlow.length) { c.save(); c.globalCompositeOperation = 'lighter'; // luz del granero encima de la oscuridad
+    for (const q of RANCH.barnGlow) { const gl = c.createRadialGradient(q[0], q[1], 0, q[0], q[1], q[2]); gl.addColorStop(0, `rgba(255,190,90,${0.45 * q[3]})`); gl.addColorStop(1, 'rgba(255,190,90,0)'); c.fillStyle = gl; c.fillRect(q[0] - q[2], q[1] - q[2], q[2] * 2, q[2] * 2); }
+    c.restore(); }
+  RANCH.barnGlow = [];
   // nombres bajo cada monstruo (más visibles adelante)
   if (opt && opt.noNames) { c.globalAlpha = 1; return; }
   c.textAlign = 'center';
@@ -3918,7 +3931,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para entrar. Adentro tus monstruos guardados descansan sentados en camas de paja y los vas viendo deslizando a los lados. Caben 10; puedes guardar uno del rancho o sacarlo al rancho. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
+  { v: '1.39', d: '2026-11-20', items: ['De noche el granero tiene luz: la ventana y la puerta se iluminan y hay un farol sobre la puerta.', 'Se quitaron los árboles que estaban detrás de la cerca.', 'Arreglado: al girar la vista, el extremo cercano del camino ya no muestra esquinas.', 'Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para entrar. Adentro tus monstruos guardados descansan sentados en camas de paja y los vas viendo deslizando a los lados. Caben 10; puedes guardar uno del rancho o sacarlo al rancho. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
