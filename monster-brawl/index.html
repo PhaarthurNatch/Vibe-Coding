@@ -2498,6 +2498,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
+const RANCH_SWIPE_K = 1.35; // cuánto gira el rancho al deslizar a los lados (más = gira más con el mismo trazo; pedido del dueño)
 const WING_FALL = 120, RANCH_FLY_SPEED = 0.55; // RANCH_FLY_SPEED: vuelo de lado a lado del rancho (radios por segundo) // velocidad máxima de caída en el menú de los que tienen alas
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 // Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
@@ -3335,7 +3336,7 @@ cv.addEventListener('pointermove', e => {
     if (G.mode === 'pet') { ranchPet(G.act, e.clientX, e.clientY, Math.hypot(e.clientX - G.lx, e.clientY - G.ly)); G.lx = e.clientX; G.ly = e.clientY; return; }
     if (G.mode === 'h') {
       const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000);
-      RANCH.th = G.th0 + dx / RANCH.view.RX; G.v = (e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; // el paisaje sigue al dedo G.lx = e.clientX; G.lt = now;
+      RANCH.th = G.th0 + dx / RANCH.view.RX * RANCH_SWIPE_K; G.v = (e.clientX - G.lx) / RANCH.view.RX * RANCH_SWIPE_K / dt * 0.6 + G.v * 0.4; // el paisaje sigue al dedo G.lx = e.clientX; G.lt = now;
     }
     return;
   }
