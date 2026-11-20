@@ -39,7 +39,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
 #home.ranch #lblBot{display:none}
-.pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba; de cerca: arriba se vuelve al rancho y abajo están las Estadísticas */
+.pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba */
+#home:not(.ranch) .pgStats{order:0}#home:not(.ranch) .pgShop{order:2} /* de cerca: Estadísticas arriba y el rancho abajo (pedido del dueño) */
+.edgeLbl.up.glow{animation:tabglow 1.6s ease-in-out infinite,edgeUp 2.4s ease-in-out infinite}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;white-space:nowrap;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #home:not(.ranch) .ranchHint{display:none}
@@ -72,7 +74,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.locked{opacity:.5}
 #home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
 #home.vacant .panel>.row,#home.vacant #btnFight{display:none}
-#home.vacant #lblBot{visibility:hidden} /* espacio libre: no tiene Estadísticas */
+#home.vacant #lblTop{visibility:hidden} /* espacio libre: no tiene Estadísticas */
 .fightbtn{font-size:19px;padding:15px 10px;letter-spacing:.5px}
 #homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
 #homePanel.fightOpen #btnFight{display:none}
@@ -246,7 +248,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
   <div class="page" id="pgHome">
-  <button class="edgeLbl up" data-go="0" id="lblTop">▲ Tienda</button>
+  <button class="edgeLbl up" id="lblTop">▲ Tienda</button>
   <div class="nav">
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
   </div>
@@ -266,10 +268,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
   </div>
-  <button class="edgeLbl down" id="lblBot">Estadísticas ▼</button>
+  <button class="edgeLbl down" id="lblBot">Rancho ▼</button>
   </div>
   <div class="page pgStats">
-    <button class="edgeLbl up" data-go="1">▲ Monstruo</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
     <div class="spacer" id="trainArea"></div>
     <div class="panel tpanel">
@@ -277,6 +278,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <div class="tinfo" id="tinfo"></div>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
+    <button class="edgeLbl down" data-go="1">Monstruo ▼</button>
   </div>
   </div></div>
 </div>
@@ -1186,6 +1188,7 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
+    if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira)
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1199,7 +1202,7 @@ class Monster {
       el.ax = a.sd * Math.sin(t * 1.6 + a.p) * 1.5; el.ay = sw * 4;
       ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
       if (this.held || this.z > 25) { const fl = Math.sin(t * 15 + a.sd + a.p) * 5; el.ax += a.sd * 3 + fl; el.ay -= 6; ha.ax += a.sd * 5 - fl; ha.ay -= 10 + fl; } // patalea
-      ha.useT = false; ha.boost = 1;
+      ha.useT = false; ha.boost = 1; el.stretch = ha.stretch = 0;
       if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
         const dx = this.atkDir.x, dy = this.atkDir.y * DEPTH, reach = (g.arms.upper + g.arms.fore) * s;
         ha.useT = true; ha.boost = 4;
@@ -1219,7 +1222,7 @@ class Monster {
     }
     // Colas
     this.earT = (this.earT ?? Math.random() * 3) - dt;
-    if (this.earT < 0) { this.earT = 1.5 + Math.random() * 4; const sd = Math.random() < 0.5 ? -1 : 1; for (const e of I.ears) if (e.sd === sd || Math.random() < 0.4) { const n = N[e.tip]; n.vx += e.sd * 140 * s; n.vy -= 60 * s; } }
+    if (this.earT < 0) { this.earT = 2 + Math.random() * 5; const sd = Math.random() < 0.5 ? -1 : 1; for (const e of I.ears) if (e.sd === sd || Math.random() < 0.4) { const n = N[e.tip]; n.vx += e.sd * 140 * s; n.vy -= 60 * s; } }
     for (const a of I.ants) { N[a.chain[1]].ax = Math.sin(t * 2.2 + a.i * 1.3) * 2.5; N[a.chain[0]].ax = Math.sin(t * 1.7 + a.i) * 1.2; }
     for (const tl of I.tails) tl.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.7) * k * 0.6 * (tl.sd || 1); n.ay = Math.cos(t * 2.6 + k * 0.7) * k * 0.4; });
     // Piernas: los pies buscan el suelo (o cuelgan si está en el aire)
@@ -1239,6 +1242,7 @@ class Monster {
     // Pupilas: miran al objetivo con un poco de retraso
     let lx, ly;
     if (this.lookAt) { const dx = this.lookAt.x - head.x, dy = this.lookAt.y - head.y, d = Math.hypot(dx, dy) || 1; lx = dx / d; ly = dy / d; }
+    else if (this.lookDir) { lx = this.lookDir.x; ly = this.lookDir.y; } // rancho: mira a otro monstruo o a ti
     else if (this.target && !this.target.dead) { const dx = this.target.gx - this.gx, dy = this.target.gy - this.gy, d = Math.hypot(dx, dy) || 1; lx = dx / d; ly = dy / d * 0.6; }
     else { lx = Math.sin(t * 0.7) * 0.5; ly = Math.sin(t * 0.53) * 0.3; }
     const lk = Math.min(1, dt * 6); this.look.x += (lx - this.look.x) * lk; this.look.y += (ly - this.look.y) * lk;
@@ -1287,7 +1291,7 @@ class Monster {
       n.x += n.vx * dt; n.y += n.vy * dt;
       if (P && n.len > 0.5) { // restricción de distancia (los huesos no se estiran infinito)
         const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s;
-        const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * 1.3;
+        const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * (n.stretch || 1.3); // stretch: el brazo que se toca la cabeza puede estirarse más
         if (d > mx || d < mn) {
           let tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
           if (!dead && d < mn) { // quedó del lado contrario (p. ej. la cabeza bajo el cuello): se empuja hacia donde debe ir, no hacia atrás, para que no se trabe
@@ -1303,18 +1307,21 @@ class Monster {
   }
 
   homeStep(dt, halfW, maxZ) {
+    this.askPet = false; this.bowHead = (this.petBowT = (this.petBowT || 0) - dt) > 0; // de cerca: mientras lo acaricias baja la cabeza
     if (!this.held) {
       const vz0 = this.vz, z0 = this.z;
       this.hop(dt);
+      if (this.g.wings.pairs && this.z > 0 && this.vz < -WING_FALL) this.vz = -WING_FALL; // con alas baja despacio, aleteando
       if (z0 > 0 && this.z === 0 && vz0 < -380) { this.setEmo('dizzy', 1.1, 4); burst(this.gx, 0, 6, 'rgba(200,190,230,.8)', 120, [2, 4]); } // aterrizaje fuerte
       this.gx += this.vx * dt;
       if (this.z === 0) { // en el suelo: frena y vuelve caminando al centro
         const want = Math.abs(this.gx) > 3 ? -Math.sign(this.gx) * Math.min(45, Math.abs(this.gx) * 1.5) : 0;
         this.vx += (want - this.vx) * Math.min(1, dt * 5);
       } else this.vx *= Math.exp(-dt * 0.3);
-      if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; }
+      if (Math.abs(this.gx) > halfW && !this.flung) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; } // lanzado fuerte: puede salirse de la pantalla
+      if (this.flung && this.z === 0 && Math.abs(this.gx) <= halfW) this.flung = false;
       if (this.baseEmo === 'energetic' && !this.sleep && this.z === 0 && Math.random() < dt * 0.7) this.vz = 150 + Math.random() * 90; // energético: saltitos
-      if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
+      // (sin techo: si lo sueltas alto, cae al piso desde donde estaba; antes se cortaba la altura de golpe y se veía un salto)
     }
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
   }
@@ -1580,7 +1587,7 @@ class Monster {
     }
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
-    for (const a of I.arms) if (a.p === 0 && !hid('arm:0')) this.drawArm(ctx, a, C, lw);
+    for (const a of I.arms) if (a.p === 0 && !hid('arm:0') ) this.drawArm(ctx, a, C, lw);
     if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
@@ -2494,6 +2501,14 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
+const RANCH_ASK_S = 1; // cuánto dura el gesto de pedir cariño (se soba la cabeza y la baja)
+const RANCH_ASK_AFTER = 0.5; // tras una caricia espera esto antes de volver a pedir
+const RANCH_ASK_GAP = 3; // si no lo acaricias, vuelve a pedir una 2.ª vez tras esta pausa
+const RANCH_ASK_LEAVE = 2; // tras pedir 2 veces sin caricia, se va a los 2 s
+const RANCH_COME_STAY = 8; // segundos que se queda junto a ti después de que lo acaricias en el rancho
+const RANCH_LOOK_ME = 0.8, RANCH_LOOK_OTHER = 0.55; // a esta distancia (radios del rancho) te mira a ti / mira a otro monstruo
+const RANCH_SWIPE_K = 1.35; // cuánto gira el rancho al deslizar a los lados (más = gira más con el mismo trazo; pedido del dueño)
+const WING_FALL = 120, RANCH_FLY_SPEED = 0.55; // RANCH_FLY_SPEED: vuelo de lado a lado del rancho (radios por segundo) // velocidad máxima de caída en el menú de los que tienen alas
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 // Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
 const INTRO_STEP = 1.2, INTRO_S = INTRO_STEP * 3, FIGHT_S = 1.3;
@@ -2551,45 +2566,108 @@ function ranchStep(dt) {
   } else if (!RANCH.drag) { RANCH.th += RANCH.vth * dt; RANCH.vth *= Math.exp(-dt * 3); }
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.m.held && a.m.z === 0;
+  for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
+  if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
+    RANCH.askCd = 70 + Math.random() * 80;
+    const free = A.filter(canPlay);
+    if (free.length) { const a = free[Math.floor(Math.random() * free.length)]; a.come = { stay: RANCH_COME_STAY }; a.walk = false; }
+  }
+  if ((RANCH.playCd = (RANCH.playCd ?? 9 + Math.random() * 13) - dt) < 0) {
+    RANCH.playCd = 25 + Math.random() * 33;
+    const free = A.filter(canPlay);
+    if (free.length >= 2) {
+      const a = free[Math.floor(Math.random() * free.length)], b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+      const kind = Math.random() < 0.5 ? 'hop' : 'chase';
+      a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
+      a.walk = b.walk = false;
+    }
+  }
   for (const a of A) {
-    let vx = 0, vz = 0;
-    if (a === focus) { a.walk = false; a.idle = 1.5; } // el que se está mirando de cerca se queda quieto
+    let vx = 0, vz = 0; if (a.m && a !== focus) a.m.askPet = a.m.bowHead = false;
+    if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.walk) {
+      if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
+        const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
+        if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; C.petT = 0; } /* mientras viene no agacha la cabeza */
+        else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
+        else if (C.petting && (C.petting = false, C.pets = (C.pets || 0) + 1) >= (C.need = C.need || 1 + (Math.random() < 0.5 ? 1 : 0))) { a.come = null; a.idle = 0.5; } // con 1 o 2 caricias ya quedó contento y se va
+        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt, t < t2 ? t : t - t2); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
+        a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
+      } else if (a.play) { // jugando con otro
+        const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
+        P.t += dt;
+        if (P.phase === 'go') { // se acercan el uno al otro
+          if (d > 0.34) { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
+          else { P.phase = m.play.phase = 'play'; P.t = m.play.t = 0; a.m.setEmo('happy', 1.5, 2); m.m.setEmo('happy', 1.5, 2); }
+          if (P.t > 12) { a.play = m.play = null; }
+        } else if (P.kind === 'hop') { // saltan juntos, mirándose
+          if (a.m.z === 0 && Math.random() < dt * 2.2) { a.m.vz = 200 + Math.random() * 80; a.m.setEmo('happy', 0.8, 2); }
+          if (P.t > 4.5) { a.play = null; a.walk = false; a.idle = 1 + Math.random() * 2; }
+        } else { // a la pinta: el que guía corre y el otro lo persigue
+          if (P.lead) {
+            if (!P.goal || Math.hypot(P.goal[0] - a.x, P.goal[1] - a.z) < 0.08) { for (let k = 0; k < 8; k++) { const ang = Math.random() * TAU, rr = RANCH_RMIN + Math.random() * (RANCH_RMAX - RANCH_RMIN); const gx = Math.sin(ang) * rr, gz = Math.cos(ang) * rr; if (Math.hypot(gx - a.x, gz - a.z) < 1.2) { P.goal = [gx, gz]; break; } } P.goal = P.goal || [a.x, a.z]; }
+            const gx = P.goal[0] - a.x, gz = P.goal[1] - a.z, gd = Math.hypot(gx, gz) || 1e-3; vx = gx / gd * sp * 1.6; vz = gz / gd * sp * 1.6;
+          } else if (d > 0.28) { vx = dx / d * sp * 1.7; vz = dz / d * sp * 1.7; }
+          a.x += vx * dt; a.z += vz * dt;
+          if (a.m.z === 0 && Math.random() < dt * 0.8) a.m.vz = 170;
+          if (P.t > 6) { a.play = null; a.walk = false; a.idle = 1 + Math.random() * 2; a.m.setEmo('happy', 1.2, 2); }
+        }
+      } else if (a.fly) { // vuelo de un lado al otro del rancho, pasando por encima de uno (pedido del dueño)
+        const F = a.fly; F.t += dt / F.dur; const e = Math.min(1, F.t), nx = F.x0 + (F.x1 - F.x0) * e, nz = F.z0 + (F.z1 - F.z0) * e;
+        vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; a.m.z = Math.sin(Math.PI * e) * F.h; a.m.vz = 0;
+        if (F.t >= 1) { a.fly = null; a.m.z = 0; a.walk = false; a.idle = 1 + Math.random() * 2; }
+      } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
+        const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
+        const x1 = Math.sin(a1) * r1, z1 = Math.cos(a1) * r1, dist = Math.hypot(x1 - a.x, z1 - a.z);
+        a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / RANCH_FLY_SPEED, h: 170 + Math.random() * 90 };
+        a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
+      } else if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
-        if (d < 0.03) { a.walk = false; a.idle = 1.2 + Math.random() * 3.5; }
+        if (d < 0.03) { a.walk = false; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
-          if (k < 6 && Math.random() < 0.35) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
+          if (k < 6 && Math.random() < 0.2) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
           const rr = Math.hypot(nx, nz);
           if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
-        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.45 : 0.15)) a.m.vz = 200; // a veces da un saltito (más si está energético)
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) a.m.vz = 200; // a veces da un saltito (más si está energético)
       }
     }
-    if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
+    if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; a.m.lookDir = null; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
     if (a.m && (a.m.gx || a.m.held)) { a.m.held = false; a.m.gx *= Math.exp(-dt * 3); if (Math.abs(a.m.gx) < 0.5) a.m.gx = 0; } // si lo habían lanzado de cerca, vuelve a su lugar
     if (a.m) { // animación: camina hacia el lado que se ve en pantalla; si se aleja de la cámara se ve de espaldas
       const toward = vx * sn + vz * c, sp0 = Math.hypot(vx, vz);
-      if (sp0 > 0) { a.awayT = toward < -0.4 * sp0 ? Math.min(0.4, (a.awayT || 0) + dt) : Math.max(-0.4, (a.awayT || 0) - dt); a.turnT = 0; }
+      if (sp0 > 0) { a.awayT = toward < -0.2 * sp0 ? Math.min(0.4, (a.awayT || 0) + dt * 7) : Math.max(-0.4, (a.awayT || 0) - dt * 7); a.turnT = 0; } // se da vuelta apenas camina alejándose (rápido, pedido del dueño)
       else if ((a.turnT = (a.turnT || 0) + dt) > 1.3) a.awayT = Math.max(-0.4, (a.awayT || 0) - dt); // quieto un rato: se da vuelta a mirar
+      // Miradas (pedido del dueño): si pasa cerca de ti (el centro) te mira; si se cruza con otro monstruo, lo mira
+      const rC = Math.hypot(a.x, a.z);
+      if (rC < RANCH_LOOK_ME && !a.fly) a.m.lookDir = { x: 0, y: 0.15 }; // sólo te sigue con los ojos (no se da vuelta)
+      else {
+        let best = null, bd = RANCH_LOOK_OTHER;
+        for (const b of A) if (b !== a && b.kind === 'mon' && b.scr && a.scr) { const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < bd) { bd = d; best = b; } }
+        if (best) { const dx = best.scr.X - a.scr.X, dy = (best.scr.Y - best.scr.k * 40) - (a.scr.Y - a.scr.k * 40), d = Math.hypot(dx, dy) || 1; a.m.lookDir = { x: dx / d, y: dy / d * 0.6 }; }
+        else a.m.lookDir = null;
+      }
       a.m.back = (a.awayT || 0) > 0.15;
       const svx = (vx * c - vz * sn) * (V ? V.RX : 200) / Math.max(0.05, (V ? V.kb : 1) * (a.sc || 1));
-      const spd = Math.hypot(vx, vz) > 0 ? 42 : 0;
+      const spd = Math.hypot(vx, vz) > 0 ? (a.play && a.play.kind === 'chase' && a.play.phase === 'play' ? 150 : 42) : 0; // a la pinta: corren (piernas rápidas y pasos largos, como en la arena)
       a.m.vx = clamp(svx, -spd, spd); a.m.vy = Math.sqrt(Math.max(0, spd * spd - a.m.vx * a.m.vx));
-      a.m.hop(dt); a.m.animate(dt); a.m.rigStep(dt / 2); a.m.rigStep(dt / 2);
+      if (!a.fly) a.m.hop(dt); if (a.m.g.wings.pairs && a.m.z > 0 && a.m.vz < -WING_FALL) a.m.vz = -WING_FALL; // con alas sigue bajando despacio, aleteando
+      a.m.animate(dt); a.m.rigStep(dt / 2); a.m.rigStep(dt / 2);
     } else if (a.e) a.e.update(dt);
   }
   // no se encimen
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
     const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
-    if (p.kind === 'free' || q.kind === 'free') continue; // los espacios libres no se ven en el rancho: no empujan a nadie
+    if (p.kind === 'free' || q.kind === 'free' || p.fly || q.fly) continue; // los espacios libres no empujan a nadie; los que vuelan pasan por encima
     if (d < 0.3) { const f = (0.3 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
   }
-  for (const a of A) { const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX + 0.02) { a.x *= (RANCH_RMAX + 0.02) / rr; a.z *= (RANCH_RMAX + 0.02) / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
+  for (const a of A) { if (a.fly) continue; const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX + 0.02) { a.x *= (RANCH_RMAX + 0.02) / rr; a.z *= (RANCH_RMAX + 0.02) / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
 }
 RANCH.frame = 0;
 // Cámara del rancho para el área r: uno parado en el centro (el eje), baja y mirando paralela al piso; girar (RANCH.th) es mirar alrededor
@@ -2676,7 +2754,7 @@ function drawRanch(c, r, opt) {
   if (opt && opt.noNames) { c.globalAlpha = 1; return; }
   c.textAlign = 'center';
   for (const a of RANCH.actors) {
-    if (!a.rec || !a.hit) continue; const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
+    if (!a.rec || !a.hit || a.kind === 'mon') continue; /* los monstruos no llevan nombre en el rancho (pedido del dueño); sólo los huevos que incuban muestran cuánto les falta */ const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
     if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
     const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
     c.font = `800 ${Math.round(clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
@@ -2698,10 +2776,24 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 }
 function ranchTap(x, y) { const a = ranchHit(x, y); if (a) ranchZoomTo(a); }
 // Caricia en el rancho: frotar sobre el monstruo
+// Al pedir cariño: los mismos corazones de la caricia repartidos por la cabeza y el efecto de acariciado (cara de amor y la cabeza se mece como bajo la mano)
+const RANCH_ASK_HEARTS = 0.5; // los corazones salen sólo el primer medio segundo de cada pedido
+function ranchAskFx(a, dt, ph) {
+  const m = a.m, S = a.scr, h = m.nodes[m.ix.head], s = m.s, g = m.g;
+  m.setEmo('love', 0.3, 2);
+  const w = Math.sin(RANCH.t * 14) * 40 * s;
+  for (const n of m.nodes) { const dd = Math.hypot(n.x - h.x, n.y - (h.y - g.head.h * 0.3 * s)); if (dd < 45 * s) n.vx += w * (1 - dd / (45 * s)) * dt * 12; }
+  if (!S || ph > RANCH_ASK_HEARTS) return;
+  a.askHeart = (a.askHeart || 0) - dt;
+  if (a.askHeart <= 0) { a.askHeart = 0.13;
+    const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
+    RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+}
 function ranchPet(a, x, y, dist) {
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
   if (a.kind !== 'mon') return;
   const m = a.m, S = a.scr; a.walk = false; a.idle = Math.max(a.idle, 1.5);
+  if (!m.sleep) { a.play = null; a.fly = null; a.come = a.come || { stay: RANCH_COME_STAY }; a.come.petT = 0.3; a.come.stay = RANCH_COME_STAY; } // le gustó: se acerca a ti para que lo sigas acariciando y se queda un rato
   if (!m.sleep) m.setEmo('love', 0.9, 2);
   m.lookAt = null;
   if (S && RANCH.drag) { // misma física que al acariciar de cerca: las partes bajo el dedo se dejan llevar (en coordenadas del monstruo)
@@ -2845,7 +2937,7 @@ function checkBreedUnlock() {
 const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.stage === 'egg');
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
-const visPage = n => n;
+const visPage = n => ranchMode ? n : [2, 1, 0][n]; // de cerca el orden en pantalla es Estadísticas / Monstruo / (Tienda, sin acceso)
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (abajo está el rancho)
@@ -2859,11 +2951,11 @@ function setPage(n) {
 // Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Estadísticas" (dorado si hay puntos por gastar) y "Rancho ▼"
 function edgeLabels(free) {
   const t = $('lblTop'), b = $('lblBot');
-  t.textContent = ranchMode ? '▲ Tienda' : '▲ Rancho';
-  b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', free > 0);
+  t.textContent = ranchMode ? '▲ Tienda' : free > 0 ? `▲ Estadísticas (${free})` : '▲ Estadísticas'; t.classList.toggle('glow', !ranchMode && free > 0);
+  b.textContent = 'Rancho ▼';
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else toRanch(); };
-$('lblBot').onclick = () => setPage(2);
+$('lblTop').onclick = () => { if (ranchMode) setPage(0); else setPage(2); };
+$('lblBot').onclick = () => toRanch();
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
@@ -2884,7 +2976,7 @@ function swipeEnd(x, y) {
     const v = visPage(homePage) + (dy < 0 ? 1 : -1); // posición en pantalla a la que se va (dedo arriba = la de abajo)
     if (v < 0 || v > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now();
-    if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, hacia arriba se vuelve al rancho
+    if (!ranchMode && homePage === 1 && v === 2) toRanch(); // de cerca, deslizar hacia arriba vuelve al rancho (abajo)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (homePage === 2 ? save.monsters.length : Math.max(slotCap(), save.monsters.length)) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
@@ -3288,7 +3380,7 @@ cv.addEventListener('pointermove', e => {
     if (G.mode === 'pet') { ranchPet(G.act, e.clientX, e.clientY, Math.hypot(e.clientX - G.lx, e.clientY - G.ly)); G.lx = e.clientX; G.ly = e.clientY; return; }
     if (G.mode === 'h') {
       const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000);
-      RANCH.th = G.th0 + dx / RANCH.view.RX; G.v = (e.clientX - G.lx) / RANCH.view.RX / dt * 0.6 + G.v * 0.4; // el paisaje sigue al dedo G.lx = e.clientX; G.lt = now;
+      RANCH.th = G.th0 + dx / RANCH.view.RX * RANCH_SWIPE_K; G.v = (e.clientX - G.lx) / RANCH.view.RX * RANCH_SWIPE_K / dt * 0.6 + G.v * 0.4; // el paisaje sigue al dedo G.lx = e.clientX; G.lt = now;
     }
     return;
   }
@@ -3299,7 +3391,7 @@ cv.addEventListener('pointermove', e => {
   if (touch.grab) { // lo llevas colgando del dedo
     const bd = homeBounds;
     O.gx = clamp(p.x - touch.offX, -bd.halfW, bd.halfW);
-    O.z = clamp(touch.offY - p.y, 0, bd.maxZ);
+    O.z = Math.max(0, touch.offY - p.y); // sin límite de altura al tomarlo (pedido del dueño)
     const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
     if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
   } else {
@@ -3335,6 +3427,7 @@ function release(t) {
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
   if (performance.now() - b[2] > 120) { O.vx = 0; O.vz = 0; } // estaba quieto: sólo lo sueltas
   else { O.vx = clamp((b[0] - a[0]) / dt, -900, 900); O.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  O.flung = Math.abs(O.vx) > 500 || O.vz > 550; // lanzado fuerte: si sale de la pantalla, la cámara vuelve al rancho
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
 function pet(a, b) {
@@ -3343,7 +3436,7 @@ function pet(a, b) {
   if (d < 0.3) return;
   // las partes bajo el dedo se dejan llevar un poco (física floaty)
   for (const n of show.nodes) { const dd = Math.hypot(n.x - b.x, n.y - b.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } }
-  if (!show.sleep) show.setEmo('love', 0.9, 2);
+  if (!show.sleep) { show.setEmo('love', 0.9, 2); show.petBowT = 0.3; } // baja la cabeza mientras lo acaricias
   show.lookAt = null;
   petAcc += d;
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
@@ -3749,7 +3842,8 @@ function loop(now) {
         if (egg.wig < 0) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 2.5); egg.sq = 0.07; egg.wig = Math.random() < 0.55 ? 0.16 + Math.random() * 0.08 : 1.1 + Math.random() * 1.6; }
       }
       if (egg && !ranchMode) { egg.update(STEP); const er = cur(); if (er && er.readyAt && Date.now() >= er.readyAt && Math.random() < STEP * 0.9) egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; } // huevo criado listo: se mueve solo
-      else if (show && !ranchMode) show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+      else if (show && !ranchMode) { show.homeStep(STEP, homeBounds.halfW, homeBounds.maxZ);
+        if (show.flung && !zoom && homePage === 1 && (Math.abs(show.gx) > homeBounds.halfW + 60 || show.z > homeBounds.maxZ + 140)) { show.flung = false; toRanch(); } } // lo lanzaste fuera de la pantalla: la cámara retrocede al rancho
       ranchStep(STEP); // el rancho sigue vivo también de fondo en la vista de cerca
     }
     // Se dibuja en el área de la página que está más a la vista (Rancho o Estadísticas)
