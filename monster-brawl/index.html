@@ -2593,7 +2593,7 @@ function ranchStep(dt) {
         if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; C.petT = 0; } /* mientras viene no agacha la cabeza */
         else if (C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
         else if (C.petting && (C.petting = false, C.pets = (C.pets || 0) + 1) >= (C.need = C.need || 1 + (Math.random() < 0.5 ? 1 : 0))) { a.come = null; a.idle = 0.5; } // con 1 o 2 caricias ya quedó contento y se va
-        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
+        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt, t < t2 ? t : t - t2); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
@@ -2777,12 +2777,13 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 function ranchTap(x, y) { const a = ranchHit(x, y); if (a) ranchZoomTo(a); }
 // Caricia en el rancho: frotar sobre el monstruo
 // Al pedir cariño: los mismos corazones de la caricia repartidos por la cabeza y el efecto de acariciado (cara de amor y la cabeza se mece como bajo la mano)
-function ranchAskFx(a, dt) {
+const RANCH_ASK_HEARTS = 0.5; // los corazones salen sólo el primer medio segundo de cada pedido
+function ranchAskFx(a, dt, ph) {
   const m = a.m, S = a.scr, h = m.nodes[m.ix.head], s = m.s, g = m.g;
   m.setEmo('love', 0.3, 2);
   const w = Math.sin(RANCH.t * 14) * 40 * s;
   for (const n of m.nodes) { const dd = Math.hypot(n.x - h.x, n.y - (h.y - g.head.h * 0.3 * s)); if (dd < 45 * s) n.vx += w * (1 - dd / (45 * s)) * dt * 12; }
-  if (!S) return;
+  if (!S || ph > RANCH_ASK_HEARTS) return;
   a.askHeart = (a.askHeart || 0) - dt;
   if (a.askHeart <= 0) { a.askHeart = 0.13;
     const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
