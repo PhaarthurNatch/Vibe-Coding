@@ -3302,7 +3302,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.23', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión, se pone dorado con un número cuando hay versiones que no has visto y te las muestra al entrar a la app.', 'El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
+  { v: '1.23', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
   { v: '1.22', d: '2026-11-19', items: ['Los monstruos que te piden cariño se ponen frente a ti para que los veas.'] },
   { v: '1.21', d: '2026-11-19', items: ['Rancho: si acaricias a un monstruo, se acerca a ti a pedirte más cariño (baja la cabeza y le salen corazones); a veces vienen solos.', 'Con 1 o 2 caricias se van contentos; si no los acaricias, piden otra vez y se van.', 'Los alados a veces cruzan volando el rancho; a veces dos monstruos juegan a saltar o a la pinta.', 'Te siguen con los ojos al pasar cerca y se miran entre ellos; sin nombres en el rancho.', 'Puedes subir a un monstruo sin límite y al soltarlo cae (los alados bajan planeando); si lo lanzas fuera de la pantalla vuelves al rancho.', 'Vista de cerca: Estadísticas arriba y el rancho abajo.'] },
   { v: '1.20', d: '2026-11-19', items: ['Durmiendo, los monstruos se sientan en el suelo.'] },
@@ -3342,7 +3342,6 @@ $('btnNewsAll').onclick = () => openNews(false);
 $('btnNewsClose').onclick = () => $('newsModal').classList.remove('on');
 if (save.newsSeen == null) { save.newsSeen = save.monsters.some(m => m.stage !== 'egg') ? '1.22' : APP_VER; persist(); } // partida nueva: nada pendiente; las que ya existían ven desde la 1.23 (cuando llegó esta ventana)
 newsBadge();
-setTimeout(() => { if (newsUnseen() > 0 && scene === 'home' && !firstEgg() && !document.querySelector('.modal.on')) openNews(true); }, 800); // al entrar a la app: muestra las novedades que no has visto
 function renderNews(count) {
   $('newsList').innerHTML = CHANGELOG.slice(0, count).map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
 }
