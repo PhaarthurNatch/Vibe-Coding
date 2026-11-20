@@ -1188,6 +1188,7 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
+    if (this.askPet) { head.ay += 16; head.ax += 4 + Math.sin(t * 1.8) * 1.5; } // pide cariño: baja la cabeza (y te mira)
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1202,6 +1203,9 @@ class Monster {
       ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
       if (this.held || this.z > 25) { const fl = Math.sin(t * 15 + a.sd + a.p) * 5; el.ax += a.sd * 3 + fl; el.ay -= 6; ha.ax += a.sd * 5 - fl; ha.ay -= 10 + fl; } // patalea
       ha.useT = false; ha.boost = 1;
+      if (this.askPet && a.p === 0 && a.sd === 1) { // pide cariño: se toca la cabeza con la mano
+        ha.useT = true; ha.boost = 3; ha.tx = head.x + g.head.w * 0.22 * s + Math.sin(t * 7) * 2.5 * s; ha.ty = head.y - g.head.h * 0.42 * s + Math.cos(t * 7) * 1.5 * s;
+      }
       if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
         const dx = this.atkDir.x, dy = this.atkDir.y * DEPTH, reach = (g.arms.upper + g.arms.fore) * s;
         ha.useT = true; ha.boost = 4;
@@ -2574,13 +2578,13 @@ function ranchStep(dt) {
     }
   }
   for (const a of A) {
-    let vx = 0, vz = 0;
+    let vx = 0, vz = 0; if (a.m) a.m.askPet = false;
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
       if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
         if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; }
-        else if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; }
+        else { a.m.askPet = true; if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; } } // ya junto a ti: te pide cariño
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
