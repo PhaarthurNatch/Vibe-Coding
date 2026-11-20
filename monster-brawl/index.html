@@ -3769,12 +3769,12 @@ function drawBarn(c) {
   for (let k = Math.floor((-off * 1) / (sp * 1.1)) - 1; k * sp * 1.1 + off < W + sp; k++) { const x = k * sp * 1.1 + off; c.strokeStyle = '#3a2414'; c.lineWidth = 12; c.beginPath(); c.moveTo(x, floorY * 0.16 + 16); c.lineTo(x + floorY * 0.35, floorY - 14); c.stroke(); } // tirantes en diagonal
   // ventanas: por ellas se ve afuera (cielo de día; de noche oscuro, con estrellas y luna)
   const DI = dayInfo(), night = clamp(DI.dark / 0.3, 0, 1), ws = sp * 1.25, ww = Math.min(sp * 0.32, 110), wh = floorY * 0.2, wy = floorY * 0.42;
-  for (let j = Math.floor(-off / ws) - 1; j * ws + off < W + ws; j++) { const x = W / 2 + j * ws + off - ws / 2; if (x < -ww || x > W + ww) continue;
+  for (let j = Math.floor(-off / (ws * 3)) - 1; j * ws * 3 + off < W + ws * 3; j++) { const x = W / 2 + j * ws * 3 + off - ws / 2; if (x < -ww || x > W + ww) continue; // 1 ventana por cada 3 faroles (pedido del dueño)
     c.fillStyle = '#2f1d10'; c.fillRect(x - ww / 2 - 7, wy - wh / 2 - 7, ww + 14, wh + 14);
     const sg = c.createLinearGradient(0, wy - wh / 2, 0, wy + wh / 2); sg.addColorStop(0, DI.top); sg.addColorStop(1, DI.bot); c.fillStyle = sg; c.fillRect(x - ww / 2, wy - wh / 2, ww, wh);
     c.save(); c.beginPath(); c.rect(x - ww / 2, wy - wh / 2, ww, wh); c.clip(); const wr = rng(300 + j);
     if (DI.stars > 0.05) for (let q = 0; q < 7; q++) { c.fillStyle = `rgba(255,255,255,${DI.stars * (0.4 + 0.6 * Math.abs(Math.sin(TN * wr.f(0.5, 1.5) + q)))})`; c.beginPath(); c.arc(x + wr.f(-0.45, 0.45) * ww, wy + wr.f(-0.45, 0.45) * wh, 1.3, 0, TAU); c.fill(); }
-    if (DI.moon > 0.3 && ((j % 3) + 3) % 3 === 1) { c.globalAlpha = DI.moon; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(x + ww * 0.18, wy - wh * 0.15, Math.min(ww, wh) * 0.16, 0, TAU); c.fill(); c.globalAlpha = 1; }
+    if (DI.moon > 0.3 && ((j % 2) + 2) % 2 === 0) { c.globalAlpha = DI.moon; c.fillStyle = '#f6efc9'; c.beginPath(); c.arc(x + ww * 0.18, wy - wh * 0.15, Math.min(ww, wh) * 0.16, 0, TAU); c.fill(); c.globalAlpha = 1; }
     if (DI.cloud > 0.05) { c.fillStyle = `rgba(255,255,255,${0.8 * DI.cloud})`; for (const [ox, oy, rr] of [[-0.18, 0.1, 0.13], [0, 0.02, 0.17], [0.18, 0.1, 0.12]]) { c.beginPath(); c.arc(x + (ox + wr.f(-0.15, 0.15)) * ww, wy + oy * wh, rr * ww, 0, TAU); c.fill(); } }
     c.fillStyle = 'rgba(30,18,8,.55)'; c.fillRect(x - ww / 2, wy - wh / 2, ww, wh * 0.06); c.restore();
     c.fillStyle = '#3a2414'; c.fillRect(x - 3, wy - wh / 2, 6, wh); c.fillRect(x - ww / 2, wy - 3, ww, 6); // marco en cruz
