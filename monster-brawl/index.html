@@ -3593,7 +3593,7 @@ function renderSlotBtns() {
   $('stats').innerHTML = `<p class="eggmsg">Aquí puede vivir otro monstruo.</p>
     <div class="row slotbtns"><button class="btn primary" id="slotBuy" ${today || poor ? 'disabled' : ''}>${buy}</button><button class="btn primary" id="slotBreed" ${open ? '' : 'disabled'}>${open ? 'Criar · <span class="ci"></span>' + BREED_COST : '🔒 Criar'}</button></div>
     <div class="row slotbtns"><button class="btn primary" id="slotFoes">🥚 Criadero${adultFoes().some(([f]) => !f.bought) ? ` (${adultFoes().filter(([f]) => !f.bought).length})` : ''}</button></div>
-    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos. Criadero: huevos de tus últimos rivales adultos.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2). Criadero: huevos de tus últimos rivales adultos.`}</small></p>`;
+    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos. Criadero: huevos de los especímenes disponibles.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2). Criadero: huevos de los especímenes disponibles.`}</small></p>`;
   $('slotBuy').onclick = buySlotEgg; $('slotBreed').onclick = openBreedPick; $('slotFoes').onclick = openFoePick;
 }
 async function buySlotEgg() {
@@ -3652,7 +3652,7 @@ function recordFoes(b) {
 // Criadero (pedido del dueño): desde un espacio libre, los últimos rivales se ven de adultos y se puede comprar el huevo de uno (misma semilla: nace igual a él)
 function openFoePick() {
   const L = adultFoes(), list = $('fpList'), go = $('fpGo'); let sel = null;
-  $('fpInfo').textContent = L.length ? `Tus últimos ${L.length === 1 ? 'rival adulto' : L.length + ' rivales adultos'}. Compra el huevo de uno y nacerá igual a él.` : 'Aquí aparecerán los rivales adultos contra los que peleas.';
+  $('fpInfo').textContent = L.length ? 'Especímenes disponibles en el criadero. Compra el huevo de uno y nacerá igual a él.' : 'Por ahora no hay especímenes disponibles en el criadero.';
   list.innerHTML = '';
   L.forEach(([f, i]) => {
     const b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !!f.bought;
@@ -3756,7 +3756,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['Nuevo Criadero en los espacios libres del rancho: ahí aparecen los últimos 10 rivales adultos contra los que peleaste.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
+  { v: '1.39', d: '2026-11-20', items: ['Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
