@@ -2899,19 +2899,16 @@ function renderTrain() {
       <button class="btn tbtn" data-pt="${t.k}" ${!free || n >= PTS_MAX ? 'disabled' : ''}>+1</button>
       <div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div>
       <div class="tdesc">${t.desc}</div></div>`; }).join('');
-  h += `<p class="tdesc">Ganas ${PTS_PER_LEVEL} puntos por nivel. El cuerpo cambia según cómo lo entrenes.</p>`;
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
-  h += `<div class="tsec"><div class="thead">Ultimate</div>`;
-  if (canUlt(rec.stage)) {
+  if (canUlt(rec.stage)) { // sin textos explicativos (pedido del dueño); antes de Adolescente no se muestra la sección
+    h += `<div class="tsec"><div class="thead">Ultimate</div>`;
     const eq = rec.ult || starterUlt(rec.seed);
     h += `<div class="ultlist">${ULT_KEYS.filter(k => ownsUlt(k) || k === eq).map(k => {
       const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
       return `<div class="ultc ${on ? 'on' : ''}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
     }).join('')}</div>`;
-    h += `<p class="tdesc">${ULT_KEYS.every(k => ownsUlt(k) || k === eq) ? 'Tienes todas las ultimates.' : 'Desbloquea más en la Tienda.'} Puedes cambiarla cuando quieras.</p>`;
-    h += `<p class="tdesc">En la pelea la lanzas tú con el botón <b>ULTIMATE</b> de abajo (una vez por pelea).</p>`;
-  } else h += `<p class="tdesc">Al llegar a Adolescente (Nv. ${STAGE_LV.teen}) trae una ultimate de regalo; las demás se compran en la Tienda y se equipan aquí.</p>`;
-  h += `</div>`;
+    h += `</div>`;
+  }
   h += `<div class="tsec"><div class="thead">Personalidad</div>`;
   const NUMS = [2, 1, 0, 1, 2];
   h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]), L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
