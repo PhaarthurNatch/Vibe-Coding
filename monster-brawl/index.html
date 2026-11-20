@@ -1188,7 +1188,8 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
-    if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += (this.askPet && g.arms.pairs ? 8 : 0) + Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira); al pedir la inclina hacia la mano
+    if (this.askPet || this.bowHead) { head.ay += 3 + Math.abs(head.oy) * 0.35; /* baja la cabeza un poco nomás */ head.ax += Math.sin(t * 1.8) * 1.5; } // pide cariño / lo acarician: baja la cabeza (y te mira)
+    this.askK = clamp((this.askK || 0) + (this.askPet ? 1 : -1) * dt * 6, 0, 1); // corazón con "?" sobre la cabeza al pedir cariño
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1203,10 +1204,6 @@ class Monster {
       ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
       if (this.held || this.z > 25) { const fl = Math.sin(t * 15 + a.sd + a.p) * 5; el.ax += a.sd * 3 + fl; el.ay -= 6; ha.ax += a.sd * 5 - fl; ha.ay -= 10 + fl; } // patalea
       ha.useT = false; ha.boost = 1; el.stretch = ha.stretch = 0;
-      if (this.askPet && a.p === 0 && a.sd === 1) { el.stretch = ha.stretch = 2.2; // pide cariño: se toca la frente con la mano
-        ha.useT = true; ha.boost = 4; ha.tx = head.x + Math.sin(t * 7) * 3 * s; ha.ty = head.y - g.head.h * 0.3 * s + Math.cos(t * 7) * 1.2 * s; // la mano en la frente
-        el.ay -= 14; el.ax += 6;
-      }
       if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
         const dx = this.atkDir.x, dy = this.atkDir.y * DEPTH, reach = (g.arms.upper + g.arms.fore) * s;
         ha.useT = true; ha.boost = 4;
@@ -1591,7 +1588,7 @@ class Monster {
     }
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
-    for (const a of I.arms) if (a.p === 0 && !hid('arm:0') && !(this.askPet && a.sd === 1)) this.drawArm(ctx, a, C, lw);
+    for (const a of I.arms) if (a.p === 0 && !hid('arm:0') ) this.drawArm(ctx, a, C, lw);
     if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
@@ -1599,7 +1596,14 @@ class Monster {
     }
     if (back) wingsTail();
     this.drawHead(ctx, C, lw);
-    if (this.askPet && !hid('arm:0')) for (const a of I.arms) if (a.p === 0 && a.sd === 1) this.drawArm(ctx, a, C, lw); // pide cariño: la mano va encima de la cabeza
+    if (this.askK > 0.01 && !this._ghost) { // pide cariño: corazón con "?" sobre la cabeza
+      const h = N[I.head]; let top = h.y - g.head.h * 0.55 * s;
+      for (const q of [...I.horns.map(o => o.tip), ...I.ears.map(o => o.tip), ...I.ants.map(o => o.chain[1])]) top = Math.min(top, N[q].y);
+      const k = this.askK, r = 15 * s * (0.6 + 0.4 * k), x = h.x, y = top - (14 + Math.sin(this.t * 4) * 2) * s - r * 0.3;
+      ctx.globalAlpha = this.alpha * k; heartPath(ctx, x, y, r); fillStroke(ctx, '#ff7aa2', '#7a1f45', Math.max(1.2, 1.6 * s));
+      ctx.fillStyle = '#fff'; ctx.font = `900 ${Math.round(r * 1.05)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x, y + r * 0.05);
+      ctx.globalAlpha = this.alpha;
+    }
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
       const m = N[I.mid], R = this.bubbleR * s * (1 + Math.sin(this.t * 6) * 0.03);
