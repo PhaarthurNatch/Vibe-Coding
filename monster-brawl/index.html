@@ -2619,7 +2619,7 @@ const SLIDE_S = 0.42; let slide = null; // cambio de monstruo deslizando (tarjet
 // Deslizar a los lados lo gira (RANCH.th); tocar un habitante acerca la cámara a la vista de cerca (zoom → ranchMode = false).
 let ranchMode = true, zoom = null; const ZOOM_S = 0.45;
 const RANCH = { th: 0.35, vth: 0, actors: [], drag: null, view: null, deco: null, t: 0, parts: [] };
-const RANCH_CAMH = 0.18, RANCH_TREE = 1.7; // altura de la cámara (más chica = más a ras del suelo) y tamaño de los árboles
+const RANCH_CAMH = 0.18, RANCH_TREE = 1.7, RANCH_TREE_H = 1.6; // altura de la cámara (más chica = más a ras del suelo), tamaño de los árboles y cuánto más alto es su tronco
 const RANCH_RF = 2.2; // radio de la cerca: el rancho es grande y hay profundidad hasta ella
 function ranchDeco() {
   if (RANCH.deco) return RANCH.deco;
@@ -2862,8 +2862,9 @@ function drawRanch(c, r, opt) {
     c.globalAlpha = near(p) * (d.k === 'tree' || d.k === 'bush' || d.k === 'rock' ? ghost : 1); // sólo lo que queda casi encima de la cámara se desvanece; los árboles son sólidos (de cerca, transparentes)
     if (d.k === 'tree') {
       const sc = d.s * RANCH_TREE; c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(0, 0, 34 * sc, 10 * sc, 0, 0, TAU); c.fill();
-      c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -70 * sc, 14 * sc, 70 * sc);
-      for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -120, 38, 36], [0, -82, 30, 26]]) { c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
+      const up = 70 * (RANCH_TREE_H - 1); // árboles más altos: tronco más largo y copa más arriba (pedido del dueño)
+      c.fillStyle = '#6b4a32'; c.fillRect(-7 * sc, -(70 + up) * sc, 14 * sc, (70 + up) * sc);
+      for (const [ox, oy, rr, l] of [[-22, -88, 30, 30], [22, -92, 30, 30], [0, -128, 40, 36], [0, -82, 30, 26], [0, -150, 28, 40]]) { c.fillStyle = `hsl(${d.h},45%,${l}%)`; c.beginPath(); c.arc(ox * sc, (oy - up) * sc, rr * sc, 0, TAU); c.fill(); }
     } else if (d.k === 'bush') {
       const sc = d.s; for (const [ox, oy, rr, l] of [[-12, -10, 14, 28], [12, -10, 14, 28], [0, -18, 16, 33]]) { c.fillStyle = `hsl(${d.h},40%,${l}%)`; c.beginPath(); c.arc(ox * sc, oy * sc, rr * sc, 0, TAU); c.fill(); }
     } else if (d.k === 'rock') {
@@ -3427,6 +3428,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
   { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
