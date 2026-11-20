@@ -2101,7 +2101,7 @@ class Battle {
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
   execUlt(m) {
-    m.ultReady = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; // se recarga en 20 s // el aura sigue mientras dure el potenciado
+    m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
@@ -2125,8 +2125,8 @@ class Battle {
           const dir = { x: dx / d, y: dy / d };
           this.hit(m, e, ultPow(m) * 2.5, dir, 'melee');
           const V = ARENA_W * 3.3 / Math.pow(e.st.weight, 0.25);
-          e.vx = dir.x * V; e.vy = dir.y * V; e.vz = 420;
-          if (!e.dead) { e.state = 'hitstun'; e.stT = 0.9; e.setEmo('dizzy', 1.4, 4); }
+          if (e.state !== 'ultcharge') { e.vx = dir.x * V; e.vy = dir.y * V; e.vz = 420; } // cargando su ultimate: no lo empujan ni lo interrumpen
+          if (!e.dead && e.state !== 'ultcharge') { e.state = 'hitstun'; e.stT = 0.9; e.setEmo('dizzy', 1.4, 4); }
         }
         break;
       }
@@ -2137,7 +2137,7 @@ class Battle {
           m.x = clamp(T.x + ux * back, m.r, ARENA_W - m.r); m.y = clamp(T.y + uy * back, m.r, ARENA_D - m.r);
           m.vx = m.vy = 0; this.place(m); m.resetRig();
           const dir = { x: -ux, y: -uy }; this.hit(m, T, ultPow(m) * 2.2, dir, 'melee');
-          if (!T.dead) { T.vx += dir.x * 220; T.vy += dir.y * 220; T.state = 'hitstun'; T.stT = 0.7; T.setEmo('dizzy', 1, 4); }
+          if (!T.dead && T.state !== 'ultcharge') { T.vx += dir.x * 220; T.vy += dir.y * 220; T.state = 'hitstun'; T.stT = 0.7; T.setEmo('dizzy', 1, 4); }
         } else { m.x = ARENA_W * (0.2 + Math.random() * 0.6); m.y = ARENA_D * (0.2 + Math.random() * 0.6); this.place(m); m.resetRig(); }
         for (const [px, py] of [[from.x, from.y], [m.gx, m.gy - 30]]) for (let i = 0; i < 14; i++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 160; this.parts.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, col: hsl(m.g.pal.accent, 25), r: 3 }); }
         this.shake = 8; m.state = 'recover'; m.stT = 0.3;
@@ -3546,18 +3546,19 @@ function setupUltBar(list) {
   bar.hidden = !mine.length;
   bar.querySelectorAll('[data-ultm]').forEach(b => b.onclick = () => {
     const m = battle.ms[+b.dataset.ultm];
-    if (!m || !m.ultReady || m.ultRequest || m.dead || battle.over || battle.introT > 0) return;
+    if (!m || !m.ultReady || m.ultRequest || ultBusy(m) || m.dead || battle.over || battle.introT > 0) return;
     m.ultRequest = true; if (battle.puppet) lanSend({ t: 'u' }); updateUltBar(); try { navigator.vibrate && navigator.vibrate(20); } catch (e) { }
   });
 }
+const ultBusy = m => m.state === 'ultcharge' || m.ulting; // cargando o lanzando: el botón queda apretado hasta que se recargue
 function updateUltBar() {
   if (!battle) return;
   $('ultBar').querySelectorAll('[data-ultm]').forEach(b => {
-    const m = battle.ms[+b.dataset.ultm], used = !m.ultReady || m.ultRequest, cd = !m.dead && !m.ultReady && !m.ultRequest && m.ultCd > 0;
+    const m = battle.ms[+b.dataset.ultm], used = !m.ultReady || m.ultRequest || ultBusy(m), cd = !m.dead && !m.ultReady && !m.ultRequest && m.ultCd > 0;
     b.disabled = used || m.dead || battle.over || battle.introT > 0;
     b.classList.toggle('cd', cd); // recargando: segundos grandes y barra dorada que se llena
     if (cd) b.style.setProperty('--p', (100 * (1 - m.ultCd / (ULT_RECHARGE_S * BATTLE_SPEED))).toFixed(1) + '%');
-    b.querySelector('b').textContent = m.dead ? 'K.O.' : m.ultRequest ? '¡CARGANDO!' : cd ? `${Math.ceil(m.ultCd / BATTLE_SPEED)} s` : !m.ultReady ? 'USADA' : 'ULTIMATE';
+    b.querySelector('b').textContent = m.dead ? 'K.O.' : m.ultRequest || ultBusy(m) ? '¡CARGANDO!' : cd ? `${Math.ceil(m.ultCd / BATTLE_SPEED)} s` : !m.ultReady ? 'USADA' : 'ULTIMATE';
     b.querySelector('small').textContent = cd ? 'para recargar' : (b.dataset.lbl || '');
   });
 }
@@ -4079,7 +4080,7 @@ function lanMsg(m, peer) {
   else if (m.t === 'bye') lanPeerLost(peer);
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
   else if (m.t === 's' && battle && battle.puppet) LAN.snap = m;
-  else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[peer.idx]; if (g && g.ultReady && !g.dead) g.ultRequest = true; }
+  else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[peer.idx]; if (g && g.ultReady && !ultBusy(g) && !g.dead) g.ultRequest = true; }
   else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; lanFinish(); }
   else if (m.t === 'again' && LAN.role === 'host' && (!battle || battle.over)) lanStartHost(); // un invitado pide revancha
 }
