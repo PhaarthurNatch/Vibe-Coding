@@ -2556,11 +2556,43 @@ function ranchStep(dt) {
   } else if (!RANCH.drag) { RANCH.th += RANCH.vth * dt; RANCH.vth *= Math.exp(-dt * 3); }
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.m.held && a.m.z === 0;
+  for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
+  if ((RANCH.playCd = (RANCH.playCd ?? 6 + Math.random() * 10) - dt) < 0) {
+    RANCH.playCd = 18 + Math.random() * 25;
+    const free = A.filter(canPlay);
+    if (free.length >= 2) {
+      const a = free[Math.floor(Math.random() * free.length)], b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+      const kind = Math.random() < 0.5 ? 'hop' : 'chase';
+      a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
+      a.walk = b.walk = false;
+    }
+  }
   for (const a of A) {
     let vx = 0, vz = 0;
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.fly) { // vuelo de un lado al otro del rancho, pasando por encima de uno (pedido del dueño)
+      if (a.play) { // jugando con otro
+        const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
+        P.t += dt;
+        if (P.phase === 'go') { // se acercan el uno al otro
+          if (d > 0.34) { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
+          else { P.phase = m.play.phase = 'play'; P.t = m.play.t = 0; a.m.setEmo('happy', 1.5, 2); m.m.setEmo('happy', 1.5, 2); }
+          if (P.t > 12) { a.play = m.play = null; }
+        } else if (P.kind === 'hop') { // saltan juntos, mirándose
+          if (a.m.z === 0 && Math.random() < dt * 2.2) { a.m.vz = 200 + Math.random() * 80; a.m.setEmo('happy', 0.8, 2); }
+          if (P.t > 4.5) { a.play = null; a.walk = false; a.idle = 1 + Math.random() * 2; }
+        } else { // a la pinta: el que guía corre y el otro lo persigue
+          if (P.lead) {
+            if (!P.goal || Math.hypot(P.goal[0] - a.x, P.goal[1] - a.z) < 0.08) { for (let k = 0; k < 8; k++) { const ang = Math.random() * TAU, rr = RANCH_RMIN + Math.random() * (RANCH_RMAX - RANCH_RMIN); const gx = Math.sin(ang) * rr, gz = Math.cos(ang) * rr; if (Math.hypot(gx - a.x, gz - a.z) < 1.2) { P.goal = [gx, gz]; break; } } P.goal = P.goal || [a.x, a.z]; }
+            const gx = P.goal[0] - a.x, gz = P.goal[1] - a.z, gd = Math.hypot(gx, gz) || 1e-3; vx = gx / gd * sp * 1.6; vz = gz / gd * sp * 1.6;
+          } else if (d > 0.28) { vx = dx / d * sp * 1.7; vz = dz / d * sp * 1.7; }
+          a.x += vx * dt; a.z += vz * dt;
+          if (a.m.z === 0 && Math.random() < dt * 0.8) a.m.vz = 170;
+          if (P.t > 6) { a.play = null; a.walk = false; a.idle = 1 + Math.random() * 2; a.m.setEmo('happy', 1.2, 2); }
+        }
+      } else if (a.fly) { // vuelo de un lado al otro del rancho, pasando por encima de uno (pedido del dueño)
         const F = a.fly; F.t += dt / F.dur; const e = Math.min(1, F.t), nx = F.x0 + (F.x1 - F.x0) * e, nz = F.z0 + (F.z1 - F.z0) * e;
         vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; a.m.z = Math.sin(Math.PI * e) * F.h; a.m.vz = 0;
         if (F.t >= 1) { a.fly = null; a.m.z = 0; a.walk = false; a.idle = 1 + Math.random() * 2; }
