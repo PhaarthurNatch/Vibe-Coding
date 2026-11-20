@@ -2505,6 +2505,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
+const RANCH_ASK_S = 1.5; // cuánto dura el gesto de pedir cariño (cabeza abajo y mano en la cabeza)
 const RANCH_COME_STAY = 8; // segundos que se queda junto a ti después de que lo acaricias en el rancho
 const RANCH_LOOK_ME = 0.8, RANCH_LOOK_OTHER = 0.55; // a esta distancia (radios del rancho) te mira a ti / mira a otro monstruo
 const RANCH_SWIPE_K = 1.35; // cuánto gira el rancho al deslizar a los lados (más = gira más con el mismo trazo; pedido del dueño)
@@ -2591,7 +2592,7 @@ function ranchStep(dt) {
       if (a.come) { // se acerca a ti (el centro) y se queda un rato junto a ti
         const C = a.come, r = Math.hypot(a.x, a.z) || 1e-3, want = RANCH_RMIN + 0.04;
         if (r > want + 0.02) { const sp = 0.25 + (a.m.st.speed || 100) / 1600; vx = -a.x / r * sp; vz = -a.z / r * sp; a.x += vx * dt; a.z += vz * dt; }
-        else { a.m.askPet = true; if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; } } // ya junto a ti: te pide cariño
+        else { C.ask = (C.ask || 0) + dt; a.m.askPet = C.ask < RANCH_ASK_S; if ((C.stay -= dt) < 0) { a.come = null; a.idle = 0.5; } } // ya junto a ti: te pide cariño (el gesto dura RANCH_ASK_S) y luego se queda mirándote
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
