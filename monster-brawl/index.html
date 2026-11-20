@@ -1188,7 +1188,7 @@ class Monster {
 
     N[I.mid].ax = lean * 2; N[I.upper].ax = lean * 4; N[I.upper].ay = Math.sin(t * 2) * 0.8;
     const head = N[I.head]; head.ax = lean * 6; head.ay = 0;
-    if (this.askPet) { head.ay += 16; head.ax += 4 + Math.sin(t * 1.8) * 1.5; } // pide cariño: baja la cabeza (y te mira)
+    if (this.askPet) { head.ay += 40; head.ax += 10 + Math.sin(t * 1.8) * 1.5; } // inclina la cabeza hacia la mano // pide cariño: baja la cabeza (y te mira)
     if (this.face() === 'scared') { head.ax += (Math.random() - 0.5) * 3; N[I.upper].ax += (Math.random() - 0.5) * 1.5; }
     if (!g.arms.pairs && this.atkDir) { // cabezazo si no tiene brazos
       if (this.state === 'windup') { head.ax -= this.atkDir.x * 8; head.ay -= 4; }
@@ -1202,9 +1202,10 @@ class Monster {
       el.ax = a.sd * Math.sin(t * 1.6 + a.p) * 1.5; el.ay = sw * 4;
       ha.ax = a.sd * Math.sin(t * 1.6 + a.p + 0.5) * 2; ha.ay = sw * 6;
       if (this.held || this.z > 25) { const fl = Math.sin(t * 15 + a.sd + a.p) * 5; el.ax += a.sd * 3 + fl; el.ay -= 6; ha.ax += a.sd * 5 - fl; ha.ay -= 10 + fl; } // patalea
-      ha.useT = false; ha.boost = 1;
-      if (this.askPet && a.p === 0 && a.sd === 1) { // pide cariño: se toca la cabeza con la mano
-        ha.useT = true; ha.boost = 3; ha.tx = head.x + g.head.w * 0.22 * s + Math.sin(t * 7) * 2.5 * s; ha.ty = head.y - g.head.h * 0.42 * s + Math.cos(t * 7) * 1.5 * s;
+      ha.useT = false; ha.boost = 1; el.stretch = ha.stretch = 0;
+      if (this.askPet && a.p === 0 && a.sd === 1) { el.stretch = ha.stretch = 2.2; // pide cariño: se toca la cabeza con la mano
+        ha.useT = true; ha.boost = 4; ha.tx = head.x + Math.sin(t * 7) * 3 * s; ha.ty = head.y - g.head.h * 0.62 * s + Math.cos(t * 7) * 1.2 * s; // la parte de arriba de la cabeza
+        el.ay -= 14; el.ax += 6;
       }
       if (this.atkArm === a && (this.state === 'windup' || this.state === 'strike')) {
         const dx = this.atkDir.x, dy = this.atkDir.y * DEPTH, reach = (g.arms.upper + g.arms.fore) * s;
@@ -1294,7 +1295,7 @@ class Monster {
       n.x += n.vx * dt; n.y += n.vy * dt;
       if (P && n.len > 0.5) { // restricción de distancia (los huesos no se estiran infinito)
         const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s;
-        const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * 1.3;
+        const mn = dead ? L * 0.9 : L * 0.55, mx = dead ? L * 1.1 : L * (n.stretch || 1.3); // stretch: el brazo que se toca la cabeza puede estirarse más
         if (d > mx || d < mn) {
           let tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
           if (!dead && d < mn) { // quedó del lado contrario (p. ej. la cabeza bajo el cuello): se empuja hacia donde debe ir, no hacia atrás, para que no se trabe
@@ -1589,7 +1590,7 @@ class Monster {
     }
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
-    for (const a of I.arms) if (a.p === 0 && !hid('arm:0')) this.drawArm(ctx, a, C, lw);
+    for (const a of I.arms) if (a.p === 0 && !hid('arm:0') && !(this.askPet && a.sd === 1)) this.drawArm(ctx, a, C, lw);
     if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
       const n = N[si], r = g.shoulders.size * s;
       if (g.shoulders.spikes) { ctx.beginPath(); ctx.moveTo(n.x - r * 0.5, n.y - r * 0.5); ctx.lineTo(n.x, n.y - r * 1.7); ctx.lineTo(n.x + r * 0.5, n.y - r * 0.5); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw); }
@@ -1597,6 +1598,7 @@ class Monster {
     }
     if (back) wingsTail();
     this.drawHead(ctx, C, lw);
+    if (this.askPet && !hid('arm:0')) for (const a of I.arms) if (a.p === 0 && a.sd === 1) this.drawArm(ctx, a, C, lw); // pide cariño: la mano va encima de la cabeza
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
       const m = N[I.mid], R = this.bubbleR * s * (1 + Math.sin(this.t * 6) * 0.03);
