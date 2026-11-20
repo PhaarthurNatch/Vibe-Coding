@@ -455,10 +455,12 @@ const ULTS = {
   drain: { name: 'Robo de vida', desc: `cada golpe o disparo le devuelve como vida el 75% del daño por ${ULT_BUFF_S} s` },
   teleport: { name: 'Teletransporte', desc: 'desaparece y aparece detrás de su objetivo con un golpe fuerte' },
   clone: { name: 'Clon', desc: 'se duplica: el clon pelea a su lado y la vida que le queda se reparte entre los dos' },
+  mines: { name: 'Bombas', desc: 'suelta 3 bombas a su alrededor que explotan cuando un rival las pisa' },
 };
+const MINE_POW = 2.6, MINE_SPLASH = 0.5, MINE_R = 95, MINE_D = 120; // Bombas: daño (×ultPow) a quien la pisa, fracción a los demás cerca, radio de la explosión y distancia a la que caen
 const ULT_DRAIN = 0.75; // Robo de vida: fracción del daño que vuelve como vida
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
-const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone'];
+const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone', 'mines'];
 const ULT_RECHARGE_S = 20; // segundos reales hasta poder volver a usar la ultimate en la misma pelea
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
@@ -2052,7 +2054,7 @@ class Monster {
 // ============================================================================
 class Battle {
   constructor(ms, mode) {
-    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = [];
+    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = []; this.mines = [];
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
     const P0 = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
@@ -2124,6 +2126,20 @@ class Battle {
     if (c.t > 0.6) m.hop(dt);
     if (c.t >= 1.75) { this.cine = null; m.z = 0; m.vz = 0; this.execUlt(m); }
   }
+  mineBoom(b, st) {
+    b.done = true; const o = b.owner;
+    this.rings.push({ x: b.x, y: b.y, r: 8, max: MINE_R, life: 0.4, col: '#ffb347' }); this.shake = Math.max(this.shake, 10);
+    const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
+    this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
+    for (const e of this.ms) {
+      if (e.dead || e.team === b.team) continue;
+      let dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy); if (e !== st && d > MINE_R) continue;
+      if (d < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
+      const dir = { x: dx / d, y: dy / d };
+      this.hit(o, e, ultPow(o) * MINE_POW * (e === st ? 1 : MINE_SPLASH), dir, 'melee');
+      if (!e.dead && e.state !== 'ultcharge') { e.vx += dir.x * 320; e.vy += dir.y * 320; e.vz = 300; e.state = 'hitstun'; e.stT = 0.6; e.setEmo('dizzy', 1, 4); }
+    }
+  }
   execUlt(m) {
     m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
@@ -2137,6 +2153,13 @@ class Battle {
         this.proj.push({ giant: true, x: m.x + ux * m.r, y: m.y + uy * m.r, z: Math.max(20, m.gy - head.y), vx: ux * BS, vy: uy * BS, owner: m, team: m.team,
           pow: ultPow(m) * 2.8, r: 30, color: hsl(m.g.pal.accent, 12), kind: 'blob', life: 99, checked: new Set(), hitSet: new Set(), trail: [] });
         m.vx -= ux * 260; m.vy -= uy * 260; m.state = 'recoil'; m.stT = 0.4; this.shake = 8;
+        break;
+      }
+      case 'mines': { // Bombas: 3 bombas, cada una hacia una diagonal distinta (3 de las 4, al azar); se quedan hasta que un rival las pisa
+        const diag = [1, 3, 5, 7].sort(() => Math.random() - 0.5).slice(0, 3), col = hsl(m.g.pal.accent, 15);
+        for (const k of diag) { const a = k * Math.PI / 4, x = clamp(m.x + Math.cos(a) * MINE_D, 20, ARENA_W - 20), y = clamp(m.y + Math.sin(a) * MINE_D, 20, ARENA_D - 20);
+          this.mines.push({ x0: m.x, y0: m.y, x, y, t: 0, fly: 0.45, owner: m, team: m.team, col }); }
+        m.vz = 180; this.shake = 5;
         break;
       }
       case 'melee': { // onda de choque: golpea todo alrededor y lo lanza al otro lado
@@ -2195,6 +2218,12 @@ class Battle {
     this.time += dt;
     for (const m of this.ms) m.think(dt, this);
     for (const m of this.ms) m.physics(dt);
+    for (const b of this.mines) { // Bombas: cuando un rival la pisa, explota
+      b.t += dt; if (b.t < b.fly || b.done) continue;
+      const st = this.ms.find(e => !e.dead && e.team !== b.team && e.z < FLY.airZ && Math.hypot(e.x - b.x, e.y - b.y) < e.r + 14);
+      if (st) this.mineBoom(b, st);
+    }
+    if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
     // separación entre cuerpos
     const al = this.ms.filter(m => !m.dead);
     for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
@@ -2271,9 +2300,10 @@ class Battle {
     for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
     // monstruos ordenados por profundidad
     // monstruos (vivos y noqueados) y proyectiles por profundidad: lo de adelante tapa a lo de atrás (antes los noqueados iban siempre detrás)
-    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...this.proj.map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y);
+    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...this.proj.map(p => ({ y: p.y, p })), ...this.mines.map(b => ({ y: b.y, b }))].sort((a, b) => a.y - b.y);
     for (const it of sorted) {
       if (it.m) { it.m.draw(ctx); continue; }
+      if (it.b) { drawMine(ctx, it.b, this.time); continue; }
       const p = it.p, Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
       ctx.lineCap = 'round';
       for (let i = 1; i < p.trail.length; i++) { const a = p.trail[i - 1], b = p.trail[i]; ctx.strokeStyle = p.color; ctx.globalAlpha = i / p.trail.length * 0.5; ctx.lineWidth = p.r * (p.kind === 'laser' ? 1.4 : 1.2) * i / p.trail.length; ctx.beginPath(); ctx.moveTo(a[0], Y(a)); ctx.lineTo(b[0], Y(b)); ctx.stroke(); }
@@ -2295,6 +2325,17 @@ class Battle {
   }
 }
 
+function drawMine(ctx, b, time) { // bomba: vuela en arco hasta su lugar y queda en el piso con la mecha encendida
+  const e = Math.min(1, b.t / b.fly), x = b.x0 + (b.x - b.x0) * e, y = b.y0 + (b.y - b.y0) * e, gy = TOP + y * DEPTH, z = Math.sin(Math.PI * e) * 70, R = 12;
+  ctx.fillStyle = 'rgba(30,15,40,.3)'; ctx.beginPath(); ctx.ellipse(x, gy, R * 1.1 * (1 - z / 140), R * 0.4, 0, 0, TAU); ctx.fill();
+  const cy = gy - R - z;
+  ctx.fillStyle = '#2c2433'; ctx.strokeStyle = '#120c18'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, cy, R, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = b.col; ctx.fillRect(x - R * 0.9, cy - 2, R * 1.8, 4); // franja del color de quien la soltó
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(x - R * 0.35, cy - R * 0.35, R * 0.3, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + R * 0.3, cy - R * 0.9); ctx.quadraticCurveTo(x + R * 0.9, cy - R * 1.6, x + R * 0.5, cy - R * 1.9); ctx.stroke();
+  const on = e >= 1 && Math.sin(time * 14 + x) > 0; // armada: la chispa parpadea
+  ctx.fillStyle = on ? '#ff5d3a' : '#ffd36b'; ctx.globalAlpha = e >= 1 ? 1 : 0.6; ctx.beginPath(); ctx.arc(x + R * 0.5, cy - R * 1.9, on ? 4 : 3, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+}
 function teamColor(m, mode, myTeam = 0) {
   if (mode === 'lan') return LAN_COLORS[m.team % LAN_COLORS.length].c; // pelea local: el color de su equipo
   if (m.isPlayer) return '#ffcf6e';
@@ -3347,7 +3388,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor que se quedan en el piso hasta que un rival las pisa y explotan.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
@@ -4252,6 +4293,7 @@ function lanSnapshot() {
       [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
     pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])])]),
     rg: B.rings.map(r => [R1(r.x), R1(r.y), R1(r.r), r.max, R1(r.life * 100) / 100, r.col]),
+    mn: B.mines.map(b => [R1(b.x0), R1(b.y0), R1(b.x), R1(b.y), R1(b.t * 100) / 100, b.fly, b.col]),
     tx: B.texts.map(t => [R1(t.x), R1(t.y), t.str, t.col, R1(t.life * 100) / 100, t.big ? 1 : 0]),
     pa: B.parts.slice(-60).map(q => [R1(q.x), R1(q.y), R1(q.vx), R1(q.vy), R1(q.life * 100) / 100, q.col, R1(q.r)]) };
 }
@@ -4261,6 +4303,7 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null;
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
+    B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
