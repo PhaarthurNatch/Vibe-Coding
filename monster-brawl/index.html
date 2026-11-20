@@ -2779,7 +2779,7 @@ function ranchStep(dt) {
         else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
-      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { // de noche se sientan más seguido a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
+      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (de noche más seguido)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
@@ -3045,7 +3045,7 @@ function ranchHeart(a) {
   RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
 }
 const RANCH_NAP_P = 0.03; // de noche, en cada pausa: chance de dormirse 1–4 min
-const RANCH_SIT_P = 0.025; // en cada pausa entre paseos: chance de sentarse a descansar 20–45 s (pasa poco, pedido del dueño)
+const RANCH_SIT_P = 0.06; // en cada pausa entre paseos: chance de sentarse a descansar 20–45 s (era 2,5%; el dueño lo pidió más seguido)
 const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
 const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
 // Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
@@ -3548,6 +3548,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.34', d: '2026-11-20', items: ['En el rancho los monstruos se sientan a descansar más seguido (y se arregló que desde la versión anterior no se sentaban nunca).'] },
   { v: '1.33', d: '2026-11-20', items: ['En el rancho los monstruos ya no se empujan al caminar: el que va pasando rodea al que está quieto.'] },
   { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, despierta de un salto, sorprendido, y luego se alegra).', 'Al ser noqueado, el monstruo pierde todos los efectos de su ultimate (escudo, aura, estelas, copias, etc.).', 'Estaciones del año según dónde estás: primavera con árboles en flor y pétalos, verano verde, otoño con hojas naranjas cayendo e invierno con nieve.'] },
   { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
