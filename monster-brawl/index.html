@@ -2021,6 +2021,7 @@ class Battle {
   text(m, str, col, big) { const h = m.nodes[m.ix.head]; this.texts.push({ x: m.gx + (Math.random() - 0.5) * 16, y: h.y - m.g.head.h * m.s * 0.6, str, col, life: 0.9, big }); }
 
   hit(a, t, pow, dir, kind) {
+    if (t.state === 'ultcharge') return; // cargando la ultimate: invencible (ni daño ni empujón; no lo interrumpen), pedido del dueño
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
     const lightB = a.st.weight < t.st.weight ? Math.pow(t.st.weight / a.st.weight, STUN.light) : 1; // golpe/disparo preciso del más liviano
