@@ -167,6 +167,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .newsbtn{position:relative}
+.newscard{position:relative;display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+.newsscroll{overflow-y:auto;touch-action:pan-y;min-height:0}
+.newsx{position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:50%;padding:0;background:var(--panel2);color:var(--text);font-size:16px;font-weight:900;line-height:34px;text-align:center} /* cerrar Novedades: arriba a la derecha, fuera de la parte que se desplaza */
 .newsbtn.new{background:rgba(255,211,107,.22);box-shadow:0 0 0 2px #ffd36b;animation:newsglow 1.6s ease-in-out infinite} /* hay novedades sin ver: dorado con número, como Estadísticas */
 .newsbtn b{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ffd36b;color:#3a2600;font-size:10px;font-weight:900;line-height:17px;box-sizing:border-box}
 @keyframes newsglow{0%,100%{box-shadow:0 0 0 2px #ffd36b,0 0 4px rgba(255,190,60,.45)}50%{box-shadow:0 0 0 2px #ffd36b,0 0 14px rgba(255,200,70,.95)}}
@@ -321,12 +324,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   </div>
 </div>
 <div class="modal" id="newsModal">
-  <div class="card setcard">
-    <div class="setview">
+  <div class="card newscard">
+    <button class="newsx" id="btnNewsClose" aria-label="Cerrar">✕</button>
+    <div class="setview newsscroll" id="newsScroll">
       <h2 style="font-size:22px;margin-bottom:0">Novedades</h2>
       <p class="tdesc" id="newsSub" style="margin:0"></p>
       <div id="newsList"></div>
-      <div class="row"><button class="btn" id="btnNewsAll" hidden>Ver todas</button><button class="btn primary" id="btnNewsClose">Cerrar</button></div>
+      <button class="btn" id="btnNewsAll" hidden>Ver todas</button>
     </div>
   </div>
 </div>
@@ -3330,7 +3334,7 @@ function openNews(onlyNew) {
   const n = newsUnseen(); onlyNew = onlyNew && n > 0;
   renderNews(onlyNew ? n : CHANGELOG.length);
   $('newsSub').textContent = onlyNew ? `¡Hay ${n === 1 ? 'una versión nueva' : n + ' versiones nuevas'}!` : 'Versión actual ' + APP_VER;
-  $('btnNewsAll').hidden = !onlyNew || n >= CHANGELOG.length; $('newsModal').classList.add('on');
+  $('btnNewsAll').hidden = !onlyNew || n >= CHANGELOG.length; $('newsModal').classList.add('on'); $('newsScroll').scrollTop = 0;
   save.newsSeen = APP_VER; persist(); newsBadge(); // al abrirla quedan vistas
 }
 $('btnNews').onclick = () => openNews(true);
