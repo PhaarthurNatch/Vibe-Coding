@@ -166,6 +166,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #lanBtns .btn{flex:1 1 auto}
 .instbtn{flex:none;margin-left:auto;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
+.newsbtn{position:relative}
+.newsbtn.new{background:rgba(255,211,107,.22);box-shadow:0 0 0 2px #ffd36b;animation:newsglow 1.6s ease-in-out infinite} /* hay novedades sin ver: dorado con número, como Estadísticas */
+.newsbtn b{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#ffd36b;color:#3a2600;font-size:10px;font-weight:900;line-height:17px;box-sizing:border-box}
+@keyframes newsglow{0%,100%{box-shadow:0 0 0 2px #ffd36b,0 0 4px rgba(255,190,60,.45)}50%{box-shadow:0 0 0 2px #ffd36b,0 0 14px rgba(255,200,70,.95)}}
 .gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
 #home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
 .setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
@@ -241,7 +245,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
+  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn newsbtn" id="btnNews" aria-label="Novedades">📰<b id="newsN" hidden></b></button><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -316,18 +320,22 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="row" id="lanBtns"></div>
   </div>
 </div>
+<div class="modal" id="newsModal">
+  <div class="card setcard">
+    <div class="setview">
+      <h2 style="font-size:22px;margin-bottom:0">Novedades</h2>
+      <p class="tdesc" id="newsSub" style="margin:0"></p>
+      <div id="newsList"></div>
+      <div class="row"><button class="btn" id="btnNewsAll" hidden>Ver todas</button><button class="btn primary" id="btnNewsClose">Cerrar</button></div>
+    </div>
+  </div>
+</div>
 <div class="modal" id="settings">
   <div class="card setcard">
     <div class="setview" data-view="main">
       <h2 style="font-size:22px">Ajustes</h2>
       <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
-      <button class="btn setitem" data-go="news"><span>📰 Novedades</span><small id="verLbl"></small></button>
       <button class="btn" data-close>Cerrar</button>
-    </div>
-    <div class="setview" data-view="news" hidden>
-      <h2 style="font-size:22px">Novedades</h2>
-      <div id="newsList"></div>
-      <button class="btn" data-go="main">‹ Volver</button>
     </div>
     <div class="setview" data-view="partida" hidden>
       <h2 style="font-size:22px">Partida</h2>
@@ -3290,7 +3298,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.23', d: '2026-11-20', items: ['Ajustes: nueva ventana de Novedades con las versiones y sus cambios.', 'El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
+  { v: '1.23', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión, se pone dorado con un número cuando hay versiones que no has visto y te las muestra al entrar a la app.', 'El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
   { v: '1.22', d: '2026-11-19', items: ['Los monstruos que te piden cariño se ponen frente a ti para que los veas.'] },
   { v: '1.21', d: '2026-11-19', items: ['Rancho: si acaricias a un monstruo, se acerca a ti a pedirte más cariño (baja la cabeza y le salen corazones); a veces vienen solos.', 'Con 1 o 2 caricias se van contentos; si no los acaricias, piden otra vez y se van.', 'Los alados a veces cruzan volando el rancho; a veces dos monstruos juegan a saltar o a la pinta.', 'Te siguen con los ojos al pasar cerca y se miran entre ellos; sin nombres en el rancho.', 'Puedes subir a un monstruo sin límite y al soltarlo cae (los alados bajan planeando); si lo lanzas fuera de la pantalla vuelves al rancho.', 'Vista de cerca: Estadísticas arriba y el rancho abajo.'] },
   { v: '1.20', d: '2026-11-19', items: ['Durmiendo, los monstruos se sientan en el suelo.'] },
@@ -3316,16 +3324,30 @@ const CHANGELOG = [
   { v: '1.0', d: '2026-11-18', items: ['Primera versión: monstruos al azar que crecen de bebé a Awakened, pelean solos y se entrenan.', '1 vs 1, 2 vs 2 y todos contra todos; ultimates; personalidad.'] },
 ];
 const APP_VER = CHANGELOG[0].v;
-function renderNews() {
-  $('newsList').innerHTML = CHANGELOG.map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
+function newsUnseen() { const i = CHANGELOG.findIndex(c => c.v === save.newsSeen); return i < 0 ? 0 : i; } // versiones más nuevas que la última vista
+function newsBadge() { const n = newsUnseen(); $('btnNews').classList.toggle('new', n > 0); $('newsN').hidden = !n; $('newsN').textContent = n; }
+function openNews(onlyNew) {
+  const n = newsUnseen(); onlyNew = onlyNew && n > 0;
+  renderNews(onlyNew ? n : CHANGELOG.length);
+  $('newsSub').textContent = onlyNew ? `¡Hay ${n === 1 ? 'una versión nueva' : n + ' versiones nuevas'}!` : 'Versión actual ' + APP_VER;
+  $('btnNewsAll').hidden = !onlyNew || n >= CHANGELOG.length; $('newsModal').classList.add('on');
+  save.newsSeen = APP_VER; persist(); newsBadge(); // al abrirla quedan vistas
+}
+$('btnNews').onclick = () => openNews(true);
+$('btnNewsAll').onclick = () => openNews(false);
+$('btnNewsClose').onclick = () => $('newsModal').classList.remove('on');
+if (save.newsSeen == null) { save.newsSeen = save.monsters.some(m => m.stage !== 'egg') ? '1.22' : APP_VER; persist(); } // partida nueva: nada pendiente; las que ya existían ven desde la 1.23 (cuando llegó esta ventana)
+newsBadge();
+setTimeout(() => { if (newsUnseen() > 0 && scene === 'home' && !firstEgg() && !document.querySelector('.modal.on')) openNews(true); }, 800); // al entrar a la app: muestra las novedades que no has visto
+function renderNews(count) {
+  $('newsList').innerHTML = CHANGELOG.slice(0, count).map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
 }
 function setView(v) {
-  if (v === 'news') renderNews();
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
   if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
   if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
 }
-function openSettings() { $('verLbl').textContent = 'versión ' + APP_VER; $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
+function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
 $('btnSettings').onclick = openSettings;
 document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
 document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));
