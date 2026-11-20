@@ -2627,7 +2627,7 @@ function ranchStep(dt) {
       else if ((a.turnT = (a.turnT || 0) + dt) > 1.3) a.awayT = Math.max(-0.4, (a.awayT || 0) - dt); // quieto un rato: se da vuelta a mirar
       // Miradas (pedido del dueño): si pasa cerca de ti (el centro) te mira; si se cruza con otro monstruo, lo mira
       const rC = Math.hypot(a.x, a.z);
-      if (rC < RANCH_LOOK_ME && !a.fly) { a.awayT = Math.min(a.awayT || 0, -0.2); a.m.lookDir = { x: 0, y: 0.15 }; }
+      if (rC < RANCH_LOOK_ME && !a.fly) a.m.lookDir = { x: 0, y: 0.15 }; // sólo te sigue con los ojos (no se da vuelta)
       else {
         let best = null, bd = RANCH_LOOK_OTHER;
         for (const b of A) if (b !== a && b.kind === 'mon' && b.scr && a.scr) { const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < bd) { bd = d; best = b; } }
