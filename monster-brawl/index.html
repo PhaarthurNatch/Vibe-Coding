@@ -620,6 +620,7 @@ function pickParts(seed, stage) {
       const k0 = r.w(W), k = k0 === 'nada' ? null : k0; if (!k) continue; tot[k]++; if (Math.max(si, PART_FROM[k]) <= last) c[k]++; } }); // null = no sale nada
   return c;
 }
+const MOUTH_SPECIAL = ['beak', 'mandibles', 'open', 'teeth', 'none']; // bocas que no son una línea: no cambian con la expresión ni se mueven (pedido del dueño)
 const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart', 'hex', 'mushroom', 'bean'], torso: ['oval', 'box'], hand: ['fist', 'claw', 'blade', 'paw', 'pincer', 'tentacle'],
   feet: ['round', 'claw', 'hoof', 'flat', 'talon', 'boot'], wing: ['bat', 'feather', 'bug', 'butterfly', 'flame', 'leaf'], tip: ['none', 'spike', 'ball', 'fin', 'flame', 'heart', 'fork', 'stinger', 'tuft'],
   horn: ['spike', 'antler', 'curl'], ear: ['cat', 'round', 'bunny', 'fin'], antenna: ['ball', 'glow', 'leaf'], mouth: ['smile', 'fangs', 'open', 'beak', 'teeth', 'tusks', 'tongue', 'mandibles', 'whiskers'],
@@ -1951,8 +1952,8 @@ class Monster {
 
     // ---------- Boca ----------
     const my = g.mouth.y * hh, mw = g.mouth.w * hw;
-    const calm = typeof scene === 'undefined' || scene !== 'battle', lineM = !['beak', 'mandibles', 'none'].includes(g.mouth.type);
-    const keepM = !lineM; // las bocas cambian con la expresión (fuera y dentro de la pelea), menos las especiales: pico y mandíbulas no cambian nunca (pedido del dueño)
+    const calm = typeof scene === 'undefined' || scene !== 'battle', lineM = !MOUTH_SPECIAL.includes(g.mouth.type);
+    const keepM = !lineM; // las bocas de línea cambian con la expresión (fuera y dentro de la pelea); las especiales (pico, mandíbulas, abierta, dientes) no cambian ni se mueven nunca (pedido del dueño)
     const Em = keepM ? 'neutral' : E;
     let o = calm || keepM ? 0 : this.mouthOpen; // en la pelea se abre al atacar (las especiales no)
     ctx.lineWidth = lw * 1.2; ctx.strokeStyle = C.ol; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -2032,7 +2033,7 @@ class Monster {
           for (const sx of [-1, 1]) { ctx.beginPath(); rrect(ctx, sx > 0 ? 0 : -mw * 0.26, my + mw * 0.12, mw * 0.26, mw * 0.3, mw * 0.05); fillStroke(ctx, C.white, C.ol, lw * 0.8); } break;
         }
         case 'mandibles': { // pinzas de insecto que se abren y cierran
-          const op = clamp(0.25 + Math.sin(this.t * 5) * 0.15 + o * 0.6, 0, 1);
+          const op = 0.25; // quietas: las bocas especiales no tienen animación (pedido del dueño)
           for (const sx of [-1, 1]) { hornPath(ctx, sx * mw * 0.55, my - mw * 0.05, sx * mw * (0.08 + op * 0.45), my + mw * 0.75, mw * 0.36, sx * 0.7); fillStroke(ctx, C.horn, C.ol, lw * 0.9); }
           break;
         }
@@ -3597,7 +3598,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.38', d: '2026-11-20', items: ['18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.'] },
+  { v: '1.38', d: '2026-11-20', items: ['18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico, mandíbulas, boca abierta y de dientes) ya no se mueven ni cambian con las expresiones; las bocas de línea sí cambian.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
   { v: '1.35', d: '2026-11-20', items: ['Arreglado: al sentarse, a veces las piernas daban un tirón (la rodilla saltaba de golpe).'] },
