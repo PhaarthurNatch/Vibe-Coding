@@ -2723,7 +2723,7 @@ function drawRanch(c, r, opt) {
   if (opt && opt.noNames) { c.globalAlpha = 1; return; }
   c.textAlign = 'center';
   for (const a of RANCH.actors) {
-    if (!a.rec || !a.hit || (a.m && a.m.z > 20)) continue; /* volando o en el aire: sin nombre */ const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
+    if (!a.rec || !a.hit || a.kind === 'mon') continue; /* los monstruos no llevan nombre en el rancho (pedido del dueño); sólo los huevos que incuban muestran cuánto les falta */ const p = P(a.x, a.z), al = clamp(1.6 - p.d * 0.6, 0.3, 1) * nearM(p);
     if (a.kind === 'egg' && !(a.rec.readyAt > Date.now())) continue; // huevo: sin nombre (si incuba, cuánto le falta)
     const txt = a.kind === 'egg' ? hmm(a.rec.readyAt - Date.now()) : a.rec.name;
     c.font = `800 ${Math.round(clamp(9 + 3 * p.sc, 10, 17))}px system-ui`; c.globalAlpha = al; c.lineWidth = 3; c.strokeStyle = 'rgba(20,10,30,.8)';
