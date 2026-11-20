@@ -492,7 +492,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 85, floatS: 2.0, floatR: 0.8, cd: 9, cdR: 4 };
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -1441,7 +1441,7 @@ class Monster {
     if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
     const lowHp = this.hp / this.st.hp < this.scaredHp;
     if (lowHp && this.tp.valor < -0.2 && d < 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1)) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
-    if (this.floatT > 0) fwd = -1; // flotando: se aleja de su objetivo (y le dispara desde arriba si puede)
+    if (this.floatT > 0) fwd = d < reachD + 90 ? -0.45 : 0; // flotando: ya no huye, sólo se aleja un poco (y le dispara desde arriba si puede)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1514,7 +1514,7 @@ class Monster {
 
   shoot(T, B) {
     const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover;
+    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
@@ -3408,7 +3408,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
