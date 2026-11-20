@@ -2633,6 +2633,7 @@ function ranchDeco() {
   for (let i = 0; i < 8; i++) { const a = r.f(0, TAU), rr = r.f(1.25, 1.9); d.push({ k: 'tree', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(1, 1.4), h: r.i(100, 150), out: true }); } // árboles afuera del rancho
   const flowers = Array.from({ length: 150 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
   for (const o of [...d, ...flowers]) { o.x *= RANCH_RF; o.z *= RANCH_RF; if (o.x2 != null) { o.x2 *= RANCH_RF; o.z2 *= RANCH_RF; } } // todo a la escala del rancho
+  RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
   return RANCH.deco = { d, flowers };
 }
 function syncRanch() {
@@ -2755,18 +2756,27 @@ function ranchStep(dt) {
         a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
-        if (d < 0.03) { a.walk = false; a.idle = 1.6 + Math.random() * 4.5; }
+        if ((a.wchk = (a.wchk || 0) + dt) > 1) { a.wchk = 0; if (a.wlast != null && a.wlast - d < 0.02) { a.walk = false; a.idle = 0.3; } a.wlast = d; } // si no avanza (un árbol u otro en el camino), elige otro lugar
+        if (!a.walk) a.wlast = null;
+        else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
       } else if ((a.idle -= dt) < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
           if (k < 6 && Math.random() < 0.2) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
           const rr = Math.hypot(nx, nz);
-          if (rr > RANCH_RMIN && rr < RANCH_RMAX) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
+          if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } // a veces da un saltito contento (más si está energético)
       }
+    }
+    if (a.kind === 'mon' && a !== focus && !a.fly && a.m.z < 40 && RANCH.trees) for (const t of RANCH.trees) { // evita los árboles: no los atraviesa, los rodea (pedido del dueño)
+      let dx = a.x - t.x, dz = a.z - t.z, d = Math.hypot(dx, dz); if (d >= t.cr) continue;
+      if (d < 1e-4) { dx = 1; dz = 0; d = 1; }
+      const nx = dx / d, nz = dz / d; a.x = t.x + nx * t.cr; a.z = t.z + nz * t.cr; // lo saca del tronco...
+      const tn = vx * -nz + vz * nx, side = Math.abs(tn) > 0.005 ? Math.sign(tn) : (a.treeSide = a.treeSide || (Math.random() < 0.5 ? -1 : 1));
+      a.x += -nz * side * 0.12 * dt; a.z += nx * side * 0.12 * dt; // ...y lo rodea por el lado hacia el que iba
     }
     if (a === focus) { if (a.m) { a.m.back = false; a.awayT = -0.4; a.m.lookDir = null; } continue; } // el que se mira de cerca lo mueve la vista de cerca (mismo monstruo, en vivo)
     if (a.m && (a.m.gx || a.m.held)) { a.m.held = false; a.m.gx *= Math.exp(-dt * 3); if (Math.abs(a.m.gx) < 0.5) a.m.gx = 0; } // si lo habían lanzado de cerca, vuelve a su lugar
@@ -3428,7 +3438,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.'] },
+  { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
   { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
