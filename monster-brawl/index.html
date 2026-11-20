@@ -2972,6 +2972,7 @@ function ranchGreetAll() {
   }
 }
 function ranchPet(a, x, y, dist) {
+  if (a.fly || (a.m && a.m.z > 30)) return; // volando no se le hace cariño
   if (a.kind === 'egg') { a.e.vt += (Math.random() - 0.5) * 0.6; return; }
   if (a.kind !== 'mon') return;
   const m = a.m, S = a.scr; a.walk = false; a.idle = Math.max(a.idle, 1.5);
@@ -3459,7 +3460,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.'] },
+  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
@@ -3611,7 +3612,8 @@ cv.addEventListener('pointermove', e => {
     const dx = e.clientX - G.x0, dy = e.clientY - G.y0;
     if (!G.mode && Math.hypot(dx, dy) > 10) {
       const fast = Math.hypot(dx, dy) / Math.max(1, performance.now() - G.t0) > 0.9; // rápido = girar; despacio sobre un monstruo = acariciar
-      G.mode = G.act && G.act.kind !== 'free' && !fast ? 'pet' : Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      const flying = G.act && (G.act.fly || (G.act.m && G.act.m.z > 30)); // volando no se le puede hacer cariño: arrastrar gira la cámara (pedido del dueño)
+      G.mode = G.act && G.act.kind !== 'free' && !fast && !flying ? 'pet' : Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
     }
     if (G.mode === 'pet') { ranchPet(G.act, e.clientX, e.clientY, Math.hypot(e.clientX - G.lx, e.clientY - G.ly)); G.lx = e.clientX; G.ly = e.clientY; return; }
     if (G.mode === 'h') {
