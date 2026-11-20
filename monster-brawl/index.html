@@ -1067,8 +1067,8 @@ class Monster {
     // Antenas: dos tramos elásticos
     I.ants = [];
     if (g.antennae) for (let i = 0; i < g.antennae.count; i++) {
-      const sd = g.antennae.count === 1 ? 0 : (i ? 1 : -1), len = g.head.h * g.antennae.len, bx = sd * g.head.w * 0.22, by = -g.head.h * 0.46;
-      const n1 = add(I.head, bx + sd * len * 0.25, by - len * 0.55, 70, 0.15), n2 = add(n1, sd * len * 0.2, -len * 0.5, 45, 0.12);
+      const sd = g.antennae.count === 1 ? 0 : (i ? 1 : -1), len = g.head.h * g.antennae.len, bx = sd * g.head.w * 0.1, by = -g.head.h * 0.48; // más juntas, al centro de la cabeza (pedido del dueño)
+      const n1 = add(I.head, bx + sd * len * 0.12, by - len * 0.55, 70, 0.15), n2 = add(n1, sd * len * 0.1, -len * 0.5, 45, 0.12);
       I.ants.push({ sd, i, base: { x: bx, y: by }, chain: [n1, n2] });
     }
     // Hombros
@@ -1802,7 +1802,15 @@ class Monster {
     const tilt = clamp((h.x - par.x) / (40 * s), -1, 1) * 0.35;
     const ct = Math.cos(tilt), st = Math.sin(tilt);
     const rot = (o) => ({ x: h.x + (o.x * ct - o.y * st) * s, y: h.y + (o.x * st + o.y * ct) * s });
-    for (const a of I.ants) { // antenas
+    for (const e of I.ears) { // orejas (detrás de la cabeza)
+      const b = rot(e.base), tp = N[e.tip], type = g.ears.type, W0 = g.head.w * g.ears.size * s;
+      const inner = 'hsla(350,70%,80%,.9)';
+      if (type === 'cat') { hornPath(ctx, b.x, b.y, tp.x, tp.y, W0 * 1.1, 0); fillStroke(ctx, C.body, C.ol, lw * 1.2); hornPath(ctx, lerp(b.x, tp.x, 0.2), lerp(b.y, tp.y, 0.2), lerp(b.x, tp.x, 0.85), lerp(b.y, tp.y, 0.85), W0 * 0.5, 0); ctx.fillStyle = inner; ctx.fill(); }
+      else if (type === 'round') { ctx.beginPath(); ctx.arc(tp.x, tp.y, W0 * 0.6, 0, TAU); fillStroke(ctx, C.body, C.ol, lw * 1.2); ctx.beginPath(); ctx.arc(tp.x, tp.y, W0 * 0.34, 0, TAU); ctx.fillStyle = inner; ctx.fill(); }
+      else if (type === 'bunny') { const L = Math.hypot(tp.x - b.x, tp.y - b.y), ang = Math.atan2(tp.y - b.y, tp.x - b.x); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(ang); ctx.beginPath(); ctx.ellipse(L / 2, 0, L / 2 + W0 * 0.1, W0 * 0.32, 0, 0, TAU); fillStroke(ctx, C.body, C.ol, lw * 1.2); ctx.beginPath(); ctx.ellipse(L * 0.55, 0, L * 0.36, W0 * 0.15, 0, 0, TAU); ctx.fillStyle = inner; ctx.fill(); ctx.restore(); }
+      else { hornPath(ctx, b.x, b.y, tp.x, tp.y, W0 * 1.2, 0.5 * e.sd); fillStroke(ctx, C.accent, C.ol, lw); ctx.beginPath(); for (const q of [0.35, 0.65]) { ctx.moveTo(b.x, b.y); ctx.lineTo(lerp(b.x, tp.x, 0.9) + (tp.y - b.y) * (q - 0.5) * 0.5, lerp(b.y, tp.y, 0.9) - (tp.x - b.x) * (q - 0.5) * 0.5); } ctx.lineWidth = lw * 0.6; ctx.strokeStyle = C.ol; ctx.stroke(); }
+    }
+    for (const a of I.ants) { // antenas (delante de las orejas, pedido del dueño)
       const b = rot(a.base), p1 = N[a.chain[0]], p2 = N[a.chain[1]];
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
@@ -1811,14 +1819,6 @@ class Monster {
       if (g.antennae.tip === 'glow') { const pl = 0.6 + 0.4 * Math.sin(this.t * 4 + a.i); ctx.fillStyle = hsl(g.pal.accent, 25, 0.35 * pl); ctx.beginPath(); ctx.arc(p2.x, p2.y, r * 2.4, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(p2.x, p2.y, r, 0, TAU); fillStroke(ctx, hsl(g.pal.accent, 25), C.ol, lw * 0.6); }
       else if (g.antennae.tip === 'leaf') { const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x); ctx.save(); ctx.translate(p2.x, p2.y); ctx.rotate(ang); ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(r * 1.6, -r * 1.3, r * 3.2, 0); ctx.quadraticCurveTo(r * 1.6, r * 1.3, 0, 0); fillStroke(ctx, C.wing, C.ol, lw * 0.6); ctx.restore(); }
       else { ctx.beginPath(); ctx.arc(p2.x, p2.y, r, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw * 0.7); }
-    }
-    for (const e of I.ears) { // orejas (detrás de la cabeza)
-      const b = rot(e.base), tp = N[e.tip], type = g.ears.type, W0 = g.head.w * g.ears.size * s;
-      const inner = 'hsla(350,70%,80%,.9)';
-      if (type === 'cat') { hornPath(ctx, b.x, b.y, tp.x, tp.y, W0 * 1.1, 0); fillStroke(ctx, C.body, C.ol, lw * 1.2); hornPath(ctx, lerp(b.x, tp.x, 0.2), lerp(b.y, tp.y, 0.2), lerp(b.x, tp.x, 0.85), lerp(b.y, tp.y, 0.85), W0 * 0.5, 0); ctx.fillStyle = inner; ctx.fill(); }
-      else if (type === 'round') { ctx.beginPath(); ctx.arc(tp.x, tp.y, W0 * 0.6, 0, TAU); fillStroke(ctx, C.body, C.ol, lw * 1.2); ctx.beginPath(); ctx.arc(tp.x, tp.y, W0 * 0.34, 0, TAU); ctx.fillStyle = inner; ctx.fill(); }
-      else if (type === 'bunny') { const L = Math.hypot(tp.x - b.x, tp.y - b.y), ang = Math.atan2(tp.y - b.y, tp.x - b.x); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(ang); ctx.beginPath(); ctx.ellipse(L / 2, 0, L / 2 + W0 * 0.1, W0 * 0.32, 0, 0, TAU); fillStroke(ctx, C.body, C.ol, lw * 1.2); ctx.beginPath(); ctx.ellipse(L * 0.55, 0, L * 0.36, W0 * 0.15, 0, 0, TAU); ctx.fillStyle = inner; ctx.fill(); ctx.restore(); }
-      else { hornPath(ctx, b.x, b.y, tp.x, tp.y, W0 * 1.2, 0.5 * e.sd); fillStroke(ctx, C.accent, C.ol, lw); ctx.beginPath(); for (const q of [0.35, 0.65]) { ctx.moveTo(b.x, b.y); ctx.lineTo(lerp(b.x, tp.x, 0.9) + (tp.y - b.y) * (q - 0.5) * 0.5, lerp(b.y, tp.y, 0.9) - (tp.x - b.x) * (q - 0.5) * 0.5); } ctx.lineWidth = lw * 0.6; ctx.strokeStyle = C.ol; ctx.stroke(); }
     }
     for (const hr of I.horns) {
       if (this.hidden && this.hidden.has('horn:' + I.horns.indexOf(hr))) continue;
@@ -3427,7 +3427,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.29', d: '2026-11-20', items: ['El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
+  { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
   { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Viendo un monstruo de cerca: el rancho queda arriba (dedo hacia abajo para volver) y Estadísticas abajo (dedo hacia arriba).', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
