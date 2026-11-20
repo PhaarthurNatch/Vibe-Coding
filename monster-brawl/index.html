@@ -3137,11 +3137,9 @@ function openGenePick(grp) {
 // Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
 function renderShopUlts(hide) {
   const el = $('shopUlts'); el.hidden = hide; if (hide) return;
-  el.innerHTML = `<div class="thead">Ultimates</div><div class="ultlist">${ULT_KEYS.map(k => {
-    const own = ownsUlt(k);
-    const btn = own ? `<span class="pill">Desbloqueada</span>` : `<button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button>`;
-    return `<div class="ultc ${own ? '' : 'locked'}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
-  }).join('')}</div><p class="tdesc">Para monstruos desde Adolescente (Nv. ${STAGE_LV.teen}+). Quedan para todos tus monstruos y se equipan desde Estadísticas.</p>`;
+  const left = ULT_KEYS.filter(k => !ownsUlt(k)); // las ya desbloqueadas no se muestran (pedido del dueño)
+  el.innerHTML = `<div class="thead">Ultimates</div>${left.length ? `<div class="ultlist">${left.map(k =>
+    `<div class="ultc locked"><b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}`;
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
