@@ -39,7 +39,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .nav .name span:empty{display:none}
 #showArea{position:relative}
 #home.ranch #lblBot{display:none}
-.pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba; de cerca: arriba se vuelve al rancho y abajo están las Estadísticas */
+.pgShop{order:0}#pgHome{order:1}.pgStats{order:2} /* rancho: Tienda arriba */
+#home:not(.ranch) .pgStats{order:0}#home:not(.ranch) .pgShop{order:2} /* de cerca: Estadísticas arriba y el rancho abajo (pedido del dueño) */
+.edgeLbl.up.glow{animation:tabglow 1.6s ease-in-out infinite,edgeUp 2.4s ease-in-out infinite}
 #home.ranch #pgHome>:not(#showArea):not(.edgeLbl),#home.ranch .corner{display:none} /* rancho: sólo el paisaje con todos los monstruos */
 .ranchHint{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;white-space:nowrap;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6)}
 #home:not(.ranch) .ranchHint{display:none}
@@ -72,7 +74,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tabs button.locked{opacity:.5}
 #home.first>:not(.pager),#home.first .page>:not(#showArea),#home.first .corner{visibility:hidden} /* partida nueva: en pantalla sólo el huevo */
 #home.vacant .panel>.row,#home.vacant #btnFight{display:none}
-#home.vacant #lblBot{visibility:hidden} /* espacio libre: no tiene Estadísticas */
+#home.vacant #lblTop{visibility:hidden} /* espacio libre: no tiene Estadísticas */
 .fightbtn{font-size:19px;padding:15px 10px;letter-spacing:.5px}
 #homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
 #homePanel.fightOpen #btnFight{display:none}
@@ -246,7 +248,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
   <div class="page" id="pgHome">
-  <button class="edgeLbl up" data-go="0" id="lblTop">▲ Tienda</button>
+  <button class="edgeLbl up" id="lblTop">▲ Tienda</button>
   <div class="nav">
     <div class="name" id="nameBox"><b id="mName">—</b><span id="mSub">Nv. 1</span></div>
   </div>
@@ -266,10 +268,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
   </div>
-  <button class="edgeLbl down" id="lblBot">Estadísticas ▼</button>
+  <button class="edgeLbl down" id="lblBot">Rancho ▼</button>
   </div>
   <div class="page pgStats">
-    <button class="edgeLbl up" data-go="1">▲ Monstruo</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
     <div class="spacer" id="trainArea"></div>
     <div class="panel tpanel">
@@ -277,6 +278,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <div class="tinfo" id="tinfo"></div>
       <button class="btn" id="btnFree">Liberar</button>
     </div>
+    <button class="edgeLbl down" data-go="1">Monstruo ▼</button>
   </div>
   </div></div>
 </div>
@@ -2849,7 +2851,7 @@ function checkBreedUnlock() {
 const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.stage === 'egg');
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
-const visPage = n => n;
+const visPage = n => ranchMode ? n : [2, 1, 0][n]; // de cerca el orden en pantalla es Estadísticas / Monstruo / (Tienda, sin acceso)
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (abajo está el rancho)
@@ -2863,11 +2865,11 @@ function setPage(n) {
 // Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Estadísticas" (dorado si hay puntos por gastar) y "Rancho ▼"
 function edgeLabels(free) {
   const t = $('lblTop'), b = $('lblBot');
-  t.textContent = ranchMode ? '▲ Tienda' : '▲ Rancho';
-  b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', free > 0);
+  t.textContent = ranchMode ? '▲ Tienda' : free > 0 ? `▲ Estadísticas (${free})` : '▲ Estadísticas'; t.classList.toggle('glow', !ranchMode && free > 0);
+  b.textContent = 'Rancho ▼';
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else toRanch(); };
-$('lblBot').onclick = () => setPage(2);
+$('lblTop').onclick = () => { if (ranchMode) setPage(0); else setPage(2); };
+$('lblBot').onclick = () => toRanch();
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
 // En un panel con scroll, sólo cuando ya llegó al borde. Sobre el monstruo: sólo un trazo largo y rápido (frotar despacio es acariciar).
@@ -2888,7 +2890,7 @@ function swipeEnd(x, y) {
     const v = visPage(homePage) + (dy < 0 ? 1 : -1); // posición en pantalla a la que se va (dedo arriba = la de abajo)
     if (v < 0 || v > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now();
-    if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, hacia arriba se vuelve al rancho
+    if (!ranchMode && homePage === 1 && v === 2) toRanch(); // de cerca, deslizar hacia arriba vuelve al rancho (abajo)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (homePage === 2 ? save.monsters.length : Math.max(slotCap(), save.monsters.length)) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
