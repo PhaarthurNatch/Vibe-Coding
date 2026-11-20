@@ -79,7 +79,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #homePanel:not(.fightOpen) .fightrow{display:none} /* "Luchar" abre las opciones de pelea */
 #homePanel.fightOpen #btnFight{display:none}
 #homePanel.fightOpen .fightrow{animation:zoomIn .3s ease-out}
-.fightrow .fightclose{flex:none;width:52px} /* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
+/* espacio libre: sólo Comprar y Criar */ /* partida nueva: sólo el huevo, sin botones */
 @media (max-width:380px){.tabs{gap:0}.tabs button{font-size:11.5px;padding:7px 6px;letter-spacing:0}} /* celulares angostos: que quepan las 4 pestañas */
 .ultbar{display:flex;gap:8px;justify-content:center;padding-top:6px}
 .ultbtn{flex:1;max-width:260px;padding:10px 8px;border-radius:16px;background:linear-gradient(#ffe08a,#ff9a3c 60%,#e8641c);color:#2a1200;box-shadow:0 4px 0 #8a3a0a,0 0 18px rgba(255,170,60,.55);display:flex;flex-direction:column;align-items:center;gap:1px;animation:ultpulse 1.4s ease-in-out infinite}
@@ -271,7 +271,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
     <div class="row fightrow">
       <button class="btn" id="btnLan">📶 Pelea local</button>
-      <button class="btn fightclose" id="btnFightClose" aria-label="Cerrar">✕</button>
     </div>
     <div class="row fightrow">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
@@ -3006,7 +3005,7 @@ function renderHome() {
     return;
   }
   $('btnLan').disabled = firstEgg();
-  setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn:not(.fightclose)')].every(b => b.disabled); });
+  setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn')].every(b => b.disabled); });
   $('home').classList.toggle('first', firstEgg()); // partida nueva: sin botones hasta que nazca el primer huevo
   const rec = cur(), isEgg = rec.stage === 'egg';
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
@@ -3390,7 +3389,6 @@ document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.datase
 // "Luchar" abre los modos de pelea (y la pelea local); ✕ los cierra. Se cierran solos al cambiar de monstruo o volver al rancho.
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
-$('btnFightClose').onclick = () => fightMenu(false);
 
 // ---------- Ajustes: exportar / importar partida ----------
 // Copia local: cada 2 min (y al salir de la app) se guarda una copia de la partida (COPY_KEY); exportar la refresca y la da como código.
@@ -3411,7 +3409,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'El menú de Luchar ya no tiene la ✕ (se cierra al cambiar de monstruo o volver al rancho).', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
