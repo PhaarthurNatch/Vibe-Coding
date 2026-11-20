@@ -428,9 +428,13 @@ const ULTS = {
   defense: { name: 'Escudo de hierro', desc: `no recibe daño por ${ULT_BUFF_S} s` },
   speed: { name: 'Supervelocidad', desc: `se mueve y ataca el doble de rápido por ${ULT_BUFF_S} s` },
   dodge: { name: 'Reflejos fantasma', desc: `esquiva el doble por ${ULT_BUFF_S} s` },
+  drain: { name: 'Robo de vida', desc: `cada golpe o disparo le devuelve como vida el ${Math.round(100 * 0.6)}% del daño por ${ULT_BUFF_S} s` },
+  teleport: { name: 'Teletransporte', desc: 'desaparece y aparece detrás de su objetivo con un golpe fuerte' },
+  clone: { name: 'Clon', desc: 'se duplica: el clon pelea a su lado y la vida que le queda se reparte entre los dos' },
 };
+const ULT_DRAIN = 0.6; // Robo de vida: fracción del daño que vuelve como vida
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
-const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge'];
+const ULT_KEYS = ['melee', 'ranged', 'defense', 'speed', 'dodge', 'drain', 'teleport', 'clone'];
 const ULT_RECHARGE_S = 20; // segundos reales hasta poder volver a usar la ultimate en la misma pelea
 const ULT_COST = 150; // desbloquear una ultimate (queda en tu biblioteca para todos tus monstruos)
 const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de daño usan su ataque más fuerte (sirven a cualquier monstruo)
@@ -445,10 +449,10 @@ let ULT_AVG = null;
 function ultTypeOf(g, train) {
   if (!ULT_AVG) { // promedio y variación de una muestra fija de adultos (siempre la misma)
     const sm = []; for (let i = 1; i <= 400; i++) sm.push(calcStats(genGenome(i * 2654435761 >>> 0, 'adult', true), 1));
-    ULT_AVG = {}; for (const k of ULT_KEYS) { const m = sm.reduce((a, st) => a + st[k], 0) / sm.length; ULT_AVG[k] = [m, Math.sqrt(sm.reduce((a, st) => a + (st[k] - m) ** 2, 0) / sm.length) || 1]; }
+    ULT_AVG = {}; for (const k of ULT_KEYS.filter(k => k in sm[0])) { const m = sm.reduce((a, st) => a + st[k], 0) / sm.length; ULT_AVG[k] = [m, Math.sqrt(sm.reduce((a, st) => a + (st[k] - m) ** 2, 0) / sm.length) || 1]; }
   }
   const st = calcStats(g, 1, train);
-  return ULT_KEYS.map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
+  return ULT_KEYS.filter(k => k in st).map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
 // Peleas largas: desde OT_START s de juego empieza la muerte súbita (el daño sube poco a poco) para que siempre termine con un K.O.
@@ -992,7 +996,7 @@ class Monster {
     this.ultType = rec.ult || rec.ultGift || starterUlt(rec.seed); // la ultimate equipada (los hijos traen la de un padre)
     this.g = bodyFromTraining(this.g, rec.pts); // el entrenamiento se nota en el cuerpo
     this.canUlt = canUlt(rec.stage); this.ultReady = this.canUlt; // desde adolescente; se recarga al empezar cada pelea
-    this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0 };
+    this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0, drain: 0 };
     this.aura = []; this.auraAcc = 0; this.auraBoost = 0;
     this.auraCols = [hsl(this.g.pal.body, 22), hsl(this.g.pal.accent, 25), '#fff6d8'];
     const T = this.g.torso;
@@ -2029,7 +2033,8 @@ class Battle {
     const dmg = shielded ? pow * SHIELD_MUL : Math.max(1, pow * ot * allA * allT * lightB * (0.85 + Math.random() * 0.3) * (1 - t.st.defense / (t.st.defense + 40)));
     a.hitsN++; t.hitsN++;
     if (kind === 'melee') a.dmgM += dmg; else a.dmgR += dmg;
-    t.hp -= dmg; t.hurtT = 0.12; t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
+    t.hp -= dmg; t.hurtT = 0.12;
+    if (a.buffs.drain > 0 && !a.dead && dmg > 0) { const h = Math.min(a.st.hp - a.hp, dmg * ULT_DRAIN); if (h > 0.5) { a.hp += h; this.texts.push({ x: a.gx, y: a.nodes[a.ix.head].y - a.g.head.h * a.s * 0.7, str: '+' + Math.round(h), col: '#7dff9a', life: 0.8 }); } } // Robo de vida t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
     if (t.floatT > 0) t.floatT = Math.max(0, t.floatT - 0.6); // lo bajan a tiros
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
@@ -2055,7 +2060,8 @@ class Battle {
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); a.kills++; this.text(t, 'K.O.', '#ff7a7a', true);
+      t.hp = 0; t.die(dir, kb); (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      this.text(t, 'K.O.', '#ff7a7a', true);
       if (!a.dead) a.setEmo('happy', 1.5, 3);
       if (!this.ms.some(m => m.team === t.team && !m.dead)) this.elim.push(t.team); // equipo eliminado
     }
@@ -2105,7 +2111,29 @@ class Battle {
         }
         break;
       }
-      default: m.buffs[m.ultType] = ULT_BUFF_S; // escudo / supervelocidad / reflejos
+      case 'teleport': { // desaparece y aparece detrás de su objetivo con un golpe fuerte
+        const from = { x: m.gx, y: m.gy - 30 };
+        if (T) {
+          const dx = T.x - m.x, dy = T.y - m.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, back = T.r + m.r + 8;
+          m.x = clamp(T.x + ux * back, m.r, ARENA_W - m.r); m.y = clamp(T.y + uy * back, m.r, ARENA_D - m.r);
+          m.vx = m.vy = 0; this.place(m); m.resetRig();
+          const dir = { x: -ux, y: -uy }; this.hit(m, T, ultPow(m) * 2.2, dir, 'melee');
+          if (!T.dead) { T.vx += dir.x * 220; T.vy += dir.y * 220; T.state = 'hitstun'; T.stT = 0.7; T.setEmo('dizzy', 1, 4); }
+        } else { m.x = ARENA_W * (0.2 + Math.random() * 0.6); m.y = ARENA_D * (0.2 + Math.random() * 0.6); this.place(m); m.resetRig(); }
+        for (const [px, py] of [[from.x, from.y], [m.gx, m.gy - 30]]) for (let i = 0; i < 14; i++) { const a = Math.random() * TAU, sp = 80 + Math.random() * 160; this.parts.push({ x: px, y: py, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, col: hsl(m.g.pal.accent, 25), r: 3 }); }
+        this.shake = 8; m.state = 'recover'; m.stT = 0.3;
+        break;
+      }
+      case 'clone': { // se duplica: la vida que le queda se reparte entre los dos
+        const c = new Monster(m.rec); c.team = m.team; c.isPlayer = false; c.remoteCtl = false; c.cloneOf = m; c.canUlt = false; c.ultReady = false;
+        c.hp = m.hp = Math.max(1, m.hp / 2); c.lockAx = m.lockAx; c.target = m.target;
+        const side = Math.random() < 0.5 ? -1 : 1; c.x = clamp(m.x + side * (m.r + c.r + 10), c.r, ARENA_W - c.r); c.y = clamp(m.y + (Math.random() - 0.5) * 40, c.r, ARENA_D - c.r);
+        this.place(c); c.resetRig(); c.vz = 260; c.buffs.all = ULT_ALL_S; c.setEmo('angry', 1.2, 3);
+        this.ms.push(c);
+        for (let i = 0; i < 16; i++) { const a = Math.random() * TAU, sp = 60 + Math.random() * 160; this.parts.push({ x: c.gx, y: c.gy - 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, col: hsl(m.g.pal.accent, 25), r: 3 }); }
+        break;
+      }
+      default: m.buffs[m.ultType] = ULT_BUFF_S; // escudo / supervelocidad / reflejos / robo de vida
     }
   }
 
@@ -3994,7 +4022,7 @@ function lanSnapshot() {
     ban: B.banner, cine: B.cine ? [B.ms.indexOf(B.cine.m), R1(B.cine.t * 100) / 100] : null,
     ms: B.ms.map(m => [R1(m.x), R1(m.y), R1(m.z), R1(m.vx), R1(m.vy), Math.round(m.hp), m.dead ? 1 : 0, m.state, R1(m.strikeExt || 0), [R1(m.atkDir.x * 100) / 100, R1(m.atkDir.y * 100) / 100],
       m.atkArm ? m.ix.arms.indexOf(m.atkArm) : -1, B.ms.indexOf(m.target), m.emo, R1(m.emoT), m.emoP, R1(m.hurtT), R1(m.mouthOpen),
-      [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0)]),
+      [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
     pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])])]),
     rg: B.rings.map(r => [R1(r.x), R1(r.y), R1(r.r), r.max, R1(r.life * 100) / 100, r.col]),
     tx: B.texts.map(t => [R1(t.x), R1(t.y), t.str, t.col, R1(t.life * 100) / 100, t.big ? 1 : 0]),
@@ -4008,7 +4036,8 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
-    s.ms.forEach((a, i) => { const m = B.ms[i]; if (!m) return;
+    s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
+      const m = B.ms[i]; if (!m) return;
       if (m._fresh === undefined) { m.x = a[0]; m.y = a[1]; m._fresh = 1; }
       m.tx = a[0]; m.ty = a[1]; m.z = a[2]; m.vx = a[3]; m.vy = a[4]; m.hp = a[5];
       if (a[6] && !m.dead) m.die({ x: Math.sign(m.vx) || 1, y: 0 }, 300);
