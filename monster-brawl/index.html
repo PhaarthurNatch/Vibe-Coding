@@ -2772,6 +2772,7 @@ function drawRanch(c, r, opt) {
       else if (a.kind === 'egg') drawOcc(c, { E: a.e });
       else { c.globalAlpha *= clamp((1 - ghost) / 0.65, 0, 1); drawOcc(c, { vacant: true, k }); } // de cerca aparece; al volver al rancho se desvanece
       c.restore();
+      for (const q of RANCH.parts) if (q.a === a) drawRanchPart(c, q, p.X, p.Y); // sus efectos van a su misma profundidad: un árbol de adelante los tapa
       const w = Math.max(a.sz.w * 0.6, 40) * k, h = Math.max(a.sz.h, 50) * k;
       if (nearM(p) > 0.5) a.hit = { x0: p.X - w, x1: p.X + w, y0: p.Y - h - (a.m ? a.m.z * k : 0), y1: p.Y + 12 * k, depth: p.Y };
       continue;
@@ -2811,12 +2812,14 @@ function drawRanch(c, r, opt) {
     const ly = p.Y + 10 + 6 * Math.min(p.sc, 3); c.strokeText(txt, p.X, ly); c.fillStyle = '#fff'; c.fillText(txt, p.X, ly);
   }
   c.globalAlpha = 1;
-  for (const q of RANCH.parts) { // corazones al acariciar
-    c.globalAlpha = clamp(q.life * 2, 0, 1);
-    if (q.k === 'heart') { c.fillStyle = '#ff7aa8'; heartPath(c, q.x, q.y, 7); c.fill(); }
-    else { c.fillStyle = '#ffe27a'; c.beginPath(); c.arc(q.x, q.y, 3.5, 0, TAU); c.fill(); }
-  }
+  for (const q of RANCH.parts) if (!q.a) drawRanchPart(c, q, 0, 0); // efectos sueltos (sin monstruo)
   c.globalAlpha = 1;
+}
+function drawRanchPart(c, q, ox, oy) { // corazones al acariciar y chispas
+  c.save(); c.globalAlpha = clamp(q.life * 2, 0, 1);
+  if (q.k === 'heart') { c.fillStyle = '#ff7aa8'; heartPath(c, ox + q.x, oy + q.y, 7); c.fill(); }
+  else { c.fillStyle = '#ffe27a'; c.beginPath(); c.arc(ox + q.x, oy + q.y, 3.5, 0, TAU); c.fill(); }
+  c.restore();
 }
 // Tocar en el rancho: el habitante más adelante bajo el dedo
 function ranchHit(x, y) { // el habitante más adelante bajo el dedo
@@ -2841,7 +2844,7 @@ function ranchAskFx(a, dt, ph) {
 function ranchHeart(a) {
   const m = a.m, S = a.scr; if (!S || !m) return;
   const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
-  RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' });
+  RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
 }
 const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
 const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
@@ -2867,7 +2870,7 @@ function ranchPet(a, x, y, dist) {
     for (const n of m.nodes) { const dd = Math.hypot(n.x - B.x, n.y - B.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } }
   }
   RANCH.petAcc = (RANCH.petAcc || 0) + dist;
-  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push({ x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
   const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
@@ -3344,7 +3347,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
