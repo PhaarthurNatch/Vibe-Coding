@@ -1324,7 +1324,9 @@ class Monster {
           else { n.x = nx; n.y = ny; }
         }
       }
-      if (dead) { const gy = this.gy + (i % 3) * 2 * s; if (n.y > gy) { n.y = gy; n.vy *= -0.25; n.vx *= 0.8; } }
+      if (dead) { const gy = this.gy + (i % 3) * 2 * s; if (n.y > gy) { n.y = gy; n.vy *= -0.25; n.vx *= 0.8; }
+        const V = typeof battle !== 'undefined' && battle && battle.view; // choca con los bordes de la pantalla y cae al piso
+        if (V) { const mg = 22 * s, x0 = V.x0 + mg, x1 = V.x1 - mg; if (n.x < x0) { n.x = x0; n.vx = Math.abs(n.vx) * 0.3; } else if (n.x > x1) { n.x = x1; n.vx = -Math.abs(n.vx) * 0.3; } if (n.y < V.y0 + mg) { n.y = V.y0 + mg; n.vy = Math.abs(n.vy) * 0.3; } } } // (margen: el cuerpo se dibuja alrededor del punto)
     }
   }
 
@@ -1572,7 +1574,7 @@ class Monster {
 
   die(dir, kb) {
     this.dead = true; this.state = 'dead'; this.target = null;
-    for (const n of this.nodes) { n.vx += dir.x * kb * 1.2 * Math.random() + (Math.random() - 0.5) * 160; n.vy -= 120 + Math.random() * 180; }
+    for (const n of this.nodes) { n.vx += dir.x * kb * 0.6 * Math.random() + (Math.random() - 0.5) * 110; n.vy -= 80 + Math.random() * 110; } // sale volando, pero no tan fuerte (pedido del dueño)
   }
 
   // ---------- Dibujo (vista frontal 2D) ----------
@@ -3321,6 +3323,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
   { v: '1.23', d: '2026-11-20', items: ['El botón ULTIMATE queda bloqueado desde que lo aprietas hasta que se recarga (antes, un segundo toque la lanzaba sola al recargarse).', 'La ultimate de un rival ya no corta ni empuja a quien está cargando la suya.'] },
@@ -3962,7 +3965,9 @@ function loop(now) {
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
     const k = Math.min(W / bw, (H - top - bottom) / bh);
-    ctx.save(); ctx.translate((W - ARENA_W * k) / 2, top + Math.max(0, ((H - top - bottom) - bh * k) / 2)); ctx.scale(k, k);
+    const ox = (W - ARENA_W * k) / 2, oy = top + Math.max(0, ((H - top - bottom) - bh * k) / 2);
+    battle.view = { x0: -ox / k + 6, x1: (W - ox) / k - 6, y0: (top - oy) / k + 6 }; // bordes de la pantalla en coordenadas de la arena (los noqueados chocan ahí)
+    ctx.save(); ctx.translate(ox, oy); ctx.scale(k, k);
     battle.draw(ctx);
     ctx.restore();
     if (battle.cine) drawCineOverlay(battle.cine);
