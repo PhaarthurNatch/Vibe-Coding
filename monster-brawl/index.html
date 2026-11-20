@@ -197,6 +197,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tpc{background:var(--panel2);border-radius:14px;padding:6px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;border:2px solid transparent;font-size:12px;color:var(--muted)}
 .tpc b{color:var(--text);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tpc canvas{width:72px;height:72px}
+.brlist{grid-template-columns:repeat(3,1fr);max-height:30vh;gap:6px}
+.brlist .tpc canvas{width:58px;height:58px}
+.brlist .tpc b{font-size:12px}
+.brh{margin:8px 0 4px;font-size:13px;color:var(--muted);text-align:left}
 .tpc.on{border-color:var(--acc);background:#3d3166}
 .tpc:disabled{opacity:.4}
 .ultpill{margin-left:auto;font-size:10px;font-weight:900;padding:2px 6px;border-radius:6px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600;letter-spacing:.5px}
@@ -361,6 +365,16 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     </div>
   </div>
 </div>
+<div class="modal" id="barnModal">
+  <div class="card">
+    <h2 style="font-size:22px">Granero</h2>
+    <p class="brh" id="brRanchH"></p>
+    <div class="tplist brlist" id="brRanch"></div>
+    <p class="brh" id="brBarnH"></p>
+    <div class="tplist brlist" id="brBarn"></div>
+    <div class="row"><button class="btn" id="brClose">Cerrar</button></div>
+  </div>
+</div>
 <div class="modal" id="foePick">
   <div class="card">
     <h2 style="font-size:22px">Criadero</h2>
@@ -512,10 +526,10 @@ const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, t
 // Pesos de cada factor (y cuánto los mueve la personalidad)
 const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
-const MAX_MONSTERS = 8;
-// Espacios para monstruos: se parte con 2 y cada monstruo que llega a Awakened desbloquea 1 más (hasta 8)
-const SLOTS_START = 2;
-const slotCap = () => Math.min(MAX_MONSTERS, save.slots || SLOTS_START);
+const MAX_MONSTERS = 6; // el rancho tiene siempre 6 espacios (pedido del dueño); los demás se guardan en el granero
+const BARN_MAX = 10;     // monstruos que caben en el granero (no pelean; se sacan al rancho cuando hay espacio)
+const SLOTS_START = 2;   // (ya no se usa: antes se partía con 2 espacios y cada Awakened desbloqueaba uno)
+const slotCap = () => MAX_MONSTERS;
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -2596,7 +2610,7 @@ const canFight = rec => rec.stage !== 'egg' && !resting(rec);
 // Si terminó el descanso, vuelve con todas sus vidas
 function wakeUp() {
   let ch = false; const now = Date.now();
-  for (const m of save.monsters) {
+  for (const m of [...save.monsters, ...(save.barn || [])]) { // también los del granero
     if (m.restUntil && now >= m.restUntil) { delete m.restUntil; m.lives = MAX_LIVES; ch = true; }
     if (m.napUntil && now >= m.napUntil) { delete m.napUntil; ch = true; }
     if (!m.restUntil && m.lives > 0 && m.lives < MAX_LIVES) { // corazones con el tiempo
@@ -2634,7 +2648,8 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
         s.monsters.forEach(m => { m.gen = Math.max(5, m.gen || 0); delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true, v6: m.genes[k].v6 || false }; }); // (los gen 6 siguen siendo gen 6)
         s.gen5 = true; }
       s.monsters.forEach(m => { if (m.parents && !m.parentSeeds) { const ps = m.parents.map(n => (s.monsters.find(o => o !== m && o.name === n) || {}).seed).filter(x => x != null); if (ps.length) m.parentSeeds = ps; } }); // padres por semilla (antes sólo por nombre), para que se reconozcan en el rancho
-      s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
+      s.barn = s.barn || []; if (s.monsters.length > MAX_MONSTERS) s.barn.push(...s.monsters.splice(MAX_MONSTERS)); // el rancho tiene 6 espacios: los que sobran van al granero
+      s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START, barn: [] }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
 function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
 const xpNeed = l => 60 + l * 40;
@@ -3054,6 +3069,7 @@ const SEASON_FX = { // color del suelo (mezcla), copas de los árboles, flores y
 };
 const mixRgb = (c1, hex, t) => { const m = c1.match(/\d+/g); const a = m ? m.map(Number) : [parseInt(c1.slice(1, 3), 16), parseInt(c1.slice(3, 5), 16), parseInt(c1.slice(5, 7), 16)]; const p = parseInt(hex.slice(1), 16), b = [(p >> 16) & 255, (p >> 8) & 255, p & 255]; return `rgb(${a.map((v, i) => Math.round(v * (1 - t) + b[i] * t)).join(',')})`; };
 function drawRanch(c, r, opt) {
+  if (!opt) RANCH.barnHit = null;
   // Perspectiva de una persona parada DENTRO del rancho, en su centro: el rancho es grande comparado con los monstruos,
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
   const TN = performance.now() / 1000; // tiempo para que las plantas se mezan
@@ -3143,6 +3159,8 @@ function drawRanch(c, r, opt) {
       c.restore(); c.save(); const q = P(d.x2, d.z2); c.globalAlpha = Math.min(near(p), near(q)); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
       for (const hh of [18, 36]) { c.lineWidth = 4 * u * (p.sc + q.sc) / 2; c.beginPath(); c.moveTo(p.X, p.Y - hh * u * p.sc); c.lineTo(q.X, q.Y - hh * u * q.sc); c.stroke(); }
     } else if (d.k === 'barn') {
+      const BK = 1.8; c.scale(BK, BK); // más grande, para que se vea y se pueda tocar
+      if (!opt && near(p) > 0.5) { const hw = Math.max(100 * k * BK, 40), hh = Math.max(180 * k * BK, 60); RANCH.barnHit = { x0: p.X - hw, x1: p.X + hw, y0: p.Y - hh, y1: p.Y + 10 * k, depth: p.Y }; } // el granero se toca como un botón
       c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, 0, 110, 22, 0, 0, TAU); c.fill();
       c.fillStyle = '#b8443f'; c.fillRect(-80, -110, 160, 110);
       c.fillStyle = '#7e2b2b'; c.beginPath(); c.moveTo(-95, -108); c.lineTo(0, -175); c.lineTo(95, -108); c.closePath(); c.fill();
@@ -3191,7 +3209,11 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
   for (const a of RANCH.actors) { const h = a.hit; if (h && x > h.x0 && x < h.x1 && y > h.y0 && y < h.y1 && (!best || h.depth > best.hit.depth)) best = a; }
   return best;
 }
-function ranchTap(x, y) { const a = ranchHit(x, y); if (a) ranchZoomTo(a); }
+function ranchTap(x, y, act) {
+  const a = act !== undefined ? act : ranchHit(x, y), B = RANCH.barnHit;
+  if (B && x > B.x0 && x < B.x1 && y > B.y0 && y < B.y1 && (!a || a.hit.depth < B.depth)) { openBarn(); return; } // el granero (si no hay un monstruo delante)
+  if (a) ranchZoomTo(a);
+}
 // Caricia en el rancho: frotar sobre el monstruo
 // Al pedir cariño: los mismos corazones de la caricia repartidos por la cabeza y el efecto de acariciado (cara de amor y la cabeza se mece como bajo la mano)
 const RANCH_ASK_HEARTS = 0.5; // los corazones salen sólo el primer medio segundo de cada pedido
@@ -3362,7 +3384,7 @@ $('btnHeal').onclick = () => {
 // Páginas del menú: 0 = Tienda (huevos y ultimates), 1 = Home (el monstruo), 2 = Estadísticas. Criar se hace desde un espacio libre del Home
 let homePage = 1;
 // Criar se desbloquea (para siempre) cuando tienes 2 monstruos Awakened
-const awakenedCount = () => save.monsters.filter(m => canBreedStage(m.stage)).length; // monstruos que pueden criar (adultos y Awakened)
+const awakenedCount = () => [...save.monsters, ...(save.barn || [])].filter(m => canBreedStage(m.stage)).length; // monstruos que pueden criar (adultos y Awakened)
 const breedOpen = () => !!save.breedUnlocked;
 function checkBreedUnlock() {
   if (!save.breedUnlocked && scene === 'home' && !growAnim && (awakenedCount() >= 2 || save.monsters.some(m => m.readyAt))) {
@@ -3562,9 +3584,7 @@ $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
 function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
-// Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
-const eggBoughtToday = () => save.eggDay === dayKey();
 // ---------- Criadero: cruzar dos Awakened ----------
 const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60 * 1000, BREED_MUTATION = 0.1;
 const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
@@ -3586,21 +3606,19 @@ function makeChild(A, B) {
 }
 // Espacio libre en el Home: comprar un huevo (se abre ahí mismo a toques) o criar uno (incuba en ese espacio)
 function renderSlotBtns() {
-  const today = eggBoughtToday(), poor = save.coins < EGG_COST, open = breedOpen(), n = awakenedCount();
-  let buy;
-  if (today) { const m = new Date(); m.setHours(24, 0, 0, 0); const t = Math.ceil((m - Date.now()) / 60000); buy = `Próximo huevo en ${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min`; }
-  else buy = poor ? `Te faltan ${EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${EGG_COST}`;
+  const today = false, poor = save.coins < EGG_COST, open = breedOpen(), n = awakenedCount(); // sin límite diario (pedido del dueño)
+  const buy = poor ? `Te faltan ${EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${EGG_COST}`;
   $('stats').innerHTML = `<p class="eggmsg">Aquí puede vivir otro monstruo.</p>
     <div class="row slotbtns"><button class="btn primary" id="slotBuy" ${today || poor ? 'disabled' : ''}>${buy}</button><button class="btn primary" id="slotBreed" ${open ? '' : 'disabled'}>${open ? 'Criar · <span class="ci"></span>' + BREED_COST : '🔒 Criar'}</button></div>
     <div class="row slotbtns"><button class="btn primary" id="slotFoes">🥚 Criadero${adultFoes().some(([f]) => !f.bought) ? ` (${adultFoes().filter(([f]) => !f.bought).length})` : ''}</button></div>
-    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos. Criadero: huevos de los especímenes disponibles.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2). Criadero: huevos de los especímenes disponibles.`}</small></p>`;
+    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso. Criar: cruza dos adultos. Criadero: huevos de los especímenes disponibles.' : `Comprar: un huevo misterioso. Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2). Criadero: huevos de los especímenes disponibles.`}</small></p>`;
   $('slotBuy').onclick = buySlotEgg; $('slotBreed').onclick = openBreedPick; $('slotFoes').onclick = openFoePick;
 }
 async function buySlotEgg() {
-  if (homeEmpty == null || save.monsters.length >= slotCap() || save.coins < EGG_COST || eggBoughtToday()) return;
+  if (homeEmpty == null || save.monsters.length >= slotCap() || save.coins < EGG_COST) return;
   if (!await ask(`¿Comprar un huevo misterioso por ${EGG_COST} monedas?`, { ok: 'Comprar' })) return;
-  if (save.monsters.length >= slotCap() || save.coins < EGG_COST || eggBoughtToday()) return;
-  save.coins -= EGG_COST; save.eggDay = dayKey();
+  if (save.monsters.length >= slotCap() || save.coins < EGG_COST) return;
+  save.coins -= EGG_COST;
   save.monsters.push(newRec()); save.sel = save.monsters.length - 1; homeEmpty = null; persist(); renderHome();
   if (egg) { egg.sq = 0.2; egg.vt += 6; } fx.label = '¡Tócalo para abrirlo!'; fx.labelT = 2;
 }
@@ -3650,6 +3668,33 @@ function recordFoes(b) {
   save.foes = save.foes.filter(isAdultFoe).slice(0, FOE_HIST);
 }
 // Criadero (pedido del dueño): desde un espacio libre, los últimos rivales se ven de adultos y se puede comprar el huevo de uno (misma semilla: nace igual a él)
+// Granero (pedido del dueño): se toca en el rancho. Guarda hasta 10 monstruos que no pelean; se pasan del rancho al granero y al revés tocándolos.
+function openBarn() {
+  save.barn = save.barn || [];
+  const R = save.monsters, B = save.barn, hatched = R.filter(m => m.stage !== 'egg').length;
+  $('brRanchH').textContent = `En el rancho (${R.length}/${MAX_MONSTERS}) · toca uno para guardarlo`;
+  $('brBarnH').textContent = `En el granero (${B.length}/${BARN_MAX})${B.length ? ' · toca uno para sacarlo' : ''}`;
+  const card = (r, why) => { const b = document.createElement('button'); b.className = 'tpc'; b.disabled = !!why;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.stage === 'egg' ? (r.foeOf ? 'Huevo de ' + r.foeOf : 'Huevo') : r.name)}</b><span>${why || (r.stage === 'egg' ? '' : `Nv.${r.level}`)}</span>`;
+    const cv = b.querySelector('canvas'); if (r.stage === 'egg') { const x = cv.getContext('2d'), e = new EggView(r); x.save(); x.translate(72, 128); x.scale(1.5, 1.5); e.draw(x); x.restore(); } else drawThumb(cv, r); return b; }; // los huevos se ven como huevo
+  const lr = $('brRanch'), lb = $('brBarn'); lr.innerHTML = lb.innerHTML = '';
+  R.forEach((r, i) => { const last = r.stage !== 'egg' && hatched <= 1, b = card(r, B.length >= BARN_MAX ? 'granero lleno' : last ? 'el último' : ''); b.onclick = () => barnStore(i); lr.appendChild(b); });
+  B.forEach((r, i) => { const b = card(r, R.length >= MAX_MONSTERS ? 'rancho lleno' : ''); b.onclick = () => barnTake(i); lb.appendChild(b); });
+  if (!B.length) lb.innerHTML = '<p class="tdesc" style="grid-column:1/-1">Está vacío.</p>';
+  $('brClose').onclick = () => $('barnModal').classList.remove('on');
+  $('barnModal').classList.add('on');
+}
+function barnStore(i) { // del rancho al granero
+  const R = save.monsters, r = R[i]; save.barn = save.barn || [];
+  if (!r || save.barn.length >= BARN_MAX || (r.stage !== 'egg' && R.filter(m => m.stage !== 'egg').length <= 1)) return;
+  R.splice(i, 1); RANCH.actors.splice(i, 1); save.barn.push(r); // su lugar en el rancho queda libre (los demás siguen donde estaban)
+  if (save.sel > i || save.sel >= R.length) save.sel = Math.max(0, save.sel - 1);
+  homeEmpty = null; persist(); renderHome(); openBarn();
+}
+function barnTake(i) { // del granero al rancho
+  const B = save.barn || [], r = B[i]; if (!r || save.monsters.length >= MAX_MONSTERS) return;
+  B.splice(i, 1); save.monsters.push(r); persist(); renderHome(); openBarn();
+}
 function openFoePick() {
   const L = adultFoes(), list = $('fpList'), go = $('fpGo'); let sel = null;
   $('fpInfo').textContent = L.length ? 'Especímenes disponibles en el criadero. Compra el huevo de uno y nacerá igual a él.' : 'Por ahora no hay especímenes disponibles en el criadero.';
@@ -3756,7 +3801,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
+  { v: '1.39', d: '2026-11-20', items: ['El rancho ahora tiene siempre 6 espacios.', 'Nuevo granero: tócalo en el rancho para guardar hasta 10 monstruos más y pasarlos del rancho al granero y al revés. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
@@ -3944,7 +3989,7 @@ cv.addEventListener('pointermove', e => {
 });
 cv.addEventListener('pointerup', e => {
   const G = RANCH.drag;
-  if (G && e.pointerId === G.id) { RANCH.drag = null; if (!G.mode) { if (G.act) ranchZoomTo(G.act); } else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
+  if (G && e.pointerId === G.id) { RANCH.drag = null; if (!G.mode) ranchTap(G.x0, G.y0, G.act); else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
   if (!touch || e.pointerId !== touch.id) return;
   clearTimeout(touch.timer);
   if (touch.grab) release(touch);
@@ -4186,7 +4231,7 @@ function growStep(dt) {
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
       G.rec.stage = G.newM.rec.stage;
       if (canUlt(G.rec.stage) && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); G.newUlt = G.rec.ult; } // ultimate de regalo al llegar a adolescente
-      if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) { G.rec.awakeCounted = true; G.newSlot = slotCap() < MAX_MONSTERS; save.slots = Math.min(MAX_MONSTERS, slotCap() + 1); } // +1 espacio para monstruos
+      if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) G.rec.awakeCounted = true; // (ya no da espacios: el rancho tiene siempre 6)
       persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
       G.newM.vz = 220; G.newM.mouthOpen = 1; G.newM.setEmo('surprised', 0.8, 3, ['happy', 60]);
