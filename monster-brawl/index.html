@@ -2270,11 +2270,11 @@ class Battle {
     for (const r of this.rings) { const gy = TOP + r.y * DEPTH; ctx.globalAlpha = clamp(r.life * 2, 0, 1); ctx.strokeStyle = r.col; ctx.lineWidth = 10; ctx.beginPath(); ctx.ellipse(r.x, gy, r.r, r.r * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1; }
     for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
     // monstruos ordenados por profundidad
-    const sorted = [...this.ms].sort((a, b) => (a.dead - b.dead) || a.y - b.y);
-    for (const m of sorted) m.draw(ctx);
-    // proyectiles
-    for (const p of this.proj) {
-      const Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
+    // monstruos (vivos y noqueados) y proyectiles por profundidad: lo de adelante tapa a lo de atrás (antes los noqueados iban siempre detrás)
+    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...this.proj.map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y);
+    for (const it of sorted) {
+      if (it.m) { it.m.draw(ctx); continue; }
+      const p = it.p, Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
       ctx.lineCap = 'round';
       for (let i = 1; i < p.trail.length; i++) { const a = p.trail[i - 1], b = p.trail[i]; ctx.strokeStyle = p.color; ctx.globalAlpha = i / p.trail.length * 0.5; ctx.lineWidth = p.r * (p.kind === 'laser' ? 1.4 : 1.2) * i / p.trail.length; ctx.beginPath(); ctx.moveTo(a[0], Y(a)); ctx.lineTo(b[0], Y(b)); ctx.stroke(); }
       ctx.globalAlpha = 1;
@@ -3347,7 +3347,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
