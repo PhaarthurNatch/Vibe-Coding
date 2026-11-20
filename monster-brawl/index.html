@@ -3637,7 +3637,7 @@ function doBreed(A, B) {
 // Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
 const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
-// Historial de combate (pedido del dueño): los últimos 10 rivales; se puede comprar un huevo con la semilla de cada uno (sale igual a él)
+// Rivales para el Criadero (pedido del dueño): se guardan los últimos 10 rivales adultos; se puede comprar un huevo con la semilla de cada uno (sale igual a él)
 const FOE_HIST = 10, FOE_EGG_COST = 100;
 const isAdultFoe = f => f.stage === 'adult' || f.stage === 'awakened';
 const adultFoes = () => (save.foes || []).map((f, i) => [f, i]).filter(([f]) => isAdultFoe(f));
