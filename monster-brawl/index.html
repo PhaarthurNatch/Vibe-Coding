@@ -1390,7 +1390,7 @@ class Monster {
     // Elegir objetivo: puntaje por factores (cercanía, amenaza, quién lo ataca, vulnerable, distraído, equipo,
     // amontonamiento, escudo, peligro); la personalidad decide cuánto pesa cada uno. Cambia sólo si el nuevo es claramente mejor.
     const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
-    if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; return; }
+    if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; if (this.state !== 'leap') { this.state = 'free'; this.stT = 0; this.atkArm = null; this.strikeExt = 0; } return; } // sin rivales (ganó): deja el golpe que tenía a medias; antes el brazo quedaba trabado estirado mientras celebraba
     if (!this.target || this.target.dead || this.targetTimer <= 0) {
       const allies = B.ms.filter(m => !m.dead && m.team === this.team && m !== this);
       let best = null, bs = -Infinity, bWhy = null, cur = null;
@@ -2322,7 +2322,7 @@ class Battle {
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
         this.winTeam = this.ranking[0];
-        for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam ? 'happy' : 'sad'; m.emoT = 0; }
+        for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam ? 'happy' : 'sad'; m.emoT = 0; if (m.state !== 'leap') { m.state = 'free'; m.stT = 0; } m.atkArm = null; m.strikeExt = 0; m.ulting = false; } // al terminar nadie queda a medio golpe
       }
     } else {
       this.endT += dt;
@@ -3562,6 +3562,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
   { v: '1.35', d: '2026-11-20', items: ['Arreglado: al sentarse, a veces las piernas daban un tirón (la rodilla saltaba de golpe).'] },
   { v: '1.34', d: '2026-11-20', items: ['En el rancho los monstruos se sientan a descansar más seguido (y se arregló que desde la versión anterior no se sentaban nunca).'] },
