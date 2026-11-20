@@ -2626,7 +2626,7 @@ function ranchStep(dt) {
         if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', 2.2, 2); }
         if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4);
         for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
-        if (t > 0 && t < 1.4 && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.16; ranchHeart(a); }
+        if (t > 0 && t < RANCH_ASK_HEARTS && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.13; ranchHeart(a); } // los mismos pocos corazones que al pedir caricias
         if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
       } else if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
         const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
