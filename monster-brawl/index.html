@@ -224,13 +224,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dbtn small{font-weight:600;color:var(--muted);font-size:10px}
 .ultlist{display:flex;flex-direction:column;gap:6px}
-.foelist{display:flex;flex-direction:column;gap:6px}
-.foec{display:grid;grid-template-columns:64px 1fr auto;gap:2px 10px;align-items:center;background:var(--panel2);border-radius:12px;padding:6px 10px 6px 6px}
-.foec canvas{width:64px;height:64px;grid-row:span 2}
-.foec b{font-size:13px;align-self:end}
-.foec .fr{font-size:11px;color:var(--muted);align-self:start}
-.foec .fr .w{color:#7be08a}.foec .fr .l{color:#ff8a7a}
-.foec button{grid-row:span 2;white-space:nowrap}
 .ultc{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px;border:2px solid transparent}
 .ultc.on{border-color:var(--acc)}
 .ultc.locked b{color:var(--muted)}
@@ -259,7 +252,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
     <div class="panel tpanel shop">
-      <div class="tsec" id="shopFoes"></div>
       <div class="tsec" id="shopUlts"></div>
       <div class="tsec" id="shopGenes"></div>
     </div>
@@ -366,6 +358,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <p class="tdesc">No se pudo copiar solo: mantén presionado el código, elige «Seleccionar todo» y luego «Copiar».</p>
       <textarea id="expCode" readonly></textarea>
       <button class="btn" data-go="partida">‹ Volver</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="foePick">
+  <div class="card">
+    <h2 style="font-size:22px">Criadero</h2>
+    <p id="fpInfo"></p>
+    <div class="tplist" id="fpList"></div>
+    <div class="row">
+      <button class="btn" id="fpNo">Cerrar</button>
+      <button class="btn primary" id="fpGo">Comprar</button>
     </div>
   </div>
 </div>
@@ -3558,7 +3561,7 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = ''; renderShopFoes(); renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
+function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
 // Se puede comprar 1 huevo al día (cambia a medianoche, hora del celular)
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const eggBoughtToday = () => save.eggDay === dayKey();
@@ -3589,8 +3592,9 @@ function renderSlotBtns() {
   else buy = poor ? `Te faltan ${EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${EGG_COST}`;
   $('stats').innerHTML = `<p class="eggmsg">Aquí puede vivir otro monstruo.</p>
     <div class="row slotbtns"><button class="btn primary" id="slotBuy" ${today || poor ? 'disabled' : ''}>${buy}</button><button class="btn primary" id="slotBreed" ${open ? '' : 'disabled'}>${open ? 'Criar · <span class="ci"></span>' + BREED_COST : '🔒 Criar'}</button></div>
-    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2).`}</small></p>`;
-  $('slotBuy').onclick = buySlotEgg; $('slotBreed').onclick = openBreedPick;
+    <div class="row slotbtns"><button class="btn primary" id="slotFoes">🥚 Criadero${(save.foes || []).some(f => !f.bought) ? ` (${(save.foes || []).filter(f => !f.bought).length})` : ''}</button></div>
+    <p class="eggmsg"><small>${open ? 'Comprar: un huevo misterioso (1 al día). Criar: cruza dos adultos. Criadero: huevos de tus últimos rivales.' : `Comprar: un huevo misterioso (1 al día). Criar se desbloquea con 2 monstruos adultos (${Math.min(n, 2)}/2). Criadero: huevos de tus últimos rivales.`}</small></p>`;
+  $('slotBuy').onclick = buySlotEgg; $('slotBreed').onclick = openBreedPick; $('slotFoes').onclick = openFoePick;
 }
 async function buySlotEgg() {
   if (homeEmpty == null || save.monsters.length >= slotCap() || save.coins < EGG_COST || eggBoughtToday()) return;
@@ -3643,22 +3647,33 @@ function recordFoes(b) {
     save.foes.unshift({ seed: r.seed, gen: r.gen, name: r.name, stage: r.stage, level: r.level, pts: r.pts, won: me >= 0 && them >= 0 ? me < them : b.winTeam === 0, t: Date.now() }); }
   save.foes = save.foes.slice(0, FOE_HIST);
 }
-function renderShopFoes() {
-  const el = $('shopFoes'), L = save.foes || [], full = save.monsters.length >= slotCap();
-  el.innerHTML = `<div class="thead">Historial de combate</div>` + (L.length ? `<p class="tdesc">Tus últimos rivales. Compra un huevo de uno y nacerá igual a él${full ? ' (necesitas un espacio libre en el rancho)' : ''}.</p><div class="foelist">${L.map((f, i) =>
-    `<div class="foec"><canvas width="128" height="128" data-foec="${i}"></canvas><b>${esc(f.name)}</b><button class="btn" data-foebuy="${i}" ${f.bought || full || save.coins < FOE_EGG_COST ? 'disabled' : ''}>${f.bought ? '✓ Comprado' : `🥚 <span class="ci"></span>${FOE_EGG_COST}`}</button><span class="fr">${STAGE_NAME[f.stage] || ''} · Nv.${f.level} · ${f.won ? '<span class="w">Le ganaste</span>' : '<span class="l">Te ganó</span>'}</span></div>`).join('')}</div>`
-    : '<p class="tdesc">Aquí aparecerán los monstruos contra los que peleas.</p>');
-  el.querySelectorAll('[data-foec]').forEach(c => { const f = L[+c.dataset.foec], c2 = document.createElement('canvas'); c2.width = c2.height = 144; drawThumb(c2, { seed: f.seed, gen: f.gen, stage: f.stage, level: f.level, name: f.name, pts: f.pts || {}, lives: MAX_LIVES }); c.getContext('2d').drawImage(c2, 0, 0, 128, 128); });
-  el.querySelectorAll('[data-foebuy]').forEach(b => b.onclick = () => buyFoeEgg(+b.dataset.foebuy));
+// Criadero (pedido del dueño): desde un espacio libre, los últimos rivales se ven de adultos y se puede comprar el huevo de uno (misma semilla: nace igual a él)
+function openFoePick() {
+  const L = save.foes || [], list = $('fpList'), go = $('fpGo'); let sel = null;
+  $('fpInfo').textContent = L.length ? `Tus últimos ${L.length === 1 ? 'rival' : L.length + ' rivales'}, de adultos. Compra el huevo de uno y nacerá igual a él.` : 'Aquí aparecerán los monstruos contra los que peleas.';
+  list.innerHTML = '';
+  L.forEach((f, i) => {
+    const b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !!f.bought;
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(f.name)}</b><span>${f.bought ? 'ya comprado' : f.won ? 'Le ganaste' : 'Te ganó'}</span>`;
+    drawThumb(b.querySelector('canvas'), { seed: f.seed, gen: f.gen, stage: 'adult', level: Math.max(8, f.level || 8), name: f.name, pts: f.pts || {}, lives: MAX_LIVES });
+    b.onclick = () => { sel = i; refresh(); };
+    list.appendChild(b);
+  });
+  const refresh = () => {
+    list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel === +c.dataset.i));
+    const poor = save.coins < FOE_EGG_COST; go.hidden = !L.length; go.disabled = sel == null || poor;
+    go.innerHTML = sel == null ? 'Elige uno' : poor ? `Te faltan ${FOE_EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${FOE_EGG_COST}`;
+  };
+  go.onclick = () => buyFoeEgg(sel);
+  $('fpNo').onclick = () => $('foePick').classList.remove('on');
+  refresh(); $('foePick').classList.add('on');
 }
-async function buyFoeEgg(i) {
-  const f = (save.foes || [])[i]; if (!f || f.bought) return;
-  if (save.monsters.length >= slotCap()) { ask('No tienes espacio libre en el rancho.', { ok: 'Entendido', cancel: null }); return; }
-  if (save.coins < FOE_EGG_COST || !await ask(`¿Comprar un huevo de ${f.name} por ${FOE_EGG_COST} monedas? Nacerá igual a él.`, { ok: 'Comprar' })) return;
-  if (f.bought || save.coins < FOE_EGG_COST || save.monsters.length >= slotCap()) return;
+function buyFoeEgg(i) {
+  const f = (save.foes || [])[i];
+  if (!f || f.bought || homeEmpty == null || save.monsters.length >= slotCap() || save.coins < FOE_EGG_COST) return;
   const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name;
-  save.coins -= FOE_EGG_COST; f.bought = true; save.monsters.push(rec); const idx = save.monsters.length - 1; save.sel = idx; homeEmpty = null; persist();
-  setPage(1); renderHome(); syncRanch(); const a = RANCH.actors[idx]; if (a) ranchZoomTo(a); // te lleva al huevo para abrirlo
+  save.coins -= FOE_EGG_COST; f.bought = true; save.monsters.push(rec); save.sel = save.monsters.length - 1; homeEmpty = null; persist();
+  $('foePick').classList.remove('on'); renderHome();
   if (egg) { egg.sq = 0.2; egg.vt += 6; } fx.label = '¡Tócalo para abrirlo!'; fx.labelT = 2;
 }
 function renderShopGenes() {
@@ -3739,7 +3754,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.39', d: '2026-11-20', items: ['Historial de combate en la Tienda: tus últimos 10 rivales, con su etapa, nivel y si le ganaste o te ganó.', 'Puedes comprar un huevo de cualquiera de esos rivales (100 monedas, necesitas un espacio libre): nace igual a él y crece hasta verse como lo viste.'] },
+  { v: '1.39', d: '2026-11-20', items: ['Nuevo Criadero en los espacios libres del rancho: ahí aparecen tus últimos 10 rivales, de adultos, y si le ganaste o te ganó.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse de adulto como en el Criadero.'] },
   { v: '1.38', d: '2026-11-20', items: ['18 combinaciones de colores nuevas para los monstruos que nazcan desde ahora: atardecer, océano, bosque, galaxia, hielo, lava, real (morado y dorado), tóxico, arcoíris, gris con un color, algodón de azúcar, albino, sombra, frutas (sandía, limón, uva y frutilla), fuego, otoño, menta y abeja.', '24 partes nuevas más para los monstruos que nazcan desde ahora: cabezas de gota, nube y octágono, cuerpos de pera y de huevo, manos de maza con púas y de tres dedos, patas de raíces y con calcetín a rayas, alas de aleta de pez y de pétalos, colas con maza de hueso, moño o pluma, cuernos de media luna y de bolita, orejas de murciélago y de mechón, antenas con corazón o espiral, bocas con un diente chueco y con baba, y pupilas cuadradas y de flor.', '18 partes nuevas para los monstruos que nazcan desde ahora: manos de garfio y de mitón, patas palmeadas y con almohadillas, alas de cristal, colas con hoja o estrella, cuernos retorcidos y cortitos, orejas de elfo y caídas, antenas con estrella o pluma, boca en zigzag y con dientes de conejo, y pupilas en cruz y de media luna. Los monstruos que ya tienes se ven igual.', 'Las bocas especiales (pico y mandíbulas) ya no se mueven ni cambian con las expresiones; las demás sí cambian, y las bocas con dientes de conejo, diente chueco o baba los mantienen al cambiar de expresión.'] },
   { v: '1.37', d: '2026-11-20', items: ['Arreglado: al ganar, el brazo del monstruo ya no queda trabado estirado mientras celebra.'] },
   { v: '1.36', d: '2026-11-20', items: ['Arreglado: los cuerpos de los monstruos noqueados ya no se estiran; caen enteros.'] },
