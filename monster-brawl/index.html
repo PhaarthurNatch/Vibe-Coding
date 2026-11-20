@@ -1986,11 +1986,12 @@ class Monster {
         }
         case 'whiskers': { // boca de gato con bigotes que se mueven
           ctx.beginPath(); ctx.arc(-mw * 0.22, my, mw * 0.22, 0, Math.PI); ctx.moveTo(mw * 0.44, my); ctx.arc(mw * 0.22, my, mw * 0.22, 0, Math.PI); ctx.stroke();
-          ctx.lineWidth = lw * 0.7;
-          for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) { const a = (sx > 0 ? 0 : Math.PI) + sx * (k * 0.2 + Math.sin(this.t * 3 + k) * 0.07), x0 = sx * mw * 0.65, y0 = my - mw * 0.12; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + Math.cos(a) * mw * 1.2, y0 + Math.sin(a) * mw * 1.2); ctx.stroke(); }
           break;
         }
       }
+    }
+    if (g.mouth.type === 'whiskers') { ctx.lineWidth = lw * 0.7; // los bigotes se quedan siempre, cambie como cambie la boca (pedido del dueño)
+      for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) { const a = (sx > 0 ? 0 : Math.PI) + sx * (k * 0.2 + Math.sin(this.t * 3 + k) * 0.07), x0 = sx * mw * 0.65, y0 = my - mw * 0.12; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 + Math.cos(a) * mw * 1.2, y0 + Math.sin(a) * mw * 1.2); ctx.stroke(); }
     }
 
     // ---------- Detalles alrededor de la cara ----------
