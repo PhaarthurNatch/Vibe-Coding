@@ -2389,6 +2389,7 @@ function loadSave() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY))
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = 5; delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true }; });
         s.gen5 = true; }
+      s.monsters.forEach(m => { if (m.parents && !m.parentSeeds) { const ps = m.parents.map(n => (s.monsters.find(o => o !== m && o.name === n) || {}).seed).filter(x => x != null); if (ps.length) m.parentSeeds = ps; } }); // padres por semilla (antes sólo por nombre), para que se reconozcan en el rancho
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { } return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
 function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
@@ -2592,7 +2593,14 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec); a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
-  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.m.held && a.m.z === 0;
+  const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.m.held && a.m.z === 0;
+  RANCH.famCd = RANCH.famCd || {};
+  for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { // padre e hijo que se cruzan: se saludan y les salen corazones (pedido del dueño)
+    const a = A[i], b = A[j];
+    if (!canPlay(a) || !canPlay(b) || !isFamily(a.rec, b.rec) || Math.hypot(a.x - b.x, a.z - b.z) > RANCH_FAM_D) continue;
+    const key = a.slot + '-' + b.slot; if ((RANCH.famCd[key] || 0) > RANCH.t) continue;
+    RANCH.famCd[key] = RANCH.t + 40; a.fam = { t: 0 }; b.fam = { t: -0.25 }; a.walk = b.walk = false;
+  }
   for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
@@ -2613,7 +2621,14 @@ function ranchStep(dt) {
     let vx = 0, vz = 0; if (a.m && a !== focus) a.m.askPet = a.m.bowHead = false;
     if (a === focus) { a.walk = false; a.idle = 1.5; a.fly = null; a.come = null; } // el que se está mirando de cerca se queda quieto (si volaba, baja)
     else if (a.kind === 'mon' && !a.m.sleep) {
-      if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
+      if (a.fam) { // saludo de familia: contentos, saltitos y corazones
+        const F = a.fam, t0 = F.t, t = F.t = t0 + dt; a.walk = false;
+        if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', 2.2, 2); }
+        if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4);
+        for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
+        if (t > 0 && t < 1.4 && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.16; ranchHeart(a); }
+        if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
+      } else if (a.greet) { // al entrar a la app: donde está, se da vuelta hacia ti y se pone contento con saltitos
         const G = a.greet, t0 = G.t, t = G.t = t0 + dt; a.walk = false;
         if (t0 <= 0 && t > 0) { a.m.back = false; a.m.setEmo('happy', G.end, 2); }
         if (t > 0) a.awayT = Math.min(a.awayT || 0, -0.4); // de frente a ti (antes de su turno sigue como estaba)
@@ -2820,10 +2835,16 @@ function ranchAskFx(a, dt, ph) {
   for (const n of m.nodes) { const dd = Math.hypot(n.x - h.x, n.y - (h.y - g.head.h * 0.3 * s)); if (dd < 45 * s) n.vx += w * (1 - dd / (45 * s)) * dt * 12; }
   if (!S || ph > RANCH_ASK_HEARTS) return;
   a.askHeart = (a.askHeart || 0) - dt;
-  if (a.askHeart <= 0) { a.askHeart = 0.13;
-    const px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
-    RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (a.askHeart <= 0) { a.askHeart = 0.13; ranchHeart(a); }
 }
+// Un corazón (el mismo de la caricia) en un punto al azar de la cabeza
+function ranchHeart(a) {
+  const m = a.m, S = a.scr; if (!S || !m) return;
+  const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
+  RANCH.parts.push({ x: S.X + px * S.k, y: S.Y + (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' });
+}
+const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
+const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
 // Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
 function ranchGreetAll() {
   if (!ranchMode || scene !== 'home' || firstEgg()) return;
@@ -3188,7 +3209,7 @@ function makeChild(A, B) {
   delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
-  rec.parents = [A.name, B.name]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
+  rec.parents = [A.name, B.name]; rec.parentSeeds = [A.seed, B.seed]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
   rec.ultGift = (Math.random() < 0.5 ? A : B).ult || null; // al despertar trae la ultimate de uno de sus padres
   return rec;
 }
@@ -3323,6 +3344,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
