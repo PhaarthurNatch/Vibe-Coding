@@ -127,7 +127,8 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
   con más peso se juntaban 97% del tiempo y perjudicaba a los Cautos), amontonamiento en todos contra todos, escudo activo y peligro (DPS relativo).
   La personalidad cambia los pesos: Agresivo = cercanía; Cauto = evita al peligroso; Terco = rencor y no suelta (pide más margen para cambiar);
   Oportunista = vulnerable/distraído; Valiente = va por el más peligroso; Prudente = lo evita. Sólo cambia si el nuevo es claramente mejor (`TGT_MARGIN`)
-  y tras un mínimo con el actual (`TGT_COMMIT`). Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
+  y tras un mínimo con el actual (`TGT_COMMIT`).
+  **Sin quedarse parados** (arreglo): el Prudente con poca vida huye con margen (`fleeing`: empieza a menos de `fleeD` y sigue hasta `fleeD`+60; antes, justo en el límite (84 en todos contra todos) cambiaba de idea cada cuadro y se quedaba quieto) y si alguien lleva 1,5 s sin atacar (`noAtkT`) puede disparar aunque esté cerca (desde `reachD`+6 en vez de +30: había una franja donde no alcanzaba ni a golpear ni a disparar). Se quedaban quietos ~1% de las peleas; ahora 0 de 900. Avisos: "¡grr!" (cambió por rabia) y "¡ahora!" (por oportunidad). Esquivar = salto lateral real.
 - **Peso por etapa** (`WEIGHT_SCALE`): los adultos llegaban casi todos al tope 3,5; ahora su peso se escala (×0,885, tope 4,2) para que el promedio siga ~3,3
   pero haya adultos livianos (~2,6) y pesados (~4,1). Las otras etapas no cambian. `st.mass` es el peso sin escalar ni tope (lo usa el vuelo).
 - **Stats = sólo la cantidad de partes** (pedido del dueño; `calcStats`): `STAT_BASE` + lo que suma cada unidad según `PART_STATS` (torso por trozo, cabeza, cuello, cada ojo, boca, cada cuerno, orejas, cada antena, hombros, cada par de brazos/piernas/alas, cada cola; `partCounts(g)`).

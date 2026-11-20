@@ -1440,7 +1440,9 @@ class Monster {
     let fwd = d > pref + 10 ? 1 : d < pref - 25 ? -0.7 : 0;
     if (this.backoff > 0) fwd = -1; // Cauto: se aleja un poco después de golpear
     const lowHp = this.hp / this.st.hp < this.scaredHp;
-    if (lowHp && this.tp.valor < -0.2 && d < 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1)) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
+    const fleeD = 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1);
+    this.fleeing = lowHp && this.tp.valor < -0.2 && (d < fleeD || (this.fleeing && d < fleeD + 60)); // con margen: antes, justo en el límite cambiaba de idea cada cuadro y se quedaba quieto
+    if (this.fleeing) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
     if (this.floatT > 0) fwd = d < reachD + 90 ? -0.45 : 0; // flotando: ya no huye, sólo se aleja un poco (y le dispara desde arriba si puede)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
@@ -1479,8 +1481,9 @@ class Monster {
     }
 
     const air = this.z > FLY.airZ || T.z > FLY.airZ; // alguno en el aire: no hay golpe, sólo disparo (hacia arriba o hacia abajo)
-    if (!air && d <= reachD + 6 && this.meleeCd <= 0) this.startMelee(T, ux, uy, B);
-    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + 30 || air) && d < this.st.range) this.shoot(T, B);
+    this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
+    if (!air && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
+    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
   startLeap(T, d, reach) {
@@ -3408,7 +3411,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
+  { v: '1.27', d: '2026-11-20', items: ['En el rancho, cuando un monstruo se cruza con su papá o su mamá, se saludan contentos y les salen corazones.', 'Los corazones del rancho respetan la profundidad: si hay un árbol delante del monstruo, los tapa.', 'Arreglado: a veces dos monstruos se quedaban parados mirándose (un Prudente con poca vida dudaba entre huir y acercarse).', 'Los alados que flotan suben más alto, ya no huyen (sólo se alejan un poco) y en el aire disparan algo más seguido.', 'Los monstruos noqueados ya no desaparecen: su cuerpo queda en la arena y los demás lo rodean o le saltan encima.', 'Nueva ultimate: Bombas. Suelta 3 bombas en diagonal a su alrededor: si una toca a un rival en el aire le explota; si no, se quedan en el piso y explotan cuando un rival se acerca.', 'En la arena, los monstruos noqueados y los disparos también respetan la profundidad: lo que está adelante tapa a lo de atrás.'] },
   { v: '1.26', d: '2026-11-20', items: ['Al ser noqueado, el monstruo sale volando más suave; si choca con un borde de la pantalla rebota, cae al piso y luego desaparece.'] },
   { v: '1.25', d: '2026-11-20', items: ['Al entrar a la app (o volver después de 5 minutos), los monstruos que tienes a la vista se dan vuelta hacia ti y te saludan contentos con saltitos, cada uno a su tiempo.', 'Al entrar, cada monstruo aparece en un lugar distinto del rancho (ya no ves siempre al mismo).'] },
   { v: '1.24', d: '2026-11-20', items: ['Nuevo botón 📰 Novedades arriba: cuenta lo que cambió en cada versión y se pone dorado con un número cuando hay versiones que no has visto.', 'Las monedas ahora están arriba a la izquierda.'] },
