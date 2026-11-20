@@ -2774,7 +2774,7 @@ function ranchStep(dt) {
         if (!a.walk) a.wlast = null;
         else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P) { a.rest = { t: 8 + Math.random() * 10 }; a.walk = false; // a veces se sienta a descansar (poco)
+      } else if ((a.idle -= dt) < 0 && Math.random() < RANCH_SIT_P) { a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (poco)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
@@ -2957,7 +2957,7 @@ function ranchHeart(a) {
   const h = m.nodes[m.ix.head], s = m.s, g = m.g, px = h.x + (Math.random() - 0.5) * g.head.w * s, py = h.y - (0.1 + Math.random() * 0.45) * g.head.h * s;
   RANCH.parts.push({ a, x: px * S.k, y: (py - m.z) * S.k, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); // posición relativa a su monstruo (así se dibuja a su misma profundidad)
 }
-const RANCH_SIT_P = 0.025; // en cada pausa entre paseos: chance de sentarse a descansar 8–18 s (pasa poco, pedido del dueño)
+const RANCH_SIT_P = 0.025; // en cada pausa entre paseos: chance de sentarse a descansar 20–45 s (pasa poco, pedido del dueño)
 const RANCH_FAM_D = 0.35; // a esta distancia padre e hijo se saludan
 const isFamily = (r1, r2) => !!(r1 && r2 && ((r1.parentSeeds || []).includes(r2.seed) || (r2.parentSeeds || []).includes(r1.seed)));
 // Al entrar a la app (o volver después de un rato) los despiertos que ves en pantalla se dan vuelta donde están y te saludan contentos, cada uno a su tiempo
@@ -3459,7 +3459,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
+  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
