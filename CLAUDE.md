@@ -188,6 +188,8 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 
 ## Compatibilidad de partidas guardadas
 
+**Cuidado: `loadSave` acepta la partida si tiene monstruos en el rancho, `adopting` o monstruos en el granero** (con el rancho vacío y todos en el granero antes se tomaba como inválida y empezaba de cero, y `persist` la pisaba: se perdió una partida del dueño en el link de prueba). Si no se puede cargar, el texto original se guarda en `LOST_KEY` (`monster_brawl_lost`) en vez de perderse; `saveCopy` no pisa una copia con más monstruos con una partida recién empezada (`saveCount` = nacidos del rancho + granero); y al abrir, si la partida es nueva (≤ 1 monstruo) y hay una copia (`LOST_KEY` o `COPY_KEY`) con más, se ofrece **recuperarla** (guarda la actual en `UNDO_KEY` y usa `applyImport`). Al cambiar qué hace válida una partida, revisar esa condición.
+
 `loadSave` migra datos viejos: completa `stage`, `lives`, `pts`, `temper`, `ultMode`; marca adultos antiguos como `legacy`; devuelve las monedas del
 entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la ultimate que ya tenían los Awakened antiguos.
 **Cualquier cambio de formato debe agregar su migración ahí** para no romper partidas existentes.
