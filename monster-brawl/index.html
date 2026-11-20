@@ -2567,6 +2567,11 @@ function ranchStep(dt) {
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
   const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.m.held && a.m.z === 0;
   for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
+  if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
+    RANCH.askCd = 70 + Math.random() * 80;
+    const free = A.filter(canPlay);
+    if (free.length) { const a = free[Math.floor(Math.random() * free.length)]; a.come = { stay: RANCH_COME_STAY }; a.walk = false; }
+  }
   if ((RANCH.playCd = (RANCH.playCd ?? 9 + Math.random() * 13) - dt) < 0) {
     RANCH.playCd = 25 + Math.random() * 33;
     const free = A.filter(canPlay);
