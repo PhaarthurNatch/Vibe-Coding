@@ -1306,6 +1306,7 @@ class Monster {
     if (!this.held) {
       const vz0 = this.vz, z0 = this.z;
       this.hop(dt);
+      if (this.g.wings.pairs && this.z > 0 && this.vz < -WING_FALL) this.vz = -WING_FALL; // con alas baja despacio, aleteando
       if (z0 > 0 && this.z === 0 && vz0 < -380) { this.setEmo('dizzy', 1.1, 4); burst(this.gx, 0, 6, 'rgba(200,190,230,.8)', 120, [2, 4]); } // aterrizaje fuerte
       this.gx += this.vx * dt;
       if (this.z === 0) { // en el suelo: frena y vuelve caminando al centro
@@ -1314,7 +1315,7 @@ class Monster {
       } else this.vx *= Math.exp(-dt * 0.3);
       if (Math.abs(this.gx) > halfW) { this.gx = Math.sign(this.gx) * halfW; this.vx *= -0.5; }
       if (this.baseEmo === 'energetic' && !this.sleep && this.z === 0 && Math.random() < dt * 0.7) this.vz = 150 + Math.random() * 90; // energético: saltitos
-      if (this.z > maxZ) { this.z = maxZ; this.vz = Math.min(0, -this.vz * 0.4); }
+      // (sin techo: si lo sueltas alto, cae al piso desde donde estaba; antes se cortaba la altura de golpe y se veía un salto)
     }
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
   }
@@ -2494,6 +2495,7 @@ function ask(text, { input = null, ok = 'Aceptar', cancel = 'Cancelar', low = fa
 }
 let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
+const WING_FALL = 120; // velocidad máxima de caída en el menú de los que tienen alas
 const BATTLE_SPEED = 1.5; // velocidad fija de los combates
 // Cuenta regresiva antes de pelear (en tiempo de pelea, que corre x1.5): 3, 2, 1 y "FIGHT!"
 const INTRO_STEP = 1.2, INTRO_S = INTRO_STEP * 3, FIGHT_S = 1.3;
