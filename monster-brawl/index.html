@@ -2604,7 +2604,6 @@ let W = 0, H = 0, DPR = 1;
 let homeBounds = { halfW: 100, maxZ: 200 }, adoptBounds = { halfW: 100, maxZ: 200 };
 const RANCH_ASK_S = 1; // cuánto dura el gesto de pedir cariño (se soba la cabeza y la baja)
 const RANCH_ASK_AFTER = 0.5; // tras una caricia espera esto antes de volver a pedir
-const RANCH_ASK_GAP = 3; // si no lo acaricias, vuelve a pedir una 2.ª vez tras esta pausa
 const RANCH_ASK_LEAVE = 2; // tras pedir 2 veces sin caricia, se va a los 2 s
 const RANCH_COME_STAY = 8; // segundos que se queda junto a ti después de que lo acaricias en el rancho
 const RANCH_LOOK_ME = 0.8, RANCH_LOOK_OTHER = 0.55; // a esta distancia (radios del rancho) te mira a ti / mira a otro monstruo
@@ -2735,7 +2734,7 @@ function ranchStep(dt) {
           vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; C.petT = 0; } /* mientras viene no agacha la cabeza */
         else if ((C.inView = true) && C.petT > 0) { C.petT -= dt; a.m.bowHead = true; C.petting = true; C.ask = -RANCH_ASK_AFTER; } // lo están acariciando: sólo baja la cabeza mientras dura
         else if (C.petting && (C.petting = false, C.pets = (C.pets || 0) + 1) >= (C.need = C.need || 1 + (Math.random() < 0.5 ? 1 : 0))) { a.come = null; a.idle = 0.5; } // con 1 o 2 caricias ya quedó contento y se va
-        else { const t = C.ask = (C.ask || 0) + dt, t2 = RANCH_ASK_S + RANCH_ASK_GAP; a.m.askPet = (t >= 0 && t < RANCH_ASK_S) || (t >= t2 && t < t2 + RANCH_ASK_S); if (a.m.askPet) ranchAskFx(a, dt, t < t2 ? t : t - t2); if (t > t2 + RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
+        else { const t = C.ask = (C.ask || 0) + dt; a.m.askPet = t >= 0 && t < RANCH_ASK_S; if (a.m.askPet) ranchAskFx(a, dt, t); if (t > RANCH_ASK_S + RANCH_ASK_LEAVE) { a.come = null; a.idle = 0.5; } } // junto a ti: te pide cariño (1 s), si no lo acaricias lo pide otra vez tras 3 s y a los 2 s se va
         a.awayT = Math.min(a.awayT || 0, -0.3); // de frente a ti
       } else if (a.play) { // jugando con otro
         const P = a.play, m = P.mate, dx = m.x - a.x, dz = m.z - a.z, d = Math.hypot(dx, dz) || 1e-3, sp = 0.3 + (a.m.st.speed || 100) / 1400;
@@ -3460,7 +3459,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
+  { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
   { v: '1.29', d: '2026-11-20', items: ['Las antenas salen más juntas, del centro de la cabeza, y delante de las orejas (antes las orejas las tapaban).', 'El cuerno enrollado ya no es un círculo grande: ahora es un medio círculo que termina en punta.', 'En el rancho reaccionan más: contentos al volar, saltar o verte pasar; a la pinta el que huye se asusta de juego y el que persigue pone cara de pillarlo; se sorprenden al ver a otro volar por encima o al cruzarse.'] },
   { v: '1.28', d: '2026-11-20', items: ['La boca cambia con la expresión (sonríe, se pone triste, se enoja, se sorprende), también en la pelea, menos las bocas especiales: pico y mandíbulas. La de bigotes conserva siempre sus bigotes.'] },
