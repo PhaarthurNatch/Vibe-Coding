@@ -2792,6 +2792,7 @@ function ranchStep(dt) {
         if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } // a veces da un saltito contento (más si está energético)
       }
     }
+    a.mvx = vx; a.mvz = vz; // cómo se está moviendo (para apartarse de los demás sin empujarlos)
     if (a.kind === 'mon' && a !== focus && !a.fly && a.m.z < 40 && RANCH.trees) for (const t of RANCH.trees) { // evita los árboles: no los atraviesa, los rodea (pedido del dueño)
       let dx = a.x - t.x, dz = a.z - t.z, d = Math.hypot(dx, dz); if (d >= t.cr) continue;
       if (d < 1e-4) { dx = 1; dz = 0; d = 1; }
@@ -2827,7 +2828,13 @@ function ranchStep(dt) {
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
     const p = A[i], q = A[j], dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1e-3;
     if (p.kind === 'free' || q.kind === 'free' || p.fly || q.fly) continue; // los espacios libres no empujan a nadie; los que vuelan pasan por encima
-    if (d < 0.3) { const f = (0.3 - d) * 0.5; if (p.kind === 'mon') { p.x -= dx / d * f; p.z -= dz / d * f; } if (q.kind === 'mon') { q.x += dx / d * f; q.z += dz / d * f; } }
+    if (d < 0.3) { // ya no se empujan: el que va caminando se aparta y rodea al otro; el que está quieto no se mueve (pedido del dueño)
+      const mv = a => a.kind === 'mon' && Math.hypot(a.mvx || 0, a.mvz || 0) > 0.01, pm = mv(p), qm = mv(q), f = (0.3 - d) * 0.5, nx = dx / d, nz = dz / d;
+      let wp = pm && !qm ? 1 : qm && !pm ? 0 : 0.5; if (p.kind !== 'mon') wp = 0; if (q.kind !== 'mon') wp = 1;
+      const side = (a, sx, sz) => { const tn = (a.mvx || 0) * -sz + (a.mvz || 0) * sx; return Math.abs(tn) > 0.005 ? Math.sign(tn) : (a.avSide = a.avSide || (Math.random() < 0.5 ? -1 : 1)); };
+      if (wp > 0) { p.x -= nx * f * wp; p.z -= nz * f * wp; if (pm) { const sd = side(p, -nx, -nz); p.x += nz * sd * 0.12 * dt; p.z -= nx * sd * 0.12 * dt; } }
+      if (wp < 1) { q.x += nx * f * (1 - wp); q.z += nz * f * (1 - wp); if (qm) { const sd = side(q, nx, nz); q.x -= nz * sd * 0.12 * dt; q.z += nx * sd * 0.12 * dt; } }
+    }
   }
   for (const a of A) { if (a.fly) continue; const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX + 0.02) { a.x *= (RANCH_RMAX + 0.02) / rr; a.z *= (RANCH_RMAX + 0.02) / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
 }
@@ -3541,6 +3548,7 @@ const saveSummary = o => { const n = o.monsters.filter(m => m.stage !== 'egg').l
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.33', d: '2026-11-20', items: ['En el rancho los monstruos ya no se empujan al caminar: el que va pasando rodea al que está quieto.'] },
   { v: '1.32', d: '2026-11-20', items: ['El rancho sigue la hora real de tu celular: amanecer, día con sol y nubes, atardecer y noche con luna y estrellas.', 'De noche el rancho se ve más oscuro, hay luciérnagas y los monstruos bostezan, se sientan más y a veces se duermen un buen rato (al entrar algunos ya pueden estar durmiendo; si eliges a uno, despierta de un salto, sorprendido, y luego se alegra).', 'Al ser noqueado, el monstruo pierde todos los efectos de su ultimate (escudo, aura, estelas, copias, etc.).', 'Estaciones del año según dónde estás: primavera con árboles en flor y pétalos, verano verde, otoño con hojas naranjas cayendo e invierno con nieve.'] },
   { v: '1.31', d: '2026-11-20', items: ['En el rancho, de vez en cuando un monstruo se sienta a descansar un buen rato.', 'Los bebés y niños juegan mucho más entre ellos.', 'Cuando vienen a pedirte cariño lo piden una sola vez: si no los acaricias, se van.', 'Arreglado: al girar el rancho mientras un monstruo vuela encima ya no cuenta como caricia (volando no se le hace cariño).'] },
   { v: '1.30', d: '2026-11-20', items: ['Los árboles del rancho son más altos.', 'Los monstruos ya no atraviesan los árboles: los rodean.', 'Las plantas del rancho se mecen con el viento: árboles, arbustos, pasto y flores.'] },
