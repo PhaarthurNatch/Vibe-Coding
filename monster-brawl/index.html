@@ -164,6 +164,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .lanlist.two{grid-template-columns:1fr 1fr}.lanlist.two .lanp canvas{width:96px;height:96px}
 .tq{width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:900;color:var(--muted)}
 #lanBtns.col{flex-direction:column}
+.lanp .rdy{font-size:10px;color:var(--muted)}.lanp .rdy.on{color:var(--good);font-weight:800}
+.restxt:empty{display:none}
 .roomin{text-align:center;font-size:30px;font-weight:900;letter-spacing:10px;text-transform:uppercase;margin-bottom:12px}
 .roomcode{display:inline-block;font-size:30px;font-weight:900;letter-spacing:8px;color:var(--acc);margin:4px 0 2px}
 .lanp{background:var(--panel2);border-radius:14px;padding:4px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;border:3px solid var(--tc);font-size:11px;color:var(--muted);box-shadow:0 0 0 1px rgba(0,0,0,.2) inset}
@@ -4260,6 +4262,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'La ventana al terminar una pelea ahora muestra sólo «¡Ganaste!» o «Perdiste» y los botones (la XP y las monedas igual se suman).'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
   { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
@@ -4948,10 +4951,10 @@ function finishBattle() {
     for (const m of incub) m.readyAt = Math.max(Date.now(), m.readyAt - INCUBATE_FIGHT_MS);
   }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
-  $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
-  $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
+  $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste'; // sólo ganaste o perdiste y los botones (pedido del dueño)
+  $('resTitle').className = place === 1 ? 'win' : 'lose';
   if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * 5, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
-  $('resText').innerHTML = lines.join('');
+  $('resText').innerHTML = ''; // (el resumen de XP y monedas ya no se muestra; igual se suman)
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
 }
@@ -5150,7 +5153,7 @@ function lanBindDC(peer, dc) {
   peer.dc = dc;
   dc.onopen = () => {
     peer.open = true;
-    if (LAN.role === 'host') { peer.color = lanFreeColor(); if (!LAN.peers.includes(peer)) LAN.peers.push(peer); if (LAN.pending === peer) LAN.pending = null; if (peer.gid) { roomDel(`rooms/${LAN.room}/peers/${peer.gid}`); } lanLobbyUpdate(); }
+    if (LAN.role === 'host') { peer.color = lanFreeColor(); lanUnready(); if (!LAN.peers.includes(peer)) LAN.peers.push(peer); if (LAN.pending === peer) LAN.pending = null; if (peer.gid) { roomDel(`rooms/${LAN.room}/peers/${peer.gid}`); } lanLobbyUpdate(); }
     else { clearInterval(LAN.poll); LAN.poll = 0; lanSend({ t: 'hi', rec: lanRec(cur()) }); } // invitado: ya conectado, deja de revisar la sala
   };
   dc.onclose = () => lanPeerLost(peer);
@@ -5172,19 +5175,21 @@ function lanPeerLost(peer) {
     const wasBattle = battle && battle.lan; lanClose(); if (wasBattle) goHome();
     $('lan').classList.remove('on'); ask('Se perdió la conexión con el anfitrión.', { ok: 'Entendido', cancel: null }); return;
   }
-  lanDrop(peer); LAN.peers = LAN.peers.filter(p => p !== peer);
+  lanDrop(peer); LAN.peers = LAN.peers.filter(p => p !== peer); lanUnready();
   const name = peer.rec ? peer.rec.name : 'Un jugador';
   if (battle && battle.lan && peer.idx >= 0 && battle.ms[peer.idx]) { battle.ms[peer.idx].remoteCtl = false; battle.text(battle.ms[peer.idx], 'sin conexión', '#ff9a9a'); } // sigue peleando solo
   else ask(`${name} se desconectó.`, { ok: 'Entendido', cancel: null });
   lanLobbyUpdate();
 }
 // Anfitrión: lista de jugadores (también se la manda a los invitados)
-function lanPlayers() { return [{ name: cur().name, level: cur().level, color: LAN.color, rec: lanRec(cur()) }, ...LAN.peers.filter(p => p.open).map(p => ({ name: p.rec ? p.rec.name : 'conectando…', level: p.rec ? p.rec.level : 0, color: p.color, rec: p.rec }))]; }
+function lanPlayers() { return [{ name: cur().name, level: cur().level, color: LAN.color, rec: lanRec(cur()), ready: !!LAN.ready }, ...LAN.peers.filter(p => p.open).map(p => ({ name: p.rec ? p.rec.name : 'conectando…', level: p.rec ? p.rec.level : 0, color: p.color, rec: p.rec, ready: !!p.ready }))]; }
+const lanUnready = () => { LAN.ready = false; for (const p of LAN.peers) p.ready = false; }; // alguien entró o salió: todos vuelven a marcar «Listo»
 function lanLobbyUpdate() {
   if (LAN.role !== 'host') return;
   if (LAN.kind === 'trade') { if (lanLinked()) { lanSend({ t: 'tstart' }); if (!LAN.tr.done) lanUI('trade'); } else if (LAN.room) lanUI('troom'); return; } // intercambio: de a dos
   const players = lanPlayers();
   LAN.peers.filter(p => p.open).forEach((p, i) => lanSend({ t: 'lobby', players, you: i + 1 }, p)); // cada invitado sabe cuál es él
+  if (!(battle && battle.lan) && players.length >= 2 && players.every(p => p.ready && p.rec) && lanModeOf(players.map(p => p.color))) { lanStartHost(); return; } // todos marcaron «Listo»: empieza sola
   if ($('lan').classList.contains('on') && !LAN.pending && !LAN.scan && !(battle && battle.lan)) lanUI('lobby');
 }
 // ---------- Salas por internet (pedido del dueño): el código de sala reemplaza a los QR ----------
@@ -5376,15 +5381,16 @@ function lanUI(st, data) {
     ps.forEach((p, i) => {
       const col = LAN_COLORS[p.color % LAN_COLORS.length], d = document.createElement(i === meI ? 'button' : 'div');
       d.className = 'lanp' + (i === meI ? ' me' : ''); d.style.setProperty('--tc', col.c);
-      d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span>`;
+      d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
       if (p.rec) drawThumb(d.querySelector('canvas'), p.rec);
-      if (i === meI) d.onclick = () => { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; lanLobbyUpdate(); } else lanSend({ t: 'col' }); };
+      if (i === meI) d.onclick = () => { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'col' }); };
       list.appendChild(d);
     });
     btns.append(B('Desconectar', quit));
-    if (host) {
-      if (n >= 2) { const go = B(mode ? `¡Pelear! (${lanModeName(teams)})` : 'Elijan 2 colores o más', () => lanStartHost(), 'primary'); go.disabled = !mode; btns.append(go); }
-    } else info.innerHTML += `<br><small>${mode ? lanModeName(teams) : 'Todos del mismo color: elijan otro color'} · esperando al anfitrión…</small>`;
+    const meReady = !!(ps[meI] && ps[meI].ready); // cada uno marca «Listo»; cuando todos están listos, la pelea empieza sola
+    const rb = B(meReady ? 'Quitar listo' : '✓ Listo', () => { if (host) { LAN.ready = !LAN.ready; lanLobbyUpdate(); } else lanSend({ t: 'rdy', v: !meReady }); }, meReady ? '' : 'primary');
+    rb.disabled = n < 2 && !meReady; btns.append(rb);
+    info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
   } else if (st === 'error') {
     info.textContent = data;
     btns.append(B(host && linked ? 'Volver' : 'Cerrar', () => { if (host && linked) lanUI('lobby'); else quit(); }));
@@ -5404,7 +5410,8 @@ function lanMsg(m, peer) {
   else if (m.t === 'tok') { LAN.tr.theirsOk = !!m.v && !!LAN.tr.theirs; lanTradeRefresh(); if (LAN.role === 'host' && LAN.tr.mineOk && LAN.tr.theirsOk && LAN.tr.mine) lanSend({ t: 'tgo' }); }
   else if (m.t === 'tgo' && LAN.role === 'guest') { if (LAN.tr.mineOk && LAN.tr.theirsOk && tradeApply()) lanSend({ t: 'tgot' }); }
   else if (m.t === 'tgot' && LAN.role === 'host') { if (LAN.tr.mineOk && LAN.tr.theirsOk) tradeApply(); }
-  else if (m.t === 'col' && LAN.role === 'host') { peer.color = (peer.color + 1) % LAN_COLORS.length; lanLobbyUpdate(); } // un invitado cambia su color
+  else if (m.t === 'col' && LAN.role === 'host') { peer.color = (peer.color + 1) % LAN_COLORS.length; peer.ready = false; lanLobbyUpdate(); }
+  else if (m.t === 'rdy' && LAN.role === 'host') { peer.ready = !!m.v; lanLobbyUpdate(); } // un invitado marca «Listo» // un invitado cambia su color
   else if (m.t === 'lobby' && LAN.role === 'guest' && LAN.kind !== 'trade') { LAN.lobby = m.players; LAN.lobbyMe = m.you; if (!(battle && battle.lan)) { if ($('lan').classList.contains('on')) lanUI('lobby'); } }
   else if (m.t === 'bye') lanPeerLost(peer);
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
@@ -5437,7 +5444,7 @@ function lanStartHost() {
   const guests = LAN.peers.filter(p => p.open && p.rec).slice(0, LAN_MAX - 1); if (!guests.length) return;
   const n = guests.length + 1, teams = [LAN.color, ...guests.map(p => p.color)], mode = lanModeOf(teams); // cada color es un equipo
   if (!mode) { ask('Todos tienen el mismo color: elijan al menos 2 colores para pelear.', { ok: 'Entendido', cancel: null }); return; }
-  LAN.mode = mode;
+  LAN.mode = mode; lanUnready(); // al volver a la sala, todos marcan «Listo» de nuevo
   const recs = [lanRec(cur()), ...guests.map(p => p.rec)];
   const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
   const list = recs.map((r, i) => { const m = new Monster(i === 0 ? cur() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
@@ -5498,10 +5505,9 @@ function lanFinish() {
   if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut });
   updateFighters();
   const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
-  $('resTitle').textContent = B.timedOut ? '¡Se acabó el tiempo!' : nT === 2 ? (place === 1 ? '¡Ganaste!' : 'Perdiste') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1] || 'Perdiste');
-  $('resTitle').className = place === 1 ? 'win' : place === nT ? 'lose' : 'mid';
-  const others = B.ms.filter(m => m !== me).map(m => esc(m.name)).join(', ');
-  $('resText').innerHTML = `Pelea amistosa (${lanModeName(B.ms.map(m => m.team))}) con <b>${others}</b>.<br><small>No se pierden corazones ni se ganan premios.</small>`;
+  $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste';
+  $('resTitle').className = place === 1 ? 'win' : 'lose';
+  $('resText').innerHTML = '';
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha'; $('resRoom').hidden = false;
   $('result').classList.add('on');
 }
