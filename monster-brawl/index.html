@@ -206,6 +206,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
 .frrec{display:block;margin-top:4px;font-size:13px;color:var(--muted)}.frrec b{color:var(--text)}.frrec.mon{text-align:center;margin:0 0 2px}
 .accstats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:4px}.accstats div:nth-child(-n+3){grid-column:span 2}.accstats div:nth-child(n+4){grid-column:span 3}.accstats div{background:var(--panel2);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}.accstats b{font-size:22px;font-variant-numeric:tabular-nums}.accstats span{font-size:11px;color:var(--muted);font-weight:700;text-align:center}
+.frreq{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;background:var(--panel2);border-radius:14px;padding:8px 10px;border:2px solid var(--acc)}.frreq b{font-size:14px}.frreq small{display:block;color:var(--muted);font-size:11px}.frreq .btn{padding:8px 10px;font-size:13px}
 .frdot{width:11px;height:11px;border-radius:50%;background:#5a5470;box-shadow:0 0 0 2px rgba(0,0,0,.25)}.frdot.on{background:#3ee06a;box-shadow:0 0 8px #3ee06a}
 .frteam{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}.frteam .lanp{cursor:pointer}.frteam .lanp canvas{width:72px;height:72px}
 #fsList{display:flex;flex-direction:column;gap:10px}#fsList .trow{grid-template-columns:1fr}.fsult{display:flex;align-items:center;gap:10px;margin-top:8px;font-weight:800}
@@ -405,8 +406,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="friends" hidden>
       <h2 style="font-size:22px">Amigos</h2>
       <p class="tdesc" id="frInfo"></p>
+      <div id="frReqs" class="frlist"></div>
       <div id="frList" class="frlist"></div>
-      <div class="row" id="frAddRow"><input class="setin" id="frName" placeholder="Nombre de usuario" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn primary" id="frAdd">Agregar</button></div>
+      <div class="row" id="frAddRow"><input class="setin" id="frName" placeholder="Nombre de usuario" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn primary" id="frAdd">Enviar solicitud</button></div>
       <p class="tdesc" id="frMsg"></p>
       <button class="btn" data-go="main">‹ Volver</button>
     </div>
@@ -4740,6 +4742,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.58', d: '2026-11-22', items: ['Solicitudes de amistad: al agregar a alguien le llega una solicitud, y cuando la acepta quedan amigos los dos (no hace falta que ambos se busquen). Las solicitudes aparecen en Amigos y el Menú se pone dorado. Si uno quita al otro, se quitan para ambos.'] },
   { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.', 'Arreglado: en el granero, al subirle un punto a un monstruo no se veía el cambio en sus estadísticas hasta llevarlo al rancho.', 'La barra de moral se actualiza al instante al acariciar o golpear al monstruo seleccionado (y cuando baja con el tiempo), en el rancho y en el granero.', 'Cuando un amigo se conecta, el botón del Menú ⚙️ se pone dorado con un número. Se quita al abrir Amigos.', 'En Menú → Mi cuenta hay un botón para cambiar tu nombre de usuario.', 'Online: en la sala puedes tocar tu monstruo para elegir otro de tu rancho, y tocar tu color para cambiar de equipo. Sirve también cuando entras por una invitación de un amigo.'] },
   { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
@@ -5041,17 +5044,45 @@ async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`)
 const isOnline = p => p && p.st && p.st !== 'off' && Date.now() - p.t < ONLINE_MS;
 const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? 'En combate' : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
 const FR = { profs: {}, sel: null, timer: 0, wasOn: new Set(), newOn: new Set() };
-function menuBadge() { const n = FR.newOn.size; $('btnSettings').classList.toggle('new', n > 0); $('menuN').hidden = !n; $('menuN').textContent = n; } // un amigo se conectó: el botón del menú se pone dorado con un número (pedido del dueño)
-setInterval(() => { if (cloud && save.user && (save.friends || []).length && !document.hidden && scene !== 'battle' && cloudReady && !FR.timer) friendsRefresh(); }, 30000); // revisa cada 30 s quién se conectó
-setTimeout(() => { if (cloud && save.user && (save.friends || []).length) friendsRefresh(); }, 5000); // y una vez al abrir la app
+// Solicitudes de amistad (pedido del dueño): freqs/{para}/from/{de} = pedido, freqs/{para}/ok/{de} = aceptó, freqs/{para}/rm/{de} = te quitó. Así quedan amigos los dos sin que el otro tenga que buscarte.
+const FREQ = { inc: [] };
+const frDocs = d => ((d && d.documents) || []).map(x => ({ uid: x.name.split('/').pop(), name: fGet(x, 'name') || '?' }));
+const isFriend = uid => (save.friends || []).some(f => f.uid === uid);
+async function freqPoll() {
+  if (!cloud || !save.user) return;
+  let a, b, c; try { [a, b, c] = await Promise.all(['from', 'ok', 'rm'].map(k => fsReq('GET', `freqs/${cloud.uid}/${k}`))); } catch (e) { return; }
+  let ch = false; save.friends = save.friends || [];
+  for (const r of frDocs(b)) { if (!isFriend(r.uid)) { save.friends.push({ uid: r.uid, name: r.name }); ch = true; } save.friendOut = (save.friendOut || []).filter(o => o.uid !== r.uid); fsReq('DELETE', `freqs/${cloud.uid}/ok/${r.uid}`).catch(() => { }); } // aceptó tu solicitud
+  for (const r of frDocs(c)) { if (isFriend(r.uid)) { save.friends = save.friends.filter(f => f.uid !== r.uid); ch = true; } fsReq('DELETE', `freqs/${cloud.uid}/rm/${r.uid}`).catch(() => { }); } // te quitó de sus amigos
+  const inc = frDocs(a); for (const r of inc) if (isFriend(r.uid)) fsReq('DELETE', `freqs/${cloud.uid}/from/${r.uid}`).catch(() => { });
+  FREQ.inc = inc.filter(r => !isFriend(r.uid));
+  if (ch) { save.friendOut = (save.friendOut || []).filter(o => !isFriend(o.uid)); persist(); }
+  menuBadge();
+}
+async function freqAccept(r) {
+  try { await fsReq('PATCH', `freqs/${r.uid}/ok/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } }); } catch (e) { $('frMsg').textContent = e.message; return; }
+  fsReq('DELETE', `freqs/${cloud.uid}/from/${r.uid}`).catch(() => { });
+  save.friends = save.friends || []; if (!isFriend(r.uid)) save.friends.push({ uid: r.uid, name: r.name }); save.friendOut = (save.friendOut || []).filter(o => o.uid !== r.uid);
+  FREQ.inc = FREQ.inc.filter(x => x.uid !== r.uid); persist(); menuBadge(); friendsView(); $('frMsg').textContent = `¡${r.name} y tú ahora son amigos!`; friendsRefresh();
+}
+function freqReject(r) { fsReq('DELETE', `freqs/${cloud.uid}/from/${r.uid}`).catch(() => { }); FREQ.inc = FREQ.inc.filter(x => x.uid !== r.uid); menuBadge(); friendsView(); }
+function menuBadge() { const n = FR.newOn.size + FREQ.inc.length; $('btnSettings').classList.toggle('new', n > 0); $('menuN').hidden = !n; $('menuN').textContent = n; } // un amigo se conectó: el botón del menú se pone dorado con un número (pedido del dueño)
+setInterval(() => { if (cloud && save.user && !document.hidden && scene !== 'battle' && cloudReady && !FR.timer) friendsRefresh(); }, 30000); // revisa cada 30 s quién se conectó
+setTimeout(() => { if (cloud && save.user) friendsRefresh(); }, 5000); // y una vez al abrir la app
 function friendsView() { // lista de amigos con su puntito
   const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
-  $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Mi cuenta → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Mi cuenta → Nube).' : (save.friends || []).length ? '' : 'Agrega a tus amigos con su nombre de usuario.';
-  L.innerHTML = ok ? (save.friends || []).map(f => { const p = FR.profs[f.uid]; return `<button class="btn fritem" data-fr="${f.uid}"><i class="frdot ${isOnline(p) ? 'on' : ''}"></i><span>${esc((p && p.name) || f.name)}<br><small>${placeText(p)}</small></span><span>›</span></button>`; }).join('') : '';
+  $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Mi cuenta → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Mi cuenta → Nube).' : (save.friends || []).length || FREQ.inc.length || (save.friendOut || []).length ? '' : 'Mándale una solicitud a tus amigos con su nombre de usuario.';
+  const R = $('frReqs'); R.innerHTML = ok ? FREQ.inc.map(r => `<div class="frreq"><span><b>${esc(r.name)}</b><small>quiere ser tu amigo</small></span><button class="btn primary" data-fra="${r.uid}">Aceptar</button><button class="btn" data-frr="${r.uid}">Rechazar</button></div>`).join('') : '';
+  R.querySelectorAll('[data-fra]').forEach(b => b.onclick = () => freqAccept(FREQ.inc.find(r => r.uid === b.dataset.fra)));
+  R.querySelectorAll('[data-frr]').forEach(b => b.onclick = () => freqReject(FREQ.inc.find(r => r.uid === b.dataset.frr)));
+  L.innerHTML = (ok ? (save.friendOut || []).filter(o => !isFriend(o.uid)).map(o => `<button class="btn fritem" data-fro="${o.uid}"><i class="frdot"></i><span>${esc(o.name)}<br><small>Solicitud enviada · esperando que acepte</small></span><span></span></button>`).join('') : '')
+    + (ok ? (save.friends || []).map(f => { const p = FR.profs[f.uid]; return `<button class="btn fritem" data-fr="${f.uid}"><i class="frdot ${isOnline(p) ? 'on' : ''}"></i><span>${esc((p && p.name) || f.name)}<br><small>${placeText(p)}</small></span><span>›</span></button>`; }).join('') : '');
+  L.querySelectorAll('[data-fro]').forEach(b => b.onclick = async () => { const o = (save.friendOut || []).find(x => x.uid === b.dataset.fro); if (!o) return; $('settings').classList.remove('on'); const yes = await ask(`¿Cancelar la solicitud a ${o.name}?`, { ok: 'Cancelar solicitud', cancel: 'Volver' }); $('settings').classList.add('on'); if (!yes) return; fsReq('DELETE', `freqs/${o.uid}/from/${cloud.uid}`).catch(() => { }); save.friendOut = save.friendOut.filter(x => x !== o); persist(); friendsView(); });
   L.querySelectorAll('[data-fr]').forEach(b => b.onclick = () => { FR.sel = b.dataset.fr; setView('friend'); });
 }
 async function friendsRefresh() {
   if (!cloud || !save.user) return;
+  await freqPoll();
   await Promise.all((save.friends || []).map(async f => { try { const p = await getProfile(f.uid); FR.profs[f.uid] = p; if (p && p.name && p.name !== f.name) { f.name = p.name; persist(); } } catch (e) { } }));
   const onNow = new Set((save.friends || []).filter(f => isOnline(FR.profs[f.uid])).map(f => f.uid)), viewing = $('settings').classList.contains('on') && !$('settings').querySelector('[data-view="friends"]').hidden;
   for (const u of onNow) if (!FR.wasOn.has(u) && !viewing) FR.newOn.add(u); // se acaba de conectar
@@ -5059,7 +5090,7 @@ async function friendsRefresh() {
   FR.wasOn = onNow; menuBadge();
   const v = document.querySelector('#settings .setview:not([hidden])'), on = $('settings').classList.contains('on');
   if (on && v && v.dataset.view === 'friends') friendsView(); else if (on && v && v.dataset.view === 'friend') friendView();
-  const n = (save.friends || []).filter(f => isOnline(FR.profs[f.uid])).length; $('frState').textContent = n ? `${n} en línea` : '';
+  const n = (save.friends || []).filter(f => isOnline(FR.profs[f.uid])).length, q = FREQ.inc.length; $('frState').textContent = [q ? `${q} ${q === 1 ? 'solicitud' : 'solicitudes'}` : '', n ? `${n} en línea` : ''].filter(Boolean).join(' · ');
 }
 function friendsTimer(on) { clearInterval(FR.timer); FR.timer = 0; if (on) { friendsRefresh(); FR.timer = setInterval(() => { if (!$('settings').classList.contains('on')) { friendsTimer(false); return; } friendsRefresh(); }, 15000); } }
 function friendView() { // su equipo del rancho; tocar uno muestra sus estadísticas
@@ -5090,14 +5121,18 @@ $('frAdd').onclick = async () => {
   try {
     const d = await fsReq('GET', `names/${encodeURIComponent(n.toLowerCase())}`), uid = fGet(d, 'uid');
     if (!uid) { msg(`No hay ningún jugador llamado «${n}».`); return; }
-    save.friends = save.friends || []; if (save.friends.some(f => f.uid === uid)) { msg('Ya es tu amigo.'); return; }
-    save.friends.push({ uid, name: fGet(d, 'name') || n }); persist(); $('frName').value = ''; friendsView(); msg(`¡${fGet(d, 'name') || n} agregado!`); friendsRefresh();
+    const name = fGet(d, 'name') || n;
+    if (isFriend(uid)) { msg('Ya es tu amigo.'); return; }
+    const inc = FREQ.inc.find(r => r.uid === uid); if (inc) { $('frName').value = ''; await freqAccept(inc); return; } // ya te había mandado una: quedan amigos
+    await fsReq('PATCH', `freqs/${uid}/from/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } });
+    save.friendOut = (save.friendOut || []).filter(o => o.uid !== uid); save.friendOut.push({ uid, name }); persist();
+    $('frName').value = ''; friendsView(); msg(`Solicitud enviada a ${name}. Cuando la acepte, serán amigos.`);
   } catch (e) { msg(e.message); }
 };
 $('fdRemove').onclick = async () => {
   const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f) return;
   $('settings').classList.remove('on'); const ok = await ask(`¿Quitar a ${f.name} de tus amigos?`, { ok: 'Quitar' }); $('settings').classList.add('on');
-  if (!ok) return; save.friends = save.friends.filter(x => x !== f); persist(); setView('friends');
+  if (!ok) return; save.friends = save.friends.filter(x => x !== f); persist(); fsReq('PATCH', `freqs/${f.uid}/rm/${cloud.uid}`, { name: { stringValue: save.user || '' } }).catch(() => { }); setView('friends'); // también se quita de su lista
 };
 // Invitar a pelear: crea una sala y le deja la invitación (invites/{su uid}); a él le aparece un aviso y entra solo, sin código
 let invT = 0; const invSeen = new Set();
