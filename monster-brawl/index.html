@@ -296,7 +296,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
     <div class="row fightrow">
-      <button class="btn" id="btnLan">🌐 Pelea con amigos</button>
+      <button class="btn" id="btnLan">🌐 Pelea online</button>
     </div>
     <div class="row fightrow">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
@@ -349,7 +349,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <div class="modal" id="lan">
   <div class="card lancard">
-    <h2 style="font-size:22px">Pelea con amigos</h2>
+    <h2 style="font-size:22px">Pelea online</h2>
     <p id="lanInfo"></p>
     <input class="setin roomin" id="lanCode" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" hidden>
     <div class="lanlist" id="lanList"></div>
@@ -4256,6 +4256,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Pelea online».'] },
   { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
   { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes entrar con tu cuenta de Google, o crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
@@ -5339,7 +5340,7 @@ function lanUI(st, data) {
   }
 }
 $('btnLan').onclick = () => {
-  if (!window.RTCPeerConnection) { ask('Este navegador no permite peleas con amigos.', { ok: 'Entendido', cancel: null }); return; }
+  if (!window.RTCPeerConnection) { ask('Este navegador no permite peleas online.', { ok: 'Entendido', cancel: null }); return; }
   if (!save.monsters.length || cur().stage === 'egg') { ask('Primero necesitas un monstruo nacido.', { ok: 'Entendido', cancel: null }); return; }
   $('lan').classList.add('on'); lanLinked() ? lanUI('lobby') : lanUI('menu');
 };
@@ -5365,7 +5366,7 @@ $('resRoom').onclick = () => lanToRoom(true);
 // ---------- La pelea ----------
 function lanSetupBattle(list, aw, ad, mode) {
   $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
-  $('modeLbl').textContent = 'Con amigos · ' + lanModeName(list.map(m => m.team));
+  $('modeLbl').textContent = 'Online · ' + lanModeName(list.map(m => m.team));
   ARENA_W = aw;
   $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, 'lan')}"></i></div></div>`).join('');
   setupUltBar(list);
