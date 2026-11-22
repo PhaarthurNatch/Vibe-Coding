@@ -228,7 +228,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .axis{display:grid;grid-template-columns:76px 1fr 76px;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .axis span:last-child{text-align:right}
 .axis b{color:var(--text)}
-.axslide{position:relative;padding:10px 0 2px;touch-action:none;cursor:pointer} /* personalidad: se desliza y queda en uno de los números */
+.axslide{position:relative;padding:10px 0 2px} /* personalidad: sólo se ve; cambia de a poco con el trato (pedido del dueño) */
+.trait{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);line-height:1.4}.trait b{color:var(--text);font-size:14px}
+.mood{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;font-size:13px;font-weight:700}.mood b{font-variant-numeric:tabular-nums;font-size:13px}
 .axtrack{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(90,169,255,.35),rgba(255,255,255,.12),rgba(255,122,90,.35))}
 .axtrack u{position:absolute;top:50%;width:2px;height:12px;background:rgba(255,255,255,.25);transform:translate(-50%,-50%)}
 .axtrack i{position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:var(--acc);transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--panel),0 2px 4px rgba(0,0,0,.4);transition:left .12s ease-out}
@@ -1036,13 +1038,27 @@ function bodyFromTraining(g, pts) {
 
 // ----- Personalidad: 3 ejes de -1 a 1 -----
 const TEMPER = [
-  { k: 'agr', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' },
-  { k: 'terco', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' },
-  { k: 'valor', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' },
+  { k: 'agr', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' , posL: 'Se lanza a pelear cuerpo a cuerpo, persigue a su rival y casi nunca retrocede.', negL: 'Prefiere pelear de lejos: mantiene la distancia, dispara más y se aleja después de golpear.' },
+  { k: 'terco', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Elige a un rival y no lo suelta hasta noquearlo, aunque haya otros más fáciles.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
+  { k: 'valor', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' , posL: 'Cuando le queda poca vida no se rinde: pelea con más fuerza y tarda más en asustarse.', negL: 'Cuando le queda poca vida se cuida: se aleja del peligro y esquiva más.' },
 ];
-// La personalidad se ajusta gratis deslizando cada medidor, que queda en uno de 5 puntos: 2 · 1 · 0 · 1 · 2 (valores −1, −0,5, 0, 0,5, 1)
+// La personalidad (−1 a 1) cambia de a poco según cómo lo tratas (treat); snapT redondea a los 5 puntos 2 · 1 · 0 · 1 · 2 para mostrarla
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
+/* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
+const MOOD_PET = 2, MOOD_POKE = -3, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
+function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6), d = rec.mood - 50; return 50 + Math.sign(d) * Math.max(0, Math.abs(d) - MOOD_DECAY_H * h); } // vuelve despacio a 50
+const treatLast = new WeakMap();
+function treat(rec, kind) { // kind: 'pet' o 'poke' (tomarlo o lanzarlo no cambia nada)
+  if (!rec || rec.stage === 'egg' || rec.cloneOf) return;
+  const now = Date.now(), last = treatLast.get(rec) || {}; if (now - (last[kind] || 0) < TREAT_GAP_MS) return; // cuenta como mucho una cada 2 s
+  last[kind] = now; treatLast.set(rec, last);
+  rec.mood = clamp(moodOf(rec) + (kind === 'pet' ? MOOD_PET : MOOD_POKE), 0, 100); rec.moodT = now;
+  const T = rec.temper || (rec.temper = { agr: 0, terco: 0, valor: 0 }), mv = (k, d) => { T[k] = clamp((T[k] || 0) + d, -1, 1); };
+  const d = kind === 'pet' ? TEMPER_DRIFT : -TEMPER_DRIFT; // caricia: más valiente, oportunista y agresivo; golpe: al revés (prudente, terco y cauto)
+  mv('valor', d); mv('terco', -d); mv('agr', d);
+  persist();
+}
 function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: snapT(r.f(-0.3, 0.3)), terco: snapT(r.f(-0.3, 0.3)), valor: snapT(r.f(-0.3, 0.3)) }; }
 const temperLabel = (k, v) => { const t = TEMPER.find(x => x.k === k); return v > 0.25 ? t.pos : v < -0.25 ? t.neg : null; };
 
@@ -1159,6 +1175,7 @@ class Monster {
     this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0; this.stunChain = 0; this.lastStun = -9; this.stunImmune = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
     this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
+    { const f = (moodOf(rec) - 50) / 50; if (f) { this.st.melee *= 1 + MOOD_FX * f; this.st.ranged *= 1 + MOOD_FX * f; this.st.dodge = clamp(this.st.dodge + 0.03 * f, 0.05, 0.6); } } // ánimo: pelea mejor o peor (rivales siempre en 50)
     // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
     const rp = this.st.ranged > 0 ? clamp(this.st.ranged / (this.st.melee * 0.6) - 1, -1, 1) : -2;
     this.kiter = this.st.ranged > 0 && rp - this.tp.agr * 1.2 > 0;
@@ -1521,7 +1538,7 @@ class Monster {
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
-    if (!this.sleep) { const tp = this.tp || {}; this.setEmo((tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0 ? 'angry' : 'scared', 5, 3); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
+    { const tp = this.tp || {}, angry = (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0; if (!this.sleep) this.setEmo(angry ? 'angry' : 'scared', 5, 3); treat(this.rec, 'poke'); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
     this.lookAt = { x: px, y: py }; clearTimeout(this._lt); this._lt = setTimeout(() => this.lookAt = null, 1500);
   }
@@ -2710,7 +2727,7 @@ const LOST_KEY = 'monster_brawl_lost'; // partida que no se pudo cargar (se guar
 const saveCount = o => o ? (o.monsters || []).filter(m => m.stage !== 'egg').length + (o.barn || []).length : 0; // monstruos nacidos + los del granero
 function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY); const s = JSON.parse(raw); if (s && s.monsters && (s.monsters.length || s.adopting || (s.barn && s.barn.length))) { /* con todos en el granero el rancho queda vacío: igual es una partida */ let refund = 0; s.monsters.forEach(m => { if (!m.stage) m.stage = 'adult'; if (m.lives == null) m.lives = MAX_LIVES; delete m.ultEmpty; delete m.ultUsed;
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
-      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = snapT(m.temper[k]); // la personalidad ahora va en puntos fijos if (!m.ultMode) m.ultMode = 'save';
+      if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = clamp(+m.temper[k] || 0, -1, 1); // la personalidad cambia de a poco con el trato (ya no va en puntos fijos) if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3, (m.gen || 0) >= 4, (m.gen || 0) >= 5), m.pts); // la que ya tenía
       if (canUlt(m.stage) && !m.ult) m.ult = m.ultGift || starterUlt(m.seed); // desde adolescente ya tienen ultimate
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
@@ -3385,7 +3402,7 @@ function ranchPet(a, x, y, dist) {
   }
   RANCH.petAcc = (RANCH.petAcc || 0) + dist;
   if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
-  const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
+  const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000); treat(rec, 'pet');
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
 // Al acercarse a un monstruo: si estaba de espaldas se da vuelta a mirarte (con un saltito) y se alegra
@@ -3573,7 +3590,6 @@ document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => se
 let swipe = null, swipedAt = 0;
 function swipeStart(x, y, target) {
   if (scene !== 'home' || document.querySelector('.modal.on')) return;
-  if (target && target.closest && target.closest('.axslide')) { swipe = null; return; } // arrastrar un medidor de personalidad no cambia de página ni de monstruo
   const sc = target && target.closest ? target.closest('.tpanel') : null;
   swipe = { x, y, t: performance.now(), touch: touch || (RANCH.drag && RANCH.drag.act ? RANCH.drag : null), top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
 }
@@ -3653,16 +3669,10 @@ function renderTrain() {
     }).join('')}</div>`;
     h += `</div>`;
   }
-  h += `<div class="tsec"><div class="thead">Personalidad</div>`;
-  const NUMS = [2, 1, 0, 1, 2];
-  h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]), L = temperLabel(t.k, v); return `<div class="axis"><span>${L === t.neg ? `<b>${t.neg}</b>` : t.neg}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${L === t.pos ? `<b>${t.pos}</b>` : t.pos}</span></div>`; }).join('');
-  const effects = TEMPER.map(t => { const v = rec.temper[t.k]; return v > 0.25 ? t.posD : v < -0.25 ? t.negD : null; }).filter(Boolean);
-  if (effects.length) h += `<p class="tdesc">En combate: ${effects.join('; ')}.</p>`;
-  h += `</div>`;
+  /* (sin sección de personalidad ni ánimo, pedido del dueño: ambos igual cambian con el trato y se notan al pelear) */
   $('tlist').innerHTML = h;
   $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
-  document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
@@ -3681,22 +3691,6 @@ function addPoint(k) {
   rec.pts[k] = (rec.pts[k] || 0) + 1; persist();
   renderHome(); renderTrain(); trainFx(`+${PTS.find(t => t.k === k).name}`);
 }
-// Medidor de personalidad: se toca o arrastra y queda en el número más cercano; al soltar se guarda
-function temperSlider(el, rec) {
-  const k = el.dataset.ax, t = TEMPER.find(x => x.k === k), knob = el.querySelector('i'), nums = el.querySelectorAll('.axnums span');
-  let v = snapT(rec.temper[k]), id = null;
-  const at = x => { const r = el.querySelector('.axtrack').getBoundingClientRect(); return snapT(clamp((x - r.left) / r.width, 0, 1) * 2 - 1); };
-  const showV = () => { knob.style.left = (v + 1) * 50 + '%'; nums.forEach((n, i) => n.classList.toggle('on', Math.abs((v + 1) * 2 - i) < 0.01)); };
-  el.onpointerdown = e => { id = e.pointerId; try { el.setPointerCapture(id); } catch (err) { } el.classList.add('drag'); v = at(e.clientX); showV(); };
-  el.onpointermove = e => { if (e.pointerId !== id) return; const nv = at(e.clientX); if (nv !== v) { v = nv; showV(); try { navigator.vibrate && navigator.vibrate(8); } catch (err) { } } };
-  el.onpointerup = el.onpointercancel = e => {
-    if (e.pointerId !== id) return; id = null; el.classList.remove('drag');
-    if (v === snapT(rec.temper[k])) return;
-    rec.temper[k] = v; persist(); renderHome(); renderTrain();
-    const L = temperLabel(k, v); trainFx(L ? (Math.abs(v) >= 1 ? `¡Muy ${L}!` : L) : 'Equilibrado');
-  };
-}
-
 function updateEggSub() {
   const rec = cur(), left = (rec.readyAt || 0) - Date.now(); // huevo criado: incuba antes de poder abrirse
   $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : `Faltan ${rec.need - rec.taps} toques`;
@@ -4021,7 +4015,7 @@ function barnPet(it, a, b) { // la misma caricia que de cerca en el rancho
   for (const n of m.nodes) { const dd = Math.hypot(n.x - b.x, n.y - b.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } } // las partes bajo el dedo se dejan llevar
   if (m.sleep) { m.sleep = false; } m.setEmo('love', 0.9, 2); m.petBowT = 0.3; m.lookAt = null; // baja la cabeza mientras lo acaricias
   it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
-  const rec = it.rec; rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy';
+  const rec = it.rec; treat(rec, 'pet'); rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy';
 }
 function barnGrab(it, G) { // mantener presionado = tomarlo, igual que de cerca
   const m = it && it.m; if (!m) return; G.grab = true; m.held = true; m.vx = 0; m.vz = 0; m.sleep = false; m.z += 14;
@@ -4227,6 +4221,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.43', d: '2026-11-22', items: ['Nuevo: Ánimo. Acariciar a tu monstruo le sube el ánimo y golpearlo se lo baja, de a poco. Con buen ánimo pelea mejor y con mal ánimo, peor. Con el tiempo vuelve solo al medio. No se muestra: se nota al pelear.', 'La personalidad ya no se muestra ni se cambia a mano: cambia de a poco según cómo lo tratas. Las caricias lo vuelven más valiente, oportunista y agresivo; los golpes, al revés: más prudente, terco y cauto.'] },
   { v: '1.42', d: '2026-11-22', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.', 'Las crías ahora también heredan los stats de sus papás: cada uno (Poder, Aguante, Agilidad y Técnica) sale de uno de los dos.', 'Nuevos genes de stats en la Tienda: elige qué stat heredará sí o sí su próxima cría.', 'La Tienda ahora tiene pestañas (Ultimates y Genes): desliza a los lados para cambiar.', 'Stats perfectos: algunos monstruos nacen con un stat perfecto (1 de cada 100 en cada stat) y lo mantienen perfecto en todas las etapas. Se ve con una estrellita dorada al lado en Estadísticas.'] },
   { v: '1.41', d: '2026-11-21', items: ['Arreglado: al tocar una cama libre, el menú a veces se abría y se cerraba al instante.', 'La zona para tocar una cama libre del granero es más grande (también el espacio sobre la cama), y tocar la paja o la madera de una cama ocupada también elige al monstruo o abre el huevo.', 'Comprar huevos, criar y el criadero ahora están en las camas libres del granero: toca una cama libre y elige qué hacer (o trae a un monstruo del rancho). El huevo queda en esa cama y lo abres ahí mismo a toques.', 'Para criar puedes elegir padres del rancho y del granero.', 'En el rancho ya no hay huevos ni espacios libres para comprar: al deslizar de cerca pasas sólo por tus monstruos, y los huevos que tenías en el rancho se fueron a camas del granero.'] },
   { v: '1.40', d: '2026-11-20', items: ['En el granero, si estás viendo de cerca a un monstruo, los que van entrando a sus camas o saliendo al rancho siguen caminando (ya no se detienen).', 'Al tocar el granero entras directo, y con «▲ Rancho» sales directo, sin animación.', 'En el granero, los monstruos que entran o salen por la puerta aparecen y desaparecen poco a poco.', 'Si lanzas a un monstruo hacia un lado en el rancho, cae donde lo lanzaste; en el granero, si lo sueltas sin lanzarlo, se vuelve a sentar en su cama.', 'Se quitó la ✕ del granero: para volver usa «▲ Rancho» o desliza el dedo hacia abajo.', 'Arreglado: ahora puedes lanzar varios monstruos seguidos desde el granero y todos salen caminando al rancho a la vez.', 'En el granero, arriba ahora dice «▲ Rancho» (en vez del contador del granero) y se toca para volver al rancho.', 'En el granero ya no hay botón «Guardar uno»: toca una cama libre y elige a un monstruo del rancho. Entra por la puerta, camina hasta esa cama y se sienta.', 'Al abrir el juego y al volver del granero, el rancho se ve mirando hacia el granero, que queda al centro.', 'En el granero, el nombre del monstruo de la cama del medio ahora aparece arriba.', 'Arreglado: si tenías a todos tus monstruos en el granero (rancho vacío), al abrir el juego la partida empezaba de cero. Ahora se carga bien, y si alguna vez la partida empieza de cero pero hay una copia guardada con más monstruos, el juego te ofrece recuperarla.', 'Arreglado: la primera ventana del granero ya no se monta sobre la puerta.', 'Los pies de los monstruos quedan un poco más abajo y la pierna ya no se asoma por debajo del pie.', 'Si sales del granero antes de que el monstruo que mandaste al rancho llegue a la puerta, ya está en el rancho.', 'Los monstruos que salen del granero aparecen poco a poco en el rancho, entrando por el camino junto a la reja.', 'Ya se pueden guardar todos los monstruos en el granero: el rancho puede quedar vacío.', 'En el granero, tocar a un monstruo lo selecciona igual que en el rancho: la cámara se acerca a su cama con la misma vista de cerca (tocarlo, acariciarlo, tomarlo, ver sus estadísticas y deslizar a los lados para ver al siguiente). Arriba dice «▲ Granero» y al volver regresas al granero.', 'Para mandar un monstruo del granero al rancho, lánzalo: la cámara vuelve al granero, él baja como en el rancho y medio segundo después de caer camina hasta la puerta, a la misma velocidad con que caminan en el rancho, y sale. Se quitó el botón «Sacar al rancho».', 'En el granero cada monstruo tiene su cama: cuando uno se va, los demás se quedan en la suya.', 'Las ventanas del granero muestran el mismo cielo del rancho a esa hora (día, amanecer, atardecer o noche).', 'En el granero hay 1 ventana por cada 3 faroles.'] },
@@ -4483,7 +4478,7 @@ function pet(a, b) {
   show.lookAt = null;
   petAcc += d;
   if (petAcc > 45) { petAcc = 0; heartFx(b.x, b.y - 8); }
-  const rec = cur(), fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000);
+  const rec = cur(), fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000); treat(rec, 'pet');
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; show.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
 
@@ -4982,7 +4977,7 @@ function lanBindDC(peer, dc) {
   dc.onclose = () => lanPeerLost(peer);
   dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
-const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes });
+const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
   stopScan();
