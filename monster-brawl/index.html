@@ -202,6 +202,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #setInfo:empty{display:none}#setInfo{color:var(--good)}
 .setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
+.frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
+.frdot{width:11px;height:11px;border-radius:50%;background:#5a5470;box-shadow:0 0 0 2px rgba(0,0,0,.25)}.frdot.on{background:#3ee06a;box-shadow:0 0 8px #3ee06a}
+.frteam{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}.frteam .lanp{cursor:pointer}.frteam .lanp canvas{width:72px;height:72px}
+#fsList{display:flex;flex-direction:column;gap:10px}#fsList .trow{grid-template-columns:1fr}.fsult{display:flex;align-items:center;gap:10px;margin-top:8px;font-weight:800}
 .setin{font:inherit;font-size:16px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:12px;width:100%;user-select:text;-webkit-user-select:text}.setin:focus{outline:none;border-color:var(--acc)}
 .gbtn{display:flex;justify-content:center;min-height:44px}.gbtn:empty{display:none}.orline{text-align:center}
 .setlink{background:none;box-shadow:none;color:var(--muted);font-size:13px;padding:4px}
@@ -286,7 +290,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn newsbtn" id="btnNews" aria-label="Novedades">📰<b id="newsN" hidden></b></button><button class="gearbtn" id="btnSettings" aria-label="Ajustes">⚙️</button></div>
+  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn newsbtn" id="btnNews" aria-label="Novedades">📰<b id="newsN" hidden></b></button><button class="gearbtn" id="btnSettings" aria-label="Menú">⚙️</button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -385,9 +389,26 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div class="modal" id="settings">
   <div class="card setcard">
     <div class="setview" data-view="main">
-      <h2 style="font-size:22px">Ajustes</h2>
+      <h2 style="font-size:22px">Menú</h2>
+      <button class="btn setitem" data-go="friends"><span>👥 Amigos</span><small id="frState"></small></button>
       <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
       <button class="btn" data-close>Cerrar</button>
+    </div>
+    <div class="setview" data-view="friends" hidden>
+      <h2 style="font-size:22px">Amigos</h2>
+      <p class="tdesc" id="frInfo"></p>
+      <div id="frList" class="frlist"></div>
+      <div class="row" id="frAddRow"><input class="setin" id="frName" placeholder="Nombre de usuario" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn primary" id="frAdd">Agregar</button></div>
+      <p class="tdesc" id="frMsg"></p>
+      <button class="btn" data-go="main">‹ Volver</button>
+    </div>
+    <div class="setview" data-view="friend" hidden>
+      <h2 style="font-size:22px" id="fdName"></h2>
+      <p class="tdesc" id="fdStatus"></p>
+      <div class="frteam" id="fdTeam"></div>
+      <button class="btn primary" id="fdFight">⚔️ Invitar a pelear</button>
+      <button class="btn" id="fdRemove">Quitar amigo</button>
+      <button class="btn" data-go="friends">‹ Volver</button>
     </div>
     <div class="setview" data-view="partida" hidden>
       <h2 style="font-size:22px">Partida</h2>
@@ -451,6 +472,15 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn" id="fpNo">Cerrar</button>
       <button class="btn primary" id="fpGo">Comprar</button>
     </div>
+  </div>
+</div>
+<div class="modal" id="frStats">
+  <div class="card">
+    <canvas id="fsCv" width="144" height="144" style="width:120px;height:120px;align-self:center"></canvas>
+    <h2 style="font-size:22px" id="fsName"></h2>
+    <p class="tdesc" id="fsSub" style="text-align:center"></p>
+    <div id="fsList"></div>
+    <div class="row"><button class="btn" id="fsNo">Cerrar</button></div>
   </div>
 </div>
 <div class="modal" id="ultPick">
@@ -4722,6 +4752,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
   { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
   { v: '1.52', d: '2026-11-22', items: ['Tácticas de combate: en Estadísticas eliges cómo pelea cada monstruo con 6 medidores: distancia (de lejos o de cerca), objetivo (al más débil o no lo suelta), con poca vida (se cuida o con todo), y tres nuevas: ritmo de ataque (golpes fuertes o rápidos), defensa (aguantar o esquivar) y en equipo (separados o juntos). Acariciar y golpear ya no las cambian, pero siguen subiendo y bajando el ánimo.', 'Volvió el medidor de ánimo en Estadísticas, y el ánimo se nota en la cara: con ánimo bajo se ve triste y con ánimo alto, contento.', 'Si no interactúas con un monstruo, su ánimo baja de a 1 punto por hora.'] },
@@ -4802,8 +4833,10 @@ function setView(v) {
   if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
   if (v === 'partida' || v === 'cloud') cloudUI();
   if (v === 'cloud') gisButton();
+  if (v === 'friends') { $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
+  if (v === 'friend') friendView();
 }
-function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
+function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); if (cloud && save.user) friendsRefresh(); }
 $('btnSettings').onclick = openSettings;
 document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
 document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));
@@ -5004,6 +5037,114 @@ document.addEventListener('visibilitychange', () => {
   else if (cloudHidAt && Date.now() - cloudHidAt > 20e3 && scene !== 'battle') cloudSync(); // al volver, revisar si otro celular guardó algo
 });
 setTimeout(cloudSync, 1200);
+
+// ---------- Amigos (pedido del dueño): en Menú → Amigos. Cada jugador con cuenta publica su perfil (profiles/{uid}: nombre, si está en línea, dónde y su equipo del rancho) ----------
+const fsDoc = path => `https://firestore.googleapis.com/v1/projects/${FB.pid}/databases/(default)/documents/${path}`;
+async function fsReq(method, path, fields, query = '', keepalive = false) {
+  const r = await fetch(fsDoc(path) + query, { method, keepalive, headers: { Authorization: 'Bearer ' + await cloudToken(), 'Content-Type': 'application/json' }, body: fields ? JSON.stringify({ fields }) : undefined });
+  if (r.status === 404) return null;
+  if (!r.ok) { const e = new Error(r.status === 403 ? 'Falta configurar Firebase (reglas de amigos).' : NET_ERR); e.status = r.status; throw e; }
+  return r.json().catch(() => ({}));
+}
+const PROFILE_MS = 60e3, ONLINE_MS = 150e3; // se publica cada minuto; se considera en línea si lo hizo hace menos de 2,5 min
+let profLast = null, profT = 0;
+const myPlace = () => scene === 'battle' ? 'battle' : 'ranch';
+function profilePush(off) {
+  if (!cloud || !save.user || importing) return;
+  const st = off ? 'off' : myPlace(); profLast = st; profT = Date.now();
+  const team = save.monsters.filter(r => r.stage !== 'egg').map(lanRec);
+  const fields = { name: { stringValue: save.user }, st: { stringValue: st }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
+  if (off && cloud.tok && Date.now() < cloud.exp - 30e3) { fetch(fsDoc(`profiles/${cloud.uid}`), { method: 'PATCH', keepalive: true, headers: { Authorization: 'Bearer ' + cloud.tok, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) }).catch(() => { }); return; } // al salir de la app: sin esperar
+  fsReq('PATCH', `profiles/${cloud.uid}`, fields).catch(() => { });
+}
+setInterval(() => { // cada 5 s revisa si cambió (rancho ↔ combate) y cada minuto avisa que sigue en línea
+  if (!cloud || !save.user || document.hidden || !cloudReady) return;
+  if (myPlace() !== profLast || Date.now() - profT > PROFILE_MS) profilePush();
+  if (Date.now() - (invT || 0) > 6000) { invT = Date.now(); invitePoll(); }
+}, 5000);
+document.addEventListener('visibilitychange', () => { if (cloud && save.user) { if (document.hidden) profilePush(true); else profilePush(); } });
+const fJson = (d, k) => { try { return JSON.parse(fGet(d, k) || 'null'); } catch (e) { return null; } };
+async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [] }; }
+const isOnline = p => p && p.st && p.st !== 'off' && Date.now() - p.t < ONLINE_MS;
+const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? 'En combate' : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
+const FR = { profs: {}, sel: null, timer: 0 };
+function friendsView() { // lista de amigos con su puntito
+  const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
+  $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Partida → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Partida → Nube).' : (save.friends || []).length ? '' : 'Agrega a tus amigos con su nombre de usuario.';
+  L.innerHTML = ok ? (save.friends || []).map(f => { const p = FR.profs[f.uid]; return `<button class="btn fritem" data-fr="${f.uid}"><i class="frdot ${isOnline(p) ? 'on' : ''}"></i><span>${esc((p && p.name) || f.name)}<br><small>${placeText(p)}</small></span><span>›</span></button>`; }).join('') : '';
+  L.querySelectorAll('[data-fr]').forEach(b => b.onclick = () => { FR.sel = b.dataset.fr; setView('friend'); });
+}
+async function friendsRefresh() {
+  if (!cloud || !save.user) return;
+  await Promise.all((save.friends || []).map(async f => { try { const p = await getProfile(f.uid); FR.profs[f.uid] = p; if (p && p.name && p.name !== f.name) { f.name = p.name; persist(); } } catch (e) { } }));
+  const v = document.querySelector('#settings .setview:not([hidden])'), on = $('settings').classList.contains('on');
+  if (on && v && v.dataset.view === 'friends') friendsView(); else if (on && v && v.dataset.view === 'friend') friendView();
+  const n = (save.friends || []).filter(f => isOnline(FR.profs[f.uid])).length; $('frState').textContent = n ? `${n} en línea` : '';
+}
+function friendsTimer(on) { clearInterval(FR.timer); FR.timer = 0; if (on) { friendsRefresh(); FR.timer = setInterval(() => { if (!$('settings').classList.contains('on')) { friendsTimer(false); return; } friendsRefresh(); }, 15000); } }
+function friendView() { // su equipo del rancho; tocar uno muestra sus estadísticas
+  const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f) { setView('friends'); return; }
+  const p = FR.profs[f.uid], on = isOnline(p);
+  $('fdName').innerHTML = `<i class="frdot ${on ? 'on' : ''}" style="display:inline-block;margin-right:8px;vertical-align:middle"></i>${esc((p && p.name) || f.name)}`;
+  $('fdStatus').textContent = placeText(p);
+  const T = $('fdTeam'), team = (p && p.team) || []; T.innerHTML = team.length ? '' : '<p class="tdesc">No tiene monstruos en su rancho.</p>';
+  team.forEach(r => { const d = document.createElement('button'); d.className = 'lanp'; d.style.setProperty('--tc', 'var(--panel2)'); d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span>`; try { drawThumb(d.querySelector('canvas'), r); } catch (e) { } d.onclick = () => friendMon(r); T.appendChild(d); });
+  $('fdFight').disabled = !on || (p && p.st === 'battle');
+  $('fdFight').textContent = !on ? '⚔️ Invitar a pelear (desconectado)' : p.st === 'battle' ? '⚔️ Invitar a pelear (está en combate)' : '⚔️ Invitar a pelear';
+}
+function friendMon(r) { // estadísticas de un monstruo de un amigo
+  let m; try { m = new Monster(r); } catch (e) { return; }
+  $('fsName').textContent = r.name; $('fsSub').textContent = `Nv. ${r.level} · ${STAGE_NAME[r.stage] || ''}`;
+  drawThumb($('fsCv'), r);
+  $('fsList').innerHTML = PTS.map((t, i) => { const [, fn, mx] = MAIN_DEF[i], v = fn(m.st); return `<div class="trow"><div class="tl">${t.name}${statPerfect(m.g, t.k) ? '<i class="pstar">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${(r.pts || {})[t.k] || 0}/${PTS_MAX} puntos</small></div><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div></div>`; }).join('')
+    + `<div class="mood"><span>Ánimo</span><div class="bar"><i style="width:${Math.round(r.mood ?? 50)}%"></i></div><b>${Math.round(r.mood ?? 50)}</b></div>`
+    + (r.ult && ULTS[r.ult] ? `<div class="fsult">${ultIcon(r.ult)}<span>${ULTS[r.ult].name}</span></div>` : '');
+  $('frStats').classList.add('on');
+}
+$('fsNo').onclick = () => $('frStats').classList.remove('on');
+$('frAdd').onclick = async () => {
+  const n = $('frName').value.trim(), msg = t => { $('frMsg').textContent = t; };
+  if (!cloud || !save.user) return; if (!USER_RE.test(n)) { msg('Escribe un nombre de usuario válido.'); return; }
+  if (n.toLowerCase() === save.user.toLowerCase()) { msg('Ése eres tú.'); return; }
+  msg('Buscando…');
+  try {
+    const d = await fsReq('GET', `names/${encodeURIComponent(n.toLowerCase())}`), uid = fGet(d, 'uid');
+    if (!uid) { msg(`No hay ningún jugador llamado «${n}».`); return; }
+    save.friends = save.friends || []; if (save.friends.some(f => f.uid === uid)) { msg('Ya es tu amigo.'); return; }
+    save.friends.push({ uid, name: fGet(d, 'name') || n }); persist(); $('frName').value = ''; friendsView(); msg(`¡${fGet(d, 'name') || n} agregado!`); friendsRefresh();
+  } catch (e) { msg(e.message); }
+};
+$('fdRemove').onclick = async () => {
+  const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f) return;
+  $('settings').classList.remove('on'); const ok = await ask(`¿Quitar a ${f.name} de tus amigos?`, { ok: 'Quitar' }); $('settings').classList.add('on');
+  if (!ok) return; save.friends = save.friends.filter(x => x !== f); persist(); setView('friends');
+};
+// Invitar a pelear: crea una sala y le deja la invitación (invites/{su uid}); a él le aparece un aviso y entra solo, sin código
+let invT = 0; const invSeen = new Set();
+$('fdFight').onclick = async () => {
+  const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f || !cloud) return;
+  if (!save.monsters.length || cur().stage === 'egg' || !window.RTCPeerConnection) { $('settings').classList.remove('on'); ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
+  $('settings').classList.remove('on'); if (lanLinked()) { lanSend({ t: 'bye' }); lanClose(); }
+  LAN.invited = f.name; $('lan').classList.add('on'); await lanHost('fight');
+  if (!LAN.room || LAN.role !== 'host') return;
+  try { await fsReq('PATCH', `invites/${f.uid}`, { from: { stringValue: cloud.uid }, name: { stringValue: save.user }, room: { stringValue: LAN.room }, t: { integerValue: String(Date.now()) } }); lanUI('lobby'); }
+  catch (e) { LAN.invited = null; lanUI('lobby'); ask(e.message, { ok: 'Entendido', cancel: null }); }
+};
+async function invitePoll() { // ¿algún amigo me invitó a pelear?
+  if (!cloud || !save.user || scene === 'battle' || $('dialog').classList.contains('on') || lanLinked()) return;
+  let d; try { d = await fsReq('GET', `invites/${cloud.uid}`); } catch (e) { return; }
+  if (!d) return;
+  const t = +(fGet(d, 't') || 0), room = fGet(d, 'room'), name = fGet(d, 'name') || 'Un amigo';
+  if (Date.now() - t > 90e3 || invSeen.has(t)) { if (Date.now() - t > 90e3) fsReq('DELETE', `invites/${cloud.uid}`).catch(() => { }); return; }
+  invSeen.add(t); fsReq('DELETE', `invites/${cloud.uid}`).catch(() => { });
+  if (scene === 'battle' || growAnim) return;
+  ['settings', 'frStats', 'ultPick'].forEach(id => $(id).classList.remove('on'));
+  const yes = await ask(`${name} te invita a pelear. ¿Aceptas?`, { ok: '⚔️ Pelear', cancel: 'Ahora no' });
+  if (!yes) return;
+  if (!save.monsters.length || cur().stage === 'egg') { ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
+  if (barnCtx || scene === 'barn') { try { if (barnCtx) barnExit(); closeBarnView(); } catch (e) { } }
+  LAN.invited = null; $('lan').classList.add('on'); lanJoin(room);
+}
 
 // ---------- Selector de equipo (2 vs 2) ----------
 let lastTeam = null;
@@ -5663,6 +5804,7 @@ function lanBindDC(peer, dc) {
 const lanRec = r => r && ({ user: save.user || undefined, name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
+  LAN.invited = null;
   stopScan(); clearInterval(LAN.poll);
   for (const p of LAN.peers) lanDrop(p); lanDrop(LAN.pending); for (const g in LAN.sig) if (!LAN.sig[g].peer.open) lanDrop(LAN.sig[g].peer);
   if (LAN.role === 'host' && LAN.room) roomClose(LAN.room); else if (LAN.role === 'guest' && LAN.room && LAN.uid) roomDel(`rooms/${LAN.room}/peers/${LAN.uid}`);
@@ -5878,7 +6020,7 @@ function lanUI(st, data) {
   }
   else if (st === 'lobby') {
     const ps = host ? lanPlayers() : LAN.lobby, meI = host ? 0 : LAN.lobbyMe, n = ps.length, teams = ps.map(p => p.color), mode = lanModeOf(teams);
-    info.innerHTML = (LAN.room ? `Código de la sala<br><span class="roomcode">${LAN.room}</span><br><small>${host ? 'Tus amigos tocan <b>Unirme</b> y escriben este código.' : ''}</small><br>` : '') + `<b>Jugadores (${n}/${LAN_MAX})</b><br><small>Toca tu monstruo para cambiar de color. Mismo color = compañeros.</small>`;
+    info.innerHTML = (LAN.invited && host && n < 2 ? `Invitaste a <b>${esc(LAN.invited)}</b>. Esperando que acepte…<br>` : '') + (LAN.room ? `Código de la sala<br><span class="roomcode">${LAN.room}</span><br><small>${host ? 'Tus amigos tocan <b>Unirme</b> y escriben este código.' : ''}</small><br>` : '') + `<b>Jugadores (${n}/${LAN_MAX})</b><br><small>Toca tu monstruo para cambiar de color. Mismo color = compañeros.</small>`;
     ps.forEach((p, i) => {
       const col = LAN_COLORS[p.color % LAN_COLORS.length], d = document.createElement(i === meI ? 'button' : 'div');
       d.className = 'lanp' + (i === meI ? ' me' : ''); d.style.setProperty('--tc', col.c);
