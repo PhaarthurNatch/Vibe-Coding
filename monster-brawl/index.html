@@ -790,6 +790,40 @@ const COLOR_MODES8 = {
   mint: (C, f, h) => ({ body: C(150 + 20 * f[0], 50, 70), belly: C(140, 40, 90), accent: C(25 + 15 * f[1], 30, 35), limb: C(155, 45, 60), wing: C(160, 55, 80), horn: C(30, 25, 40), spot: C(30, 35, 30) }),
   bee: (C, f, h) => ({ body: C(45, 95, 55), belly: C(48, 90, 75), accent: C(0, 0, 12), limb: C(0, 0, 15), wing: C(200, 30, 88), horn: C(0, 0, 15), spot: C(0, 0, 12) }),
 };
+// Colores nuevos (gen 14, pedido del dueño): 22 combinaciones más; reemplazan la paleta en ~45% de los monstruos nuevos
+const COLOR_MODES14 = {
+  reef: (C, f, h) => ({ body: C(5 + 20 * f[0], 85, 65), belly: C(30, 90, 85), accent: C(180, 75, 50), limb: C(350, 70, 58), wing: C(175, 70, 65), horn: C(50, 80, 85), spot: C(190, 80, 60) }),
+  jungle: (C, f, h) => ({ body: C(110 + 20 * f[0], 55, 35), belly: C(70, 55, 60), accent: C(f[1] < 0.5 ? 350 : 280, 80, 55), limb: C(120, 50, 25), wing: C(95, 60, 45), horn: C(40, 40, 70), spot: C(55, 85, 55) }),
+  desert: (C, f, h) => ({ body: C(32 + 10 * f[0], 55, 62), belly: C(40, 55, 82), accent: C(15, 70, 45), limb: C(28, 45, 50), wing: C(25, 50, 70), horn: C(30, 25, 88), spot: C(20, 55, 45) }),
+  aurora: (C, f, h) => ({ body: C(150 + 30 * f[0], 70, 50), belly: C(170, 60, 78), accent: C(290, 80, 65), limb: C(200, 60, 40), wing: C(260, 75, 65), horn: C(170, 60, 85), spot: C(300, 80, 70) }),
+  peacock: (C, f, h) => ({ body: C(195 + 15 * f[0], 85, 38), belly: C(170, 60, 60), accent: C(50, 95, 55), limb: C(220, 70, 30), wing: C(160, 80, 40), horn: C(45, 90, 60), spot: C(140, 80, 45) }),
+  flamingo: (C, f, h) => ({ body: C(345 + 10 * f[0], 80, 72), belly: C(350, 70, 88), accent: C(0, 0, 15), limb: C(345, 70, 62), wing: C(355, 75, 80), horn: C(0, 0, 20), spot: C(340, 80, 60) }),
+  panda: (C, f, h) => ({ body: C(0, 0, 96), belly: C(0, 0, 100), accent: C(0, 0, 12), limb: C(0, 0, 14), wing: C(0, 0, 20), horn: C(0, 0, 18), spot: C(0, 0, 12) }),
+  tiger: (C, f, h) => ({ body: C(25 + 8 * f[0], 92, 52), belly: C(40, 60, 92), accent: C(0, 0, 10), limb: C(22, 85, 45), wing: C(30, 85, 60), horn: C(40, 30, 90), spot: C(0, 0, 10) }),
+  sakura: (C, f, h) => ({ body: C(340, 60, 85), belly: C(0, 0, 98), accent: C(330, 70, 65), limb: C(345, 45, 78), wing: C(335, 60, 90), horn: C(30, 40, 60), spot: C(330, 75, 72) }),
+  chocolate: (C, f, h) => ({ body: C(22, 45, 28 + 6 * f[0]), belly: C(30, 40, 70), accent: C(f[1] < 0.5 ? 345 : 45, 70, 75), limb: C(20, 45, 22), wing: C(28, 40, 45), horn: C(35, 50, 88), spot: C(25, 40, 50) }),
+  candycorn: (C, f, h) => ({ body: C(35, 100, 55), belly: C(55, 100, 70), accent: C(0, 0, 98), limb: C(28, 95, 50), wing: C(50, 100, 75), horn: C(0, 0, 98), spot: C(55, 100, 62) }),
+  cyber: (C, f, h) => ({ body: C(260, 60, 18), belly: C(265, 45, 30), accent: C(f[0] < 0.5 ? 320 : 185, 100, 60), limb: C(255, 55, 14), wing: C(f[0] < 0.5 ? 185 : 320, 100, 60), horn: C(f[0] < 0.5 ? 320 : 185, 100, 70), spot: C(185, 100, 60), sclera: C(f[0] < 0.5 ? 320 : 185, 100, 75), pupil: C(260, 60, 10) }),
+  gold: (C, f, h) => ({ body: C(45, 90, 50), belly: C(50, 95, 72), accent: C(30, 90, 40), limb: C(42, 85, 42), wing: C(48, 95, 65), horn: C(50, 100, 80), spot: C(35, 95, 60) }),
+  chrome: (C, f, h) => ({ body: C(210, 12, 72), belly: C(210, 15, 90), accent: C(200, 80, 55), limb: C(215, 10, 55), wing: C(205, 20, 82), horn: C(0, 0, 96), spot: C(210, 15, 50) }),
+  ruby: (C, f, h) => ({ body: C(350, 80, 40), belly: C(350, 70, 65), accent: C(45, 90, 60), limb: C(345, 75, 30), wing: C(355, 80, 55), horn: C(45, 95, 70), spot: C(340, 85, 60) }),
+  emerald: (C, f, h) => ({ body: C(150, 75, 35), belly: C(150, 55, 65), accent: C(45, 90, 60), limb: C(155, 70, 26), wing: C(145, 75, 50), horn: C(45, 95, 70), spot: C(140, 80, 55) }),
+  sapphire: (C, f, h) => ({ body: C(225, 75, 40), belly: C(220, 60, 70), accent: C(0, 0, 95), limb: C(228, 70, 30), wing: C(215, 80, 58), horn: C(210, 40, 90), spot: C(205, 85, 62) }),
+  amethyst: (C, f, h) => ({ body: C(275, 55, 50), belly: C(280, 45, 78), accent: C(310, 70, 70), limb: C(272, 50, 38), wing: C(285, 60, 68), horn: C(290, 40, 90), spot: C(300, 65, 65) }),
+  ghost: (C, f, h) => ({ body: C(200, 45, 90), belly: C(200, 50, 97), accent: C(260, 50, 75), limb: C(205, 35, 82), wing: C(210, 50, 92), horn: C(0, 0, 98), spot: C(230, 45, 80), sclera: C(0, 0, 15), pupil: C(190, 100, 70) }),
+  pumpkin: (C, f, h) => ({ body: C(25, 95, 52), belly: C(35, 95, 70), accent: C(110, 55, 32), limb: C(22, 90, 42), wing: C(100, 50, 40), horn: C(95, 45, 30), spot: C(15, 90, 42), sclera: C(50, 100, 65), pupil: C(25, 80, 15) }),
+  mintchoc: (C, f, h) => ({ body: C(155, 55, 75), belly: C(150, 50, 90), accent: C(22, 45, 25), limb: C(20, 40, 25), wing: C(160, 50, 82), horn: C(22, 45, 30), spot: C(22, 45, 25) }),
+  slime: (C, f, h) => ({ body: C(95 + 30 * f[0], 85, 55), belly: C(90, 80, 78), accent: C(95 + 30 * f[0], 90, 35), limb: C(100, 75, 45), wing: C(95, 80, 70), horn: C(80, 90, 85), spot: C(110, 90, 40) }),
+};
+function applyColors14(g, seed) { // igual que applyColors8, con otro flujo de azar
+  const r = rng((seed ^ 0x8f1bbcdc) >>> 0), u = r.f(0, 1), keys = Object.keys(COLOR_MODES14), k = r.pick(keys), f = [r.f(0, 1), r.f(0, 1)], h = r.f(0, 360);
+  if (u >= 0.45) return;
+  const C = (hh, ss, ll) => ({ h: ((hh % 360) + 360) % 360, s: clamp(ss, 0, 100), l: clamp(ll, 0, 100) });
+  const P = g.pal, ob = P.body, np = COLOR_MODES14[k](C, f, h);
+  if (P.two) P.two = C(np.body.h + (P.two.h - ob.h), np.body.s, np.body.l);
+  if (P.pat) P.pat = C(np.body.h + (P.pat.h - ob.h), np.body.s, np.body.l + (P.pat.l - ob.l));
+  Object.assign(P, np);
+}
 function applyColors8(g, seed) {
   const r = rng((seed ^ 0x3c6ef372) >>> 0), u = r.f(0, 1), keys = Object.keys(COLOR_MODES8), k = r.pick(keys), f = [r.f(0, 1), r.f(0, 1)], h = r.f(0, 360);
   if (u >= 0.6) return;
@@ -802,7 +836,7 @@ function applyColors8(g, seed) {
 function genome5(seed, stage, v6 = false) {
   if (stage === 'egg') stage = 'baby';
   if (stage === 'awakened') stage = 'adult';
-  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
+  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); if (v6 >= 14) applyColors14(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
   const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
   // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
   const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
@@ -2954,7 +2988,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 13, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 14, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4463,7 +4497,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
