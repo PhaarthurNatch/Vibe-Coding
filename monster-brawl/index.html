@@ -615,16 +615,18 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
 const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
-const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, burstN: 3, burstS: 2.5, backS: 1.2, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, leapSpd: 2.4, leapT0: 0.6, leapT1: 1.4, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airSpd: 1.25, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 3.6, airFire: 0.8, floatR: 1.2, cd: 9, cdR: 4 };
+const ROLL = { spd: 2.4, t0: 0.3, t1: 1.0, cd: 6, cdR: 4 }; // cuerpos de una pieza: ruedan hacia su objetivo o hacia atrás según su táctica (pedido del dueño); velocidad proporcional a la de tierra
+const airMelee = (a, e) => a.floatT > 0 && a.z > FLY.airZ && e.z > FLY.airZ && Math.abs(a.z - e.z) < FLY.airHitZ; // el que flota puede golpear cuerpo a cuerpo a otro que está en el aire (pedido del dueño)
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
-const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
+const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (los extremos de «Objetivo» piden menos)
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
 // Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
 // en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
 const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
-const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
+const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, closeTerco: 1.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
 const MAX_MONSTERS = 8; // el rancho tiene siempre 8 espacios (pedido del dueño; antes 6); los demás se guardan en el granero
 const BARN_MAX = 10;     // monstruos que caben en el granero (no pelean; se sacan al rancho cuando hay espacio)
@@ -1252,7 +1254,7 @@ function bodyFromTraining(g, pts) {
 // ----- Tácticas de combate (antes «personalidad»; pedido del dueño: se eligen en Estadísticas): ejes de -1 a 1; tn = nombre de la táctica, tl/tr = lado izquierdo (negativo) / derecho (positivo) -----
 const TEMPER = [
   { k: 'agr', tn: 'Distancia', tl: 'De lejos', tr: 'De cerca', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' , posL: 'Se lanza a pelear cuerpo a cuerpo, persigue a su rival y casi nunca retrocede.', negL: 'Prefiere pelear de lejos: mantiene la distancia, dispara más y se aleja después de golpear.' },
-  { k: 'terco', tn: 'Objetivo', tl: 'Al más débil', tr: 'No lo suelta', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Elige a un rival y no lo suelta hasta noquearlo, aunque haya otros más fáciles.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
+  { k: 'terco', tn: 'Objetivo', tl: 'Al más débil', tr: 'Al más cercano', pos: 'Directo', neg: 'Oportunista', posD: 'va por el rival más cercano', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Ataca al rival que tenga más cerca y cambia si otro se le acerca más.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
   { k: 'valor', tn: 'Con poca vida', tl: 'Se cuida', tr: 'Con todo', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' , posL: 'Cuando le queda poca vida no se rinde: pelea con más fuerza y tarda más en asustarse.', negL: 'Cuando le queda poca vida se cuida: se aleja del peligro y esquiva más.' },
   { k: 'ritmo', tn: 'Ritmo de ataque', tl: 'Golpes fuertes', tr: 'Golpes rápidos', pos: 'Rápido', neg: 'Fuerte' }, // nuevas (pedido del dueño)
   { k: 'def', tn: 'Defensa', tl: 'Aguantar', tr: 'Esquivar', pos: 'Esquivador', neg: 'Aguantador' },
@@ -1261,7 +1263,7 @@ const TEMPER = [
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
-const TAC = { cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
+const TAC = { fireNear: 1.5, meleeFar: 1.6, meleeNear: 0.85, specDmgR: 1.28, specCdR: 0.85, specDmgM: 1.3, specCdM: 0.8, cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
 const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 1, MOOD_DECAY_BARN = 2, MOOD_SAD = 30, MOOD_HAPPY = 70, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 const moodRate = rec => typeof save !== 'undefined' && save && save.barn && save.barn.includes(rec) ? MOOD_DECAY_BARN : MOOD_DECAY_H; // en el granero baja el doble (pedido del dueño)
@@ -1415,6 +1417,7 @@ class Monster {
     this.st = calcStats(this.g, this.level, rec.pts);
     this.hp = this.st.hp;
     { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / wg.pairs / (WEIGHT_AVG[this.g.stage] || WEIGHT_AVG.adult) >= FLY.loadSplit ? 'leap' : 'float') : null; /* peso por par de alas (comparado con su etapa): pesados saltan, livianos flotan */ }
+    this.canFloat = !!this.g.wings.pairs; this.canLeap = this.g.plan === 'spider'; // cada habilidad viene de su parte del cuerpo (pedido del dueño): alas = flotar, patas de araña = saltar, cuerpo de una pieza = rodar (una araña con alas hace las dos)
     this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0; this.hitTimes = []; this.floatBack = 0;
     this.tailCd = 2 + Math.random() * 2; this.tailPh = null; // serpiente: coletazo
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
@@ -1429,9 +1432,12 @@ class Monster {
       if (rt) { const cd = 1 - TAC.cd * rt, dm = 1 - (rt > 0 ? TAC.fastDmg : TAC.strongDmg) * rt; S.meleeCd *= cd; S.rangedCd *= cd; S.melee *= dm; S.ranged *= dm; } // rápidos: esperan menos y pegan algo menos; fuertes: al revés
       if (df) { S.dodge = clamp(S.dodge * (1 + (df > 0 ? TAC.dodgeUp : TAC.dodgeDown) * df), 0.03, 0.6); S.defense = Math.max(0, S.defense - (df > 0 ? TAC.armorDown : TAC.armorUp) * df); } } // esquivar: más esquiva y menos defensa; aguantar: al revés
     { const f = (moodOf(rec) - 50) / 50; if (f) { this.st.melee *= 1 + MOOD_FX * f; this.st.ranged *= 1 + MOOD_FX * f; this.st.dodge = clamp(this.st.dodge + 0.03 * f, 0.05, 0.6); } } // ánimo: pelea mejor o peor (rivales siempre en 50)
-    // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
-    const rp = this.st.ranged > 0 ? clamp(this.st.ranged / (this.st.melee * 0.6) - 1, -1, 1) : -2;
-    this.kiter = this.st.ranged > 0 && rp - this.tp.agr * 1.2 > 0;
+    // estilo según la táctica «Distancia» (pedido del dueño): al centro dispara y golpea; «de lejos» prefiere disparar (y al extremo sólo dispara); «de cerca» prefiere golpear (y al extremo sólo golpea)
+    { const ag = this.tp.agr || 0, hasR = this.st.ranged > 0;
+      this.kiter = hasR && ag < -0.25; this.onlyRanged = hasR && ag <= -0.75; this.onlyMelee = ag >= 0.75;
+      this.fireMul = ag > 0.25 && !this.onlyMelee ? TAC.fireNear : 1; this.meleeMul = this.kiter && !this.onlyRanged ? TAC.meleeFar : ag > 0.25 && !this.onlyMelee ? TAC.meleeNear : 1;
+      if (this.onlyRanged) { this.st.ranged *= TAC.specDmgR; this.st.rangedCd *= TAC.specCdR; } // al extremo, se especializa: sus disparos (o sus golpes) son más fuertes y seguidos
+      if (this.onlyMelee) { this.st.melee *= TAC.specDmgM; this.st.meleeCd *= TAC.specCdM; } }
     this.scaredHp = SCARED_HP * (1 - this.tp.valor * 0.7); // los valientes se asustan mucho más tarde
     this.dmgM = 0; this.dmgR = 0; this.switches = 0; this.minHpF = 1; this.backoff = 0; this.berserkSaid = false;
     this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
@@ -1642,6 +1648,8 @@ class Monster {
 
   // ---------- Animación: define a dónde "quiere" ir cada parte ----------
   animate(dt) {
+    if (this.state === 'roll') this.rollA = (this.rollA || 0) + (Math.sign(this.vx) || 1) * Math.hypot(this.vx, this.vy) / Math.max(12, this.r) * dt; // rodando: el cuerpo gira según lo que avanza
+    else if (this.rollA) { const tg = Math.round(this.rollA / TAU) * TAU; this.rollA += (tg - this.rollA) * Math.min(1, dt * 10); if (Math.abs(tg - this.rollA) < 0.02) this.rollA = 0; } // al parar, termina la vuelta
     const g = this.g, N = this.nodes, I = this.ix, s = this.s;
     this.t += dt; const t = this.t;
     this.hurtT = Math.max(0, this.hurtT - dt);
@@ -1729,7 +1737,7 @@ class Monster {
 
   // ---------- Puntaje de un posible objetivo (más alto = mejor) ----------
   // Cada factor va de 0 a 1 (así funciona igual en todas las etapas); la personalidad cambia los pesos:
-  // Agresivo = cercanía · Cauto = se aleja del que le pega fuerte · Terco = rencor y no suelta · Oportunista = vulnerable y distraído ·
+  // Agresivo = cercanía · Cauto = se aleja del que le pega fuerte · «Al más cercano» = cercanía mucho más · Oportunista («Al más débil») = vulnerable y distraído ·
   // Valiente = va por el más peligroso · Prudente = lo evita.
   scoreTarget(e, B, allies) {
     const { agr, terco, valor } = this.tp, st = this.st, hpMax = st.hp;
@@ -1749,9 +1757,9 @@ class Monster {
     const danger = dps(e) / (dps(e) + dps(this) + 1e-6);                              // ~0,5 si son parejos
     const pos = v => Math.max(0, v), neg = v => Math.max(0, -v);
     const W = TGT_W;
-    const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * (W.grudge + W.grudgeTerco * pos(terco));
+    const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * W.grudge;
     const opp = vuln * (W.vuln + W.vulnOpp * neg(terco)) + distr * (W.distr + W.distrOpp * neg(terco));
-    const sc = close * (W.close + W.closeAgr * agr) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield
+    const sc = close * (W.close + W.closeAgr * agr + W.closeTerco * pos(terco)) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield // «Al más cercano» (pedido del dueño): la cercanía pesa mucho más
       + (danger - 0.5) * (W.dangerValor * valor - W.dangerCauto * neg(agr));
     return { sc, angry, opp };
   }
@@ -1834,7 +1842,7 @@ class Monster {
     if (this.dead) { // el cuerpo ya no se desvanece (pedido del dueño): queda tirado donde cayó y sirve de obstáculo
       this.deadT += dt; this.alpha = 1;
       let sx = 0; for (const n of this.nodes) sx += n.x; this.x = this.gx = clamp(sx / this.nodes.length, 0, ARENA_W); return; }
-    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt; if (this.g.blob) this.rollCd = (this.rollCd ?? ROLL.cd * 0.5 + Math.random() * ROLL.cdR) - dt;
     if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
@@ -1856,11 +1864,11 @@ class Monster {
         if (e === this.target) cur = r;
         if (r.sc > bs) { bs = r.sc; best = e; bWhy = r; }
       }
-      const tc = this.tp.terco, margin = Math.max(0.05, TGT_MARGIN * (1 + tc * 0.8));
+      const tc = this.tp.terco, tcF = 1 - 0.8 * Math.max(0, -tc) - 0.4 * Math.max(0, tc), margin = Math.max(0.05, TGT_MARGIN * tcF); // los dos extremos cambian de objetivo más fácil (al más débil / al más cercano)
       const keep = cur && !this.target.dead && (bs - cur.sc < margin || (this.commitT > 0 && bs - cur.sc < margin * 3));
       if (best !== this.target && !keep) {
         const prev = this.target;
-        this.target = best; this.commitT = TGT_COMMIT * (1 + tc * 0.6);
+        this.target = best; this.commitT = TGT_COMMIT * (1 - 0.6 * Math.max(0, -tc) - 0.3 * Math.max(0, tc));
         const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
         if (prev && !prev.dead) {
           this.switches++;
@@ -1888,6 +1896,9 @@ class Monster {
         break;
       case 'ultcharge':
         if (this.stT <= 0) { if (!B.cine && !B.over) B.startUlt(this); else this.stT = 0.1; }
+        break;
+      case 'roll': // rodando (cuerpo de una pieza): al terminar retoma la pelea
+        if (this.stT <= 0) { this.state = 'free'; this.vx *= 0.4; this.vy *= 0.4; }
         break;
       case 'recover': case 'recoil': case 'dodge': case 'hitstun':
         if (this.stT <= 0) this.state = 'free';
@@ -1922,7 +1933,9 @@ class Monster {
     const fleeD = 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1);
     this.fleeing = lowHp && this.tp.valor < -0.2 && (d < fleeD || (this.fleeing && d < fleeD + 60)); // con margen: antes, justo en el límite cambiaba de idea cada cuadro y se quedaba quieto
     if (this.fleeing) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
-    if (this.floatT > 0) fwd = this.floatBack > 0 ? -1.2 : d < reachD + 90 ? -0.45 : 0; // flotando: al despegar vuela hacia atrás; después sólo se aleja un poco (y le dispara desde arriba si puede)
+    if (this.floatT > 0) { // flotando: al despegar vuela hacia atrás; después se queda a la distancia de su táctica (pedido del dueño): «de lejos» lejos disparando, «de cerca» encima del rival
+      const airPref = this.kiter ? Math.max(pref, reachD + 90) : T.z > FLY.airZ ? reachD * 0.9 : reachD + 45 * (1 - this.tp.agr); // si su objetivo también está en el aire, va a pegarle
+      fwd = this.floatBack > 0 ? -1.2 : d > airPref + 20 ? (T.z > FLY.airZ && !this.kiter ? 1.3 : 0.8) : d < airPref - 25 ? -0.6 : 0; } // (persiguiendo a otro en el aire va más rápido)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1937,7 +1950,7 @@ class Monster {
     }
     mx += wx * 1.8; my += wy * 1.8;
     const ml = Math.hypot(mx, my);
-    const spd = this.st.speed * (this.buffs.speed > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1);
+    const spd = this.st.speed * (this.buffs.speed > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1) * (this.floatT > 0 && this.z > FLY.airZ * 0.5 ? FLY.airSpd : 1); // volando: proporcional a su velocidad en tierra, pero más rápido (pedido del dueño)
     this.desired = ml > 0.05 ? { x: mx / ml * spd * Math.min(1, ml), y: my / ml * spd * Math.min(1, ml) } : { x: 0, y: 0 };
 
     // ¿Es momento de la ultimate? (suficientes golpes en la pelea y poca vida)
@@ -1945,11 +1958,20 @@ class Monster {
       : this.ultMode === 'finisher' ? this.hitsN >= 3 && T.hp / T.st.hp <= 0.4
       : this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP;
     // Vuelo: el pesado salta alto hacia su objetivo; el liviano despega y flota un rato
-    if (this.flyer && this.flyCd <= 0 && this.z === 0 && !B.cine && !B.over) {
-      if (this.flyer === 'leap' && d > FLY.leapMin && d < FLY.leapMax) { this.startLeap(T, d, reachD); return; } // su objetivo está lejos: salta para acercarse (pedido del dueño)
+    if (this.g.blob && !this.flyer && this.rollCd <= 0 && this.z === 0 && T.z < FLY.airZ && !B.cine && !B.over) { // cuerpo de una pieza: rueda como los alados saltan (pedido del dueño)
+      const near = Math.max(FLY.leapMin * (1 - FLY.leapAgr * Math.max(0, this.tp.agr)), pref + FLY.leapGap * (this.kiter ? 2 : 1)); // (el «de lejos» sólo rueda hacia él si quedó muy lejos: rodando no dispara)
+      if (d > near && d < FLY.leapMax + pref && this.tp.agr >= 0 && !this.kiter) { this.startRoll(T, d, Math.max(reachD * 0.7, this.kiter ? pref : 0)); return; }
+      if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startRoll(T, d, pref + 40) !== false) return; }
+    if (this.canFloat && !this.kiter && this.z === 0 && !(this.floatT > 0) && T.floatT > 0.8 && T.z > FLY.airZ && !(this.chaseCd > 0) && !B.cine && !B.over) { // su objetivo está flotando: despega a pegarle en el aire (pedido del dueño; los «de lejos» le disparan)
+      this.floatT = T.floatT + 0.8; this.floatBack = 0; this.vz = 340; this.chaseCd = FLY.chaseCd; this.setEmo('angry', 0.8, 2); }
+    if ((this.canLeap || this.canFloat) && this.flyCd <= 0 && this.z === 0 && !B.cine && !B.over) {
+      if (this.canLeap) { // salta según su táctica (pedido del dueño): para acercarse si quedó lejos de su distancia, o —si pelea de lejos— para alejarse si se le vienen encima
+        const near = Math.max(FLY.leapMin * (1 - FLY.leapAgr * Math.max(0, this.tp.agr)), pref + FLY.leapGap);
+        if (d > near && d < FLY.leapMax + pref) { this.startLeap(T, d, Math.max(reachD * 0.7, this.kiter ? pref : 0)); return; }
+        if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startLeap(T, d, pref + 40) !== false) return; }
       const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
-      if (this.flyer === 'float' && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
-        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS; this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
+      if (this.canFloat && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
+        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
     }
     // Tus monstruos la lanzan cuando aprietas su botón (una vez por pelea); los rivales deciden solos
     const wantUlt = this.isPlayer || this.remoteCtl ? this.ultRequest : ultNow && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8));
@@ -1960,26 +1982,44 @@ class Monster {
       B.text(this, '¡cargando!', '#ffe08a'); return;
     }
 
-    const air = this.z > FLY.airZ || T.z > FLY.airZ; // alguno en el aire: no hay golpe, sólo disparo (hacia arriba o hacia abajo)
+    const air = !airMelee(this, T) && (this.z > FLY.airZ || T.z > FLY.airZ); // alguno en el aire: no hay golpe, sólo disparo (salvo que flote y su objetivo también esté en el aire)
     this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
-    if (this.g.plan === 'snake' && !air && this.tailCd <= 0 && d <= reachD + TAIL_REACH * 0.6 && T.z < 5) { // serpiente: coletazo (pedido del dueño)
+    if (this.g.plan === 'snake' && !this.onlyRanged && !air && this.tailCd <= 0 && d <= reachD + TAIL_REACH * 0.6 && T.z < 5) { // serpiente: coletazo (pedido del dueño)
       this.state = 'tail'; this.tailPh = 'wind'; this.stT = TAIL_WIND; this.atkDir = { x: ux, y: uy }; this.tailCd = TAIL_CD + Math.random() * 3; this.desired = { x: 0, y: 0 }; this.noAtkT = 0; this.setEmo('angry', TAIL_WIND + 0.3, 2); return;
     }
-    if (!air && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
-    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
+    if (!air && !this.onlyRanged && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
+    else if (this.st.ranged > 0 && !this.onlyMelee && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air || this.onlyRanged) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
-  startLeap(T, d, reach) {
-    const tAir = 2 * FLY.leapVz / (1100 * FLY.leapG), v = Math.min(560, Math.max(0, d - reach * 0.7) / tAir);
+  startLeap(T, d, goal) { // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
+    const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
+    const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
+    let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
+    if (away) { const e = this.escapeDir(ux, uy, v * tAir); if (!e) return false; ux = e[0]; uy = e[1]; } // hacia atrás: si caería fuera de la arena, se desvía hacia un costado (nunca hacia el rival)
     this.state = 'leap'; this.airT = 0; this.desired = { x: 0, y: 0 };
-    this.vx = (T.x - this.x) / d * v; this.vy = (T.y - this.y) / d * v; this.vz = FLY.leapVz;
-    this.flyCd = FLY.cd + Math.random() * FLY.cdR; this.setEmo('angry', 0.9, 2);
+    this.vx = ux * v; this.vy = uy * v; this.vz = tAir * 1100 * FLY.leapG / 2;
+    this.flyCd = FLY.cd + Math.random() * FLY.cdR; this.setEmo(away ? 'focus' : 'angry', 0.9, 2);
+  }
+
+  escapeDir(ux, uy, L) { // dirección para alejarse: la de atrás, o girada hasta 90° hacia un costado, la primera que no se sale de la arena (si ninguna sirve, no se aleja)
+    const m = 50, side = Math.random() < 0.5 ? 1 : -1;
+    for (const a of [0, 0.4, -0.4, 0.8, -0.8, 1.25, -1.25, 1.57, -1.57]) { const c = Math.cos(a * side), s = Math.sin(a * side), x = ux * c - uy * s, y = ux * s + uy * c, lx = this.x + x * L, ly = this.y + y * L;
+      if (lx > m && lx < ARENA_W - m && ly > m && ly < ARENA_D - m) return [x, y]; }
+    return null;
+  }
+
+  startRoll(T, d, goal) { // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
+    const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * ROLL.spd, tR = clamp(dist / Math.max(1, vMax), ROLL.t0, ROLL.t1), v = Math.min(vMax, dist / tR);
+    let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
+    if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
+    this.state = 'roll'; this.stT = tR; this.desired = { x: 0, y: 0 }; this.vx = ux * v; this.vy = uy * v;
+    this.rollCd = ROLL.cd + Math.random() * ROLL.cdR; this.setEmo(away ? 'focus' : 'angry', tR + 0.3, 2);
   }
 
   startMelee(T, ux, uy, B) {
     const fast = this.buffs.speed > 0 ? 0.5 : 1; // Supervelocidad: también ataca el doble de rápido
     this.state = 'windup'; this.stT = (0.14 + this.st.weight * 0.05) * (fast < 1 ? 0.6 : 1);
-    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd * fast;
+    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd * fast * this.meleeMul; // («de lejos» golpea menos seguido)
     this.setEmo('angry', 0.7, 2);
     const arms = this.ix.arms;
     if (arms.length) { const side = ux >= 0 ? 1 : -1; const c = arms.filter(a => a.sd === side); this.atkArm = c[Math.floor(Math.random() * c.length)]; }
@@ -1993,14 +2033,14 @@ class Monster {
     const hx = this.x + this.atkDir.x * reach, hy = this.y + this.atkDir.y * reach;
     const tol = this.ix.arms.length ? this.g.arms.thick * 0.5 : 6;
     for (const e of B.ms) {
-      if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
+      if (e.dead || e.team === this.team || this.hitSet.has(e.id) || (this.z > FLY.airZ ? !airMelee(this, e) : e.z > FLY.airZ)) continue; // en el aire sólo le pega a otro en el aire
       if (Math.hypot(e.x - hx, e.y - hy) < e.r + 4 + tol) { this.hitSet.add(e.id); B.hit(this, e, this.st.melee, this.atkDir, 'melee'); }
     }
   }
 
   shoot(T, B) {
-    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
+    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire * (this.onlyRanged ? 0.7 : 1) /* (el que sólo dispara, menos castigado) */ : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
+    this.rangedCd = this.st.rangedCd * this.fireMul * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
@@ -2024,7 +2064,7 @@ class Monster {
   // Esquivar = moverse de verdad hacia un lado
   incoming(att, dir, B) {
     const ghost = this.buffs.dodge > 0; // Reflejos fantasma: esquiva todo y contraataca
-    if (this.dead || this.z > FLY.airZ || this.state === 'leap' || (this.dodgeCd > 0 && !ghost) || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
+    if (this.dead || this.z > FLY.airZ || this.state === 'leap' || this.state === 'roll' || (this.dodgeCd > 0 && !ghost) || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
     this.dodgeCd = 0.35;
     if (ghost) {
       this.dodgeCd = 0.2;
@@ -2047,10 +2087,10 @@ class Monster {
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
-    else if (this.state !== 'leap') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
+    else if (this.state !== 'leap' && this.state !== 'roll') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
-    if (this.floatT > 0) this.floatT -= dt; if (this.floatBack > 0) this.floatBack -= dt;
+    if (this.floatT > 0) this.floatT -= dt; if (this.floatBack > 0) this.floatBack -= dt; if (this.chaseCd > 0) this.chaseCd -= dt;
     if (this.state === 'leap') { // salto alto: al caer retoma la pelea
       this.airT += dt;
       if (this.z === 0 && this.airT > 0.15) { this.state = 'free'; this.vx *= 0.3; this.vy *= 0.3; if (typeof battle !== 'undefined' && battle) battle.shake = Math.min(12, battle.shake + 5); }
@@ -2079,6 +2119,7 @@ class Monster {
       this._ghost = false;
     }
     ctx.save(); ctx.globalAlpha = this.alpha;
+    if (this.rollA) { const P = N[I.head]; ctx.translate(P.x, P.y); ctx.rotate(this.rollA); ctx.translate(-P.x, -P.y); } // rodando
     if (!this._ghost) this.drawAura(ctx, false);
     if (this.buffs.speed > 0 && !this._ghost) { // Supervelocidad: estelas
       const sp = Math.hypot(this.vx, this.vy) || 1, ux = this.vx / sp, uy = this.vy / sp * DEPTH, m = N[I.mid];
@@ -2851,11 +2892,11 @@ class Battle {
     t.hp -= dmg; t.hurtT = 0.12;
     if (a.buffs.drain > 0 && !a.dead && dmg > 0) { const h = Math.min(a.st.hp - a.hp, dmg * ULT_DRAIN); if (h > 0.5) { a.hp += h; this.texts.push({ x: a.gx, y: a.nodes[a.ix.head].y - a.g.head.h * a.s * 0.7, str: '+' + Math.round(h), col: '#7dff9a', life: 0.8 }); } } // Robo de vida t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
     if (t.floatT > 0) t.floatT = Math.max(0, t.floatT - 0.6); // lo bajan a tiros
-    if (t.flyer === 'float') { t.hitTimes.push(this.time); if (t.hitTimes.length > 6) t.hitTimes.shift(); } // para saber si le llueven golpes
+    if (t.canFloat) { t.hitTimes.push(this.time); if (t.hitTimes.length > 6) t.hitTimes.shift(); } // para saber si le llueven golpes
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
-    const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
-    t.vx += dir.x * kb; t.vy += dir.y * kb; t.vz += Math.min(380, kb * 0.5);
+    const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight, kbA = kb * (t.z > FLY.airZ ? FLY.airKb : 1); // el peso regula el knockback; en el aire lo empujan más (pedido del dueño)
+    t.vx += dir.x * kbA; t.vy += dir.y * kbA; t.vz += Math.min(380, kb * 0.5);
     if (t.state !== 'dead' && t.state !== 'ultcharge' && t.state !== 'tail') { // (el coletazo de la serpiente no se interrumpe: es lento pero firme)
       if (t.state === 'windup' || t.state === 'strike') t.meleeCd = Math.min(t.meleeCd, STUN.interruptCd); // le cortaron el golpe: puede reintentar pronto
       if (t.stunImmune <= 0) {
@@ -2865,7 +2906,7 @@ class Battle {
       }
     }
     if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
-    for (const n of t.nodes) { n.vx += dir.x * kb * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
+    for (const n of t.nodes) { n.vx += dir.x * kbA * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
     const hx = tm.x - dir.x * t.r * 0.6, hy = tm.y - dir.y * t.r * 0.3;
     const col = kind === 'melee' ? '#fff3b0' : null;
@@ -3544,7 +3585,7 @@ function ranchStep(dt) {
       } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
         const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
         const x1 = Math.sin(a1) * r1, z1 = Math.cos(a1) * r1, dist = Math.hypot(x1 - a.x, z1 - a.z);
-        a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / RANCH_FLY_SPEED, h: 170 + Math.random() * 90 };
+        a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / (RANCH_FLY_SPEED * (0.16 + (a.m.st.speed || 100) / 1800) / 0.2156), /* proporcional a lo rápido que camina (pedido del dueño) */ h: 170 + Math.random() * 90 };
         a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
@@ -3955,7 +3996,14 @@ function renderHome() {
   checkBreedUnlock(); checkUltUnlock();
   $('coins').textContent = save.coins;
   if (barnCtx) { // de cerca en el granero: la misma vista de cerca, con un monstruo del granero (no pelea)
-    const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !it.m || !rec) { barnExit(); return; }
+    const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !(it.m || it.egg) || !rec) { barnExit(); return; }
+    if (it.egg) { // un huevo del granero, de cerca (pedido del dueño): se abre a toques ahí mismo
+      $('home').classList.remove('vacant', 'first'); $('home').classList.add('barnctx'); homeEmpty = null; show = null; egg = it.egg;
+      if (homePage === 2) setTimeout(renderTrain);
+      edgeLabels(0); $('rest').hidden = true; $('homePanel').style.visibility = 'hidden';
+      $('mName').textContent = rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso'; updateEggSub(); $('hint').hidden = false; $('stats').innerHTML = '';
+      return;
+    }
     if (it.key !== barnMonKey(rec)) { // subió un punto (o cambió de ultimate) estando en el granero: se arma de nuevo, en el mismo lugar, para que se note (pedido del dueño)
       const o = it.m, m = new Monster(rec); m.resetRig();
       for (const k of ['gx', 'gy', 'x', 'y', 'z', 'vx', 'vy', 'vz']) if (typeof o[k] === 'number') m[k] = o[k];
@@ -4112,7 +4160,7 @@ function swipeEnd(x, y) {
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if (homePage === 0 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { // Tienda: a los lados cambia de pestaña
     swipedAt = performance.now(); setShopTab(shopTab + (dx < 0 ? 1 : -1));
-  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? BARN.ms.filter(q => q && q.m).length : save.monsters.length) > 1) { // de cerca o en Estadísticas
+  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? BARN.ms.filter(q => q && (q.m || q.egg)).length : save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (barnCtx) barnCtxSwitch(dx < 0 ? 1 : -1); else if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
   }
 }
@@ -4230,19 +4278,20 @@ function updateEggSub() {
   const rec = cur(), left = (rec.readyAt || 0) - Date.now(); // huevo criado: incuba antes de poder abrirse
   $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : 'toca el huevo para abrirlo'; // sin el número de toques que faltan (pedido del dueño)
   $('hint').textContent = left > 0 ? 'está incubando: podrás abrirlo cuando termine' : 'toca el huevo para que nazca';
-  $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
+  $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = barnCtx ? `${barnCtx.i + 1}/${BARN_MAX}` : `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
 }
 function tapEgg() {
   const rec = cur();
   if (rec.readyAt > Date.now()) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; egg.sq = 0.08; fx.label = `Incubando · ${hmm(rec.readyAt - Date.now())}`; fx.labelT = 1.4; return; } // todavía incubando
-  rec.taps++;
+  rec.taps = (rec.taps || 0) + 1;
   egg.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); egg.sq = 0.12;
   burst((Math.random() - 0.5) * 30, -egg.h * (0.4 + Math.random() * 0.4), 3, hsl(egg.pal.body, 24), 160, [2, 3.5]);
-  if (rec.taps < rec.need) { persist(); updateEggSub(); return; }
+  if (rec.taps < (rec.need || 6)) { persist(); updateEggSub(); return; }
   // ¡nace!
   const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
   rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
+  if (barnCtx) { const nit = BARN.ms[barnCtx.i] = barnItem(rec); nit.m.sleep = false; nit.m.sitting = false; nit.settle = true; } // en el granero: nace en su cama
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
   celebrate('¡Nació!');
@@ -4395,7 +4444,7 @@ function barnAnim(dt) {
   const F = BARN.focus != null ? BARN.ms[BARN.focus] : null, sp = barnSp(), skip = barnCtx ? BARN.ms[barnCtx.i] : null;
   for (const it of BARN.ms) {
     if (!it) continue;
-    if (it.egg) { it.egg.update(dt); continue; }
+    if (it.egg) { if (it !== skip) it.egg.update(dt); continue; } // (el de cerca lo anima la vista de cerca)
     const m = it.m; if (!m || it === skip) continue; // el de cerca lo mueve la vista de cerca
     if (it === F || it.settle) { // de cerca: igual que en el rancho (se para, salta, lo puedes tomar), sin salirse de su cama
       if (it === F) { m.sitting = false; it.settle = true; }
@@ -4433,7 +4482,7 @@ function drawBarn(c, cam) {
   const sp = barnSp(), floorY = H * 0.66, TN = performance.now() / 1000;
   // de cerca (la vista de cerca del rancho, con el granero de fondo): la cámara hace zoom hasta que su cama queda donde va el monstruo de cerca
   let Z = 1, P = [W / 2, H * 0.45], Q = P;
-  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (it && it.m) { const top = floorY + H * 0.1 - H * 0.06 * 0.55, kb = Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz;
+  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
     Z = 1 + (cam.k / kb - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } }
   BARN.cam = { Z, cfx: P[0], cfy: P[1] }; c.save(); c.translate(Q[0], Q[1]); c.scale(Z, Z); c.translate(-P[0], -P[1]);
   // paredes de tablas (se mueven un poco más lento que las camas: profundidad)
@@ -4512,9 +4561,9 @@ function drawBarn(c, cam) {
   const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.3, W / 2, H * 0.55, Math.max(W, H) * 0.8); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H); // bordes en penumbra
 }
 function barnEnter(i) { // tocar un monstruo del granero: la vista de cerca del rancho, tal cual (literal), con el granero de fondo
-  const it = BARN.ms[i]; if (!it || !it.m || barnLeaving(it)) return;
+  const it = BARN.ms[i]; if (!it || !(it.m || it.egg) || barnLeaving(it) || it.arrive) return;
   barnSelect(i); BARN.goto = null; BARN.vx = 0; BARN.x = i;
-  barnCtx = { i }; it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
+  barnCtx = { i }; if (it.m) it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
   scene = 'home'; ranchMode = false; homeEmpty = null; $('barnUI').classList.remove('on'); $('home').classList.add('on', 'barnctx');
   if (homePage !== 1) setPage(1);
   zoom = { t: 0, dir: 1, px: W / 2, py: H / 2 }; fx.parts = []; slide = null; renderHome();
@@ -4534,10 +4583,10 @@ function barnFling() { // lanzarlo en el granero = mandarlo al rancho (pedido de
 }
 function barnCtxStep(dt) { BARN.x += (barnCtx.i - BARN.x) * Math.min(1, dt * 5); barnLeaveStep(dt); barnArriveStep(dt); barnAnim(dt); for (const q of BARN.parts) q.life -= dt; } // de cerca, los que entran y salen siguen caminando (pedido del dueño) // al pasar al siguiente, la cámara viaja por las camas
 function barnCtxSwitch(d) { // de cerca: el siguiente del granero (como el vecino en el rancho)
-  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && it.m) { j = q; break; } }
+  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } } // también los huevos (pedido del dueño)
   if (j == null || j === barnCtx.i) return;
   const old = BARN.ms[barnCtx.i]; if (old) old.settle = true;
-  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
+  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
 }
 function barnZoomTo(i) { if (!BARN.ms[i] || barnLeaving(BARN.ms[i])) return; barnSelect(i); BARN.focus = i; barnUI(true); }
 function barnUnzoom() { if (BARN.focus == null) return; BARN.focus = null; barnUI(true); }
@@ -4611,17 +4660,6 @@ async function buyBedEgg(bed) {
   if (!await ask(`¿Comprar un huevo misterioso por ${EGG_COST} monedas?`, { ok: 'Comprar' })) return;
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
   save.coins -= EGG_COST; putInBed(newRec(), bed);
-}
-function barnTapEgg(i) { // tocar un huevo en su cama: se abre a toques, igual que en el rancho (los criados primero incuban)
-  const it = BARN.ms[i], rec = it && it.rec, E = it && it.egg; if (!E) return;
-  BARN.goto = i;
-  if (rec.readyAt > Date.now()) { E.vt += (Math.random() < 0.5 ? -1 : 1) * 3; E.sq = 0.08; barnUI(true); return; } // todavía incubando
-  rec.taps = (rec.taps || 0) + 1; E.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); E.sq = 0.12;
-  if (rec.taps < (rec.need || 6)) { persist(); barnUI(true); return; }
-  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist(); // ¡nace!
-  const nit = BARN.ms[i] = barnItem(rec); if (nit.m) { nit.m.sleep = false; nit.m.vz = 320; nit.m.setEmo('happy', 2.5, 3); }
-  barnUI(true);
-  setTimeout(async () => { const n = await ask('¡Nació tu monstruo! ¿Cómo se llamará?', { input: rec.name, ok: 'Listo', cancel: null, low: true }); if (n && n.trim()) rec.name = n.trim().slice(0, 16); persist(); BARN.last = -1; barnUI(true); }, 900);
 }
 function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, camina hasta la cama y se sienta
   const R = save.monsters, r = R[i]; save.barn = save.barn || [];
@@ -4724,7 +4762,10 @@ $('btnFree').onclick = async () => {
     if (m) { m.setEmo('sad', 999, 6); m.crying = true; m.vz = 90; }
     if (!await ask(`¿Liberar a ${r.name}? No vuelve.`, { ok: 'Liberar', low: true })) { if (m) { m.crying = false; m.setEmo('happy', 1.6, 7); m.vz = 230; } return; }
     if (m) await new Promise(res => setTimeout(res, 1300));
-    save.barn.splice(save.barn.indexOf(r), 1); persist(); setPage(1); barnExit(); barnBuild(); barnUI(true); return;
+    save.barn.splice(save.barn.indexOf(r), 1); persist(); BARN.ms[i] = null; // su cama queda libre (los demás no se mueven)
+    let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = (i + st) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } }
+    if (j != null) { const it = BARN.ms[j]; barnCtx.i = j; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; renderHome(); return; } // como en el rancho: se queda en Estadísticas con el siguiente del granero (pedido del dueño)
+    setPage(1); barnExit(); barnBuild(); barnUI(true); return;
   }
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
   const m = show; // el monstruo se pone triste (y llora) mientras decides
@@ -4752,6 +4793,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).', 'Táctica «Distancia»: al centro disparan y golpean; hacia «de lejos» disparan más y golpean menos, y hacia «de cerca» al revés. En los extremos usan sólo uno de los dos (sólo disparos o sólo golpes), pero más fuertes y seguidos.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
@@ -5367,7 +5409,7 @@ cv.addEventListener('pointerup', e => {
     if (G.moved) { BARN.vx = performance.now() - G.lt < 120 ? clamp(G.v, -12, 12) : 0; return; }
     const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
     const onBed = (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.06 && e.clientY < bedY + H * 0.14; })(); // la cama (paja y madera) también cuenta
-    if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) (BARN.ms[i] && BARN.ms[i].m ? barnEnter(i) : barnTapEgg(i)); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
+    if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) barnEnter(i); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
     else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { BARN.goto = i; openBarn(i); } // tocar una cama libre: elegir a quién traer
     else if (i !== Math.round(BARN.x)) BARN.goto = i;
     return; }
@@ -5755,7 +5797,8 @@ function drawCloseUp(ctx, r, onHome, pz) {
   const E = egg, vacant = !onAdopt && !egg && !show, empty = vacant; // espacio libre: huevo fantasma con un ?
   // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
   const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
-  const k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
+  let k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
+  if (barnCtx && E) k = 1.6 * Math.min(r.height * (onHome ? 0.64 : 0.78) / 150, r.width * 0.8 / 140, 3.2) / Math.min(H * 0.0016, barnSp() * 0.95 / 70); // (el zoom de la mayoría: sólo los monstruos muy grandes se acercan menos) // huevo del granero: la cámara hace el mismo zoom que al elegir un monstruo (pedido del dueño)
   const gy = onHome ? Math.min(r.bottom - r.height * 0.06, r.top + r.height / 2 + Math.max(sz.h, 60) * k / 2) : r.bottom - r.height * 0.06;
   homeView = { cx: r.left + r.width / 2, gy, k, adopt: onAdopt };
   const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, (gy - r.top) * 0.95 / k - sz.h * 1.05) };
