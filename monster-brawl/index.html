@@ -142,7 +142,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .fighter .nm{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fighter .chip{width:10px;height:10px;border-radius:50%;flex:none}
 .fighter .bar{height:6px}
-.modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:5}
+.modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));z-index:5}
 .modal.on{display:flex}
 .card{background:var(--panel);border-radius:20px;padding:20px;width:min(360px,100%);text-align:center;display:flex;flex-direction:column;gap:12px}
 .card h2{margin:0;font-size:28px}
@@ -175,7 +175,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .instbtn{flex:none;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;order:-1;margin-right:auto;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .newsbtn{position:relative}
-.newscard{position:relative;display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+.newscard{position:relative;display:flex;flex-direction:column;max-height:calc(100vh - 40px);max-height:100%;overflow:hidden} /* 100%: en iPhone 100vh es más alto que lo visible y la ✕ quedaba fuera de la pantalla */
+.newscard .newsscroll{flex:1 1 auto}
 .newsscroll{overflow-y:auto;touch-action:pan-y;min-height:0}
 .newsx{position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:50%;padding:0;background:var(--panel2);color:var(--text);font-size:16px;font-weight:900;line-height:34px;text-align:center} /* cerrar Novedades: arriba a la derecha, fuera de la parte que se desplaza */
 .newsbtn.new{background:rgba(255,211,107,.22);box-shadow:0 0 0 2px #ffd36b;animation:newsglow 1.6s ease-in-out infinite} /* hay novedades sin ver: dorado con número, como Estadísticas */
@@ -183,7 +184,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 @keyframes newsglow{0%,100%{box-shadow:0 0 0 2px #ffd36b,0 0 4px rgba(255,190,60,.45)}50%{box-shadow:0 0 0 2px #ffd36b,0 0 14px rgba(255,200,70,.95)}}
 .gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
 #home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
-.setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
+.setcard{max-height:calc(100vh - 40px);max-height:100%;overflow-y:auto;touch-action:pan-y}
 .setview{display:flex;flex-direction:column;gap:10px}
 .newsv{background:var(--panel2);border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:left}
 .newsv h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -4247,6 +4248,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
   { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes entrar con tu cuenta de Google, o crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
   { v: '1.43', d: '2026-11-22', items: ['Nuevo: Ánimo. Acariciar a tu monstruo le sube el ánimo y golpearlo se lo baja, de a poco. Con buen ánimo pelea mejor y con mal ánimo, peor. Con el tiempo vuelve solo al medio. No se muestra: se nota al pelear.', 'La personalidad ya no se muestra ni se cambia a mano: cambia de a poco según cómo lo tratas. Las caricias lo vuelven más valiente, oportunista y agresivo; los golpes, al revés: más prudente, terco y cauto.'] },
