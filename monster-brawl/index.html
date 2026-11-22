@@ -257,12 +257,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .dbtn{font-size:12px;padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .dbtn small{font-weight:600;color:var(--muted);font-size:10px}
 .ultlist{display:flex;flex-direction:column;gap:6px}
-.ultc{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px;border:2px solid transparent}
+.ultc{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;text-align:left;color:var(--text);font:inherit;width:100%;align-items:center;background:var(--panel2);border-radius:12px;padding:8px 10px;border:2px solid transparent}
 .ultc.on{border-color:var(--acc)}
 .ultc.locked b{color:var(--muted)}
 .ultc b{font-size:13px}
-.ultc .tdesc{grid-column:1}
-.ultc .btn,.ultc .pill{grid-row:1/3;grid-column:2;font-size:12px;padding:8px 10px;display:flex;align-items:center;gap:5px}
+.ultc .tdesc{grid-column:2}
+.ultc .uicon{grid-row:1/3}
+.uicon{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:13px;background:radial-gradient(circle at 35% 30%,#54468a,#241b40);box-shadow:inset 0 0 0 2px rgba(255,255,255,.08);flex:none}.uicon svg{width:78%;height:78%}
+.uicon.big{width:72px;height:72px;border-radius:20px}
+.ultslot{display:flex;align-items:center;justify-content:center;width:84px;height:84px;margin:4px auto 2px;border-radius:22px;background:var(--panel2);border:3px solid var(--acc);box-shadow:0 0 14px rgba(255,184,77,.35)}.ultslot:active{transform:scale(.95)}.ultslot.empty{border-style:dashed;border-color:var(--muted);box-shadow:none;color:var(--muted);font-size:36px;font-weight:900}
+#upList{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.ultc .btn,.ultc .pill{grid-row:1/3;grid-column:3;font-size:12px;padding:8px 10px;display:flex;align-items:center;gap:5px}
 .respec{align-self:center;font-size:12px;padding:8px 12px}
 .persona{grid-column:1/-1;margin:2px 0 0;font-size:12px;color:var(--muted);text-align:center}
 .persona b{color:var(--text)}
@@ -448,6 +453,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     </div>
   </div>
 </div>
+<div class="modal" id="ultPick">
+  <div class="card">
+    <h2 style="font-size:22px">Ultimate</h2>
+    <p id="upInfo"></p>
+    <div id="upList"></div>
+    <div class="row"><button class="btn" id="upNo">Cerrar</button></div>
+  </div>
+</div>
 <div class="modal" id="genePick">
   <div class="card">
     <h2 style="font-size:22px" id="gpTitle">Gen</h2>
@@ -542,6 +555,18 @@ const ULTS = {
   clone: { name: 'Clon', desc: 'se duplica: el clon pelea a su lado y la vida que le queda se reparte entre los dos' },
   mines: { name: 'Bombas', desc: 'suelta 3 bombas a su alrededor que explotan cuando un rival las pisa' },
 };
+const ULT_ICONS = {
+  melee: '<circle cx="24" cy="24" r="19" fill="none" stroke="#ffd36b" stroke-width="3" opacity=".45"/><circle cx="24" cy="24" r="12.5" fill="none" stroke="#ffd36b" stroke-width="3.5" opacity=".8"/><circle cx="24" cy="24" r="6.5" fill="#ffe9a8" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/>',
+  ranged: '<path d="M4 17h11M2 24h13M4 31h11" stroke="#ffb36b" stroke-width="3" stroke-linecap="round"/><circle cx="30" cy="24" r="13" fill="#ff8a3c" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><circle cx="25.5" cy="19.5" r="4" fill="#ffd9b0"/>',
+  defense: '<path d="M24 4l17 6.5V23c0 10.5-8 17-17 21C15 40 7 33.5 7 23V10.5z" fill="#9fb4c8" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 10.5l11 4.2V23c0 7-5 11.5-11 14z" fill="#e3edf6"/>',
+  speed: '<path d="M28 3L11 27h12l-5 18 19-26H25z" fill="#ffe14d" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/>',
+  dodge: '<path d="M11 41V22a13 13 0 0 1 26 0v19l-4.3-4-4.3 4-4.4-4-4.3 4-4.4-4z" fill="#ece8ff" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><circle cx="19" cy="22" r="2.6" fill="#22163a"/><circle cx="29" cy="22" r="2.6" fill="#22163a"/>',
+  drain: '<path d="M24 41C10 31 5.5 23 9.5 15.5 13.5 9 21 9.5 24 16c3-6.5 10.5-7 14.5-.5C42.5 23 38 31 24 41z" fill="#ff5d7a" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><path d="M24 19.5v11M18.5 25h11" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>',
+  teleport: '<ellipse cx="24" cy="34" rx="17" ry="8" fill="#7b4dff" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><ellipse cx="24" cy="34" rx="10" ry="4.5" fill="#22163a"/><path d="M24 30V8M17 15l7-7 7 7" fill="none" stroke="#d6c8ff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',
+  clone: '<circle cx="31" cy="14" r="6" fill="#9fd9ff" opacity=".75"/><path d="M21 39c0-11 20-11 20 0z" fill="#9fd9ff" opacity=".75"/><circle cx="18" cy="18" r="6.5" fill="#4fb3ff" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 43c0-13 22-13 22 0z" fill="#4fb3ff" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/>',
+  mines: '<path d="M30 17q3-8 9-8" fill="none" stroke="#c8a46a" stroke-width="3" stroke-linecap="round"/><circle cx="21" cy="29" r="13.5" fill="#3d3756" stroke="#22163a" stroke-width="2.5" stroke-linejoin="round"/><circle cx="16" cy="24" r="3.4" fill="#8f89b0"/><circle cx="40" cy="8.5" r="4" fill="#ffd23f"/><path d="M40 1.5v3M40 12.5v3M33 8.5h3M44 8.5h3" stroke="#ffd23f" stroke-width="2" stroke-linecap="round"/>',
+};
+const ultIcon = (k, cls = '') => `<span class="uicon ${cls}"><svg viewBox="0 0 48 48" aria-hidden="true">${ULT_ICONS[k] || ''}</svg></span>`; // ícono de cada ultimate (pedido del dueño)
 const MINE_POW = 2.2, MINE_SPLASH = 0.5, MINE_R = 95, MINE_D = 120, MINE_TRIG = 30; // Bombas: daño (×ultPow) a quien la pisa, fracción a los demás cerca, radio de la explosión y distancia a la que caen; MINE_TRIG: área invisible alrededor de cada bomba que la activa
 const ULT_DRAIN = 0.75; // Robo de vida: fracción del daño que vuelve como vida
 // La ultimate depende del stat en que más destaca: cada stat se compara con el promedio de los adultos (sin contar el nivel)
@@ -4109,12 +4134,8 @@ function renderTrain() {
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
   if (canUlt(rec.stage)) { // sin textos explicativos (pedido del dueño); antes de Adolescente no se muestra la sección
     h += `<div class="tsec"><div class="thead">Ultimate</div>`;
-    const eq = rec.ult && ULTS[rec.ult] ? rec.ult : null, owned = ULT_KEYS.filter(k => ownsUlt(k) || k === eq);
-    if (!owned.length) h += `<p class="tdesc">Todavía no tienes ultimates: se compran en la Tienda.</p>`;
-    h += `<div class="ultlist">${owned.map(k => {
-      const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
-      return `<div class="ultc ${on ? 'on' : ''}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
-    }).join('')}</div>`;
+    const eq = rec.ult && ULTS[rec.ult] ? rec.ult : null; // una sola ranura con su ícono: al tocarla se elige (pedido del dueño)
+    h += `<button class="ultslot ${eq ? '' : 'empty'}" id="ultSlot" aria-label="${eq ? ULTS[eq].name : 'Elegir ultimate'}">${eq ? ultIcon(eq, 'big') : '+'}</button>`;
     h += `</div>`;
   }
   h += `<div class="tsec"><div class="thead">Tácticas de combate</div>`; // (el ánimo no se muestra, pedido del dueño)
@@ -4125,7 +4146,7 @@ function renderTrain() {
   $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
-  document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
+  if ($('ultSlot')) $('ultSlot').onclick = () => openUltPick(rec);
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
     if (save.coins < RESPEC_COST) return;
@@ -4146,6 +4167,15 @@ function temperSlider(el, rec) {
     rec.temper[k] = v; persist(); renderTrain();
     trainFx(v > 0.25 ? t.tr : v < -0.25 ? t.tl : 'Equilibrado');
   };
+}
+// Elegir la ultimate del monstruo: ventana con todas las compradas (ícono, nombre y descripción); tocar una la asigna
+$('upNo').onclick = () => $('ultPick').classList.remove('on');
+function openUltPick(rec) {
+  const eq = rec.ult && ULTS[rec.ult] ? rec.ult : null, owned = ULT_KEYS.filter(k => ownsUlt(k) || k === eq), L = $('upList');
+  $('upInfo').textContent = owned.length ? '' : 'Todavía no tienes ultimates: se compran en la Tienda.';
+  L.innerHTML = owned.map(k => `<button class="ultc ${k === eq ? 'on' : ''}" data-up="${k}">${ultIcon(k)}<b>${ULTS[k].name}</b>${k === eq ? '<span class="pill on">Equipada</span>' : ''}<div class="tdesc">${ULTS[k].desc}</div></button>`).join('');
+  L.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { $('ultPick').classList.remove('on'); if (b.dataset.up === rec.ult) return; rec.ult = b.dataset.up; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
+  $('ultPick').classList.add('on');
 }
 function trainFx(label) {
   show.vz = 230; show.mouthOpen = 1; show.setEmo('angry', 0.5, 2, ['happy', 1.2]); // ¡esfuerzo! y luego contento
@@ -4640,7 +4670,7 @@ function renderShopUlts(hide) {
   if (!ultShopOpen()) { el.innerHTML = `<div class="tsec"><p class="tdesc ultlock">🔒 Las ultimates se desbloquean cuando tengas un monstruo adolescente.</p></div>`; return; }
   const left = ULT_KEYS.filter(k => !ownsUlt(k)); // las ya desbloqueadas no se muestran (pedido del dueño)
   el.innerHTML = `<div class="tsec">${left.length ? `<div class="ultlist">${left.map(k =>
-    `<div class="ultc locked"><b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}</div>`;
+    `<div class="ultc locked">${ultIcon(k)}<b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}</div>`;
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
@@ -4688,7 +4718,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.'] },
+  { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
   { v: '1.52', d: '2026-11-22', items: ['Tácticas de combate: en Estadísticas eliges cómo pelea cada monstruo con 6 medidores: distancia (de lejos o de cerca), objetivo (al más débil o no lo suelta), con poca vida (se cuida o con todo), y tres nuevas: ritmo de ataque (golpes fuertes o rápidos), defensa (aguantar o esquivar) y en equipo (separados o juntos). Acariciar y golpear ya no las cambian, pero siguen subiendo y bajando el ánimo.', 'Volvió el medidor de ánimo en Estadísticas, y el ánimo se nota en la cara: con ánimo bajo se ve triste y con ánimo alto, contento.', 'Si no interactúas con un monstruo, su ánimo baja de a 1 punto por hora.'] },
   { v: '1.51', d: '2026-11-22', items: ['Nombre de usuario: al entrar a tu cuenta de la Nube creas uno (no se puede repetir entre jugadores). Se ve en Online sobre tu monstruo y se puede cambiar en Ajustes → Partida → Nube.'] },
   { v: '1.50', d: '2026-11-22', items: ['8 texturas nuevas para los monstruos que nazcan desde ahora: cristal, madera, lunares, magma, circuito, panal, escarcha y polvo de estrellas. Todas las texturas (y la piel lisa) salen con la misma probabilidad.', 'Se quitó la textura de burbujas: los monstruos que la tenían ahora tienen otra.', '5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren a su alrededor, golpeando a todos los que alcance (pueden pegarle a varios a la vez).', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
