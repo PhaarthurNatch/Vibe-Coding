@@ -1242,9 +1242,13 @@ const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) *
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
 const TAC = { cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
-const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 1, MOOD_SAD = 30, MOOD_HAPPY = 70, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
+const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 1, MOOD_DECAY_BARN = 2, MOOD_SAD = 30, MOOD_HAPPY = 70, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
-function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6); return Math.max(0, rec.mood - Math.floor(h * MOOD_DECAY_H)); } // si no interactúas con él, baja de a 1 punto por hora (pedido del dueño)
+const moodRate = rec => typeof save !== 'undefined' && save && save.barn && save.barn.includes(rec) ? MOOD_DECAY_BARN : MOOD_DECAY_H; // en el granero baja el doble (pedido del dueño)
+function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6); return Math.max(0, rec.mood - Math.floor(h * moodRate(rec))); } // si no interactúas con él, baja de a 1 punto por hora en el rancho y de a 2 en el granero (pedido del dueño)
+function moodSettle(rec) { // antes de pasar del rancho al granero (o al revés): deja guardado lo que ya bajó, así el ritmo nuevo cuenta desde ahora
+  if (!rec || rec.mood == null || !rec.moodT) return; const r = moodRate(rec), n = Math.floor(Math.max(0, (Date.now() - rec.moodT) / 3.6e6) * r);
+  if (n > 0) { rec.mood = Math.max(0, rec.mood - n); rec.moodT += n / r * 3.6e6; } }
 const treatLast = new WeakMap();
 function treat(rec, kind) { // kind: 'pet' o 'poke' (tomarlo o lanzarlo no cambia nada)
   if (!rec || rec.stage === 'egg' || rec.cloneOf) return;
@@ -3195,7 +3199,7 @@ function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY)
         s.monsters.forEach(m => { m.gen = Math.max(5, m.gen || 0); delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true, v6: m.genes[k].v6 || false }; }); // (los gen 6 siguen siendo gen 6)
         s.gen5 = true; }
       s.monsters.forEach(m => { if (m.parents && !m.parentSeeds) { const ps = m.parents.map(n => (s.monsters.find(o => o !== m && o.name === n) || {}).seed).filter(x => x != null); if (ps.length) m.parentSeeds = ps; } }); // padres por semilla (antes sólo por nombre), para que se reconozcan en el rancho
-      s.barn = s.barn || []; if (s.monsters.length > MAX_MONSTERS) s.barn.push(...s.monsters.splice(MAX_MONSTERS));
+      s.barn = s.barn || []; if (s.monsters.length > MAX_MONSTERS) s.barn.push(...s.monsters.splice(MAX_MONSTERS)); /* (save aún no está listo: el ánimo de estos sigue al ritmo nuevo desde su última hora) */
       if (s.monsters.some(m => m.stage !== 'egg')) for (const m of s.monsters.filter(m => m.stage === 'egg')) { if (s.barn.length >= BARN_MAX) break; s.monsters.splice(s.monsters.indexOf(m), 1); s.barn.push(m); delete m.bed; } // en el rancho ya no hay huevos: van al granero (pedido del dueño) // el rancho tiene 8 espacios: los que sobran van al granero
       s.sel = clamp(s.sel | 0, 0, Math.max(0, s.monsters.length - 1)); return s; } } catch (e) { }
   try { if (raw && raw.length > 40) localStorage.setItem(LOST_KEY, raw); } catch (e) { } // no se pudo leer: se guarda aparte para no perderla (se ofrece recuperarla)
@@ -4586,7 +4590,7 @@ function barnTapEgg(i) { // tocar un huevo en su cama: se abre a toques, igual q
 function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, camina hasta la cama y se sienta
   const R = save.monsters, r = R[i]; save.barn = save.barn || [];
   if (!r || BARN.ms[bed] || save.barn.length >= BARN_MAX) return; // (se pueden guardar todos, también el último: pedido del dueño)
-  R.splice(i, 1); RANCH.actors.splice(i, 1); r.bed = bed; save.barn.push(r); // ya queda guardado (si sales antes de que llegue, ya está en su cama)
+  moodSettle(r); R.splice(i, 1); RANCH.actors.splice(i, 1); r.bed = bed; save.barn.push(r); // ya queda guardado (si sales antes de que llegue, ya está en su cama)
   if (save.sel > i || save.sel >= R.length) save.sel = Math.max(0, save.sel - 1);
   homeEmpty = null; persist(); $('barnModal').classList.remove('on');
   const it = BARN.ms[bed] = barnItem(r); if (it.m) { it.m.sitting = false; it.m.sitK = 0; it.m.sleep = false; it.m.setEmo('happy', 3, 2); }
@@ -4603,7 +4607,7 @@ function barnArriveStep(dt) { // los que llegan: aparecen en la puerta, caminan 
 const FROM_BARN = new WeakSet(); // recién salidos del granero (aparecen en el rancho junto a la reja, poco a poco)
 function barnTake(r) { // del granero al rancho (los demás se quedan en sus camas)
   const B = save.barn || [], j = B.indexOf(r); if (j < 0 || save.monsters.length >= MAX_MONSTERS) return;
-  B.splice(j, 1); delete r.bed; save.monsters.push(r); FROM_BARN.add(r); persist(); barnBuild(); barnUI(true); // en el rancho aparecerá poco a poco junto a la entrada del camino
+  moodSettle(r); B.splice(j, 1); delete r.bed; save.monsters.push(r); FROM_BARN.add(r); persist(); barnBuild(); barnUI(true); // en el rancho aparecerá poco a poco junto a la entrada del camino
 }
 $('barnUpLbl').onclick = leaveBarn; // (sin ✕: el dueño la quitó) // arriba está el rancho (también deslizando el dedo hacia abajo)
 function openFoePick() {
@@ -4718,6 +4722,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
   { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
   { v: '1.52', d: '2026-11-22', items: ['Tácticas de combate: en Estadísticas eliges cómo pelea cada monstruo con 6 medidores: distancia (de lejos o de cerca), objetivo (al más débil o no lo suelta), con poca vida (se cuida o con todo), y tres nuevas: ritmo de ataque (golpes fuertes o rápidos), defensa (aguantar o esquivar) y en equipo (separados o juntos). Acariciar y golpear ya no las cambian, pero siguen subiendo y bajando el ánimo.', 'Volvió el medidor de ánimo en Estadísticas, y el ánimo se nota en la cara: con ánimo bajo se ve triste y con ánimo alto, contento.', 'Si no interactúas con un monstruo, su ánimo baja de a 1 punto por hora.'] },
   { v: '1.51', d: '2026-11-22', items: ['Nombre de usuario: al entrar a tu cuenta de la Nube creas uno (no se puede repetir entre jugadores). Se ve en Online sobre tu monstruo y se puede cambiar en Ajustes → Partida → Nube.'] },
