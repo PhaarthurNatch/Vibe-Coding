@@ -1389,9 +1389,9 @@ class Monster {
     this.emo = 'neutral'; this.emoT = 0; this.emoP = 0; this.emoNext = null; this.baseEmo = null; this.winEmo = null;
     this.dead = false; this.deadT = 0; this.alpha = 1;
     this.awakened = rec.stage === 'awakened';
-    this.ultType = rec.ult || rec.ultGift || starterUlt(rec.seed); // la ultimate equipada (los hijos traen la de un padre)
+    this.ultType = rec.ult && ULTS[rec.ult] ? rec.ult : null; // la ultimate equipada (ya no hay de regalo, pedido del dueño: se compran en la Tienda)
     this.g = bodyFromTraining(this.g, rec.pts); // el entrenamiento se nota en el cuerpo
-    this.canUlt = canUlt(rec.stage); this.ultReady = this.canUlt; // desde adolescente; se recarga al empezar cada pelea
+    this.canUlt = canUlt(rec.stage) && !!this.ultType; this.ultReady = this.canUlt; // desde adolescente; se recarga al empezar cada pelea
     this.hitsN = 0; this.buffs = { defense: 0, speed: 0, dodge: 0, all: 0, drain: 0 };
     this.aura = []; this.auraAcc = 0; this.auraBoost = 0;
     this.auraCols = [hsl(this.g.pal.body, 22), hsl(this.g.pal.accent, 25), '#fff6d8'];
@@ -3157,7 +3157,7 @@ function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY)
       if (m.train) { let c = 0; for (const k in m.train) for (let l = 0; l < m.train[k]; l++) c += trainCost(l); if (c) { refund += c; } delete m.train; } // entrenamiento anterior: se devuelven las monedas
       if (!m.pts) m.pts = {}; if (!m.temper) m.temper = randomTemper(m.seed); for (const k in m.temper) m.temper[k] = clamp(+m.temper[k] || 0, -1, 1); // la personalidad cambia de a poco con el trato (ya no va en puntos fijos) if (!m.ultMode) m.ultMode = 'save';
       if (m.stage === 'awakened' && !m.ult) m.ult = ultTypeOf(genGenome(m.seed, 'adult', m.legacy, (m.gen || 0) >= 3, (m.gen || 0) >= 4, (m.gen || 0) >= 5), m.pts); // la que ya tenía
-      if (canUlt(m.stage) && !m.ult) m.ult = m.ultGift || starterUlt(m.seed); // desde adolescente ya tienen ultimate
+      delete m.ultGift; /* ya no hay ultimate de regalo (pedido del dueño); las que ya tenían se quedan */
       if (m.ult) { s.ults = s.ults || []; if (!s.ults.includes(m.ult)) s.ults.push(m.ult); } if (!m.gen) { if (m.stage === 'adult') m.legacy = true; m.gen = 2; } }); if (s.coins == null) s.coins = 0; [...s.monsters, ...(s.barn || [])].forEach(m => { if (m.stage !== 'egg' && m.mood == null) { m.mood = 50; m.moodT = Date.now(); } }); /* el ánimo baja si no interactúas: necesita su hora de inicio */ if (refund) { s.coins += refund; s.notice = `Cambiamos el entrenamiento: ahora se reparten puntos (2 por nivel) en Poder, Aguante, Agilidad y Técnica. Te devolvimos ${refund} monedas de tu entrenamiento anterior.`; } if (s.slots == null) { const aw = s.monsters.filter(m => m.stage === 'awakened'); aw.forEach(m => m.awakeCounted = true); s.slots = clamp(Math.max(SLOTS_START + aw.length, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // partidas antiguas: espacios según sus Awakened (sin perder monstruos)
       if (s.adopting) { s.monsters.push(s.adopting); delete s.adopting; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo que se abría en la Tienda (ya no existe) pasa al Home
       if (s.breeding) { const r = s.breeding.rec; r.readyAt = s.breeding.readyAt; s.monsters.push(r); delete s.breeding; s.slots = clamp(Math.max(s.slots, s.monsters.length), SLOTS_START, MAX_MONSTERS); } // el huevo del Criadero (ya no existe) pasa a un espacio del Home
@@ -3898,7 +3898,7 @@ function renderHome() {
   $('home').classList.toggle('ranch', ranchMode);
   syncRanch();
   renderAdopt();
-  checkBreedUnlock();
+  checkBreedUnlock(); checkUltUnlock();
   $('coins').textContent = save.coins;
   if (barnCtx) { // de cerca en el granero: la misma vista de cerca, con un monstruo del granero (no pelea)
     const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !it.m || !rec) { barnExit(); return; }
@@ -3985,6 +3985,16 @@ function checkBreedUnlock() {
   if (!save.breedUnlocked && scene === 'home' && !growAnim && (awakenedCount() >= 2 || save.monsters.some(m => m.readyAt))) {
     save.breedUnlocked = true; persist();
     setTimeout(() => ask('¡Ya puedes criar! Tienes 2 monstruos adultos: entra al granero, toca una cama libre y elige «Criar» para cruzarlos.', { ok: 'Entendido', cancel: null }), 400);
+  }
+}
+// Ultimates de la Tienda: se desbloquean (para siempre) al tener un monstruo adolescente o mayor (pedido del dueño)
+const ultShopOpen = () => !!save.ultsUnlocked;
+function checkUltUnlock() {
+  if (save.ultsUnlocked || scene !== 'home' || growAnim) return;
+  if ((save.ults || []).length) { save.ultsUnlocked = true; persist(); return; } // ya compraba ultimates: sin aviso
+  if ([...save.monsters, ...(save.barn || [])].some(m => canUlt(m.stage))) {
+    save.ultsUnlocked = true; persist();
+    setTimeout(() => ask('¡Ya puedes comprar ultimates! Tienes un monstruo adolescente: sube a la Tienda y compra una ultimate para tus monstruos.', { ok: 'Entendido', cancel: null }), 400);
   }
 }
 // Partida nueva: hasta que nazca el primer huevo no se puede ir a ningún lado (ni páginas ni otros espacios)
@@ -4099,8 +4109,9 @@ function renderTrain() {
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
   if (canUlt(rec.stage)) { // sin textos explicativos (pedido del dueño); antes de Adolescente no se muestra la sección
     h += `<div class="tsec"><div class="thead">Ultimate</div>`;
-    const eq = rec.ult || starterUlt(rec.seed);
-    h += `<div class="ultlist">${ULT_KEYS.filter(k => ownsUlt(k) || k === eq).map(k => {
+    const eq = rec.ult && ULTS[rec.ult] ? rec.ult : null, owned = ULT_KEYS.filter(k => ownsUlt(k) || k === eq);
+    if (!owned.length) h += `<p class="tdesc">Todavía no tienes ultimates: se compran en la Tienda.</p>`;
+    h += `<div class="ultlist">${owned.map(k => {
       const on = k === eq, btn = on ? `<span class="pill on">Equipada</span>` : `<button class="btn" data-ulteq="${k}">Equipar</button>`;
       return `<div class="ultc ${on ? 'on' : ''}"><b>${ULTS[k].name}</b>${btn}<div class="tdesc">${ULTS[k].desc}</div></div>`;
     }).join('')}</div>`;
@@ -4209,7 +4220,6 @@ function makeChild(A, B) {
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = Object.fromEntries(TEMPER.map(t => [t.k, mix(t.k)]));
   rec.parents = [A.name, B.name]; rec.parentSeeds = [A.seed, B.seed]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
-  rec.ultGift = (Math.random() < 0.5 ? A : B).ult || null; // al despertar trae la ultimate de uno de sus padres
   return rec;
 }
 // Espacio libre en el Home: comprar un huevo (se abre ahí mismo a toques) o criar uno (incuba en ese espacio)
@@ -4627,6 +4637,7 @@ function openGenePick(grp) {
 // Tienda: ultimates. Se desbloquean aquí y quedan en la biblioteca para todos tus monstruos; se equipan desde Entrenar.
 function renderShopUlts(hide) {
   const el = $('shopUlts'); el.hidden = hide; if (hide) return;
+  if (!ultShopOpen()) { el.innerHTML = `<div class="tsec"><p class="tdesc ultlock">🔒 Las ultimates se desbloquean cuando tengas un monstruo adolescente.</p></div>`; return; }
   const left = ULT_KEYS.filter(k => !ownsUlt(k)); // las ya desbloqueadas no se muestran (pedido del dueño)
   el.innerHTML = `<div class="tsec">${left.length ? `<div class="ultlist">${left.map(k =>
     `<div class="ultc locked"><b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}</div>`;
@@ -4634,7 +4645,7 @@ function renderShopUlts(hide) {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
     if (save.coins < ULT_COST || ownsUlt(k)) return;
-    save.coins -= ULT_COST; grantUlt(k); persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
+    save.coins -= ULT_COST; grantUlt(k); [...save.monsters, ...(save.barn || [])].forEach(m => { if (canUlt(m.stage) && !(m.ult && ULTS[m.ult])) m.ult = k; }); /* se equipa sola a los que no tenían */ persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
   });
 }
 $('btnFree').onclick = async () => {
@@ -4677,7 +4688,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.'] },
+  { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.'] },
   { v: '1.52', d: '2026-11-22', items: ['Tácticas de combate: en Estadísticas eliges cómo pelea cada monstruo con 6 medidores: distancia (de lejos o de cerca), objetivo (al más débil o no lo suelta), con poca vida (se cuida o con todo), y tres nuevas: ritmo de ataque (golpes fuertes o rápidos), defensa (aguantar o esquivar) y en equipo (separados o juntos). Acariciar y golpear ya no las cambian, pero siguen subiendo y bajando el ánimo.', 'Volvió el medidor de ánimo en Estadísticas, y el ánimo se nota en la cara: con ánimo bajo se ve triste y con ánimo alto, contento.', 'Si no interactúas con un monstruo, su ánimo baja de a 1 punto por hora.'] },
   { v: '1.51', d: '2026-11-22', items: ['Nombre de usuario: al entrar a tu cuenta de la Nube creas uno (no se puede repetir entre jugadores). Se ve en Online sobre tu monstruo y se puede cambiar en Ajustes → Partida → Nube.'] },
   { v: '1.50', d: '2026-11-22', items: ['8 texturas nuevas para los monstruos que nazcan desde ahora: cristal, madera, lunares, magma, circuito, panal, escarcha y polvo de estrellas. Todas las texturas (y la piel lisa) salen con la misma probabilidad.', 'Se quitó la textura de burbujas: los monstruos que la tenían ahora tienen otra.', '5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren a su alrededor, golpeando a todos los que alcance (pueden pegarle a varios a la vez).', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
@@ -5318,7 +5329,6 @@ function growStep(dt) {
     if (pt >= dur) { // ¡destello y cambia de cuerpo!
       G.phase = 'swap'; G.swapT = G.t; fx.flash = 1; G.oldM.gx = 0;
       G.rec.stage = G.newM.rec.stage;
-      if (canUlt(G.rec.stage) && !G.rec.ult) { G.rec.ult = G.newM.ultType; grantUlt(G.rec.ult); G.newUlt = G.rec.ult; } // ultimate de regalo al llegar a adolescente
       if (G.rec.stage === 'awakened' && !G.rec.awakeCounted) G.rec.awakeCounted = true; // (ya no da espacios: el rancho tiene siempre 8)
       persist(); // queda guardada cada etapa por si se cierra el juego a la mitad
       burst(0, -G.ne.h * 0.45, 26, acc, 340, [2, 5]);
