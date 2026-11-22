@@ -4220,7 +4220,7 @@ function addPoint(k) {
 }
 function updateEggSub() {
   const rec = cur(), left = (rec.readyAt || 0) - Date.now(); // huevo criado: incuba antes de poder abrirse
-  $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : `Faltan ${rec.need - rec.taps} toques`;
+  $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : 'toca el huevo para abrirlo'; // sin el número de toques que faltan (pedido del dueño)
   $('hint').textContent = left > 0 ? 'está incubando: podrás abrirlo cuando termine' : 'toca el huevo para que nazca';
   $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
 }
@@ -4378,7 +4378,7 @@ function barnUI(force) {
   const it = BARN.ms[i], full = save.monsters.length >= MAX_MONSTERS, r = it && it.rec;
   const nB = (save.barn || []).length; // (sin contador arriba: el dueño lo quitó)
   $('barnName').textContent = !r ? 'Cama libre' : r.stage === 'egg' ? (r.foeOf ? `Huevo de ${r.foeOf}` : 'Huevo') : r.name;
-  $('barnSub').textContent = !r ? (save.monsters.length ? 'toca la cama para traer a un monstruo' : 'no hay monstruos en el rancho') : r.stage === 'egg' ? (r.readyAt > Date.now() ? `Incubando · ${hmm(r.readyAt - Date.now())}` : `toca el huevo para abrirlo · faltan ${Math.max(1, (r.need || 6) - (r.taps || 0))}`) : `${STAGE_NAME[r.stage]} · Nv.${r.level}`;
+  $('barnSub').textContent = !r ? (save.monsters.length ? 'toca la cama para traer a un monstruo' : 'no hay monstruos en el rancho') : r.stage === 'egg' ? (r.readyAt > Date.now() ? `Incubando · ${hmm(r.readyAt - Date.now())}` : 'toca el huevo para abrirlo') : `${STAGE_NAME[r.stage]} · Nv.${r.level}`;
   if (it && barnLeaving(it)) $('barnSub').textContent = 'va camino al rancho';
 
 }
@@ -4743,6 +4743,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
   { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
   { v: '1.58', d: '2026-11-22', items: ['Solicitudes de amistad: al agregar a alguien le llega una solicitud, y cuando la acepta quedan amigos los dos (no hace falta que ambos se busquen). Las solicitudes aparecen en Amigos y el Menú se pone dorado. Si uno quita al otro, se quitan para ambos.'] },
