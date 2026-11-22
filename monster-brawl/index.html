@@ -1732,7 +1732,7 @@ class Monster {
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
   }
 
-  hop(dt) { if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 ? -this.vz * 0.25 : 0; } }
+  hop(dt) { const snk = this.g.plan === 'snake'; if (snk && this.z === 0 && this.vz > 0 && this.vz <= 300 && !this.held && !this.flung) this.vz *= 0.15; /* serpiente: los saltitos son apenas un levantón (pedido del dueño) */ if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 && !snk ? -this.vz * 0.25 : 0; } } // (la serpiente no rebota al caer)
 
   poke(px, py) {
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
