@@ -618,13 +618,13 @@ const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REA
 const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, burstN: 3, burstS: 2.5, backS: 1.2, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
-const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
+const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (los extremos de «Objetivo» piden menos)
 const TGT_COMMIT = 1.2;     // tiempo mínimo con un objetivo antes de cambiar (salvo que el nuevo sea MUY superior)
 // Estilo a distancia (sobre todo los Cautos) según el modo, para que todas las personalidades ganen parecido:
 // en todos contra todos se quedan menos atrás; en equipo cubren a su compañero disparando más seguido.
 const KITE = { ffaDist: 0.45, ffaFire: 2.0, ffaRetreat: 0.35, teamCover: 0.75, teamBackoff: 0.4 };
 // Pesos de cada factor (y cuánto los mueve la personalidad)
-const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, grudgeTerco: 0.6, vuln: 0.3, vulnOpp: 0.9,
+const TGT_W = { close: 1, closeAgr: 0.6, threat: 0.9, threatAgr: 0.3, onMe: 0.5, grudge: 0.2, closeTerco: 1.6, vuln: 0.3, vulnOpp: 0.9,
   distr: 0.1, distrOpp: 0.6, team: 0.2, crowd: 0.5, shield: 0.6, dangerValor: 1.2, dangerCauto: 0.6 };
 const MAX_MONSTERS = 8; // el rancho tiene siempre 8 espacios (pedido del dueño; antes 6); los demás se guardan en el granero
 const BARN_MAX = 10;     // monstruos que caben en el granero (no pelean; se sacan al rancho cuando hay espacio)
@@ -1252,7 +1252,7 @@ function bodyFromTraining(g, pts) {
 // ----- Tácticas de combate (antes «personalidad»; pedido del dueño: se eligen en Estadísticas): ejes de -1 a 1; tn = nombre de la táctica, tl/tr = lado izquierdo (negativo) / derecho (positivo) -----
 const TEMPER = [
   { k: 'agr', tn: 'Distancia', tl: 'De lejos', tr: 'De cerca', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' , posL: 'Se lanza a pelear cuerpo a cuerpo, persigue a su rival y casi nunca retrocede.', negL: 'Prefiere pelear de lejos: mantiene la distancia, dispara más y se aleja después de golpear.' },
-  { k: 'terco', tn: 'Objetivo', tl: 'Al más débil', tr: 'No lo suelta', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Elige a un rival y no lo suelta hasta noquearlo, aunque haya otros más fáciles.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
+  { k: 'terco', tn: 'Objetivo', tl: 'Al más débil', tr: 'Al más cercano', pos: 'Directo', neg: 'Oportunista', posD: 'va por el rival más cercano', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Ataca al rival que tenga más cerca y cambia si otro se le acerca más.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
   { k: 'valor', tn: 'Con poca vida', tl: 'Se cuida', tr: 'Con todo', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' , posL: 'Cuando le queda poca vida no se rinde: pelea con más fuerza y tarda más en asustarse.', negL: 'Cuando le queda poca vida se cuida: se aleja del peligro y esquiva más.' },
   { k: 'ritmo', tn: 'Ritmo de ataque', tl: 'Golpes fuertes', tr: 'Golpes rápidos', pos: 'Rápido', neg: 'Fuerte' }, // nuevas (pedido del dueño)
   { k: 'def', tn: 'Defensa', tl: 'Aguantar', tr: 'Esquivar', pos: 'Esquivador', neg: 'Aguantador' },
@@ -1729,7 +1729,7 @@ class Monster {
 
   // ---------- Puntaje de un posible objetivo (más alto = mejor) ----------
   // Cada factor va de 0 a 1 (así funciona igual en todas las etapas); la personalidad cambia los pesos:
-  // Agresivo = cercanía · Cauto = se aleja del que le pega fuerte · Terco = rencor y no suelta · Oportunista = vulnerable y distraído ·
+  // Agresivo = cercanía · Cauto = se aleja del que le pega fuerte · «Al más cercano» = cercanía mucho más · Oportunista («Al más débil») = vulnerable y distraído ·
   // Valiente = va por el más peligroso · Prudente = lo evita.
   scoreTarget(e, B, allies) {
     const { agr, terco, valor } = this.tp, st = this.st, hpMax = st.hp;
@@ -1749,9 +1749,9 @@ class Monster {
     const danger = dps(e) / (dps(e) + dps(this) + 1e-6);                              // ~0,5 si son parejos
     const pos = v => Math.max(0, v), neg = v => Math.max(0, -v);
     const W = TGT_W;
-    const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * (W.grudge + W.grudgeTerco * pos(terco));
+    const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * W.grudge;
     const opp = vuln * (W.vuln + W.vulnOpp * neg(terco)) + distr * (W.distr + W.distrOpp * neg(terco));
-    const sc = close * (W.close + W.closeAgr * agr) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield
+    const sc = close * (W.close + W.closeAgr * agr + W.closeTerco * pos(terco)) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield // «Al más cercano» (pedido del dueño): la cercanía pesa mucho más
       + (danger - 0.5) * (W.dangerValor * valor - W.dangerCauto * neg(agr));
     return { sc, angry, opp };
   }
@@ -1856,11 +1856,11 @@ class Monster {
         if (e === this.target) cur = r;
         if (r.sc > bs) { bs = r.sc; best = e; bWhy = r; }
       }
-      const tc = this.tp.terco, margin = Math.max(0.05, TGT_MARGIN * (1 + tc * 0.8));
+      const tc = this.tp.terco, tcF = 1 - 0.8 * Math.max(0, -tc) - 0.4 * Math.max(0, tc), margin = Math.max(0.05, TGT_MARGIN * tcF); // los dos extremos cambian de objetivo más fácil (al más débil / al más cercano)
       const keep = cur && !this.target.dead && (bs - cur.sc < margin || (this.commitT > 0 && bs - cur.sc < margin * 3));
       if (best !== this.target && !keep) {
         const prev = this.target;
-        this.target = best; this.commitT = TGT_COMMIT * (1 + tc * 0.6);
+        this.target = best; this.commitT = TGT_COMMIT * (1 - 0.6 * Math.max(0, -tc) - 0.3 * Math.max(0, tc));
         const dx = best.x - this.x, dy = best.y - this.y, d = Math.hypot(dx, dy) || 1; this.lockAx = { x: dx / d, y: dy / d };
         if (prev && !prev.dead) {
           this.switches++;
@@ -4762,7 +4762,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos.'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
