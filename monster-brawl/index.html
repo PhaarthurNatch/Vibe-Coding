@@ -711,6 +711,7 @@ const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart'
   horn: ['spike', 'antler', 'curl'], ear: ['cat', 'round', 'bunny', 'fin'], antenna: ['ball', 'glow', 'leaf'], mouth: ['smile', 'fangs', 'open', 'beak', 'teeth', 'tusks', 'tongue', 'mandibles', 'whiskers'],
   pupil: ['round', 'slit', 'bar', 'dot', 'ring', 'star', 'heart', 'diamond', 'spiral'] }; // todas las variantes de cada parte, igual de probables
 const LOOKS_NEW7 = { head: ['drop', 'cloud', 'oct'], torso: ['pear', 'egg'], hand: ['mace', 'finger'], feet: ['roots', 'sock'], wing: ['fin', 'petal'], tip: ['club', 'bow', 'feather'], horn: ['crescent', 'knob'], ear: ['bat', 'tuft'], antenna: ['heart', 'spiral'], mouth: ['snaggle', 'drool'], pupil: ['square', 'flower'] }; // gen 7 (pedido del dueño)
+const LOOKS_NEW13 = { wing: ['mech', 'bone', 'cloud'], head: ['bell', 'shield', 'peanut'], torso: ['tri', 'shield'] }; // gen 13 (pedido del dueño): alas, cabezas y cuerpos que faltaban
 const LOOKS_NEW12 = { pupil: ['triangle', 'keyhole', 'twin'], horn: ['unicorn', 'saw', 'trident'], antenna: ['bolt', 'pompom', 'orb'], ear: ['leaf', 'spiky', 'fan'], mouth: ['grin', 'vampire', 'stitch', 'kiss', 'trunk', 'tentacles'],
   hand: ['glove', 'hammer', 'sucker'], feet: ['flipper', 'stilt', 'cloud'], tip: ['arrow', 'sun', 'bone'] }; // gen 12 (pedido del dueño)
 const LOOKS_NEW9 = { head: ['diamond', 'star', 'wavy'], torso: ['barrel', 'hourglass'], hand: ['drill', 'bubble'], feet: ['wheel', 'peg'], tip: ['bell', 'moon', 'gem'], antenna: ['bulb', 'flower'] }; // gen 9 (pedido del dueño)
@@ -809,6 +810,7 @@ function genome5(seed, stage, v6 = false) {
   if (v6 >= 7) { const r7 = rng((seed ^ 0xbb67ae85) >>> 0); for (const k in LOOKS_NEW7) { const nn = LOOKS_NEW7[k].length, tot = LOOKS[k].length + (LOOKS_NEW[k] || []).length + nn, u = r7.f(0, 1), q = r7.pick(LOOKS_NEW7[k]); if (u < nn / tot) look[k] = q; } } // gen 7: otra tanda, con un azar aparte (los gen 6 no cambian)
   if (v6 >= 9) { const r9 = rng((seed ^ 0x1f83d9ab) >>> 0); for (const k in LOOKS_NEW9) { const nn = LOOKS_NEW9[k].length, tot = LOOKS[k].length + (LOOKS_NEW[k] || []).length + (LOOKS_NEW7[k] || []).length + nn, u = r9.f(0, 1), q = r9.pick(LOOKS_NEW9[k]); if (u < nn / tot) look[k] = q; } } // gen 9: formas nuevas, con la misma chance que cada una de las otras
   if (v6 >= 12) { const r12 = rng((seed ^ 0x6c62272e) >>> 0); for (const k in LOOKS_NEW12) { const nn = LOOKS_NEW12[k].length, tot = LOOKS[k].length + (LOOKS_NEW[k] || []).length + (LOOKS_NEW7[k] || []).length + (LOOKS_NEW9[k] || []).length + nn, u = r12.f(0, 1), q = r12.pick(LOOKS_NEW12[k]); if (u < nn / tot) look[k] = q; } } // gen 12: más partes, con la misma chance que cada una de las otras
+  if (v6 >= 13) { const r13 = rng((seed ^ 0x3a8c1d27) >>> 0); for (const k in LOOKS_NEW13) { const nn = LOOKS_NEW13[k].length, tot = LOOKS[k].length + [LOOKS_NEW, LOOKS_NEW7, LOOKS_NEW9, LOOKS_NEW12].reduce((t, T) => t + (T[k] || []).length, 0) + nn, u = r13.f(0, 1), q = r13.pick(LOOKS_NEW13[k]); if (u < nn / tot) look[k] = q; } } // gen 13
   const dims = { mid: { w: r.f(30, 80), h: r.f(16, 32) }, lower: { w: r.f(28, 80), h: r.f(16, 32) }, neck: r.f(8, 30), shoulder: r.f(7, 15), ear: r.f(0.28, 0.5), antLen: r.f(0.5, 0.95), eyeY: r.f(-0.35, 0.02), eyeSp: r.f(0.36, 0.52) };
   g.head.shape = look.head; g.torso.shape = look.torso; g.arms.hand = look.hand; g.feet.type = look.feet; g.wings.type = look.wing; g.tail.tip = look.tip; g.horns.style = look.horn;
   g.eyes.pupilShape = look.pupil; g.eyes.pupils = 1;
@@ -1224,6 +1226,18 @@ function shapePath(ctx, shape, x, y, w, h) {
     const n = 9, rx = w * 0.42, ry = h * 0.42, P = a => [x + Math.cos(a) * rx, y + Math.sin(a) * ry];
     ctx.moveTo(...P(0)); for (let i = 0; i < n; i++) { const a0 = i * TAU / n, a1 = (i + 1) * TAU / n, am = (a0 + a1) / 2; ctx.quadraticCurveTo(x + Math.cos(am) * rx * 1.3, y + Math.sin(am) * ry * 1.3, ...P(a1)); }
     ctx.closePath();
+  } else if (shape === 'bell') { // campana: angosta arriba y ancha abajo
+    ctx.moveTo(x - w * 0.18, y - h / 2); ctx.lineTo(x + w * 0.18, y - h / 2); ctx.bezierCurveTo(x + w * 0.4, y - h * 0.45, x + w * 0.36, y + h * 0.15, x + w / 2, y + h * 0.4);
+    ctx.quadraticCurveTo(x + w * 0.52, y + h / 2, x + w * 0.4, y + h / 2); ctx.lineTo(x - w * 0.4, y + h / 2); ctx.quadraticCurveTo(x - w * 0.52, y + h / 2, x - w / 2, y + h * 0.4);
+    ctx.bezierCurveTo(x - w * 0.36, y + h * 0.15, x - w * 0.4, y - h * 0.45, x - w * 0.18, y - h / 2); ctx.closePath();
+  } else if (shape === 'shield') { // escudo: arriba plano y abajo en punta
+    ctx.moveTo(x - w / 2, y - h * 0.42); ctx.quadraticCurveTo(x - w / 2, y - h / 2, x - w * 0.4, y - h / 2); ctx.lineTo(x + w * 0.4, y - h / 2); ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w / 2, y - h * 0.42);
+    ctx.bezierCurveTo(x + w / 2, y + h * 0.1, x + w * 0.2, y + h * 0.35, x, y + h / 2); ctx.bezierCurveTo(x - w * 0.2, y + h * 0.35, x - w / 2, y + h * 0.1, x - w / 2, y - h * 0.42); ctx.closePath();
+  } else if (shape === 'peanut') { // maní: dos bultos
+    ctx.ellipse(x, y - h * 0.22, w * 0.42, h * 0.3, 0, Math.PI * 0.85, Math.PI * 2.15); ctx.ellipse(x, y + h * 0.2, w / 2, h * 0.31, 0, -Math.PI * 0.15, Math.PI * 1.15); ctx.closePath();
+  } else if (shape === 'tri') { // hombros anchos y cintura angosta
+    ctx.moveTo(x - w / 2, y - h * 0.35); ctx.quadraticCurveTo(x - w / 2, y - h / 2, x - w * 0.36, y - h / 2); ctx.lineTo(x + w * 0.36, y - h / 2); ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w / 2, y - h * 0.35);
+    ctx.lineTo(x + w * 0.3, y + h * 0.4); ctx.quadraticCurveTo(x + w * 0.26, y + h / 2, x + w * 0.16, y + h / 2); ctx.lineTo(x - w * 0.16, y + h / 2); ctx.quadraticCurveTo(x - w * 0.26, y + h / 2, x - w * 0.3, y + h * 0.4); ctx.closePath();
   } else if (shape === 'diamond') { // rombo redondeado
     ctx.moveTo(x, y - h / 2); ctx.quadraticCurveTo(x + w * 0.12, y - h * 0.12, x + w / 2, y); ctx.quadraticCurveTo(x + w * 0.12, y + h * 0.12, x, y + h / 2);
     ctx.quadraticCurveTo(x - w * 0.12, y + h * 0.12, x - w / 2, y); ctx.quadraticCurveTo(x - w * 0.12, y - h * 0.12, x, y - h / 2); ctx.closePath();
@@ -2143,6 +2157,18 @@ class Monster {
       for (const [rot, len, wid] of [[0.55, 0.7, 0.13], [0.2, 1.0, 0.16], [-0.12, 0.8, 0.13]]) { ctx.save(); ctx.rotate(a0 + sg * rot); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * len * 0.45, -L * wid); ctx.lineTo(L * len, 0); ctx.lineTo(L * len * 0.45, L * wid); ctx.closePath();
         ctx.globalAlpha *= 0.85; fillStroke(ctx, C.wingL, C.ol, lw); ctx.globalAlpha /= 0.85; ctx.beginPath(); ctx.moveTo(L * len * 0.2, 0); ctx.lineTo(L * len * 0.8, 0); ctx.strokeStyle = `rgba(255,255,255,${0.7 * gl})`; ctx.lineWidth = lw * 0.8; ctx.stroke(); ctx.restore(); }
       ctx.restore();
+    } else if (g.wings.type === 'mech') { // mecánicas: placas de metal con remaches
+      const a0 = Math.atan2(uy, ux), sg = (ux * py - uy * px) > 0 ? 1 : -1;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a0);
+      for (let k = 2; k >= 0; k--) { const off = (k - 1) * L * 0.2 * sg, len = L * (1 - k * 0.18); ctx.beginPath(); rrect(ctx, 0, off - L * 0.08, len, L * 0.16, L * 0.05); fillStroke(ctx, k % 2 ? '#8d93a6' : '#aab0c2', C.ol, lw); ctx.fillStyle = C.ol; for (const f of [0.25, 0.6, 0.9]) { ctx.beginPath(); ctx.arc(len * f, off, L * 0.018 + 0.5, 0, TAU); ctx.fill(); } }
+      ctx.restore();
+    } else if (g.wings.type === 'bone') { // esqueleto de ala con membrana muy delgada
+      const D = L * 0.7, P = (f, h) => ({ x: b.x + dx * f + px * D * h, y: b.y + dy * f + py * D * h }), f1 = P(0.75, 0.75), f2 = P(0.4, 0.8), j = P(0.55, 0.05);
+      ctx.save(); ctx.globalAlpha *= 0.35; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(t.x, t.y); ctx.lineTo(f1.x, f1.y); ctx.lineTo(f2.x, f2.y); ctx.lineTo(P(0.05, 0.4).x, P(0.05, 0.4).y); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.restore();
+      const bone = (a, c) => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.lineCap = 'round'; ctx.lineWidth = L * 0.07 + lw * 2; ctx.strokeStyle = C.ol; ctx.stroke(); ctx.lineWidth = L * 0.07; ctx.strokeStyle = '#efe7d2'; ctx.stroke(); };
+      bone(b, j); bone(j, t); bone(j, f1); bone(j, f2); ctx.beginPath(); ctx.arc(j.x, j.y, L * 0.06, 0, TAU); fillStroke(ctx, '#efe7d2', C.ol, lw * 0.8);
+    } else if (g.wings.type === 'cloud') { // de nubes
+      for (let k = 4; k >= 0; k--) { const f = 0.15 + k * 0.2, rr = L * (0.26 - k * 0.035), q = { x: b.x + dx * f + px * L * 0.08 * Math.sin(this.t * 2 + k), y: b.y + dy * f + py * L * 0.08 * Math.sin(this.t * 2 + k) }; ctx.beginPath(); ctx.arc(q.x, q.y, rr, 0, TAU); fillStroke(ctx, k % 2 ? '#eef3ff' : '#ffffff', C.ol, lw * 0.9); }
     } else if (g.wings.type === 'leaf') { // hoja con nervaduras
       const a0 = Math.atan2(uy, ux), sg = (ux * py - uy * px) > 0 ? 1 : -1;
       ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(a0 + sg * 0.15);
@@ -2929,7 +2955,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 12, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 13, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4438,7 +4464,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', 'Más partes nuevas: pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro, cosida, de besito, trompa y tentáculos; manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro, cosida, de besito, trompa y tentáculos; manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
