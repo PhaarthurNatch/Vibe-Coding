@@ -21,6 +21,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding-block:calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-bottom, 0px) + 10px);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .screen.on{display:flex}
+:root.fullh,:root.fullh body{height:var(--appH)}:root.fullh #cv,:root.fullh .screen,:root.fullh .modal{bottom:auto;height:var(--appH)} /* iPhone, app instalada: ocupar todo el alto */
 .screen>*{pointer-events:auto}
 .spacer{flex:1;pointer-events:none!important}
 button{font:inherit;color:inherit;border:0;cursor:pointer}
@@ -142,7 +143,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .fighter .nm{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fighter .chip{width:10px;height:10px;border-radius:50%;flex:none}
 .fighter .bar{height:6px}
-.modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:5}
+.modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));z-index:5}
 .modal.on{display:flex}
 .card{background:var(--panel);border-radius:20px;padding:20px;width:min(360px,100%);text-align:center;display:flex;flex-direction:column;gap:12px}
 .card h2{margin:0;font-size:28px}
@@ -175,7 +176,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .instbtn{flex:none;margin-right:6px;font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:linear-gradient(#ffe08a,#ff9a3c);color:#2a1600}
 .coins{flex:none;order:-1;margin-right:auto;display:flex;align-items:center;gap:6px;background:var(--panel2);border-radius:999px;padding:5px 10px 5px 6px;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums}
 .newsbtn{position:relative}
-.newscard{position:relative;display:flex;flex-direction:column;max-height:calc(100vh - 40px);overflow:hidden}
+.newscard{position:relative;display:flex;flex-direction:column;max-height:calc(100vh - 40px);max-height:100%;overflow:hidden} /* 100%: en iPhone 100vh es más alto que lo visible y la ✕ quedaba fuera de la pantalla */
+.newscard .newsscroll{flex:1 1 auto}
 .newsscroll{overflow-y:auto;touch-action:pan-y;min-height:0}
 .newsx{position:absolute;top:10px;right:10px;z-index:2;width:34px;height:34px;border-radius:50%;padding:0;background:var(--panel2);color:var(--text);font-size:16px;font-weight:900;line-height:34px;text-align:center} /* cerrar Novedades: arriba a la derecha, fuera de la parte que se desplaza */
 .newsbtn.new{background:rgba(255,211,107,.22);box-shadow:0 0 0 2px #ffd36b;animation:newsglow 1.6s ease-in-out infinite} /* hay novedades sin ver: dorado con número, como Estadísticas */
@@ -183,7 +185,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 @keyframes newsglow{0%,100%{box-shadow:0 0 0 2px #ffd36b,0 0 4px rgba(255,190,60,.45)}50%{box-shadow:0 0 0 2px #ffd36b,0 0 14px rgba(255,200,70,.95)}}
 .gearbtn{flex:none;width:34px;height:34px;margin-left:6px;border-radius:50%;background:var(--panel2);font-size:17px;line-height:34px;padding:0;text-align:center}
 #home:not(.ranch) .gearbtn,#home:not(.ranch) .coins{visibility:hidden} /* monedas y ajustes: sólo en el rancho y la Tienda (sin mover lo demás) */
-.setcard{max-height:calc(100vh - 40px);overflow-y:auto;touch-action:pan-y}
+.setcard{max-height:calc(100vh - 40px);max-height:100%;overflow-y:auto;touch-action:pan-y}
 .setview{display:flex;flex-direction:column;gap:10px}
 .newsv{background:var(--panel2);border-radius:12px;padding:10px 12px;margin-bottom:8px;text-align:left}
 .newsv h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -3465,8 +3467,15 @@ function toRanch() {
 }
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
-function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
-addEventListener('resize', resize); resize();
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight;
+  // iPhone con la app instalada (barra de estado transparente): innerHeight queda corto y abajo sobraba una franja; se usa el alto de la pantalla
+  const iosApp = navigator.standalone === true && matchMedia('(orientation: portrait)').matches && screen.height > H && screen.height - H < 80;
+  if (iosApp) H = screen.height;
+  document.documentElement.classList.toggle('fullh', iosApp); document.documentElement.style.setProperty('--appH', H + 'px');
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 300)); if (window.visualViewport) visualViewport.addEventListener('resize', resize); resize();
 
 const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
   ['Poder', st => Math.max(st.melee, st.ranged * 1.3), 60],
@@ -4247,6 +4256,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
   { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes entrar con tu cuenta de Google, o crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
   { v: '1.43', d: '2026-11-22', items: ['Nuevo: Ánimo. Acariciar a tu monstruo le sube el ánimo y golpearlo se lo baja, de a poco. Con buen ánimo pelea mejor y con mal ánimo, peor. Con el tiempo vuelve solo al medio. No se muestra: se nota al pelear.', 'La personalidad ya no se muestra ni se cambia a mano: cambia de a poco según cómo lo tratas. Las caricias lo vuelven más valiente, oportunista y agresivo; los golpes, al revés: más prudente, terco y cauto.'] },
