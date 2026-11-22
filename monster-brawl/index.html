@@ -5354,7 +5354,7 @@ function lanUI(st, data) {
   btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Online';
   if (st === 'menu') { // sólo los botones (pedido del dueño)
     info.innerHTML = '';
-    btns.append(B('Crear sala', () => lanHost('fight'), 'primary'), B('🔄 Intercambio', () => lanHost('trade')), B('Unirme', () => lanUI('join')), B('Cerrar', () => $('lan').classList.remove('on')));
+    btns.append(B('🔄 Intercambio', () => lanHost('trade')), B('Crear sala', () => lanHost('fight'), 'primary'), B('Unirme', () => lanUI('join')), B('Cerrar', () => $('lan').classList.remove('on')));
   }
   else if (st === 'troom') { info.innerHTML = `<span class="roomcode">${LAN.room}</span>`; btns.append(back); }
   else if (st === 'trade' || st === 'tpick') lanTradeUI(st, info, list, btns, B, quit);
