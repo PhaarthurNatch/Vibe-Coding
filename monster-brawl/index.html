@@ -1192,6 +1192,14 @@ function seedPerfect(seed, grp) {
     qs.sort((x, y) => x - y); statPerfCache[grp] = qs[Math.floor(qs.length * (1 - STAT_PERFECT_TOP))]; }
   return statQuality({ seed, stage: 'baby' }, grp) >= statPerfCache[grp];
 }
+function perfectSeedFor(grp) { for (let i = 0; i < 3000; i++) { const sd = (Math.random() * 4e9) >>> 0; if (seedPerfect(sd, grp)) return sd; } return null; }
+function rollFreshPerfect(rec) { // huevos criados y del criadero (pedido del dueño): cada stat tiene su propia chance de salir perfecto (1%), como un huevo comprado
+  for (const grp of Object.keys(STAT_GROUPS)) {
+    const src = rec.statGenes && rec.statGenes[grp] != null ? rec.statGenes[grp] : rec.seed;
+    if (seedPerfect(src, grp) || Math.random() >= STAT_PERFECT_TOP) continue; // ya era perfecto (heredado) o no le tocó
+    const sd = perfectSeedFor(grp); if (sd != null) (rec.statGenes = rec.statGenes || {})[grp] = sd; // ese grupo pasa a salir de un origen perfecto (y se hereda a sus crías)
+  }
+}
 function perfectKeys(seed) { const ks = new Set(); for (const grp in STAT_Q_KEYS) if (seedPerfect(seed, grp)) STAT_Q_KEYS[grp].forEach(k => ks.add(k)); return ks; }
 function statPerfect(g, grp) {
   if (!g || !g.stage || g.stage === 'egg') return false;
@@ -4220,7 +4228,7 @@ function addPoint(k) {
 }
 function updateEggSub() {
   const rec = cur(), left = (rec.readyAt || 0) - Date.now(); // huevo criado: incuba antes de poder abrirse
-  $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : `Faltan ${rec.need - rec.taps} toques`;
+  $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : 'toca el huevo para abrirlo'; // sin el número de toques que faltan (pedido del dueño)
   $('hint').textContent = left > 0 ? 'está incubando: podrás abrirlo cuando termine' : 'toca el huevo para que nazca';
   $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
 }
@@ -4276,6 +4284,7 @@ function makeChild(A, B) {
     if (la || lb) rec.statGenes[grp] = sOrigin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
     else if (Math.random() >= BREED_MUTATION) rec.statGenes[grp] = sOrigin(Math.random() < 0.5 ? A : B, grp);
   }
+  rollFreshPerfect(rec); // y además puede salirle un stat perfecto propio
   delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = Object.fromEntries(TEMPER.map(t => [t.k, mix(t.k)]));
@@ -4378,7 +4387,7 @@ function barnUI(force) {
   const it = BARN.ms[i], full = save.monsters.length >= MAX_MONSTERS, r = it && it.rec;
   const nB = (save.barn || []).length; // (sin contador arriba: el dueño lo quitó)
   $('barnName').textContent = !r ? 'Cama libre' : r.stage === 'egg' ? (r.foeOf ? `Huevo de ${r.foeOf}` : 'Huevo') : r.name;
-  $('barnSub').textContent = !r ? (save.monsters.length ? 'toca la cama para traer a un monstruo' : 'no hay monstruos en el rancho') : r.stage === 'egg' ? (r.readyAt > Date.now() ? `Incubando · ${hmm(r.readyAt - Date.now())}` : `toca el huevo para abrirlo · faltan ${Math.max(1, (r.need || 6) - (r.taps || 0))}`) : `${STAGE_NAME[r.stage]} · Nv.${r.level}`;
+  $('barnSub').textContent = !r ? (save.monsters.length ? 'toca la cama para traer a un monstruo' : 'no hay monstruos en el rancho') : r.stage === 'egg' ? (r.readyAt > Date.now() ? `Incubando · ${hmm(r.readyAt - Date.now())}` : 'toca el huevo para abrirlo') : `${STAGE_NAME[r.stage]} · Nv.${r.level}`;
   if (it && barnLeaving(it)) $('barnSub').textContent = 'va camino al rancho';
 
 }
@@ -4660,7 +4669,7 @@ function openFoePick() {
 function buyFoeEgg(i) {
   const f = (save.foes || [])[i];
   const bed = BARN.bedTarget; if (!f || f.bought || bed == null || BARN.ms[bed] || save.coins < FOE_EGG_COST) return;
-  const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name;
+  const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name; rollFreshPerfect(rec); // también puede salirle un stat perfecto
   save.coins -= FOE_EGG_COST; f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
 }
 function renderShopGenes() {
@@ -4743,6 +4752,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
   { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
   { v: '1.58', d: '2026-11-22', items: ['Solicitudes de amistad: al agregar a alguien le llega una solicitud, y cuando la acepta quedan amigos los dos (no hace falta que ambos se busquen). Las solicitudes aparecen en Amigos y el Menú se pone dorado. Si uno quita al otro, se quitan para ambos.'] },
