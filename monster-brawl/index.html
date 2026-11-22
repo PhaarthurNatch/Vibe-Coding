@@ -3401,10 +3401,11 @@ function syncRanch() {
     if (!RANCH.spots) { const n = Math.max(cap, MAX_MONSTERS), o = Array.from({ length: n }, (_, k) => k).sort(() => Math.random() - 0.5), b = Math.random() * TAU; RANCH.spots = o.map(k => b + (k + (Math.random() - 0.5) * 0.6) / n * TAU); } // al entrar, cada uno aparece en un lugar al azar (pedido del dueño)
     if (!a) { const ang = RANCH.spots[i % RANCH.spots.length], rr = 0.7 + 1.1 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
     if (rec && FROM_BARN.has(rec)) { FROM_BARN.delete(rec); const D = ranchDeco(), q = D.path.find(p => Math.hypot(p.x, p.z) > RANCH_RMAX * 0.93) || { x: 0, z: -RANCH_RMAX }; a.x = q.x; a.z = q.z; a.walk = false; a.idle = 1 + Math.random(); a.fadeIn = 0; } // sale del granero: entra por el camino, junto a la reja, apareciendo poco a poco
-    a.slot = i; a.rec = rec;
+    a.slot = i; a.rec0 = a.rec; a.rec = rec;
     a.kind = !rec ? 'free' : rec.stage === 'egg' ? 'egg' : 'mon';
     const key = rec ? [rec.seed, rec.stage, rec.level, rec.name, JSON.stringify(rec.pts || {}), rec.legacy].join('|') : 'free';
     if (a.key !== key) { // sólo se vuelve a armar si cambió (así no "salta" cada vez)
+      if (a.key && a.rec0 !== rec) for (const k of ['play', 'fam', 'come', 'fly', 'greet', 'rest', 'nap', 'lookWho']) a[k] = null; // otro habitante en este lugar (p. ej. al liberar a uno los demás se corren): se olvida lo que estaba haciendo el anterior
       a.key = key; a.m = a.e = null;
       if (a.kind === 'mon') { a.m = new Monster(rec); a.m.resetRig(); a.sz = a.m.estSize(); }
       else if (a.kind === 'egg') { a.e = new EggView(rec); a.sz = { w: 50, h: 62 }; }
@@ -3413,6 +3414,7 @@ function syncRanch() {
     if (a.m) { a.m.sleep = resting(rec) || !!a.nap; a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
   }
   A.length = cap;
+  for (const a of A) if (a.play && (a.kind !== 'mon' || !a.play.mate || a.play.mate.kind !== 'mon' || !A.includes(a.play.mate) || (a.play.mate.play && a.play.mate.play.mate !== a))) { a.play = null; a.walk = false; a.idle = 1; } // su compañero de juego ya no está: deja de jugar
 }
 const RANCH_RMIN = 0.5, RANCH_RMAX = RANCH_RF * 0.98; // los monstruos andan libres entre el centro (donde está uno parado, sin acercarse a menos de RMIN) y la cerca (radio RANCH_RF)
 function ranchStep(dt) {
@@ -3438,7 +3440,7 @@ function ranchStep(dt) {
     const key = a.slot + '-' + b.slot; if ((RANCH.famCd[key] || 0) > RANCH.t) continue;
     RANCH.famCd[key] = RANCH.t + 40; a.fam = { t: 0 }; b.fam = { t: -0.25 }; a.walk = b.walk = false;
   }
-  for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
+  for (const a of A) if (a.play && (a === focus || !a.m || !a.play.mate || !a.play.mate.m || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
     const free = A.filter(canPlay);
@@ -4726,6 +4728,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.'] },
   { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
