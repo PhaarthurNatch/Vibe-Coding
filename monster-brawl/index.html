@@ -21,6 +21,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;pointer-events:none;padding-block:calc(env(safe-area-inset-top, 0px) + 8px) calc(env(safe-area-inset-bottom, 0px) + 10px);padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
 .screen.on{display:flex}
+:root.fullh,:root.fullh body{height:var(--appH)}:root.fullh #cv,:root.fullh .screen,:root.fullh .modal{bottom:auto;height:var(--appH)} /* iPhone, app instalada: ocupar todo el alto */
 .screen>*{pointer-events:auto}
 .spacer{flex:1;pointer-events:none!important}
 button{font:inherit;color:inherit;border:0;cursor:pointer}
@@ -3466,8 +3467,15 @@ function toRanch() {
 }
 let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
-function resize() { DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
-addEventListener('resize', resize); resize();
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight;
+  // iPhone con la app instalada (barra de estado transparente): innerHeight queda corto y abajo sobraba una franja; se usa el alto de la pantalla
+  const iosApp = navigator.standalone === true && matchMedia('(orientation: portrait)').matches && screen.height > H && screen.height - H < 80;
+  if (iosApp) H = screen.height;
+  document.documentElement.classList.toggle('fullh', iosApp); document.documentElement.style.setProperty('--appH', H + 'px');
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 300)); if (window.visualViewport) visualViewport.addEventListener('resize', resize); resize();
 
 const MAIN_DEF = [ // los 4 stats que se entrenan (valores resumidos)
   ['Poder', st => Math.max(st.melee, st.ranged * 1.3), 60],
@@ -4248,7 +4256,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.'] },
+  { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
   { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes entrar con tu cuenta de Google, o crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
   { v: '1.43', d: '2026-11-22', items: ['Nuevo: Ánimo. Acariciar a tu monstruo le sube el ánimo y golpearlo se lo baja, de a poco. Con buen ánimo pelea mejor y con mal ánimo, peor. Con el tiempo vuelve solo al medio. No se muestra: se nota al pelear.', 'La personalidad ya no se muestra ni se cambia a mano: cambia de a poco según cómo lo tratas. Las caricias lo vuelven más valiente, oportunista y agresivo; los golpes, al revés: más prudente, terco y cauto.'] },
