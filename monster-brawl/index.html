@@ -573,7 +573,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.6, TAIL_REACH = 34; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca por delante (pedido del dueño)
+const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
 const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, burstN: 3, burstS: 2.5, backS: 1.2, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
@@ -832,6 +832,9 @@ const COLOR_MODES14 = {
 };
 // Texturas (gen 15, pedido del dueño): ~55% de los monstruos nuevos tienen una sobre el cuerpo y la cabeza
 const TEXTURES = ['scales', 'fur', 'slime', 'rock', 'plates', 'feathers', 'sparkle', 'bubbles'];
+// Gen 18 (pedido del dueño): más texturas; con las 8 anteriores y «lisa», todas igual de probables (flujo de azar aparte)
+const TEXTURES18 = ['crystal', 'wood', 'polka', 'magma', 'circuit', 'leopard', 'honeycomb', 'frost', 'patch', 'stardust'];
+function applyTexture18(g, seed) { const r = rng((seed ^ 0x7f4a7c15) >>> 0), all = [...TEXTURES, ...TEXTURES18, null], k = all[Math.min(all.length - 1, Math.floor(r.f(0, 1) * all.length))]; if (k) g.texture = k; else delete g.texture; }
 function applyTexture15(g, seed) { const r = rng((seed ^ 0x2f3c9a71) >>> 0), u = r.f(0, 1), k = r.pick(TEXTURES); if (u < 0.55) g.texture = k; }
 // Gen 16 (pedido del dueño: "todo lo estético se reparte igual"): cada combinación de colores, dibujo y textura tiene la misma chance
 const BASE_MODES = ['classic', 'pastel', 'neon', 'dark', 'earthy', 'metal', 'candy'];
@@ -866,7 +869,7 @@ function genome5(seed, stage, v6 = false) {
   if (stage === 'egg') stage = 'baby';
   if (stage === 'awakened') stage = 'adult';
   const g = rollGenome(seed, 'adult');
-  if (v6 >= 16) applyLooks16(g, seed); // gen 16: colores, dibujo y textura con todas las opciones igual de probables (pedido del dueño)
+  if (v6 >= 16) applyLooks16(g, seed); if (v6 >= 18) applyTexture18(g, seed); // gen 16: colores, dibujo y textura con todas las opciones igual de probables (pedido del dueño)
   else { applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); if (v6 >= 14) applyColors14(g, seed); if (v6 >= 15) applyTexture15(g, seed); } // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
   const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
   // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
@@ -1828,10 +1831,10 @@ class Monster {
       case 'tail': // serpiente: coletazo (prepara la cola atrás y arriba, despacio, y la barre hacia adelante)
         if (this.tailPh === 'wind' && this.stT <= 0) { this.tailPh = 'swing'; this.stT = TAIL_SWING; this.hitSet.clear(); }
         else if (this.tailPh === 'swing') {
-          if (this.stT <= TAIL_SWING * 0.55) { const R = this.r + this.st.reach * 0.85 + TAIL_REACH, dir = this.atkDir;
+          if (this.stT <= TAIL_SWING * 0.55) { const R = this.r + this.st.reach * 0.85 + TAIL_REACH;
             for (const e of B.ms) { if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
               const ex = e.x - this.x, ey = e.y - this.y, ed = Math.hypot(ex, ey) || 1;
-              if (ed < R + e.r && (ex * dir.x + ey * dir.y) / ed > -0.3) { this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); } } }
+              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); } } }
           if (this.stT <= 0) { this.tailPh = null; this.state = 'recover'; this.stT = 0.35; }
         }
         break;
@@ -2092,6 +2095,47 @@ class Monster {
     } else if (tx === 'sparkle') { // brillitos que titilan
       for (let k = 0; k < nx * ny * 0.35 + 3; k++) { const px = x0 + w * hs(k, 19), py = y0 + h * hs(k, 23), a = 0.35 + 0.65 * Math.max(0, Math.sin(t * 3 + k * 1.7)), R2 = u * (0.25 + 0.25 * hs(k, 29));
         ctx.fillStyle = `rgba(255,255,255,${0.75 * a})`; ctx.beginPath(); ctx.moveTo(px, py - R2); ctx.lineTo(px + R2 * 0.25, py - R2 * 0.25); ctx.lineTo(px + R2, py); ctx.lineTo(px + R2 * 0.25, py + R2 * 0.25); ctx.lineTo(px, py + R2); ctx.lineTo(px - R2 * 0.25, py + R2 * 0.25); ctx.lineTo(px - R2, py); ctx.lineTo(px - R2 * 0.25, py - R2 * 0.25); ctx.closePath(); ctx.fill(); }
+    } else if (tx === 'crystal') { // cristal: facetas triangulares con brillo que recorre
+      const cs = u * 2.4, gx = Math.ceil(w / cs) + 1, gy = Math.ceil(h / cs) + 1, P = (i, j) => ({ x: x0 + (i + (hs(i, j + 50) - 0.5) * 0.5) * cs, y: y0 + (j + (hs(j, i + 60) - 0.5) * 0.5) * cs });
+      ctx.lineWidth = Math.max(1, s); ctx.strokeStyle = 'rgba(255,255,255,.35)';
+      for (let j = 0; j < gy; j++) for (let i = 0; i < gx; i++) { const a = P(i, j), b = P(i + 1, j), c = P(i, j + 1), d = P(i + 1, j + 1), sh = 0.08 + 0.22 * Math.max(0, Math.sin(t * 1.5 + (i + j) * 0.7));
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fillStyle = `rgba(255,255,255,${sh.toFixed(2)})`; ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fill(); ctx.stroke(); }
+    } else if (tx === 'wood') { // madera: vetas onduladas y nudos
+      ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = Math.max(1, s * 1.1);
+      for (let j = 0; j < h / (u * 0.8) + 1; j++) { const py = y0 + j * u * 0.8, ph = hs(j, 3) * 6; ctx.beginPath(); for (let q = 0; q <= 12; q++) { const px = x0 + w * q / 12; ctx[q ? 'lineTo' : 'moveTo'](px, py + Math.sin(q * 0.9 + ph) * u * 0.22); } ctx.stroke(); }
+      for (let k = 0; k < 2; k++) { const px = x0 + w * (0.25 + 0.5 * hs(k, 71)), py = y0 + h * (0.3 + 0.4 * hs(k, 73)); for (let q = 1; q <= 3; q++) { ctx.beginPath(); ctx.ellipse(px, py, u * 0.45 * q, u * 0.25 * q, 0, 0, TAU); ctx.stroke(); } }
+    } else if (tx === 'polka') { // lunares
+      const ps = u * 1.9; ctx.fillStyle = 'rgba(255,255,255,.32)';
+      for (let j = 0; j < h / ps + 1; j++) for (let i = -1; i < w / ps + 1; i++) { ctx.beginPath(); ctx.arc(x0 + (i + (j % 2) * 0.5) * ps, y0 + j * ps, u * 0.42, 0, TAU); ctx.fill(); }
+    } else if (tx === 'magma') { // magma: costra oscura con grietas que brillan
+      ctx.fillStyle = 'rgba(20,5,0,.38)'; ctx.fillRect(x0, y0, w, h); const gl = 0.55 + 0.35 * Math.sin(t * 2.2 + key);
+      for (const [col, lw2] of [[`rgba(255,120,20,${(gl * 0.5).toFixed(2)})`, 4], [`rgba(255,220,90,${gl.toFixed(2)})`, 1.6]]) { ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, s * lw2);
+        for (let k = 0; k < 5; k++) { let px = x0 + w * hs(k, 81), py = y0 + h * hs(k, 83); ctx.beginPath(); ctx.moveTo(px, py); for (let q = 0; q < 4; q++) { px += (hs(k, q + 85) - 0.5) * u * 2.4; py += (hs(q, k + 87) - 0.4) * u * 1.8; ctx.lineTo(px, py); } ctx.stroke(); } }
+    } else if (tx === 'circuit') { // circuito: pistas con puntos que se encienden
+      const cs = u * 2; ctx.lineWidth = Math.max(1, s * 1.1);
+      for (let j = 0; j < h / cs + 1; j++) for (let i = 0; i < w / cs + 1; i++) { const r1 = hs(i, j + 90); if (r1 < 0.35) continue; const px = x0 + i * cs, py = y0 + j * cs, on = Math.sin(t * 3 + i * 1.3 + j * 2.1) > 0.6;
+        ctx.strokeStyle = 'rgba(160,255,235,.45)'; ctx.beginPath(); ctx.moveTo(px, py); r1 < 0.68 ? ctx.lineTo(px + cs, py) : ctx.lineTo(px, py + cs); ctx.lineTo(px + cs * 0.5 * (r1 < 0.68 ? 2 : 1), py + cs * (r1 < 0.68 ? 0.5 : 1)); ctx.stroke();
+        ctx.beginPath(); ctx.arc(px, py, Math.max(1.2, s * 1.4), 0, TAU); ctx.fillStyle = on ? 'rgba(220,255,250,.95)' : 'rgba(160,255,235,.5)'; ctx.fill(); }
+    } else if (tx === 'leopard') { // leopardo: rosetas
+      ctx.lineCap = 'round';
+      for (let k = 0; k < nx * ny * 0.18 + 3; k++) { const px = x0 + w * hs(k, 91), py = y0 + h * hs(k, 93), rr = u * (0.45 + 0.3 * hs(k, 95));
+        ctx.beginPath(); ctx.arc(px, py, rr * 0.55, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.42)'; ctx.lineWidth = Math.max(1.5, u * 0.3);
+        for (let q = 0; q < 3; q++) { const a0 = q * TAU / 3 + hs(k, 97) * 2; ctx.beginPath(); ctx.arc(px, py, rr, a0, a0 + 1.4); ctx.stroke(); } }
+    } else if (tx === 'honeycomb') { // panal: hexágonos
+      const R = u * 0.95, hw = R * Math.sqrt(3); ctx.lineWidth = Math.max(1, s); 
+      for (let j = 0; j < h / (R * 1.5) + 2; j++) for (let i = -1; i < w / hw + 1; i++) { const cx = x0 + i * hw + (j % 2 ? hw / 2 : 0), cy = y0 + j * R * 1.5; ctx.beginPath(); for (let q = 0; q < 6; q++) { const a = Math.PI / 6 + q * Math.PI / 3; ctx[q ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * R * 0.92, cy + Math.sin(a) * R * 0.92); } ctx.closePath();
+        ctx.fillStyle = hs(i, j + 99) < 0.3 ? 'rgba(255,255,255,.16)' : 'rgba(0,0,0,.05)'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.stroke(); }
+    } else if (tx === 'frost') { // escarcha: borde blanquecino y copos
+      const gr = ctx.createRadialGradient(x, y, Math.min(w, h) * 0.15, x, y, Math.max(w, h) * 0.6); gr.addColorStop(0, 'rgba(230,248,255,0)'); gr.addColorStop(1, 'rgba(230,248,255,.4)'); ctx.fillStyle = gr; ctx.fillRect(x0, y0, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * 0.9);
+      for (let k = 0; k < nx * ny * 0.12 + 2; k++) { const px = x0 + w * hs(k, 101), py = y0 + h * hs(k, 103), rr = u * (0.4 + 0.35 * hs(k, 105)); ctx.beginPath(); for (let q = 0; q < 3; q++) { const a = q * Math.PI / 3; ctx.moveTo(px - Math.cos(a) * rr, py - Math.sin(a) * rr); ctx.lineTo(px + Math.cos(a) * rr, py + Math.sin(a) * rr); } ctx.stroke(); }
+    } else if (tx === 'patch') { // parches cosidos
+      for (let k = 0; k < 3; k++) { const pw = w * (0.3 + 0.2 * hs(k, 111)), ph = h * (0.3 + 0.2 * hs(k, 113)), px = x0 + (w - pw) * hs(k, 115), py = y0 + (h - ph) * hs(k, 117);
+        ctx.fillStyle = k % 2 ? 'rgba(255,255,255,.2)' : 'rgba(0,0,0,.16)'; ctx.fillRect(px, py, pw, ph); ctx.setLineDash([u * 0.35, u * 0.3]); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = Math.max(1, s * 1.1); ctx.strokeRect(px + u * 0.2, py + u * 0.2, pw - u * 0.4, ph - u * 0.4); ctx.setLineDash([]); }
+    } else if (tx === 'stardust') { // polvo de estrellas: velo de noche con puntitos que titilan
+      const gr = ctx.createLinearGradient(x0, y0, x0 + w, y0 + h); gr.addColorStop(0, 'rgba(30,10,80,.35)'); gr.addColorStop(1, 'rgba(10,40,90,.25)'); ctx.fillStyle = gr; ctx.fillRect(x0, y0, w, h);
+      for (let k = 0; k < nx * ny * 0.6 + 4; k++) { const a = 0.3 + 0.7 * Math.max(0, Math.sin(t * 2.5 + k * 2.3)); ctx.fillStyle = `rgba(255,255,255,${(0.85 * a).toFixed(2)})`; ctx.beginPath(); ctx.arc(x0 + w * hs(k, 121), y0 + h * hs(k, 123), Math.max(0.7, u * 0.09 * (1 + 2 * hs(k, 125))), 0, TAU); ctx.fill(); }
     } else if (tx === 'bubbles') { // burbujas
       ctx.lineWidth = Math.max(1, s * 0.9);
       for (let k = 0; k < nx * ny * 0.3 + 3; k++) { const px = x0 + w * hs(k, 31), py = y0 + h * hs(k, 37), rr = u * (0.3 + 0.45 * hs(k, 41)); ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke(); ctx.beginPath(); ctx.arc(px - rr * 0.35, py - rr * 0.35, rr * 0.22, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill(); }
@@ -3091,7 +3135,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 17, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 18, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4600,7 +4644,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren hacia adelante con un golpe fuerte a todos los que tengan cerca por delante.', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['10 texturas nuevas para los monstruos que nazcan desde ahora: cristal, madera, lunares, magma, circuito, leopardo, panal, escarcha, parches cosidos y polvo de estrellas. Todas las texturas (y la piel lisa) salen con la misma probabilidad.', '5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren a su alrededor, golpeando a todos los que alcance (pueden pegarle a varios a la vez).', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
