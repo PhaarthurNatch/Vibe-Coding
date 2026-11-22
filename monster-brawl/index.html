@@ -616,6 +616,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
 const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
 const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, leapSpd: 2.4, leapT0: 0.6, leapT1: 1.4, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
+const ROLL = { spd: 2.4, t0: 0.3, t1: 1.0, cd: 6, cdR: 4 }; // cuerpos de una pieza: ruedan hacia su objetivo o hacia atrás según su táctica (pedido del dueño); velocidad proporcional a la de tierra
 const airMelee = (a, e) => a.floatT > 0 && a.z > FLY.airZ && e.z > FLY.airZ && Math.abs(a.z - e.z) < FLY.airHitZ; // el que flota puede golpear cuerpo a cuerpo a otro que está en el aire (pedido del dueño)
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
@@ -1643,6 +1644,8 @@ class Monster {
 
   // ---------- Animación: define a dónde "quiere" ir cada parte ----------
   animate(dt) {
+    if (this.state === 'roll') this.rollA = (this.rollA || 0) + (Math.sign(this.vx) || 1) * Math.hypot(this.vx, this.vy) / Math.max(12, this.r) * dt; // rodando: el cuerpo gira según lo que avanza
+    else if (this.rollA) { const tg = Math.round(this.rollA / TAU) * TAU; this.rollA += (tg - this.rollA) * Math.min(1, dt * 10); if (Math.abs(tg - this.rollA) < 0.02) this.rollA = 0; } // al parar, termina la vuelta
     const g = this.g, N = this.nodes, I = this.ix, s = this.s;
     this.t += dt; const t = this.t;
     this.hurtT = Math.max(0, this.hurtT - dt);
@@ -1835,7 +1838,7 @@ class Monster {
     if (this.dead) { // el cuerpo ya no se desvanece (pedido del dueño): queda tirado donde cayó y sirve de obstáculo
       this.deadT += dt; this.alpha = 1;
       let sx = 0; for (const n of this.nodes) sx += n.x; this.x = this.gx = clamp(sx / this.nodes.length, 0, ARENA_W); return; }
-    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt;
+    this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt; if (this.g.blob) this.rollCd = (this.rollCd ?? ROLL.cd * 0.5 + Math.random() * ROLL.cdR) - dt;
     if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
     if (this.backoff > 0) this.backoff -= dt;
@@ -1889,6 +1892,9 @@ class Monster {
         break;
       case 'ultcharge':
         if (this.stT <= 0) { if (!B.cine && !B.over) B.startUlt(this); else this.stT = 0.1; }
+        break;
+      case 'roll': // rodando (cuerpo de una pieza): al terminar retoma la pelea
+        if (this.stT <= 0) { this.state = 'free'; this.vx *= 0.4; this.vy *= 0.4; }
         break;
       case 'recover': case 'recoil': case 'dodge': case 'hitstun':
         if (this.stT <= 0) this.state = 'free';
@@ -1948,13 +1954,17 @@ class Monster {
       : this.ultMode === 'finisher' ? this.hitsN >= 3 && T.hp / T.st.hp <= 0.4
       : this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP;
     // Vuelo: el pesado salta alto hacia su objetivo; el liviano despega y flota un rato
+    if (this.g.blob && !this.flyer && this.rollCd <= 0 && this.z === 0 && T.z < FLY.airZ && !B.cine && !B.over) { // cuerpo de una pieza: rueda como los alados saltan (pedido del dueño)
+      const near = Math.max(FLY.leapMin * (1 - FLY.leapAgr * Math.max(0, this.tp.agr)), pref + FLY.leapGap * (this.kiter ? 2 : 1)); // (el «de lejos» sólo rueda hacia él si quedó muy lejos: rodando no dispara)
+      if (d > near && d < FLY.leapMax + pref && this.tp.agr >= 0 && !this.kiter) { this.startRoll(T, d, Math.max(reachD * 0.7, this.kiter ? pref : 0)); return; }
+      if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startRoll(T, d, pref + 40) !== false) return; }
     if (this.flyer === 'float' && !this.kiter && this.z === 0 && !(this.floatT > 0) && T.floatT > 0.8 && T.z > FLY.airZ && !(this.chaseCd > 0) && !B.cine && !B.over) { // su objetivo está flotando: despega a pegarle en el aire (pedido del dueño; los «de lejos» le disparan)
       this.floatT = T.floatT + 0.8; this.floatBack = 0; this.vz = 340; this.chaseCd = FLY.chaseCd; this.setEmo('angry', 0.8, 2); }
     if (this.flyer && this.flyCd <= 0 && this.z === 0 && !B.cine && !B.over) {
       if (this.flyer === 'leap') { // salta según su táctica (pedido del dueño): para acercarse si quedó lejos de su distancia, o —si pelea de lejos— para alejarse si se le vienen encima
         const near = Math.max(FLY.leapMin * (1 - FLY.leapAgr * Math.max(0, this.tp.agr)), pref + FLY.leapGap);
         if (d > near && d < FLY.leapMax + pref) { this.startLeap(T, d, Math.max(reachD * 0.7, this.kiter ? pref : 0)); return; }
-        if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70)) { this.startLeap(T, d, pref + 40); return; } }
+        if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startLeap(T, d, pref + 40) !== false) return; }
       const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
       if (this.flyer === 'float' && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
         this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
@@ -1981,13 +1991,25 @@ class Monster {
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
     const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
-    if (away) { // hacia atrás: si caería fuera de la arena, se desvía hacia el centro
-      const lx = this.x + ux * v * tAir, ly = this.y + uy * v * tAir, m = 60;
-      if (lx < m || lx > ARENA_W - m || ly < m || ly > ARENA_D - m) { const cx = ARENA_W / 2 - this.x, cy = ARENA_D / 2 - this.y, cl = Math.hypot(cx, cy) || 1; ux = ux * 0.4 + cx / cl * 0.9; uy = uy * 0.4 + cy / cl * 0.9; const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l; }
-    }
+    if (away) { const e = this.escapeDir(ux, uy, v * tAir); if (!e) return false; ux = e[0]; uy = e[1]; } // hacia atrás: si caería fuera de la arena, se desvía hacia un costado (nunca hacia el rival)
     this.state = 'leap'; this.airT = 0; this.desired = { x: 0, y: 0 };
     this.vx = ux * v; this.vy = uy * v; this.vz = tAir * 1100 * FLY.leapG / 2;
     this.flyCd = FLY.cd + Math.random() * FLY.cdR; this.setEmo(away ? 'focus' : 'angry', 0.9, 2);
+  }
+
+  escapeDir(ux, uy, L) { // dirección para alejarse: la de atrás, o girada hasta 90° hacia un costado, la primera que no se sale de la arena (si ninguna sirve, no se aleja)
+    const m = 50, side = Math.random() < 0.5 ? 1 : -1;
+    for (const a of [0, 0.4, -0.4, 0.8, -0.8, 1.25, -1.25, 1.57, -1.57]) { const c = Math.cos(a * side), s = Math.sin(a * side), x = ux * c - uy * s, y = ux * s + uy * c, lx = this.x + x * L, ly = this.y + y * L;
+      if (lx > m && lx < ARENA_W - m && ly > m && ly < ARENA_D - m) return [x, y]; }
+    return null;
+  }
+
+  startRoll(T, d, goal) { // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
+    const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * ROLL.spd, tR = clamp(dist / Math.max(1, vMax), ROLL.t0, ROLL.t1), v = Math.min(vMax, dist / tR);
+    let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
+    if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
+    this.state = 'roll'; this.stT = tR; this.desired = { x: 0, y: 0 }; this.vx = ux * v; this.vy = uy * v;
+    this.rollCd = ROLL.cd + Math.random() * ROLL.cdR; this.setEmo(away ? 'focus' : 'angry', tR + 0.3, 2);
   }
 
   startMelee(T, ux, uy, B) {
@@ -2038,7 +2060,7 @@ class Monster {
   // Esquivar = moverse de verdad hacia un lado
   incoming(att, dir, B) {
     const ghost = this.buffs.dodge > 0; // Reflejos fantasma: esquiva todo y contraataca
-    if (this.dead || this.z > FLY.airZ || this.state === 'leap' || (this.dodgeCd > 0 && !ghost) || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
+    if (this.dead || this.z > FLY.airZ || this.state === 'leap' || this.state === 'roll' || (this.dodgeCd > 0 && !ghost) || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
     this.dodgeCd = 0.35;
     if (ghost) {
       this.dodgeCd = 0.2;
@@ -2061,7 +2083,7 @@ class Monster {
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
-    else if (this.state !== 'leap') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
+    else if (this.state !== 'leap' && this.state !== 'roll') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
     if (this.floatT > 0) this.floatT -= dt; if (this.floatBack > 0) this.floatBack -= dt; if (this.chaseCd > 0) this.chaseCd -= dt;
@@ -2093,6 +2115,7 @@ class Monster {
       this._ghost = false;
     }
     ctx.save(); ctx.globalAlpha = this.alpha;
+    if (this.rollA) { const P = N[I.head]; ctx.translate(P.x, P.y); ctx.rotate(this.rollA); ctx.translate(-P.x, -P.y); } // rodando
     if (!this._ghost) this.drawAura(ctx, false);
     if (this.buffs.speed > 0 && !this._ghost) { // Supervelocidad: estelas
       const sp = Math.hypot(this.vx, this.vy) || 1, ux = this.vx / sp, uy = this.vy / sp * DEPTH, m = N[I.mid];
@@ -4766,7 +4789,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
