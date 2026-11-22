@@ -4158,7 +4158,7 @@ function renderTrain() {
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '')
-    + (() => { const md = Math.round(moodOf(rec)); return `<div class="mood"><span>Ánimo</span><div class="bar"><i style="width:${md}%"></i></div><b>${md}</b></div>`; })() + `</div>`; // medidor de ánimo (pedido del dueño)
+    + (() => { const md = Math.round(moodOf(rec)); return `<div class="mood"><span>Moral</span><div class="bar"><i style="width:${md}%"></i></div><b>${md}</b></div>`; })() + `</div>`; // medidor de ánimo (pedido del dueño)
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
       <div class="tl">${t.name}${statPerfect(mon.g, t.k) ? '<i class="pstar" title="Stat perfecto">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
@@ -4752,6 +4752,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
   { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
@@ -5097,7 +5098,7 @@ function friendMon(r) { // estadísticas de un monstruo de un amigo
   $('fsName').textContent = r.name; $('fsSub').textContent = `Nv. ${r.level} · ${STAGE_NAME[r.stage] || ''}`;
   drawThumb($('fsCv'), r);
   $('fsList').innerHTML = PTS.map((t, i) => { const [, fn, mx] = MAIN_DEF[i], v = fn(m.st); return `<div class="trow"><div class="tl">${t.name}${statPerfect(m.g, t.k) ? '<i class="pstar">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${(r.pts || {})[t.k] || 0}/${PTS_MAX} puntos</small></div><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div></div>`; }).join('')
-    + `<div class="mood"><span>Ánimo</span><div class="bar"><i style="width:${Math.round(r.mood ?? 50)}%"></i></div><b>${Math.round(r.mood ?? 50)}</b></div>`
+    + `<div class="mood"><span>Moral</span><div class="bar"><i style="width:${Math.round(r.mood ?? 50)}%"></i></div><b>${Math.round(r.mood ?? 50)}</b></div>`
     + (r.ult && ULTS[r.ult] ? `<div class="fsult">${ultIcon(r.ult)}<span>${ULTS[r.ult].name}</span></div>` : '');
   $('frStats').classList.add('on');
 }
