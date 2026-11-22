@@ -172,6 +172,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .lanp canvas{width:64px;height:64px}
 .lanp b{color:var(--text);font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lanp .tc{font-weight:900;color:var(--tc)}
+.lanp .usr{font-size:11px;font-weight:800;color:var(--acc);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lanp.me{cursor:pointer;background:#3d3166}
 .lanp.me:active{transform:scale(.96)}
 #lanQR{display:block;margin:6px auto 12px;border-radius:10px;image-rendering:pixelated}
@@ -409,6 +410,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       </div>
       <div class="setview" id="cloudIn" hidden>
         <p class="tdesc" id="cloudWho"></p>
+        <button class="btn setitem" id="cUser"><span>👤 Nombre de usuario</span><small id="cUserName"></small></button>
         <button class="btn setitem" id="cPush"><span>☁️ Guardar ahora</span><small id="cLast"></small></button>
         <button class="btn setitem" id="cLogout"><span>Cerrar sesión</span></button>
       </div>
@@ -4648,6 +4650,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.51', d: '2026-11-22', items: ['Nombre de usuario: al entrar a tu cuenta de la Nube creas uno (no se puede repetir entre jugadores). Se ve en Online sobre tu monstruo y se puede cambiar en Ajustes → Partida → Nube.'] },
   { v: '1.50', d: '2026-11-22', items: ['8 texturas nuevas para los monstruos que nazcan desde ahora: cristal, madera, lunares, magma, circuito, panal, escarcha y polvo de estrellas. Todas las texturas (y la piel lisa) salen con la misma probabilidad.', 'Se quitó la textura de burbujas: los monstruos que la tenían ahora tienen otra.', '5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren a su alrededor, golpeando a todos los que alcance (pueden pegarle a varios a la vez).', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
@@ -4831,12 +4834,14 @@ async function cloudSync() { // al abrir la app, al entrar a la cuenta y al volv
     cloud.err = null;
   } catch (e) { cloud.err = e.message; }
   finally { if (cloud) cloudSave(); cloudBusy = false; cloudReady = true; cloudUI(); if (cloud && cloud.dirty) { clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudPush, CLOUD_PUSH_MS); } }
+  if (cloud && !save.user && !userPrompted && !importing && scene !== 'battle' && !firstEgg() && !$('dialog').classList.contains('on') && !$('settings').classList.contains('on')) { userPrompted = true; pickUser(); } // ya tenía cuenta pero no nombre: se le pide una vez
 }
+let userPrompted = false;
 function ago(t) { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; }
 function cloudUI() {
   $('cloudState').textContent = cloud ? cloud.email : 'sin cuenta';
   $('cloudOut').hidden = !!cloud; $('cloudIn').hidden = !cloud;
-  if (cloud) { $('cloudWho').innerHTML = `Conectado como <b>${esc(cloud.email)}</b>. Tu partida se guarda sola en la nube.`;
+  if (cloud) { $('cloudWho').innerHTML = `Conectado como <b>${esc(save.user || cloud.email)}</b>${save.user ? ` (${esc(cloud.email)})` : ''}. Tu partida se guarda sola en la nube.`; $('cUserName').textContent = save.user || 'sin elegir';
     $('cLast').textContent = cloudBusy ? 'guardando…' : cloud.err ? 'sin conexión' : cloud.dirty ? 'pendiente' : cloud.last ? 'guardada ' + ago(cloud.last) : ''; }
 }
 const cloudMsg = (t, bad) => { $('cloudMsg').textContent = t || ''; $('cloudMsg').style.color = bad ? 'var(--bad)' : ''; };
@@ -4851,6 +4856,40 @@ async function cloudStart(j, email, okMsg) { // ya entró: guardar la sesión y 
   cloud = { email: j.email || email || 'tu cuenta', uid: j.localId, rt: j.refreshToken, tok: j.idToken, exp: Date.now() + (+j.expiresIn || 3600) * 1000, syncT: 0, dirty: true }; cloudSave();
   $('cPass').value = ''; cloudMsg(''); cloudUI(); await cloudSync();
   cloudMsg(cloud && cloud.err ? cloud.err : okMsg || '¡Listo! Tu partida está en la nube.', !!(cloud && cloud.err));
+  if (cloud && !save.user && !importing) await pickUser();
+}
+// Nombre de usuario (pedido del dueño): se elige al entrar a la Nube; no se repite (Firestore names/{en minúsculas} = { uid, name }); va en la partida (save.user) y se ve en Online
+const USER_RE = /^[A-Za-z0-9_ÁÉÍÓÚÑáéíóúñ]{3,16}$/;
+const nameUrl = n => `https://firestore.googleapis.com/v1/projects/${FB.pid}/databases/(default)/documents/names/${encodeURIComponent(n.toLowerCase())}`;
+async function claimName(n) { // true = quedó tuyo; false = ya lo tiene otro
+  const tok = await cloudToken(), H = { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' };
+  const r = await fetch(nameUrl(n) + '?currentDocument.exists=false', { method: 'PATCH', headers: H, body: JSON.stringify({ fields: { uid: { stringValue: cloud.uid }, name: { stringValue: n } } }) });
+  if (r.ok) return true;
+  if (r.status === 400 || r.status === 409 || r.status === 412) { // ya existe: ¿es tuyo?
+    const g = await fetch(nameUrl(n), { headers: H }); if (g.ok) { const f = ((await g.json().catch(() => ({}))).fields) || {}; return !!(f.uid && f.uid.stringValue === cloud.uid); }
+    return false;
+  }
+  throw new Error(r.status === 403 ? 'No se pudo guardar el nombre (falta configurar Firebase).' : NET_ERR);
+}
+let userAsking = false;
+async function pickUser(change) {
+  if (!cloud || userAsking) return; userAsking = true;
+  const wasOpen = $('settings').classList.contains('on'); $('settings').classList.remove('on');
+  let msg = change ? 'Escribe tu nuevo nombre de usuario.' : 'Crea tu nombre de usuario. Es el que verán tus amigos en Online.';
+  try {
+    for (;;) {
+      const n0 = await ask(msg + ' (3 a 16 letras o números, sin espacios)', { input: change ? save.user || '' : '', ok: 'Listo', cancel: change ? 'Cancelar' : 'Después' });
+      if (n0 == null) break;
+      const n = n0.trim();
+      if (change && n === save.user) break;
+      if (!USER_RE.test(n)) { msg = 'Ese nombre no sirve: usa de 3 a 16 letras, números o _ (sin espacios).'; continue; }
+      let ok; try { ok = await claimName(n); } catch (e) { await ask(e.message, { ok: 'Entendido', cancel: null }); break; }
+      if (!ok) { msg = `«${n}» ya lo tiene otro jugador. Prueba con otro.`; continue; }
+      const old = save.user; save.user = n; persist();
+      if (old && old.toLowerCase() !== n.toLowerCase()) fetch(nameUrl(old), { method: 'DELETE', headers: { Authorization: 'Bearer ' + await cloudToken() } }).catch(() => { }); // libera el nombre anterior
+      break;
+    }
+  } finally { userAsking = false; if (wasOpen) $('settings').classList.add('on'); cloudUI(); }
 }
 // Entrar con Google: el botón oficial de Google (se carga sólo al abrir la Nube) da un token que Firebase cambia por su sesión (signInWithIdp)
 let gisLoad = null;
@@ -4870,6 +4909,7 @@ async function cloudGoogle(idt) {
   catch (e) { cloudMsg(e.message, true); }
 }
 $('cSignup').onclick = () => cloudEnter(true);
+$('cUser').onclick = () => pickUser(!!save.user);
 $('cLogin').onclick = () => cloudEnter(false);
 $('cForgot').onclick = async () => {
   const email = $('cEmail').value.trim(); if (!email) { cloudMsg('Escribe tu correo arriba y vuelve a tocar «Olvidé mi contraseña».', true); return; }
@@ -5546,7 +5586,7 @@ function lanBindDC(peer, dc) {
   dc.onclose = () => lanPeerLost(peer);
   dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
-const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
+const lanRec = r => r && ({ user: save.user || undefined, name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
   stopScan(); clearInterval(LAN.poll);
@@ -5768,7 +5808,7 @@ function lanUI(st, data) {
     ps.forEach((p, i) => {
       const col = LAN_COLORS[p.color % LAN_COLORS.length], d = document.createElement(i === meI ? 'button' : 'div');
       d.className = 'lanp' + (i === meI ? ' me' : ''); d.style.setProperty('--tc', col.c);
-      d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
+      d.innerHTML = `<canvas width="144" height="144"></canvas>${p.rec && p.rec.user ? `<span class="usr">👤 ${esc(p.rec.user)}</span>` : ''}<b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
       if (p.rec) drawThumb(d.querySelector('canvas'), p.rec);
       if (i === meI) d.onclick = () => { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'col' }); };
       list.appendChild(d);
