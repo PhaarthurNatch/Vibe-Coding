@@ -113,7 +113,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .tbtn{grid-row:1/4;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
 #trainArea{flex:1 1 90px;min-height:90px}
-.tpanel.shop{flex:1 1 auto;margin-top:6px}
+.tpanel.shop{flex:0 0 100%;width:100%;height:100%;gap:14px}
+.shoptabs{position:relative;display:flex;margin:6px 4px 0;touch-action:none}
+.shoptabs button{flex:1;background:none;border:0;color:var(--muted);font:inherit;font-weight:800;font-size:14px;padding:8px 0 9px;cursor:pointer;pointer-events:auto;transition:color .25s}
+.shoptabs button.on{color:var(--text)}
+.shoptabs i{position:absolute;left:0;bottom:0;width:50%;height:3px;border-radius:2px;background:var(--acc);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.shopview{flex:1 1 auto;min-height:0;overflow:hidden;margin-top:6px;border-radius:18px}
+.shoptrack{display:flex;height:100%;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .genegrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.genebtn{font-size:13px;padding:10px 6px}
 .bdlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bdgo{display:flex;align-items:center;justify-content:center;gap:6px}
@@ -261,10 +267,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
-    <div class="panel tpanel shop">
-      <div class="tsec" id="shopUlts"></div>
-      <div class="tsec" id="shopGenes"></div>
-    </div>
+    <div class="shoptabs" id="shopTabs"><button data-stab="0" class="on">Ultimates</button><button data-stab="1">Genes</button><i></i></div>
+    <div class="shopview"><div class="shoptrack" id="shopTrack">
+      <div class="panel tpanel shop" id="shopUlts"></div>
+      <div class="panel tpanel shop" id="shopGenes"></div>
+    </div></div>
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
   <div class="page" id="pgHome">
@@ -607,6 +614,7 @@ const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], m
   neck: ['neck'], body: ['torso', 'spots'], arms: ['arms', 'shoulders'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] }; // orejas y antenas separadas; los hombros van con los brazos (sólo existen con brazos)
 function recGenome(rec, stage) {
   const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5, (rec.gen || 0) >= 6 ? rec.gen : 0);
+  if (rec.statGenes) g.statGenes = rec.statGenes; /* stats heredados (semilla de origen por grupo) */
   if (!rec.genes) return g;
   const cache = {};
   for (const [grp, keys] of Object.entries(GENE_GROUPS)) {
@@ -942,6 +950,8 @@ const STAGE_STATS = {
 /* Awakened: gana lo mismo que al pasar a adulto (también al azar), salvo el peso */
 STAGE_STATS.awakened = Object.fromEntries(Object.keys(STAGE_STATS.adult).map(k => [k, k === 'weight' ? STAGE_STATS.adult[k] : STAGE_STATS.adult[k] * 2 - STAGE_STATS.teen[k]]));
 const STAT_STAGES = ['baby', 'child', 'teen', 'adult', 'awakened'];
+/* Grupos de stats que se heredan en la cría (rec.statGenes[grupo] = semilla de origen), uno por cada stat que se entrena */
+const STAT_GROUPS = { pow: ['melee', 'ranged'], end: ['hp', 'defense', 'weight'], agi: ['speed', 'dodge'], tec: ['meleeCd', 'rangedCd', 'reach', 'range'] };
 function rolledStats(seed, stage) {
   const si = Math.max(0, STAT_STAGES.indexOf(stage)), base = { ...STAT_BASE, meleeCd: 0.75 }, T0 = STAGE_STATS.baby;
   const r0 = rng(((seed >>> 0) ^ 0x2545f491) >>> 0), b = {};
@@ -951,7 +961,8 @@ function rolledStats(seed, stage) {
   return b;
 }
 function calcStats(g, level = 1, train = null) {
-  const b = rolledStats(g.seed || 1, g.awake ? 'awakened' : g.stage); // (las partes no suman nada)
+  const sk = g.awake ? 'awakened' : g.stage, b = rolledStats(g.seed || 1, sk); // (las partes no suman nada)
+  if (g.statGenes) for (const grp in STAT_GROUPS) { const src = g.statGenes[grp]; if (src == null) continue; const o = rolledStats(src, sk); for (const k of STAT_GROUPS[grp]) b[k] = o[k]; } // cría: ese grupo de stats sale de uno de sus padres
   const mass = b.weight; // peso sin tope (lo usa el vuelo)
   const weight = clamp(b.weight, 0.5, 4.2);
   b.defense += (weight / (WEIGHT_AVG[g.stage] || WEIGHT_AVG.adult) - 1) * WEIGHT_DEF; // más pesado que el promedio de su etapa = más defensa
@@ -3499,6 +3510,13 @@ const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.st
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
 const visPage = n => n; // mismo orden siempre: Tienda / Rancho o monstruo de cerca / Estadísticas (de cerca, arriba se vuelve al rancho)
+let shopTab = 0; // Tienda: 0 = Ultimates, 1 = Genes (se desliza a los lados, pedido del dueño)
+function setShopTab(n) {
+  shopTab = Math.max(0, Math.min(1, n)); $('shopTrack').style.transform = `translateX(${-100 * shopTab}%)`;
+  $('shopTabs').querySelector('i').style.transform = `translateX(${100 * shopTab}%)`;
+  $('shopTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.stab === shopTab));
+}
+document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => setShopTab(+b.dataset.stab));
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
@@ -3539,6 +3557,8 @@ function swipeEnd(x, y) {
     swipedAt = performance.now();
     if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, deslizar el dedo hacia abajo vuelve al rancho (arriba)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
+  } else if (homePage === 0 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { // Tienda: a los lados cambia de pestaña
+    swipedAt = performance.now(); setShopTab(shopTab + (dx < 0 ? 1 : -1));
   } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? BARN.ms.filter(q => q && q.m).length : save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (barnCtx) barnCtxSwitch(dx < 0 ? 1 : -1); else if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
   }
@@ -3699,6 +3719,12 @@ function makeChild(A, B) {
     if (la || lb) rec.genes[grp] = origin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
     else if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
   }
+  rec.statGenes = {}; const sOrigin = (P, grp) => (P.statGenes && P.statGenes[grp] != null) ? P.statGenes[grp] : P.seed;
+  for (const grp of Object.keys(STAT_GROUPS)) { // stats: cada grupo sale de uno de los padres (10% muta = los suyos propios); con gen comprado, de ese padre sí o sí
+    const la = !!(A.geneLock && A.geneLock[grp]), lb = !!(B.geneLock && B.geneLock[grp]);
+    if (la || lb) rec.statGenes[grp] = sOrigin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
+    else if (Math.random() >= BREED_MUTATION) rec.statGenes[grp] = sOrigin(Math.random() < 0.5 ? A : B, grp);
+  }
   delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
   rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
@@ -3726,7 +3752,7 @@ function openBreedPick() {
     const n = breedSel.size; go.disabled = n < 2 || save.coins < BREED_COST;
     go.innerHTML = n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
   };
-  $('bpInfo').innerHTML = `El hijo hereda partes, colores y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
+  $('bpInfo').innerHTML = `El hijo hereda partes, colores, stats y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
   go.onclick = () => { const [A, B] = [...breedSel].map(i => pool[i]); doBreed(A, B); };
   $('bpNo').onclick = () => $('breedPick').classList.remove('on');
   refresh(); $('breedPick').classList.add('on');
@@ -3741,7 +3767,7 @@ function doBreed(A, B) {
 }
 // Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
-const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola' };
+const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola', pow: 'Poder', end: 'Aguante', agi: 'Agilidad', tec: 'Técnica' };
 // Rivales para el Criadero (pedido del dueño): se guardan los últimos 10 rivales adultos; se puede comprar un huevo con la semilla de cada uno (sale igual a él)
 const FOE_HIST = 10, FOE_EGG_COST = 100;
 const isAdultFoe = f => f.stage === 'adult' || f.stage === 'awakened';
@@ -4087,15 +4113,15 @@ function buyFoeEgg(i) {
   save.coins -= FOE_EGG_COST; f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
 }
 function renderShopGenes() {
-  const el = $('shopGenes');
-  el.innerHTML = `<div class="thead">Genes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(k =>
-    `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`).join('')}</div>`;
+  const el = $('shopGenes'), btn = k => `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`;
+  el.innerHTML = `<div class="tsec"><div class="thead">Partes</div><p class="tdesc">Dáselo a un monstruo: su próxima cría heredará esa parte de él (cantidad y aspecto) sí o sí. Cada gen cuesta <span class="ci" style="display:inline-block;vertical-align:-2px"></span> ${GENE_COST}.</p><div class="genegrid">${Object.keys(GENE_GROUPS).map(btn).join('')}</div></div>
+  <div class="tsec"><div class="thead">Stats</div><p class="tdesc">Su próxima cría heredará ese stat de él sí o sí.</p><div class="genegrid">${Object.keys(STAT_GROUPS).map(btn).join('')}</div></div>`;
   el.querySelectorAll('[data-genebuy]').forEach(b => b.onclick = () => openGenePick(b.dataset.genebuy));
 }
 function openGenePick(grp) {
   let sel = null; const list = $('gpList'), go = $('gpGo');
   $('gpTitle').textContent = `🧬 ${GENE_NAMES[grp]}`;
-  $('gpInfo').textContent = `¿A quién se lo das? Su próxima cría heredará de él: ${GENE_NAMES[grp].toLowerCase()}.`;
+  $('gpInfo').textContent = `¿A quién se lo das? Su próxima cría heredará de él: ${STAT_GROUPS[grp] ? 'su ' : ''}${GENE_NAMES[grp].toLowerCase()}.`;
   list.innerHTML = '';
   save.monsters.forEach((r, i) => {
     if (r.stage === 'egg') return;
@@ -4122,8 +4148,8 @@ function openGenePick(grp) {
 function renderShopUlts(hide) {
   const el = $('shopUlts'); el.hidden = hide; if (hide) return;
   const left = ULT_KEYS.filter(k => !ownsUlt(k)); // las ya desbloqueadas no se muestran (pedido del dueño)
-  el.innerHTML = `<div class="thead">Ultimates</div>${left.length ? `<div class="ultlist">${left.map(k =>
-    `<div class="ultc locked"><b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}`;
+  el.innerHTML = `<div class="tsec">${left.length ? `<div class="ultlist">${left.map(k =>
+    `<div class="ultc locked"><b>${ULTS[k].name}</b><button class="btn" data-ultbuy="${k}" ${save.coins < ULT_COST ? 'disabled' : ''}><span class="ci"></span>${ULT_COST}</button><div class="tdesc">${ULTS[k].desc}</div></div>`).join('')}</div>` : '<p class="tdesc">Ya tienes todas las ultimates.</p>'}</div>`;
   el.querySelectorAll('[data-ultbuy]').forEach(b => b.onclick = async () => {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
@@ -4171,7 +4197,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.42', d: '2026-11-21', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.'] },
+  { v: '1.42', d: '2026-11-21', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.', 'Las crías ahora también heredan los stats de sus papás: cada uno (Poder, Aguante, Agilidad y Técnica) sale de uno de los dos.', 'Nuevos genes de stats en la Tienda: elige qué stat heredará sí o sí su próxima cría.', 'La Tienda ahora tiene pestañas (Ultimates y Genes): desliza a los lados para cambiar.'] },
   { v: '1.41', d: '2026-11-21', items: ['Arreglado: al tocar una cama libre, el menú a veces se abría y se cerraba al instante.', 'La zona para tocar una cama libre del granero es más grande (también el espacio sobre la cama), y tocar la paja o la madera de una cama ocupada también elige al monstruo o abre el huevo.', 'Comprar huevos, criar y el criadero ahora están en las camas libres del granero: toca una cama libre y elige qué hacer (o trae a un monstruo del rancho). El huevo queda en esa cama y lo abres ahí mismo a toques.', 'Para criar puedes elegir padres del rancho y del granero.', 'En el rancho ya no hay huevos ni espacios libres para comprar: al deslizar de cerca pasas sólo por tus monstruos, y los huevos que tenías en el rancho se fueron a camas del granero.'] },
   { v: '1.40', d: '2026-11-20', items: ['En el granero, si estás viendo de cerca a un monstruo, los que van entrando a sus camas o saliendo al rancho siguen caminando (ya no se detienen).', 'Al tocar el granero entras directo, y con «▲ Rancho» sales directo, sin animación.', 'En el granero, los monstruos que entran o salen por la puerta aparecen y desaparecen poco a poco.', 'Si lanzas a un monstruo hacia un lado en el rancho, cae donde lo lanzaste; en el granero, si lo sueltas sin lanzarlo, se vuelve a sentar en su cama.', 'Se quitó la ✕ del granero: para volver usa «▲ Rancho» o desliza el dedo hacia abajo.', 'Arreglado: ahora puedes lanzar varios monstruos seguidos desde el granero y todos salen caminando al rancho a la vez.', 'En el granero, arriba ahora dice «▲ Rancho» (en vez del contador del granero) y se toca para volver al rancho.', 'En el granero ya no hay botón «Guardar uno»: toca una cama libre y elige a un monstruo del rancho. Entra por la puerta, camina hasta esa cama y se sienta.', 'Al abrir el juego y al volver del granero, el rancho se ve mirando hacia el granero, que queda al centro.', 'En el granero, el nombre del monstruo de la cama del medio ahora aparece arriba.', 'Arreglado: si tenías a todos tus monstruos en el granero (rancho vacío), al abrir el juego la partida empezaba de cero. Ahora se carga bien, y si alguna vez la partida empieza de cero pero hay una copia guardada con más monstruos, el juego te ofrece recuperarla.', 'Arreglado: la primera ventana del granero ya no se monta sobre la puerta.', 'Los pies de los monstruos quedan un poco más abajo y la pierna ya no se asoma por debajo del pie.', 'Si sales del granero antes de que el monstruo que mandaste al rancho llegue a la puerta, ya está en el rancho.', 'Los monstruos que salen del granero aparecen poco a poco en el rancho, entrando por el camino junto a la reja.', 'Ya se pueden guardar todos los monstruos en el granero: el rancho puede quedar vacío.', 'En el granero, tocar a un monstruo lo selecciona igual que en el rancho: la cámara se acerca a su cama con la misma vista de cerca (tocarlo, acariciarlo, tomarlo, ver sus estadísticas y deslizar a los lados para ver al siguiente). Arriba dice «▲ Granero» y al volver regresas al granero.', 'Para mandar un monstruo del granero al rancho, lánzalo: la cámara vuelve al granero, él baja como en el rancho y medio segundo después de caer camina hasta la puerta, a la misma velocidad con que caminan en el rancho, y sale. Se quitó el botón «Sacar al rancho».', 'En el granero cada monstruo tiene su cama: cuando uno se va, los demás se quedan en la suya.', 'Las ventanas del granero muestran el mismo cielo del rancho a esa hora (día, amanecer, atardecer o noche).', 'En el granero hay 1 ventana por cada 3 faroles.'] },
   { v: '1.39', d: '2026-11-20', items: ['En el granero, desliza el dedo hacia abajo o toca «Rancho ▼» para volver al rancho.', 'Dentro del granero hay faroles encendidos y ventanas: por ellas se ve si afuera es de día o de noche, pero adentro siempre está iluminado. De día duermen unos 3 de cada 10 monstruos y de noche unos 7 de cada 10.', 'De noche el granero tiene luz: la ventana y la puerta se iluminan y hay un farol sobre la puerta.', 'Se quitaron los árboles que estaban detrás de la cerca.', 'Arreglado: al girar la vista, el extremo cercano del camino ya no muestra esquinas.', 'Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para entrar. Adentro tus monstruos guardados descansan sentados en camas de paja y los vas viendo deslizando a los lados. Caben 10; puedes guardar uno del rancho o sacarlo al rancho. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
@@ -4926,7 +4952,7 @@ function lanBindDC(peer, dc) {
   dc.onclose = () => lanPeerLost(peer);
   dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
-const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes });
+const lanRec = r => r && ({ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
   stopScan();
