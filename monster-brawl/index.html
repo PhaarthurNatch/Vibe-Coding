@@ -1263,7 +1263,7 @@ const TEMPER = [
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
-const TAC = { cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
+const TAC = { fireNear: 1.5, meleeFar: 1.6, meleeNear: 0.85, specDmgR: 1.28, specCdR: 0.85, specDmgM: 1.3, specCdM: 0.8, cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
 const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 1, MOOD_DECAY_BARN = 2, MOOD_SAD = 30, MOOD_HAPPY = 70, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 const moodRate = rec => typeof save !== 'undefined' && save && save.barn && save.barn.includes(rec) ? MOOD_DECAY_BARN : MOOD_DECAY_H; // en el granero baja el doble (pedido del dueño)
@@ -1432,9 +1432,12 @@ class Monster {
       if (rt) { const cd = 1 - TAC.cd * rt, dm = 1 - (rt > 0 ? TAC.fastDmg : TAC.strongDmg) * rt; S.meleeCd *= cd; S.rangedCd *= cd; S.melee *= dm; S.ranged *= dm; } // rápidos: esperan menos y pegan algo menos; fuertes: al revés
       if (df) { S.dodge = clamp(S.dodge * (1 + (df > 0 ? TAC.dodgeUp : TAC.dodgeDown) * df), 0.03, 0.6); S.defense = Math.max(0, S.defense - (df > 0 ? TAC.armorDown : TAC.armorUp) * df); } } // esquivar: más esquiva y menos defensa; aguantar: al revés
     { const f = (moodOf(rec) - 50) / 50; if (f) { this.st.melee *= 1 + MOOD_FX * f; this.st.ranged *= 1 + MOOD_FX * f; this.st.dodge = clamp(this.st.dodge + 0.03 * f, 0.05, 0.6); } } // ánimo: pelea mejor o peor (rivales siempre en 50)
-    // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
-    const rp = this.st.ranged > 0 ? clamp(this.st.ranged / (this.st.melee * 0.6) - 1, -1, 1) : -2;
-    this.kiter = this.st.ranged > 0 && rp - this.tp.agr * 1.2 > 0;
+    // estilo según la táctica «Distancia» (pedido del dueño): al centro dispara y golpea; «de lejos» prefiere disparar (y al extremo sólo dispara); «de cerca» prefiere golpear (y al extremo sólo golpea)
+    { const ag = this.tp.agr || 0, hasR = this.st.ranged > 0;
+      this.kiter = hasR && ag < -0.25; this.onlyRanged = hasR && ag <= -0.75; this.onlyMelee = ag >= 0.75;
+      this.fireMul = ag > 0.25 && !this.onlyMelee ? TAC.fireNear : 1; this.meleeMul = this.kiter && !this.onlyRanged ? TAC.meleeFar : ag > 0.25 && !this.onlyMelee ? TAC.meleeNear : 1;
+      if (this.onlyRanged) { this.st.ranged *= TAC.specDmgR; this.st.rangedCd *= TAC.specCdR; } // al extremo, se especializa: sus disparos (o sus golpes) son más fuertes y seguidos
+      if (this.onlyMelee) { this.st.melee *= TAC.specDmgM; this.st.meleeCd *= TAC.specCdM; } }
     this.scaredHp = SCARED_HP * (1 - this.tp.valor * 0.7); // los valientes se asustan mucho más tarde
     this.dmgM = 0; this.dmgR = 0; this.switches = 0; this.minHpF = 1; this.backoff = 0; this.berserkSaid = false;
     this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
@@ -1981,11 +1984,11 @@ class Monster {
 
     const air = !airMelee(this, T) && (this.z > FLY.airZ || T.z > FLY.airZ); // alguno en el aire: no hay golpe, sólo disparo (salvo que flote y su objetivo también esté en el aire)
     this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
-    if (this.g.plan === 'snake' && !air && this.tailCd <= 0 && d <= reachD + TAIL_REACH * 0.6 && T.z < 5) { // serpiente: coletazo (pedido del dueño)
+    if (this.g.plan === 'snake' && !this.onlyRanged && !air && this.tailCd <= 0 && d <= reachD + TAIL_REACH * 0.6 && T.z < 5) { // serpiente: coletazo (pedido del dueño)
       this.state = 'tail'; this.tailPh = 'wind'; this.stT = TAIL_WIND; this.atkDir = { x: ux, y: uy }; this.tailCd = TAIL_CD + Math.random() * 3; this.desired = { x: 0, y: 0 }; this.noAtkT = 0; this.setEmo('angry', TAIL_WIND + 0.3, 2); return;
     }
-    if (!air && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
-    else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
+    if (!air && !this.onlyRanged && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
+    else if (this.st.ranged > 0 && !this.onlyMelee && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air || this.onlyRanged) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
   startLeap(T, d, goal) { // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
@@ -2016,7 +2019,7 @@ class Monster {
   startMelee(T, ux, uy, B) {
     const fast = this.buffs.speed > 0 ? 0.5 : 1; // Supervelocidad: también ataca el doble de rápido
     this.state = 'windup'; this.stT = (0.14 + this.st.weight * 0.05) * (fast < 1 ? 0.6 : 1);
-    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd * fast;
+    this.atkDir = { x: ux, y: uy }; this.meleeCd = this.st.meleeCd * fast * this.meleeMul; // («de lejos» golpea menos seguido)
     this.setEmo('angry', 0.7, 2);
     const arms = this.ix.arms;
     if (arms.length) { const side = ux >= 0 ? 1 : -1; const c = arms.filter(a => a.sd === side); this.atkArm = c[Math.floor(Math.random() * c.length)]; }
@@ -2036,8 +2039,8 @@ class Monster {
   }
 
   shoot(T, B) {
-    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
-    this.rangedCd = this.st.rangedCd * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
+    const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire * (this.onlyRanged ? 0.7 : 1) /* (el que sólo dispara, menos castigado) */ : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
+    this.rangedCd = this.st.rangedCd * this.fireMul * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
     const tx = T.x + T.vx * tl * 0.6, ty = T.y + T.vy * tl * 0.6;
     const ang = Math.atan2(ty - this.y, tx - this.x) + (Math.random() - 0.5) * 0.12;
@@ -4790,7 +4793,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).', 'Táctica «Distancia»: al centro disparan y golpean; hacia «de lejos» disparan más y golpean menos, y hacia «de cerca» al revés. En los extremos usan sólo uno de los dos (sólo disparos o sólo golpes), pero más fuertes y seguidos.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
