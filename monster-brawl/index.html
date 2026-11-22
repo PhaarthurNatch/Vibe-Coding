@@ -662,7 +662,7 @@ function recGenome(rec, stage) {
   fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
   // los ojos heredados tienen que caber en la cabeza heredada
   const n = g.eyes.count, maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
-  g.eyes.size = Math.max(3, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42));
+  if (!g.eyes.big) g.eyes.size = Math.max(3, Math.min(g.eyes.size, g.head.w / 2 * maxR, g.head.h / 2 * 0.42)); // (el ojo gigante del cíclope no se achica)
   return g;
 }
 function genGenome(seed, stage = 'adult', legacy = false, v3 = false, v4 = false, v5 = false, v6 = false) {
@@ -710,6 +710,28 @@ const LOOKS = { head: ['round', 'wide', 'tall', 'square', 'tri', 'pear', 'heart'
   horn: ['spike', 'antler', 'curl'], ear: ['cat', 'round', 'bunny', 'fin'], antenna: ['ball', 'glow', 'leaf'], mouth: ['smile', 'fangs', 'open', 'beak', 'teeth', 'tusks', 'tongue', 'mandibles', 'whiskers'],
   pupil: ['round', 'slit', 'bar', 'dot', 'ring', 'star', 'heart', 'diamond', 'spiral'] }; // todas las variantes de cada parte, igual de probables
 const LOOKS_NEW7 = { head: ['drop', 'cloud', 'oct'], torso: ['pear', 'egg'], hand: ['mace', 'finger'], feet: ['roots', 'sock'], wing: ['fin', 'petal'], tip: ['club', 'bow', 'feather'], horn: ['crescent', 'knob'], ear: ['bat', 'tuft'], antenna: ['heart', 'spiral'], mouth: ['snaggle', 'drool'], pupil: ['square', 'flower'] }; // gen 7 (pedido del dueño)
+const LOOKS_NEW9 = { head: ['diamond', 'star', 'wavy'], torso: ['barrel', 'hourglass'], hand: ['drill', 'bubble'], feet: ['wheel', 'peg'], tip: ['bell', 'moon', 'gem'], antenna: ['bulb', 'flower'] }; // gen 9 (pedido del dueño)
+// Anatomías gen 9 (pedido del dueño): cambian las proporciones del cuerpo; cada monstruo nuevo puede tener una o dos
+const ANATOMY9 = ['cabezon', 'cuellilargo', 'zancudo', 'brazilargo', 'rechoncho', 'larguirucho', 'ciclope', 'colilargo', 'cornudo'];
+function applyAnatomy9(g, seed) {
+  const r = rng((seed ^ 0x9b05688c) >>> 0), list = [], A = pickParts(seed, 'adult'); // se elige mirando las partes que tendrá de adulto (así es la misma en todas las etapas)
+  const ok = a => !({ zancudo: !A.legs, brazilargo: !A.arms, colilargo: !A.tail, cornudo: !A.horns })[a], pool = ANATOMY9.filter(ok);
+  if (r.f(0, 1) < 0.7) list.push(r.pick(pool));
+  if (list.length && r.f(0, 1) < 0.25) { const b = r.pick(pool); if (!list.includes(b)) list.push(b); }
+  const sc = (o, ks, k) => { if (o) for (const q of ks) if (typeof o[q] === 'number') o[q] *= k; };
+  for (const a of list) {
+    if (a === 'cabezon') { sc(g.head, ['w', 'h'], 1.5); for (const t of ['upper', 'mid', 'lower']) sc(g.torso[t], ['w', 'h'], 0.86); sc(g.arms, ['upper', 'fore'], 0.85); sc(g.legs, ['upper', 'lower'], 0.85); }
+    else if (a === 'cuellilargo') { g.neck.len = r.f(40, 56); }
+    else if (a === 'zancudo') { sc(g.legs, ['upper', 'lower'], 1.7); sc(g.legs, ['thick'], 0.75); }
+    else if (a === 'brazilargo') { sc(g.arms, ['upper', 'fore'], 1.6); sc(g.arms, ['thick'], 0.85); }
+    else if (a === 'rechoncho') { for (const t of ['upper', 'mid', 'lower']) { sc(g.torso[t], ['w'], 1.5); sc(g.torso[t], ['h'], 0.9); } sc(g.legs, ['upper', 'lower'], 0.65); sc(g.legs, ['thick'], 1.2); g.neck.len *= 0.5; }
+    else if (a === 'larguirucho') { for (const t of ['upper', 'mid', 'lower']) { sc(g.torso[t], ['w'], 0.72); sc(g.torso[t], ['h'], 1.3); } sc(g.arms, ['thick'], 0.7); sc(g.legs, ['thick'], 0.7); }
+    else if (a === 'ciclope') { g.eyes.count = 1; g.eyes.pos = eyeLayout(1, -0.12, 0.4); g.eyes.size = Math.max(7, Math.min(g.head.w * 0.33, g.head.h * 0.34)); g.eyes.big = true; }
+    else if (a === 'colilargo') { g.tail.segs = Math.round(g.tail.segs * 1.9); }
+    else if (a === 'cornudo') { sc(g.horns, ['len'], 1.9); sc(g.horns, ['width'], 1.3); }
+  }
+  g.anatomy = list;
+}
 const LOOKS_NEW = { hand: ['hook', 'mitten'], feet: ['webbed', 'pawpad'], wing: ['crystal'], tip: ['leaf', 'star'], horn: ['twist', 'stub'], ear: ['elf', 'droopy'], antenna: ['star', 'feather'], mouth: ['zigzag', 'buck'], pupil: ['cross', 'moon'] }; // gen 6 (pedido del dueño): sólo los monstruos nuevos; los de antes se ven igual
 // Colores nuevos (gen 8, pedido del dueño): combinaciones nuevas que reemplazan a las de siempre en ~60% de los monstruos nuevos
 const COLOR_MODES8 = {
@@ -755,6 +777,7 @@ function genome5(seed, stage, v6 = false) {
   const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
   if (v6) { const r6 = rng((seed ^ 0x6a09e667) >>> 0); for (const k in LOOKS_NEW) { const nn = LOOKS_NEW[k].length, u = r6.f(0, 1), q = r6.pick(LOOKS_NEW[k]); if (u < nn / (LOOKS[k].length + nn)) look[k] = q; } } // las nuevas, con la misma chance que cada una de las antiguas
   if (v6 >= 7) { const r7 = rng((seed ^ 0xbb67ae85) >>> 0); for (const k in LOOKS_NEW7) { const nn = LOOKS_NEW7[k].length, tot = LOOKS[k].length + (LOOKS_NEW[k] || []).length + nn, u = r7.f(0, 1), q = r7.pick(LOOKS_NEW7[k]); if (u < nn / tot) look[k] = q; } } // gen 7: otra tanda, con un azar aparte (los gen 6 no cambian)
+  if (v6 >= 9) { const r9 = rng((seed ^ 0x1f83d9ab) >>> 0); for (const k in LOOKS_NEW9) { const nn = LOOKS_NEW9[k].length, tot = LOOKS[k].length + (LOOKS_NEW[k] || []).length + (LOOKS_NEW7[k] || []).length + nn, u = r9.f(0, 1), q = r9.pick(LOOKS_NEW9[k]); if (u < nn / tot) look[k] = q; } } // gen 9: formas nuevas, con la misma chance que cada una de las otras
   const dims = { mid: { w: r.f(30, 80), h: r.f(16, 32) }, lower: { w: r.f(28, 80), h: r.f(16, 32) }, neck: r.f(8, 30), shoulder: r.f(7, 15), ear: r.f(0.28, 0.5), antLen: r.f(0.5, 0.95), eyeY: r.f(-0.35, 0.02), eyeSp: r.f(0.36, 0.52) };
   g.head.shape = look.head; g.torso.shape = look.torso; g.arms.hand = look.hand; g.feet.type = look.feet; g.wings.type = look.wing; g.tail.tip = look.tip; g.horns.style = look.horn;
   g.eyes.pupilShape = look.pupil; g.eyes.pupils = 1;
@@ -771,6 +794,7 @@ function genome5(seed, stage, v6 = false) {
   g.shoulders.size = c.shoulders && c.arms ? (g.shoulders.size || dims.shoulder) : 0; // los hombros van siempre con los brazos principales
   if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
   else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
+  if (v6 >= 9) applyAnatomy9(g, seed); // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
   if (L.blob) { g.blob = true; g.spots = []; g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
@@ -1168,6 +1192,21 @@ function shapePath(ctx, shape, x, y, w, h) {
     const n = 9, rx = w * 0.42, ry = h * 0.42, P = a => [x + Math.cos(a) * rx, y + Math.sin(a) * ry];
     ctx.moveTo(...P(0)); for (let i = 0; i < n; i++) { const a0 = i * TAU / n, a1 = (i + 1) * TAU / n, am = (a0 + a1) / 2; ctx.quadraticCurveTo(x + Math.cos(am) * rx * 1.3, y + Math.sin(am) * ry * 1.3, ...P(a1)); }
     ctx.closePath();
+  } else if (shape === 'diamond') { // rombo redondeado
+    ctx.moveTo(x, y - h / 2); ctx.quadraticCurveTo(x + w * 0.12, y - h * 0.12, x + w / 2, y); ctx.quadraticCurveTo(x + w * 0.12, y + h * 0.12, x, y + h / 2);
+    ctx.quadraticCurveTo(x - w * 0.12, y + h * 0.12, x - w / 2, y); ctx.quadraticCurveTo(x - w * 0.12, y - h * 0.12, x, y - h / 2); ctx.closePath();
+  } else if (shape === 'star') { // estrella blandita de 5 puntas
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, k = i % 2 ? 0.72 : 1, px = x + Math.cos(a) * w * 0.55 * k, py = y + Math.sin(a) * h * 0.55 * k; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath();
+  } else if (shape === 'wavy') { // borde ondulado
+    for (let i = 0; i <= 48; i++) { const a = i / 48 * TAU, k = 1 + 0.06 * Math.sin(a * 8), px = x + Math.cos(a) * w / 2 * k, py = y + Math.sin(a) * h / 2 * k; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath();
+  } else if (shape === 'barrel') { // barril: casi recto con lados abombados
+    ctx.moveTo(x - w * 0.42, y - h / 2); ctx.lineTo(x + w * 0.42, y - h / 2); ctx.quadraticCurveTo(x + w * 0.6, y, x + w * 0.42, y + h / 2); ctx.lineTo(x - w * 0.42, y + h / 2); ctx.quadraticCurveTo(x - w * 0.6, y, x - w * 0.42, y - h / 2); ctx.closePath();
+  } else if (shape === 'hourglass') { // cintura angosta
+    ctx.moveTo(x - w / 2, y - h * 0.38); ctx.quadraticCurveTo(x - w / 2, y - h / 2, x - w * 0.3, y - h / 2); ctx.lineTo(x + w * 0.3, y - h / 2); ctx.quadraticCurveTo(x + w / 2, y - h / 2, x + w / 2, y - h * 0.38);
+    ctx.quadraticCurveTo(x + w * 0.22, y, x + w / 2, y + h * 0.38); ctx.quadraticCurveTo(x + w / 2, y + h / 2, x + w * 0.3, y + h / 2); ctx.lineTo(x - w * 0.3, y + h / 2); ctx.quadraticCurveTo(x - w / 2, y + h / 2, x - w / 2, y + h * 0.38);
+    ctx.quadraticCurveTo(x - w * 0.22, y, x - w / 2, y - h * 0.38); ctx.closePath();
   } else if (shape === 'oct') { // octágono
     for (let i = 0; i < 8; i++) { const a = Math.PI / 8 + i * Math.PI / 4, px = x + Math.cos(a) * w * 0.54, py = y + Math.sin(a) * h * 0.54; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
     ctx.closePath();
@@ -1912,6 +1951,15 @@ class Monster {
       }
       case 'mitten': ctx.beginPath(); ctx.arc(ha.x - uy * (a.sd || 1) * th * 1.1 + ux * th * 0.2, ha.y + ux * (a.sd || 1) * th * 1.1 + uy * th * 0.2, th * 0.55, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); ctx.beginPath(); ctx.ellipse(ha.x + ux * th * 0.5, ha.y + uy * th * 0.5, th * 1.5, th * 1.15, Math.atan2(uy, ux), 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); break; // mitón con pulgar
       case 'paw': ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.85, 0, TAU); fillStroke(ctx, C.belly, C.ol, lw); break;
+      case 'drill': { // taladro que gira
+        const tx = ha.x + ux * th * 2.8, ty = ha.y + uy * th * 2.8, nx = -uy, ny = ux, w0 = th * 1.0;
+        ctx.beginPath(); ctx.moveTo(ha.x + nx * w0, ha.y + ny * w0); ctx.lineTo(tx, ty); ctx.lineTo(ha.x - nx * w0, ha.y - ny * w0); ctx.closePath(); fillStroke(ctx, C.horn, C.ol, lw);
+        ctx.save(); ctx.clip(); ctx.strokeStyle = C.ol; ctx.lineWidth = lw * 0.6; const ph = (this.t * 6) % 1; for (let q = 0; q < 4; q++) { const k = (q + ph) / 4, cx = lerp(ha.x, tx, k), cy = lerp(ha.y, ty, k), ww = w0 * (1 - k); ctx.beginPath(); ctx.moveTo(cx + nx * ww - ux * th * 0.3, cy + ny * ww - uy * th * 0.3); ctx.lineTo(cx - nx * ww + ux * th * 0.3, cy - ny * ww + uy * th * 0.3); ctx.stroke(); } ctx.restore();
+        ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.7, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
+      }
+      case 'bubble': // mano de burbujas
+        for (const [o, rr] of [[-0.7, 0.55], [0, 0.7], [0.7, 0.55]]) { const c = Math.cos(o), sn = Math.sin(o), vx = ux * c - uy * sn, vy = ux * sn + uy * c; ctx.beginPath(); ctx.arc(ha.x + vx * th * 1.0, ha.y + vy * th * 1.0, th * rr, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw * 0.8); }
+        ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.75, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
       case 'claw':
         for (const o of [-0.5, 0, 0.5]) { const c = Math.cos(o), sn = Math.sin(o), vx = ux * c - uy * sn, vy = ux * sn + uy * c; hornPath(ctx, ha.x, ha.y, ha.x + vx * th * 1.6, ha.y + vy * th * 1.6, th * 0.45, 0.3); fillStroke(ctx, C.horn, C.ol, lw * 0.7); }
         ctx.beginPath(); ctx.arc(ha.x, ha.y, th * 0.65, 0, TAU); fillStroke(ctx, col, C.ol, lw); break;
@@ -1955,6 +2003,14 @@ class Monster {
       case 'pawpad': // pata con almohadillas
         ctx.ellipse(fx, fy, fs * 0.95, fs * 0.55, 0, 0, TAU); fillStroke(ctx, col, C.ol, lw);
         ctx.fillStyle = 'hsla(350,70%,80%,.95)'; ctx.beginPath(); ctx.ellipse(fx, fy + fs * 0.08, fs * 0.38, fs * 0.24, 0, 0, TAU); ctx.fill(); for (const o of [-0.55, 0, 0.55]) { ctx.beginPath(); ctx.arc(fx + o * fs * 0.85, fy - fs * 0.22, fs * 0.15, 0, TAU); ctx.fill(); } break;
+      case 'wheel': { // rueda que gira al caminar
+        const R = fs * 0.75, cy = fy - R * 0.25, ang = (this.walkPh || 0) * 1.5; ctx.arc(fx, cy, R, 0, TAU); fillStroke(ctx, '#3a3346', C.ol, lw);
+        ctx.beginPath(); ctx.arc(fx, cy, R * 0.45, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw * 0.7);
+        ctx.beginPath(); for (let q = 0; q < 4; q++) { const a = ang + q * Math.PI / 2; ctx.moveTo(fx + Math.cos(a) * R * 0.45, cy + Math.sin(a) * R * 0.45); ctx.lineTo(fx + Math.cos(a) * R * 0.85, cy + Math.sin(a) * R * 0.85); } ctx.lineWidth = lw * 0.6; ctx.strokeStyle = C.ol; ctx.stroke(); break;
+      }
+      case 'peg': // pata de palo con punta
+        rrect(ctx, fx - fs * 0.3, fy - fs * 0.6, fs * 0.6, fs * 0.9, fs * 0.15); fillStroke(ctx, '#8a5f3a', C.ol, lw);
+        ctx.beginPath(); ctx.ellipse(fx, fy + fs * 0.3, fs * 0.42, fs * 0.2, 0, 0, TAU); fillStroke(ctx, C.horn, C.ol, lw * 0.8); break;
       default: ctx.ellipse(fx, fy, fs * 0.9, fs * 0.5, 0, 0, TAU); fillStroke(ctx, col, C.ol, lw);
     }
   }
@@ -2041,6 +2097,15 @@ class Monster {
     switch (this.g.tail.tip) {
       case 'spike': hornPath(ctx, b.x, b.y, b.x + ux * th * 2.4, b.y + uy * th * 2.4, th * 1.2, 0); fillStroke(ctx, C.horn, C.ol, lw); break;
       case 'ball': ctx.beginPath(); ctx.arc(b.x, b.y, th * 1.1, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); break;
+      case 'bell': { // cascabel que se mece
+        const sw = Math.sin(this.t * 5) * 0.3, cx = b.x + ux * th * 1.3 + Math.sin(sw) * th * 0.4, cy = b.y + uy * th * 1.3 + th * 0.4;
+        ctx.beginPath(); ctx.arc(cx, cy, th * 1.15, 0, TAU); fillStroke(ctx, 'hsl(48,90%,58%)', C.ol, lw);
+        ctx.beginPath(); ctx.moveTo(cx - th * 1.1, cy); ctx.lineTo(cx + th * 1.1, cy); ctx.lineWidth = lw * 0.6; ctx.strokeStyle = C.ol; ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy + th * 0.5, th * 0.25, 0, TAU); ctx.fillStyle = C.ol; ctx.fill(); break;
+      }
+      case 'moon': { const cx = b.x + ux * th * 1.4, cy = b.y + uy * th * 1.4, R = th * 1.5, an = Math.atan2(uy, ux); ctx.beginPath(); ctx.arc(cx, cy, R, an - 2.4, an + 2.4); ctx.arc(cx + ux * R * 0.55, cy + uy * R * 0.55, R * 0.85, an + 2.0, an - 2.0, true); ctx.closePath(); fillStroke(ctx, 'hsl(50,85%,72%)', C.ol, lw); break; } // media luna
+      case 'gem': { const cx = b.x + ux * th * 1.5, cy = b.y + uy * th * 1.5, an = Math.atan2(uy, ux), Lg = th * 1.7, Wg = th * 1.05, P = (a, d) => [cx + Math.cos(an + a) * d, cy + Math.sin(an + a) * d]; // gema que brilla
+        const pl = 0.5 + 0.5 * Math.sin(this.t * 4); ctx.fillStyle = hsl(this.g.pal.accent, 25, 0.2 + 0.25 * pl); ctx.beginPath(); ctx.arc(cx, cy, th * 2, 0, TAU); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(...P(0, Lg)); ctx.lineTo(...P(Math.PI / 2, Wg)); ctx.lineTo(...P(Math.PI, Lg * 0.6)); ctx.lineTo(...P(-Math.PI / 2, Wg)); ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw); break; }
       case 'club': { const cx = b.x + ux * th * 0.9, cy = b.y + uy * th * 0.9, an = Math.atan2(uy, ux); ctx.beginPath(); ctx.ellipse(cx, cy, th * 1.7, th * 1.25, an, 0, TAU); fillStroke(ctx, C.horn, C.ol, lw); for (const sg of [-1, 1]) { ctx.beginPath(); ctx.arc(cx - uy * sg * th * 1.1, cy + ux * sg * th * 1.1, th * 0.4, 0, TAU); fillStroke(ctx, C.horn, C.ol, lw * 0.8); } break; } // maza de hueso
       case 'bow': { const sw = Math.sin(this.t * 3) * 0.12; for (const sg of [-1, 1]) { const nx = -uy * sg, ny = ux * sg; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(b.x + nx * th * 2.6 + ux * th * (1.4 + sw * 4), b.y + ny * th * 2.6 + uy * th * (1.4 + sw * 4), b.x + nx * th * 2.2 - ux * th * 0.6, b.y + ny * th * 2.2 - uy * th * 0.6); ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw); } ctx.beginPath(); ctx.arc(b.x, b.y, th * 0.55, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw); break; } // moño
       case 'feather': { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(uy, ux) + Math.sin(this.t * 2.5) * 0.12); ctx.beginPath(); ctx.ellipse(th * 2.1, 0, th * 2.2, th * 0.95, 0, 0, TAU); fillStroke(ctx, C.wingL, C.ol, lw); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(th * 4, 0); for (let q = 0; q < 5; q++) { const xx = th * (0.8 + q * 0.65); ctx.moveTo(xx, 0); ctx.lineTo(xx + th * 0.5, -th * 0.75); ctx.moveTo(xx, 0); ctx.lineTo(xx + th * 0.5, th * 0.75); } ctx.lineWidth = lw * 0.55; ctx.stroke(); ctx.restore(); break; } // pluma
@@ -2093,6 +2158,8 @@ class Monster {
       else if (g.antennae.tip === 'heart') { heartPath(ctx, p2.x, p2.y, r * (1.5 + 0.12 * Math.sin(this.t * 4 + a.i))); fillStroke(ctx, C.accent, C.ol, lw * 0.7); }
       else if (g.antennae.tip === 'spiral') { ctx.beginPath(); const sp = this.t * 1.5 + a.i; for (let i = 0; i <= 26; i++) { const an = sp + i * 0.55, rr = r * 1.7 * (1 - i / 26); const xx = p2.x + Math.cos(an) * rr, yy = p2.y + Math.sin(an) * rr; i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); } ctx.lineCap = 'round'; ctx.strokeStyle = C.ol; ctx.lineWidth = 2.6 * s; ctx.stroke(); ctx.strokeStyle = C.accent; ctx.lineWidth = 1.3 * s; ctx.stroke(); }
       else if (g.antennae.tip === 'star') { const R = r * 1.6, sp = this.t * 2 + a.i; ctx.beginPath(); for (let i = 0; i < 10; i++) { const an = sp + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; i ? ctx.lineTo(p2.x + Math.cos(an) * rr, p2.y + Math.sin(an) * rr) : ctx.moveTo(p2.x + Math.cos(an) * rr, p2.y + Math.sin(an) * rr); } ctx.closePath(); fillStroke(ctx, C.accent, C.ol, lw * 0.7); }
+      else if (g.antennae.tip === 'bulb') { const on = Math.sin(this.t * 3 + a.i) > -0.3; if (on) { ctx.fillStyle = 'rgba(255,240,150,.35)'; ctx.beginPath(); ctx.arc(p2.x, p2.y - r * 0.4, r * 2.6, 0, TAU); ctx.fill(); } ctx.beginPath(); ctx.arc(p2.x, p2.y - r * 0.4, r * 1.25, 0, TAU); fillStroke(ctx, on ? '#fff3a6' : '#c9c2a0', C.ol, lw * 0.7); ctx.beginPath(); rrect(ctx, p2.x - r * 0.6, p2.y + r * 0.6, r * 1.2, r * 0.7, r * 0.2); fillStroke(ctx, '#9a9aa8', C.ol, lw * 0.6); } // ampolleta que parpadea
+      else if (g.antennae.tip === 'flower') { const sp = this.t * 0.8 + a.i; for (let k = 0; k < 5; k++) { const an = sp + k * TAU / 5; ctx.beginPath(); ctx.arc(p2.x + Math.cos(an) * r * 1.05, p2.y + Math.sin(an) * r * 1.05, r * 0.8, 0, TAU); fillStroke(ctx, C.wingL, C.ol, lw * 0.6); } ctx.beginPath(); ctx.arc(p2.x, p2.y, r * 0.75, 0, TAU); fillStroke(ctx, 'hsl(48,95%,60%)', C.ol, lw * 0.6); } // flor
       else if (g.antennae.tip === 'feather') { const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x); ctx.save(); ctx.translate(p2.x, p2.y); ctx.rotate(ang); ctx.beginPath(); ctx.ellipse(r * 1.6, 0, r * 2.2, r * 0.9, 0, 0, TAU); fillStroke(ctx, C.wingL, C.ol, lw * 0.6); ctx.beginPath(); ctx.moveTo(-r * 0.4, 0); ctx.lineTo(r * 3.6, 0); for (let q = 0; q < 4; q++) { ctx.moveTo(r * (0.4 + q * 0.8), 0); ctx.lineTo(r * (0.9 + q * 0.8), -r * 0.7); ctx.moveTo(r * (0.4 + q * 0.8), 0); ctx.lineTo(r * (0.9 + q * 0.8), r * 0.7); } ctx.lineWidth = lw * 0.5; ctx.strokeStyle = C.ol; ctx.stroke(); ctx.restore(); }
       else { ctx.beginPath(); ctx.arc(p2.x, p2.y, r, 0, TAU); fillStroke(ctx, C.accent, C.ol, lw * 0.7); }
     }
@@ -2753,7 +2820,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 8, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 9, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4262,6 +4329,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
