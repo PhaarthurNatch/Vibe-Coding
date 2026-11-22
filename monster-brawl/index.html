@@ -4752,7 +4752,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.'] },
+  { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
   { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
@@ -5039,11 +5039,12 @@ async function fsReq(method, path, fields, query = '', keepalive = false) {
 const PROFILE_MS = 60e3, ONLINE_MS = 150e3; // se publica cada minuto; se considera en línea si lo hizo hace menos de 2,5 min
 let profLast = null, profT = 0;
 const myPlace = () => scene === 'battle' ? 'battle' : 'ranch';
+const myRivals = () => battle && battle.lan && !battle.spec ? [...new Set(battle.ms.filter(m => !m.isPlayer && !m.cloneOf && m.rec && m.rec.user && m.rec.user !== save.user).map(m => m.rec.user))].join(', ') : ''; // en Online: contra quién pelea
 function profilePush(off) {
   if (!cloud || !save.user || importing) return;
   const st = off ? 'off' : myPlace(); profLast = st; profT = Date.now();
   const team = save.monsters.filter(r => r.stage !== 'egg').map(r => ({ ...lanRec(r), w: r.wins || 0, l: r.losses || 0, best: r.bestRun || 0, run: r.run || 0 })), A = save.stats || {};
-  const fields = { w: { integerValue: String(A.w || 0) }, l: { integerValue: String(A.l || 0) }, best: { integerValue: String(A.best || 0) }, name: { stringValue: save.user }, st: { stringValue: st }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
+  const fields = { w: { integerValue: String(A.w || 0) }, l: { integerValue: String(A.l || 0) }, best: { integerValue: String(A.best || 0) }, name: { stringValue: save.user }, st: { stringValue: st }, vs: { stringValue: st === 'battle' ? myRivals() : '' }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
   if (off && cloud.tok && Date.now() < cloud.exp - 30e3) { fetch(fsDoc(`profiles/${cloud.uid}`), { method: 'PATCH', keepalive: true, headers: { Authorization: 'Bearer ' + cloud.tok, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) }).catch(() => { }); return; } // al salir de la app: sin esperar
   fsReq('PATCH', `profiles/${cloud.uid}`, fields).catch(() => { });
 }
@@ -5054,9 +5055,9 @@ setInterval(() => { // cada 5 s revisa si cambió (rancho ↔ combate) y cada mi
 }, 5000);
 document.addEventListener('visibilitychange', () => { if (cloud && save.user) { if (document.hidden) profilePush(true); else profilePush(); } });
 const fJson = (d, k) => { try { return JSON.parse(fGet(d, k) || 'null'); } catch (e) { return null; } };
-async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [], w: +(fGet(d, 'w') || 0), l: +(fGet(d, 'l') || 0), best: +(fGet(d, 'best') || 0) }; }
+async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), vs: fGet(d, 'vs') || '', t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [], w: +(fGet(d, 'w') || 0), l: +(fGet(d, 'l') || 0), best: +(fGet(d, 'best') || 0) }; }
 const isOnline = p => p && p.st && p.st !== 'off' && Date.now() - p.t < ONLINE_MS;
-const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? 'En combate' : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
+const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? (p.vs ? `En combate contra ${esc(p.vs)}` : 'En combate') : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
 const FR = { profs: {}, sel: null, timer: 0, wasOn: new Set(), newOn: new Set() };
 // Solicitudes de amistad (pedido del dueño): freqs/{para}/from/{de} = pedido, freqs/{para}/ok/{de} = aceptó, freqs/{para}/rm/{de} = te quitó. Así quedan amigos los dos sin que el otro tenga que buscarte.
 const FREQ = { inc: [] };
@@ -5185,8 +5186,8 @@ async function specServe() { // el que pelea: atiende a los que quieren mirar
 }
 function specSendStart(v) {
   const B = battle; if (!B || !v.open) return;
-  const recs = B.ms.map(m => lanRec(m.rec));
-  try { v.dc.send(JSON.stringify({ t: 'vstart', aw: ARENA_W, ad: ARENA_D, mode: B.mode, teams: B.ms.map(m => m.team), recs, me: B.ms.map(m => !!m.isPlayer), clone: B.ms.map(m => m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1), who: save.user })); } catch (e) { }
+  const recs = B.ms.map(m => ({ ...lanRec(m.rec), user: m.isPlayer ? save.user : m.rec.user })); // en Online, cada monstruo con el nombre de su jugador
+  try { v.dc.send(JSON.stringify({ t: 'vstart', aw: ARENA_W, ad: ARENA_D, mode: B.mode, teams: B.ms.map(m => m.team), recs, me: B.ms.map(m => !!m.isPlayer), clone: B.ms.map(m => m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1), who: save.user, lan: !!B.lan })); } catch (e) { }
 }
 function specTick() { // cada pocos cuadros, el estado de la pelea a los que miran
   const open = SPEC.viewers.filter(v => v.open); if (!open.length || !battle || battle.spec) return;
@@ -5224,7 +5225,8 @@ function specMsg(m, W) {
     const list = m.recs.map((r, i) => { const mo = new Monster(r); mo.team = m.teams[i]; return mo; });
     m.clone.forEach((c, i) => { if (c >= 0 && list[c]) list[i].cloneOf = list[c]; });
     lanSetupBattle(list, m.aw, m.ad, m.mode); battle.puppet = true; battle.spec = { who: m.who || W.f.name, me: m.me }; LAN.snap = null;
-    $('modeLbl').textContent = `Espectando a ${battle.spec.who}`;
+    const rivals = m.lan ? [...new Set(m.recs.filter((r, i) => !m.me[i] && m.clone[i] < 0 && r.user && r.user !== battle.spec.who).map(r => r.user))] : [];
+    $('modeLbl').textContent = rivals.length ? `${battle.spec.who} vs ${rivals.join(', ')}` : `Espectando a ${battle.spec.who}`; // pelea Online entre jugadores: se ve quién contra quién
     $('fighters').querySelectorAll('.fighter').forEach((el, i) => el.classList.toggle('me', !!m.me[i])); // los monstruos de tu amigo, marcados
   } else if (m.t === 's' && battle && battle.spec) LAN.snap = m;
   else if (m.t === 'vend' && battle && battle.spec) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; setTimeout(() => specFinish(m), 1500); }
