@@ -573,7 +573,8 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 170, leapMax: 520, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
+const WRAP_S = 1.1, WRAP_CD = 12, WRAP_SQUEEZE = 0.2; // serpiente: enrollar dura 1,6 s, cada ~8–11 s, y al soltar aprieta (1,2 golpes)
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, burstN: 3, burstS: 2.5, backS: 1.2, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
 const TGT_MARGIN = 0.22;    // un nuevo objetivo tiene que ser al menos esto mejor para cambiar (el Terco pide más)
@@ -1190,7 +1191,7 @@ const TEMPER = [
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
-const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
+const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6), d = rec.mood - 50; return 50 + Math.sign(d) * Math.max(0, Math.abs(d) - MOOD_DECAY_H * h); } // vuelve despacio a 50
 const treatLast = new WeakMap();
@@ -1338,7 +1339,8 @@ class Monster {
     this.st = calcStats(this.g, this.level, rec.pts);
     this.hp = this.st.hp;
     { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / wg.pairs / (WEIGHT_AVG[this.g.stage] || WEIGHT_AVG.adult) >= FLY.loadSplit ? 'leap' : 'float') : null; /* peso por par de alas (comparado con su etapa): pesados saltan, livianos flotan */ }
-    this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0;
+    this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0; this.hitTimes = []; this.floatBack = 0;
+    this.wrapCd = 3 + Math.random() * 2; this.wrapT = 0; this.wrapBy = null; this.wrapping = null; // serpiente: enrollar al rival
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
     this.gx = 0; this.gy = 0; this.s = 1;
@@ -1804,7 +1806,14 @@ class Monster {
       case 'recover': case 'recoil': case 'dodge': case 'hitstun':
         if (this.stT <= 0) this.state = 'free';
         break;
+      case 'wrap': { // serpiente: tiene enrollado a su rival
+        const V = this.wrapping;
+        if (!V || V.dead || this.stT <= 0) { if (V && !V.dead && V.wrapBy === this) { V.wrapBy = null; V.wrapT = 0; B.hit(this, V, this.st.melee * WRAP_SQUEEZE, { x: Math.sign(V.x - this.x) || 1, y: 0 }, 'melee'); } this.wrapping = null; this.state = 'recover'; this.stT = 0.25; }
+        break;
+      }
     }
+    if (this.wrapT > 0) { this.wrapT -= dt; this.state = 'hitstun'; this.stT = Math.max(this.stT, 0.05); this.vx *= 0.5; this.vy *= 0.5; if (!this.wrapBy || this.wrapBy.dead || this.wrapBy.state !== 'wrap') { this.wrapT = 0; this.wrapBy = null; } } // enrollado: no se puede mover ni atacar
+    if (this.wrapCd > 0) this.wrapCd -= dt;
 
     if (this.state !== 'free') { this.desired = { x: 0, y: 0 }; return; }
     const T = this.target;
@@ -1823,7 +1832,7 @@ class Monster {
     const fleeD = 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1);
     this.fleeing = lowHp && this.tp.valor < -0.2 && (d < fleeD || (this.fleeing && d < fleeD + 60)); // con margen: antes, justo en el límite cambiaba de idea cada cuadro y se quedaba quieto
     if (this.fleeing) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
-    if (this.floatT > 0) fwd = d < reachD + 90 ? -0.45 : 0; // flotando: ya no huye, sólo se aleja un poco (y le dispara desde arriba si puede)
+    if (this.floatT > 0) fwd = this.floatBack > 0 ? -1.2 : d < reachD + 90 ? -0.45 : 0; // flotando: al despegar vuela hacia atrás; después sólo se aleja un poco (y le dispara desde arriba si puede)
     const lat = clamp((dx * px + dy * py) / 80, -1, 1) * 0.5;
     let mx = ax * fwd + px * lat, my = ay * fwd + py * lat;
     // Evitar paredes y esquinas: empuje hacia adentro que crece al acercarse al borde
@@ -1847,9 +1856,10 @@ class Monster {
       : this.hitsN >= ULT_HITS && this.hp / this.st.hp <= ULT_HP;
     // Vuelo: el pesado salta alto hacia su objetivo; el liviano despega y flota un rato
     if (this.flyer && this.flyCd <= 0 && this.z === 0 && !B.cine && !B.over) {
-      if (this.flyer === 'leap' && d > FLY.leapMin && d < FLY.leapMax) { this.startLeap(T, d, reachD); return; }
-      if (this.flyer === 'float' && d < reachD + 60) { // lo tienen encima: despega para alejarse
-        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.vz = 280; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('focus', 0.6, 2); }
+      if (this.flyer === 'leap' && d > FLY.leapMin && d < FLY.leapMax) { this.startLeap(T, d, reachD); return; } // su objetivo está lejos: salta para acercarse (pedido del dueño)
+      const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
+      if (this.flyer === 'float' && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
+        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS; this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
     }
     // Tus monstruos la lanzan cuando aprietas su botón (una vez por pelea); los rivales deciden solos
     const wantUlt = this.isPlayer || this.remoteCtl ? this.ultRequest : ultNow && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8));
@@ -1862,6 +1872,10 @@ class Monster {
 
     const air = this.z > FLY.airZ || T.z > FLY.airZ; // alguno en el aire: no hay golpe, sólo disparo (hacia arriba o hacia abajo)
     this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
+    if (this.g.plan === 'snake' && !air && this.wrapCd <= 0 && d <= reachD + 12 && T.z < 5 && !T.wrapBy && T.state !== 'ultcharge' && T.state !== 'leap') { // serpiente: enrolla al rival y lo deja sin moverse (pedido del dueño)
+      this.state = 'wrap'; this.stT = WRAP_S; this.wrapping = T; this.wrapCd = WRAP_CD + Math.random() * 3; this.desired = { x: 0, y: 0 };
+      T.wrapBy = this; T.wrapT = WRAP_S; T.state = 'hitstun'; T.stT = 0.1; T.floatT = 0; this.setEmo('angry', 1, 2); T.setEmo('scared', WRAP_S, 3); B.text(T, '¡atrapado!', '#ffb36b'); return;
+    }
     if (!air && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
     else if (this.st.ranged > 0 && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
@@ -1947,7 +1961,7 @@ class Monster {
     else if (this.state !== 'leap') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
-    if (this.floatT > 0) this.floatT -= dt;
+    if (this.floatT > 0) this.floatT -= dt; if (this.floatBack > 0) this.floatBack -= dt;
     if (this.state === 'leap') { // salto alto: al caer retoma la pelea
       this.airT += dt;
       if (this.z === 0 && this.airT > 0.15) { this.state = 'free'; this.vx *= 0.3; this.vy *= 0.3; if (typeof battle !== 'undefined' && battle) battle.shake = Math.min(12, battle.shake + 5); }
@@ -2015,6 +2029,10 @@ class Monster {
     }
     if (back) wingsTail();
     this.drawHead(ctx, C, lw);
+    if (this.wrapBy && this.wrapT > 0 && !this._ghost) { // enrollado por una serpiente: anillos de su cuerpo alrededor
+      const W = this.wrapBy, wc = W.cols || C, m = N[I.mid], sq = 1 + Math.sin(this.t * 10) * 0.04, ww = Math.max(this.seg.up.w, this.seg.mi.w, this.seg.lo.w) * s * 0.62 * sq, th = Math.max(5, (W.g.coil ? W.g.coil.thick : 12) * W.s * 0.45);
+      for (const oy of [-0.55, 0, 0.55]) { const y = m.y + oy * th * 2.1; ctx.beginPath(); ctx.ellipse(m.x, y, ww + th * 0.5, th * 0.9, 0, 0, TAU); ctx.lineWidth = th + lw * 2; ctx.strokeStyle = C.ol; ctx.stroke(); ctx.lineWidth = th; ctx.strokeStyle = wc.body; ctx.stroke(); }
+    }
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
       const m = N[I.mid], R = this.bubbleR * s * (1 + Math.sin(this.t * 6) * 0.03);
@@ -2707,6 +2725,7 @@ class Battle {
     t.hp -= dmg; t.hurtT = 0.12;
     if (a.buffs.drain > 0 && !a.dead && dmg > 0) { const h = Math.min(a.st.hp - a.hp, dmg * ULT_DRAIN); if (h > 0.5) { a.hp += h; this.texts.push({ x: a.gx, y: a.nodes[a.ix.head].y - a.g.head.h * a.s * 0.7, str: '+' + Math.round(h), col: '#7dff9a', life: 0.8 }); } } // Robo de vida t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
     if (t.floatT > 0) t.floatT = Math.max(0, t.floatT - 0.6); // lo bajan a tiros
+    if (t.flyer === 'float') { t.hitTimes.push(this.time); if (t.hitTimes.length > 6) t.hitTimes.shift(); } // para saber si le llueven golpes
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight; // el peso regula el knockback
@@ -4563,7 +4582,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes pueden enrollar a su rival y dejarlo sin moverse un momento; al soltarlo lo aprietan un poco.', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
@@ -5235,7 +5254,7 @@ function finishBattle() {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
     place === 1 ? rec.wins++ : rec.losses++;
-    if (place !== 1) moodAdd(rec, MOOD_LOSE); // perder la pelea le baja el ánimo (pedido del dueño)
+    moodAdd(rec, place === 1 ? MOOD_WIN : MOOD_LOSE); // ganar le sube el ánimo y perder se lo baja (pedido del dueño)
     // vidas: sólo se pierde una si lo noquearon (el resultado sólo muestra XP y monedas, pedido del dueño)
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
