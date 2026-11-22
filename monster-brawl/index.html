@@ -638,6 +638,7 @@ function scaleGenome(g, k) {
   for (const sg of [g.torso.upper, g.torso.mid, g.torso.lower]) if (sg) m(sg, ['w', 'h']);
   g.spots.forEach(sp => sp.r *= k); m(g.shoulders, ['size']); m(g.arms, ['upper', 'fore', 'thick']);
   m(g.legs, ['upper', 'lower', 'thick']); m(g.feet, ['size']); m(g.wings, ['span']); m(g.tail, ['seg', 'thick']);
+  if (g.tents) m(g.tents, ['len', 'thick']); if (g.coil) m(g.coil, ['thick']);
 }
 
 // Cuerpo de un monstruo según su etapa.
@@ -713,6 +714,17 @@ const LOOKS_NEW7 = { head: ['drop', 'cloud', 'oct'], torso: ['pear', 'egg'], han
 const LOOKS_NEW9 = { head: ['diamond', 'star', 'wavy'], torso: ['barrel', 'hourglass'], hand: ['drill', 'bubble'], feet: ['wheel', 'peg'], tip: ['bell', 'moon', 'gem'], antenna: ['bulb', 'flower'] }; // gen 9 (pedido del dueño)
 // Anatomías gen 9 (pedido del dueño): cambian las proporciones del cuerpo; cada monstruo nuevo puede tener una o dos
 const ANATOMY9 = ['cabezon', 'cuellilargo', 'zancudo', 'brazilargo', 'rechoncho', 'larguirucho', 'ciclope', 'colilargo', 'cornudo'];
+// Gen 11 (pedido del dueño): cuerpos no humanoides. ~22% de los monstruos nuevos: cuadrúpedo, arácnido (6–8 patas), medusa (flota con tentáculos) o serpiente
+function bodyPlan(seed) { const r = rng((seed ^ 0xa4093822) >>> 0), u = r.f(0, 1), u2 = r.f(0, 1); return { plan: u < 0.06 ? 'quad' : u < 0.12 ? 'spider' : u < 0.17 ? 'jelly' : u < 0.22 ? 'snake' : null, u2, n: 5 + Math.floor(r.f(0, 3)), len: r.f(30, 50), th: r.f(4, 7) }; }
+function applyPlan(g, seed) {
+  const P = bodyPlan(seed); if (!P.plan) return; g.plan = P.plan;
+  if (P.plan === 'quad') { // cuatro patas, sin brazos, cuerpo ancho y la cabeza baja, por delante
+    g.arms.pairs = 0; g.shoulders.size = 0; g.legs.pairs = 2; g.legs.spread = 0.85; g.neck.len = 0;
+    g.torso.upper.w *= 1.35; g.torso.upper.h *= 0.9; g.torso.mid = g.torso.lower = null;
+  } else if (P.plan === 'spider') { g.legs.pairs = P.u2 < 0.5 ? 3 : 4; g.legs.thick *= 0.55; g.legs.upper *= 1.7; g.legs.lower *= 1.3; g.feet.size *= 0.55; } // patas de araña
+  else if (P.plan === 'jelly') { g.legs.pairs = 0; g.tents = { n: P.n, len: P.len, thick: P.th }; } // medusa: flota con tentáculos
+  else if (P.plan === 'snake') { g.legs.pairs = 0; g.coil = { thick: Math.max(12, (g.torso.lower || g.torso.mid || g.torso.upper).w * 0.48) }; } // serpiente: cola gruesa enrollada en el suelo
+}
 // Gen 10 (pedido del dueño): más anatomías, también para las demás partes del cuerpo (orejas, alas, antenas, ojos, pies, manos, hombros, boca, cola, panza)
 const ANATOMY10 = ['orejon', 'alon', 'antenudo', 'ojon', 'ojitos', 'paton', 'forzudo', 'hombrudo', 'bocon', 'colagruesa', 'cabecita', 'panzon'];
 function applyAnatomy9(g, seed, gen = 9) {
@@ -810,6 +822,7 @@ function genome5(seed, stage, v6 = false) {
   g.shoulders.size = c.shoulders && c.arms ? (g.shoulders.size || dims.shoulder) : 0; // los hombros van siempre con los brazos principales
   if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
   else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
+  if (v6 >= 11 && stage !== 'baby') applyPlan(g, seed); // gen 11: cuerpos no humanoides (el bebé sigue siendo una bolita)
   if (v6 >= 9) applyAnatomy9(g, seed, v6); // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
@@ -1296,8 +1309,8 @@ class Monster {
     const add = (p, ox, oy, k, z = 0.35) => { N.push({ p, ox, oy, ax: 0, ay: 0, k, c: 2 * z * Math.sqrt(k), x: 0, y: 0, vx: 0, vy: 0, len: Math.hypot(ox, oy), useT: false, tx: 0, ty: 0, boost: 1 }); return N.length - 1; };
     const lo = T.lower || { w: T.upper.w * 0.8, h: 0 }, mi = T.mid || { w: (lo.w + T.upper.w) / 2, h: 0 }, up = T.upper;
     this.seg = { lo, mi, up };
-    this.legSum = g.legs.upper + g.legs.lower;
-    this.hover = g.legs.pairs || g.blob ? 0 : 24;
+    this.legSum = g.plan === 'spider' ? Math.max(10, g.legs.lower * 1.05 - g.legs.upper * 0.45) : g.legs.upper + g.legs.lower; // araña: el cuerpo va bajo, entre las patas
+    this.hover = g.legs.pairs || g.blob ? 0 : g.plan === 'jelly' ? 40 : g.plan === 'snake' ? 30 : 24;
 
     I.root = add(-1, 0, 0, 0);
     I.lower = add(I.root, 0, -lo.h * 0.5, 420, 0.4);
@@ -1307,7 +1320,7 @@ class Monster {
     I.neck = []; let par = I.upper;
     const nl = g.neck.len, ns = nl > 0 ? Math.max(1, Math.round(nl / 10)) : 0;
     for (let i = 0; i < ns; i++) { par = add(par, 0, (i === 0 ? -up.h * 0.42 : 0) - nl / ns, 220 - i * 20, 0.28); I.neck.push(par); }
-    I.head = g.blob ? add(I.upper, 0, -g.head.h * 0.1, 260, 0.2) : g.head.none ? add(I.upper, 0, -up.h * 0.04, 520, 0.45) /* sin cabeza: la cara va pegada al torso */ : add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
+    I.head = g.blob ? add(I.upper, 0, -g.head.h * 0.1, 260, 0.2) : g.plan === 'quad' && !g.head.none ? add(I.upper, 0, -(up.h * 0.18 + g.head.h * 0.22), 300, 0.3) /* cuadrúpedo: la cabeza baja, por delante del cuerpo */ : g.head.none ? add(I.upper, 0, -up.h * 0.04, 520, 0.45) /* sin cabeza: la cara va pegada al torso */ : add(par, 0, ns ? -g.head.h * 0.42 : -(up.h * 0.42 + g.head.h * 0.36), 150, 0.25);
     // Cuernos
     I.horns = [];
     const hn = g.horns.count;
@@ -1349,7 +1362,13 @@ class Monster {
     }
     // Piernas: muslo + pierna inferior + pie
     I.legs = [];
-    for (let p = 0; p < g.legs.pairs; p++) for (const sd of [-1, 1]) {
+    if (g.plan === 'spider') for (let p = 0; p < g.legs.pairs; p++) for (const sd of [-1, 1]) { // araña: patas que salen hacia los lados, rodilla arriba y pie lejos
+      const hx = sd * lo.w * 0.5 * (0.95 - 0.12 * p), hip = add(I.lower, hx, lo.h * 0.05 - p * 2, 400, 0.4);
+      const knee = add(hip, sd * g.legs.upper * 0.8, -g.legs.upper * 0.55, 220, 0.3), foot = add(knee, sd * g.legs.lower * 0.35, g.legs.lower * 1.1, 240, 0.35);
+      N[knee].useT = N[foot].useT = true;
+      I.legs.push({ p, sd, hip, knee, foot, hx, spider: true, ph: (sd > 0 ? Math.PI : 0) + p * Math.PI / 2 }); N[knee].leg = N[foot].leg = true;
+    }
+    else for (let p = 0; p < g.legs.pairs; p++) for (const sd of [-1, 1]) {
       const hx = sd * Math.max(6, lo.w * 0.5 * (p === 0 ? g.legs.spread : g.legs.spread * 0.45));
       const hip = add(I.lower, hx, lo.h * 0.35, 400, 0.4);
       const knee = add(hip, sd * 3, g.legs.upper, 220, 0.3);
@@ -1379,6 +1398,19 @@ class Monster {
       }
       I.tails.push({ sd, chain: ch });
     }
+    // Medusa: tentáculos que cuelgan; serpiente: cuerpo enrollado en el suelo
+    I.tents = [];
+    if (g.tents) for (let i = 0; i < g.tents.n; i++) {
+      const u = g.tents.n === 1 ? 0 : lerp(-1, 1, i / (g.tents.n - 1)); let pn = add(T.lower ? I.lower : T.mid ? I.mid : I.upper, u * lo.w * 0.4, (T.lower ? lo.h : T.mid ? mi.h : up.h) * 0.4, 400, 0.4); const ch = [pn];
+      for (let k = 0; k < 5; k++) { pn = add(pn, u * 2, g.tents.len / 5, Math.max(35, 110 - k * 15), 0.18); ch.push(pn); }
+      I.tents.push({ u, i, chain: ch });
+    }
+    I.coil = null;
+    if (g.coil) { const sd = g.tail.side || 1, base = T.lower ? I.lower : T.mid ? I.mid : I.upper, bh = (T.lower ? lo.h : T.mid ? mi.h : up.h) * 0.45; let pn = add(base, 0, bh, 420, 0.4); const ch = [pn];
+      const steps = [[0, 12], [0, 12], [sd * 12, 6], [sd * 14, 0], [sd * 8, -4], [-sd * 6, -3], [-sd * 14, 2], [-sd * 10, 5]], kk = Math.max(1, g.coil.thick / 11);
+      for (const [dx, dy] of steps) { pn = add(pn, dx * kk, dy * (dy > 0 && Math.abs(dx) < 1 ? 1 : kk), 260, 0.3); ch.push(pn); }
+      I.coil = { sd, chain: ch };
+    }
   }
 
   // Altura estimada (para encuadrar en la vitrina)
@@ -1388,7 +1420,8 @@ class Monster {
     const w = Math.max(up.w, mi.w, lo.w, g.head.w) + (g.arms.pairs ? (g.arms.upper * 0.5 + g.arms.thick) * 2 : 0);
     const ww = g.wings.pairs ? up.w * 0.44 + g.wings.span * 1.9 : 0;
     const tw = g.tail.count ? lo.w * 0.3 + g.tail.segs * g.tail.seg * 1.5 : 0;
-    return { h, w: Math.max(w, ww, tw) };
+    const sw = g.plan === 'spider' ? lo.w + (g.legs.upper * 0.8 + g.legs.lower * 0.35) * 2.2 : g.plan === 'snake' ? lo.w + 40 : 0;
+    return { h: h + (g.tents ? g.tents.len * 0.6 : 0), w: Math.max(w, ww, tw, sw) };
   }
 
   rootTarget() {
@@ -1506,6 +1539,8 @@ class Monster {
     this.earT = (this.earT ?? Math.random() * 3) - dt;
     if (this.earT < 0) { this.earT = 2 + Math.random() * 5; const sd = Math.random() < 0.5 ? -1 : 1; for (const e of I.ears) if (e.sd === sd || Math.random() < 0.4) { const n = N[e.tip]; n.vx += e.sd * 140 * s; n.vy -= 60 * s; } }
     for (const a of I.ants) { N[a.chain[1]].ax = Math.sin(t * 2.2 + a.i * 1.3) * 2.5; N[a.chain[0]].ax = Math.sin(t * 1.7 + a.i) * 1.2; }
+    for (const te of I.tents) te.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 2.4 + te.i * 0.9 + k * 0.8) * k * 0.9 + lean * k * -0.6; n.ay = Math.cos(t * 1.8 + te.i + k) * 0.6; }); // tentáculos que ondulan
+    if (I.coil) I.coil.chain.forEach((ni, k) => { if (k < 2) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.9 + this.walkPh) * (1.2 + moving * 2.5); }); // la serpiente se mece (y más al avanzar)
     for (const tl of I.tails) tl.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.7) * k * 0.6 * (tl.sd || 1); n.ay = Math.cos(t * 2.6 + k * 0.7) * k * 0.4; });
     // Piernas: los pies buscan el suelo (o cuelgan si está en el aire)
     for (const L of I.legs) {
@@ -1517,6 +1552,7 @@ class Monster {
       foot.tx = this.gx + L.hx * s * 1.15 + Math.sin(ph) * stride;
       foot.ty = Math.min(groundY - lift, hip.y + this.legSum * s * 0.98);
       knee.tx = (hip.x + foot.x) / 2 + L.sd * 4 * s; knee.ty = (hip.y + foot.y) / 2;
+      if (L.spider) { const out = (g.legs.upper * 0.8 + g.legs.lower * 0.35) * s; foot.tx = this.gx + L.hx * s + L.sd * out + Math.sin(ph) * stride * 0.7; foot.ty = groundY - L.p * 2 * s - lift; knee.tx = hip.x + L.sd * g.legs.upper * 0.8 * s; knee.ty = hip.y - g.legs.upper * 0.55 * s - lift * 0.5; }
       if (this.sitK > 0.001) { const k = this.sitK; // sentado: piernas estiradas hacia los lados sobre el suelo, rodillas un poco arriba
         foot.tx += (this.gx + L.sd * (Math.abs(L.hx) + this.legSum * 0.75) * s - foot.tx) * k; foot.ty += (groundY - foot.ty) * k;
         knee.tx += ((hip.x + foot.tx) / 2 - knee.tx) * k; knee.ty += (Math.min(hip.y, foot.ty) - 5 * s - knee.ty) * k; }
@@ -1882,14 +1918,18 @@ class Monster {
       I.tails.forEach((tl, i) => { if (!hid('tail:' + i)) this.drawTail(ctx, tl, C, lw); });
     };
     if (!back) wingsTail();
-    for (const L of I.legs) if (L.p === 1 && !hid('leg:1')) this.drawLeg(ctx, L, C.limbD, C, lw);
-    for (const L of I.legs) if (L.p === 0 && !hid('leg:0')) this.drawLeg(ctx, L, C.limb, C, lw);
+    const legsDraw = () => { for (let p = g.legs.pairs - 1; p >= 1; p--) for (const L of I.legs) if (L.p === p && !hid('leg:' + Math.min(p, 1))) this.drawLeg(ctx, L, C.limbD, C, lw);
+      for (const L of I.legs) if (L.p === 0 && !hid('leg:0')) this.drawLeg(ctx, L, C.limb, C, lw); };
+    if (g.plan !== 'spider') legsDraw(); // (las patas de araña van por delante del cuerpo, así se ven)
+    for (const te of I.tents) { const pts = te.chain.map(i => N[i]), n = pts.length; chain(ctx, pts, pts.slice(0, -1).map((_, i) => g.tents.thick * s * (1 - 0.65 * i / (n - 1))), te.i % 2 ? C.bodyD || C.body : C.body, C.ol, lw); } // medusa
+    if (I.coil) { const pts = I.coil.chain.map(i => N[i]), n = pts.length; chain(ctx, pts, pts.slice(0, -1).map((_, i) => g.coil.thick * s * (1 - 0.7 * i / (n - 1))), C.body, C.ol, lw); } // serpiente
     if (I.neck.length && !hid('neck')) {
       const up = N[I.upper];
       const pts = [{ x: up.x, y: up.y - this.seg.up.h * 0.3 * s }, ...I.neck.map(i => N[i]), N[I.head]];
       chain(ctx, pts, pts.map(() => g.neck.w * s), C.body, C.ol, lw);
     }
     if (!g.blob && !hid('torso')) this.drawTorso(ctx, C, lw);
+    if (g.plan === 'spider') legsDraw();
     for (const a of I.arms) if (a.p > 0 && !hid('arm:' + a.p)) this.drawArm(ctx, a, C, lw);
     for (const a of I.arms) if (a.p === 0 && !hid('arm:0') ) this.drawArm(ctx, a, C, lw);
     if (g.shoulders.size > 0 && g.arms.pairs > 0 && !hid('shoulders')) for (const si of I.shoulders) { // sólo donde nacen los brazos principales
@@ -2836,7 +2876,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 10, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 11, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4345,7 +4385,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas), medusas (flotan con tentáculos) o serpientes (cuerpo enrollado en el suelo).', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
