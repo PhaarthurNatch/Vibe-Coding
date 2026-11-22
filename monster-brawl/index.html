@@ -4742,6 +4742,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
   { v: '1.58', d: '2026-11-22', items: ['Solicitudes de amistad: al agregar a alguien le llega una solicitud, y cuando la acepta quedan amigos los dos (no hace falta que ambos se busquen). Las solicitudes aparecen en Amigos y el Menú se pone dorado. Si uno quita al otro, se quitan para ambos.'] },
   { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.', 'Arreglado: en el granero, al subirle un punto a un monstruo no se veía el cambio en sus estadísticas hasta llevarlo al rancho.', 'La barra de moral se actualiza al instante al acariciar o golpear al monstruo seleccionado (y cuando baja con el tiempo), en el rancho y en el granero.', 'Cuando un amigo se conecta, el botón del Menú ⚙️ se pone dorado con un número. Se quita al abrir Amigos.', 'En Menú → Mi cuenta hay un botón para cambiar tu nombre de usuario.', 'Online: en la sala puedes tocar tu monstruo para elegir otro de tu rancho, y tocar tu color para cambiar de equipo. Sirve también cuando entras por una invitación de un amigo.'] },
   { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
@@ -5050,11 +5051,12 @@ const frDocs = d => ((d && d.documents) || []).map(x => ({ uid: x.name.split('/'
 const isFriend = uid => (save.friends || []).some(f => f.uid === uid);
 async function freqPoll() {
   if (!cloud || !save.user) return;
+  if (!save.frSync) { save.frSync = true; persist(); for (const f of save.friends || []) fsReq('PATCH', `freqs/${f.uid}/from/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } }).catch(() => { }); } // amigos de antes (de un solo lado): una vez se les manda una solicitud para que también te tengan
   let a, b, c; try { [a, b, c] = await Promise.all(['from', 'ok', 'rm'].map(k => fsReq('GET', `freqs/${cloud.uid}/${k}`))); } catch (e) { return; }
   let ch = false; save.friends = save.friends || [];
   for (const r of frDocs(b)) { if (!isFriend(r.uid)) { save.friends.push({ uid: r.uid, name: r.name }); ch = true; } save.friendOut = (save.friendOut || []).filter(o => o.uid !== r.uid); fsReq('DELETE', `freqs/${cloud.uid}/ok/${r.uid}`).catch(() => { }); } // aceptó tu solicitud
   for (const r of frDocs(c)) { if (isFriend(r.uid)) { save.friends = save.friends.filter(f => f.uid !== r.uid); ch = true; } fsReq('DELETE', `freqs/${cloud.uid}/rm/${r.uid}`).catch(() => { }); } // te quitó de sus amigos
-  const inc = frDocs(a); for (const r of inc) if (isFriend(r.uid)) fsReq('DELETE', `freqs/${cloud.uid}/from/${r.uid}`).catch(() => { });
+  const inc = frDocs(a); for (const r of inc) if (isFriend(r.uid)) { fsReq('PATCH', `freqs/${r.uid}/ok/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } }).catch(() => { }); fsReq('DELETE', `freqs/${cloud.uid}/from/${r.uid}`).catch(() => { }); } // ya lo tienes de amigo (p. ej. amistad de antes, de un solo lado): se acepta solo
   FREQ.inc = inc.filter(r => !isFriend(r.uid));
   if (ch) { save.friendOut = (save.friendOut || []).filter(o => !isFriend(o.uid)); persist(); }
   menuBadge();
@@ -5122,7 +5124,7 @@ $('frAdd').onclick = async () => {
     const d = await fsReq('GET', `names/${encodeURIComponent(n.toLowerCase())}`), uid = fGet(d, 'uid');
     if (!uid) { msg(`No hay ningún jugador llamado «${n}».`); return; }
     const name = fGet(d, 'name') || n;
-    if (isFriend(uid)) { msg('Ya es tu amigo.'); return; }
+    if (isFriend(uid)) { fsReq('PATCH', `freqs/${uid}/from/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } }).catch(() => { }); msg(`${name} ya es tu amigo. Si no te tenía agregado, le llega una solicitud.`); $('frName').value = ''; return; }
     const inc = FREQ.inc.find(r => r.uid === uid); if (inc) { $('frName').value = ''; await freqAccept(inc); return; } // ya te había mandado una: quedan amigos
     await fsReq('PATCH', `freqs/${uid}/from/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } });
     save.friendOut = (save.friendOut || []).filter(o => o.uid !== uid); save.friendOut.push({ uid, name }); persist();
