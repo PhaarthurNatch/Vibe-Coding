@@ -615,7 +615,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
 const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
-const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
+const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, leapSpd: 2.4, leapT0: 0.6, leapT1: 1.4, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 2.0, airFire: 0.8, floatR: 0.8, cd: 9, cdR: 4 };
 const airMelee = (a, e) => a.floatT > 0 && a.z > FLY.airZ && e.z > FLY.airZ && Math.abs(a.z - e.z) < FLY.airHitZ; // el que flota puede golpear cuerpo a cuerpo a otro que está en el aire (pedido del dueño)
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
@@ -1978,14 +1978,15 @@ class Monster {
   }
 
   startLeap(T, d, goal) { // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
-    const tAir = 2 * FLY.leapVz / (1100 * FLY.leapG), away = goal > d, v = Math.min(560, Math.abs(d - goal) / tAir);
+    const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
+    const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
     if (away) { // hacia atrás: si caería fuera de la arena, se desvía hacia el centro
       const lx = this.x + ux * v * tAir, ly = this.y + uy * v * tAir, m = 60;
       if (lx < m || lx > ARENA_W - m || ly < m || ly > ARENA_D - m) { const cx = ARENA_W / 2 - this.x, cy = ARENA_D / 2 - this.y, cl = Math.hypot(cx, cy) || 1; ux = ux * 0.4 + cx / cl * 0.9; uy = uy * 0.4 + cy / cl * 0.9; const l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l; }
     }
     this.state = 'leap'; this.airT = 0; this.desired = { x: 0, y: 0 };
-    this.vx = ux * v; this.vy = uy * v; this.vz = FLY.leapVz;
+    this.vx = ux * v; this.vy = uy * v; this.vz = tAir * 1100 * FLY.leapG / 2;
     this.flyCd = FLY.cd + Math.random() * FLY.cdR; this.setEmo(away ? 'focus' : 'angry', 0.9, 2);
   }
 
@@ -3557,7 +3558,7 @@ function ranchStep(dt) {
       } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
         const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
         const x1 = Math.sin(a1) * r1, z1 = Math.cos(a1) * r1, dist = Math.hypot(x1 - a.x, z1 - a.z);
-        a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / RANCH_FLY_SPEED, h: 170 + Math.random() * 90 };
+        a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / (RANCH_FLY_SPEED * (0.16 + (a.m.st.speed || 100) / 1800) / 0.2156), /* proporcional a lo rápido que camina (pedido del dueño) */ h: 170 + Math.random() * 90 };
         a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
@@ -4765,7 +4766,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
