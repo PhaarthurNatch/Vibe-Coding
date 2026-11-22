@@ -3965,7 +3965,14 @@ function renderHome() {
   checkBreedUnlock(); checkUltUnlock();
   $('coins').textContent = save.coins;
   if (barnCtx) { // de cerca en el granero: la misma vista de cerca, con un monstruo del granero (no pelea)
-    const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !it.m || !rec) { barnExit(); return; }
+    const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !(it.m || it.egg) || !rec) { barnExit(); return; }
+    if (it.egg) { // un huevo del granero, de cerca (pedido del dueño): se abre a toques ahí mismo
+      $('home').classList.remove('vacant', 'first'); $('home').classList.add('barnctx'); homeEmpty = null; show = null; egg = it.egg;
+      if (homePage === 2) setTimeout(renderTrain);
+      edgeLabels(0); $('rest').hidden = true; $('homePanel').style.visibility = 'hidden';
+      $('mName').textContent = rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso'; updateEggSub(); $('hint').hidden = false; $('stats').innerHTML = '';
+      return;
+    }
     if (it.key !== barnMonKey(rec)) { // subió un punto (o cambió de ultimate) estando en el granero: se arma de nuevo, en el mismo lugar, para que se note (pedido del dueño)
       const o = it.m, m = new Monster(rec); m.resetRig();
       for (const k of ['gx', 'gy', 'x', 'y', 'z', 'vx', 'vy', 'vz']) if (typeof o[k] === 'number') m[k] = o[k];
@@ -4122,7 +4129,7 @@ function swipeEnd(x, y) {
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if (homePage === 0 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { // Tienda: a los lados cambia de pestaña
     swipedAt = performance.now(); setShopTab(shopTab + (dx < 0 ? 1 : -1));
-  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? BARN.ms.filter(q => q && q.m).length : save.monsters.length) > 1) { // de cerca o en Estadísticas
+  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? BARN.ms.filter(q => q && (q.m || q.egg)).length : save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (barnCtx) barnCtxSwitch(dx < 0 ? 1 : -1); else if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
   }
 }
@@ -4240,19 +4247,20 @@ function updateEggSub() {
   const rec = cur(), left = (rec.readyAt || 0) - Date.now(); // huevo criado: incuba antes de poder abrirse
   $('mSub').textContent = left > 0 ? (rec.parents ? `Hijo de ${rec.parents[0]} y ${rec.parents[1]} · incubando` : 'Incubando') : 'toca el huevo para abrirlo'; // sin el número de toques que faltan (pedido del dueño)
   $('hint').textContent = left > 0 ? 'está incubando: podrás abrirlo cuando termine' : 'toca el huevo para que nazca';
-  $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
+  $('cTime').innerHTML = left > 0 ? `🥚 ${hmm(left)}` : ''; $('cLv').textContent = $('cHearts').textContent = ''; $('cIdx').textContent = barnCtx ? `${barnCtx.i + 1}/${BARN_MAX}` : `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
 }
 function tapEgg() {
   const rec = cur();
   if (rec.readyAt > Date.now()) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; egg.sq = 0.08; fx.label = `Incubando · ${hmm(rec.readyAt - Date.now())}`; fx.labelT = 1.4; return; } // todavía incubando
-  rec.taps++;
+  rec.taps = (rec.taps || 0) + 1;
   egg.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); egg.sq = 0.12;
   burst((Math.random() - 0.5) * 30, -egg.h * (0.4 + Math.random() * 0.4), 3, hsl(egg.pal.body, 24), 160, [2, 3.5]);
-  if (rec.taps < rec.need) { persist(); updateEggSub(); return; }
+  if (rec.taps < (rec.need || 6)) { persist(); updateEggSub(); return; }
   // ¡nace!
   const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
   rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
+  if (barnCtx) { const nit = BARN.ms[barnCtx.i] = barnItem(rec); nit.m.sleep = false; nit.m.sitting = false; nit.settle = true; } // en el granero: nace en su cama
   renderHome();
   show.vz = 320; show.mouthOpen = 1; show.setEmo('happy', 2.5, 3);
   celebrate('¡Nació!');
@@ -4405,7 +4413,7 @@ function barnAnim(dt) {
   const F = BARN.focus != null ? BARN.ms[BARN.focus] : null, sp = barnSp(), skip = barnCtx ? BARN.ms[barnCtx.i] : null;
   for (const it of BARN.ms) {
     if (!it) continue;
-    if (it.egg) { it.egg.update(dt); continue; }
+    if (it.egg) { if (it !== skip) it.egg.update(dt); continue; } // (el de cerca lo anima la vista de cerca)
     const m = it.m; if (!m || it === skip) continue; // el de cerca lo mueve la vista de cerca
     if (it === F || it.settle) { // de cerca: igual que en el rancho (se para, salta, lo puedes tomar), sin salirse de su cama
       if (it === F) { m.sitting = false; it.settle = true; }
@@ -4443,7 +4451,7 @@ function drawBarn(c, cam) {
   const sp = barnSp(), floorY = H * 0.66, TN = performance.now() / 1000;
   // de cerca (la vista de cerca del rancho, con el granero de fondo): la cámara hace zoom hasta que su cama queda donde va el monstruo de cerca
   let Z = 1, P = [W / 2, H * 0.45], Q = P;
-  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (it && it.m) { const top = floorY + H * 0.1 - H * 0.06 * 0.55, kb = Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz;
+  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
     Z = 1 + (cam.k / kb - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } }
   BARN.cam = { Z, cfx: P[0], cfy: P[1] }; c.save(); c.translate(Q[0], Q[1]); c.scale(Z, Z); c.translate(-P[0], -P[1]);
   // paredes de tablas (se mueven un poco más lento que las camas: profundidad)
@@ -4522,9 +4530,9 @@ function drawBarn(c, cam) {
   const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.3, W / 2, H * 0.55, Math.max(W, H) * 0.8); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H); // bordes en penumbra
 }
 function barnEnter(i) { // tocar un monstruo del granero: la vista de cerca del rancho, tal cual (literal), con el granero de fondo
-  const it = BARN.ms[i]; if (!it || !it.m || barnLeaving(it)) return;
+  const it = BARN.ms[i]; if (!it || !(it.m || it.egg) || barnLeaving(it) || it.arrive) return;
   barnSelect(i); BARN.goto = null; BARN.vx = 0; BARN.x = i;
-  barnCtx = { i }; it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
+  barnCtx = { i }; if (it.m) it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
   scene = 'home'; ranchMode = false; homeEmpty = null; $('barnUI').classList.remove('on'); $('home').classList.add('on', 'barnctx');
   if (homePage !== 1) setPage(1);
   zoom = { t: 0, dir: 1, px: W / 2, py: H / 2 }; fx.parts = []; slide = null; renderHome();
@@ -4544,10 +4552,10 @@ function barnFling() { // lanzarlo en el granero = mandarlo al rancho (pedido de
 }
 function barnCtxStep(dt) { BARN.x += (barnCtx.i - BARN.x) * Math.min(1, dt * 5); barnLeaveStep(dt); barnArriveStep(dt); barnAnim(dt); for (const q of BARN.parts) q.life -= dt; } // de cerca, los que entran y salen siguen caminando (pedido del dueño) // al pasar al siguiente, la cámara viaja por las camas
 function barnCtxSwitch(d) { // de cerca: el siguiente del granero (como el vecino en el rancho)
-  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && it.m) { j = q; break; } }
+  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } } // también los huevos (pedido del dueño)
   if (j == null || j === barnCtx.i) return;
   const old = BARN.ms[barnCtx.i]; if (old) old.settle = true;
-  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
+  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
 }
 function barnZoomTo(i) { if (!BARN.ms[i] || barnLeaving(BARN.ms[i])) return; barnSelect(i); BARN.focus = i; barnUI(true); }
 function barnUnzoom() { if (BARN.focus == null) return; BARN.focus = null; barnUI(true); }
@@ -4621,17 +4629,6 @@ async function buyBedEgg(bed) {
   if (!await ask(`¿Comprar un huevo misterioso por ${EGG_COST} monedas?`, { ok: 'Comprar' })) return;
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
   save.coins -= EGG_COST; putInBed(newRec(), bed);
-}
-function barnTapEgg(i) { // tocar un huevo en su cama: se abre a toques, igual que en el rancho (los criados primero incuban)
-  const it = BARN.ms[i], rec = it && it.rec, E = it && it.egg; if (!E) return;
-  BARN.goto = i;
-  if (rec.readyAt > Date.now()) { E.vt += (Math.random() < 0.5 ? -1 : 1) * 3; E.sq = 0.08; barnUI(true); return; } // todavía incubando
-  rec.taps = (rec.taps || 0) + 1; E.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); E.sq = 0.12;
-  if (rec.taps < (rec.need || 6)) { persist(); barnUI(true); return; }
-  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist(); // ¡nace!
-  const nit = BARN.ms[i] = barnItem(rec); if (nit.m) { nit.m.sleep = false; nit.m.vz = 320; nit.m.setEmo('happy', 2.5, 3); }
-  barnUI(true);
-  setTimeout(async () => { const n = await ask('¡Nació tu monstruo! ¿Cómo se llamará?', { input: rec.name, ok: 'Listo', cancel: null, low: true }); if (n && n.trim()) rec.name = n.trim().slice(0, 16); persist(); BARN.last = -1; barnUI(true); }, 900);
 }
 function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, camina hasta la cama y se sienta
   const R = save.monsters, r = R[i]; save.barn = save.barn || [];
@@ -4735,8 +4732,8 @@ $('btnFree').onclick = async () => {
     if (!await ask(`¿Liberar a ${r.name}? No vuelve.`, { ok: 'Liberar', low: true })) { if (m) { m.crying = false; m.setEmo('happy', 1.6, 7); m.vz = 230; } return; }
     if (m) await new Promise(res => setTimeout(res, 1300));
     save.barn.splice(save.barn.indexOf(r), 1); persist(); BARN.ms[i] = null; // su cama queda libre (los demás no se mueven)
-    let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = (i + st) % BARN_MAX, it = BARN.ms[q]; if (it && it.m && !barnLeaving(it)) { j = q; break; } }
-    if (j != null) { const it = BARN.ms[j]; barnCtx.i = j; barnSelect(j); BARN.goto = null; it.m.sitting = false; it.settle = true; fx.parts = []; renderHome(); return; } // como en el rancho: se queda en Estadísticas con el siguiente del granero (pedido del dueño)
+    let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = (i + st) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } }
+    if (j != null) { const it = BARN.ms[j]; barnCtx.i = j; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; renderHome(); return; } // como en el rancho: se queda en Estadísticas con el siguiente del granero (pedido del dueño)
     setPage(1); barnExit(); barnBuild(); barnUI(true); return;
   }
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
@@ -4765,7 +4762,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
@@ -5381,7 +5378,7 @@ cv.addEventListener('pointerup', e => {
     if (G.moved) { BARN.vx = performance.now() - G.lt < 120 ? clamp(G.v, -12, 12) : 0; return; }
     const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
     const onBed = (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.06 && e.clientY < bedY + H * 0.14; })(); // la cama (paja y madera) también cuenta
-    if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) (BARN.ms[i] && BARN.ms[i].m ? barnEnter(i) : barnTapEgg(i)); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
+    if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) barnEnter(i); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
     else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { BARN.goto = i; openBarn(i); } // tocar una cama libre: elegir a quién traer
     else if (i !== Math.round(BARN.x)) BARN.goto = i;
     return; }
