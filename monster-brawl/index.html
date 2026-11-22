@@ -617,6 +617,7 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
 const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, leapSpd: 2.4, leapT0: 0.6, leapT1: 1.4, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airSpd: 1.25, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 3.6, airFire: 0.8, floatR: 1.2, cd: 9, cdR: 4 };
 const ROLL = { spd: 2.4, t0: 0.3, t1: 1.0, cd: 6, cdR: 4 }; // cuerpos de una pieza: ruedan hacia su objetivo o hacia atrás según su táctica (pedido del dueño); velocidad proporcional a la de tierra
+const floating = e => e.floatT > 0 && e.z > FLY.airZ; // flotando con sus alas: no le llegan la Onda de choque, las Bombas ni el Teletransporte (pedido del dueño)
 const airMelee = (a, e) => a.floatT > 0 && a.z > FLY.airZ && e.z > FLY.airZ && Math.abs(a.z - e.z) < FLY.airHitZ; // el que flota puede golpear cuerpo a cuerpo a otro que está en el aire (pedido del dueño)
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
 const TGT_RECENT_S = 4;     // el daño "reciente" se olvida con este tiempo (s); el rencor de toda la pelea, mucho más lento
@@ -2944,7 +2945,7 @@ class Battle {
     const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
     this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
     for (const e of this.ms) {
-      if (e.dead || e.team === b.team) continue;
+      if (e.dead || e.team === b.team || floating(e)) continue;
       let dx = e.x - b.x, dy = e.y - b.y, d = Math.hypot(dx, dy); if (e !== st && d > MINE_R) continue;
       if (d < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
       const dir = { x: dx / d, y: dy / d };
@@ -2957,12 +2958,13 @@ class Battle {
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
     const enemies = this.ms.filter(e => !e.dead && e.team !== m.team);
-    const T = m.target && !m.target.dead ? m.target : enemies[0];
+    const T = m.target && !m.target.dead ? m.target : enemies[0], T0 = T;
     switch (m.ultType) {
       case 'ranged': { // bala gigante que atraviesa todo hasta salir de la arena (apunta adelantándose al movimiento)
         const BS = 380, tl = T ? Math.hypot(T.x - m.x, T.y - m.y) / BS : 0;
         const dx = T ? T.x + T.vx * tl * 0.7 - m.x : 1, dy = T ? T.y + T.vy * tl * 0.7 - m.y : 0, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, head = m.nodes[m.ix.head];
-        this.proj.push({ giant: true, x: m.x + ux * m.r, y: m.y + uy * m.r, z: Math.max(20, m.gy - head.y), vx: ux * BS, vy: uy * BS, owner: m, team: m.team,
+        const z0 = Math.max(20, m.gy - head.y), up = T && T.z > FLY.airZ ? { z0, tz: Math.max(20, T.gy - T.nodes[T.ix.mid].y), dist0: Math.max(30, d), trav: 0 } : {}; // si su objetivo está en el aire, la lanza hacia arriba (pedido del dueño)
+        this.proj.push({ giant: true, ...up, x: m.x + ux * m.r, y: m.y + uy * m.r, z: z0, vx: ux * BS, vy: uy * BS, owner: m, team: m.team,
           pow: ultPow(m) * 2.8, r: 30, color: hsl(m.g.pal.accent, 12), kind: 'blob', life: 99, checked: new Set(), hitSet: new Set(), trail: [] });
         m.vx -= ux * 260; m.vy -= uy * 260; m.state = 'recoil'; m.stT = 0.4; this.shake = 8;
         break;
@@ -2979,7 +2981,7 @@ class Battle {
         m.vz = 260; this.shake = 14;
         for (const e of enemies) {
           let dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy);
-          if (d > ULT_RADIUS) continue;
+          if (d > ULT_RADIUS || floating(e)) continue; // (al que flota no le llega)
           if (d < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d = Math.hypot(dx, dy); }
           const dir = { x: dx / d, y: dy / d };
           this.hit(m, e, ultPow(m) * 2.5, dir, 'melee');
@@ -2991,6 +2993,7 @@ class Battle {
       }
       case 'teleport': { // desaparece y aparece detrás de su objetivo con un golpe fuerte
         const from = { x: m.gx, y: m.gy - 30 };
+        const T = !T0 || floating(T0) ? enemies.filter(e => !floating(e)).sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y))[0] : T0; // al que flota no lo alcanza: va por el más cercano en el suelo
         if (T) {
           const dx = T.x - m.x, dy = T.y - m.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, back = T.r + m.r + 8;
           m.x = clamp(T.x + ux * back, m.r, ARENA_W - m.r); m.y = clamp(T.y + uy * back, m.r, ARENA_D - m.r);
@@ -3033,7 +3036,7 @@ class Battle {
     for (const b of this.mines) { // Bombas: si en el aire toca a un rival le explota; en el piso, explota cuando un rival entra en su área (invisible)
       b.t += dt; if (b.done) continue;
       const fl = b.t < b.fly, e0 = Math.min(1, b.t / b.fly), bx = b.x0 + (b.x - b.x0) * e0, by = b.y0 + (b.y - b.y0) * e0;
-      const st = this.ms.find(e => !e.dead && e.team !== b.team && (fl || e.z < FLY.airZ) && Math.hypot(e.x - bx, e.y - by) < e.r + (fl ? 6 : MINE_TRIG));
+      const st = this.ms.find(e => !e.dead && e.team !== b.team && !floating(e) && (fl || e.z < FLY.airZ) && Math.hypot(e.x - bx, e.y - by) < e.r + (fl ? 6 : MINE_TRIG));
       if (st) { if (fl) { b.x = bx; b.y = by; b.t = b.fly; } this.mineBoom(b, st); }
     }
     if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
@@ -4793,7 +4796,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.65', d: '2026-11-22', items: ['La muerte súbita ahora empieza a los 45 segundos de pelea (antes a los 60).'] },
+  { v: '1.65', d: '2026-11-22', items: ['La muerte súbita ahora empieza a los 45 segundos de pelea (antes a los 60).', 'Los monstruos que están flotando con sus alas no reciben la Onda de choque, las Bombas ni el Teletransporte (el Teletransporte va por otro rival en el suelo).', 'La Bala gigante se lanza hacia arriba si su objetivo está en el aire.'] },
   { v: '1.64', d: '2026-11-22', items: ['Arreglado: 1 de cada 5 bebés nacía con la misma velocidad mínima. Ahora la velocidad al nacer también es al azar para todos.', 'Arreglado: los huevos del criadero tenían el doble de chance de traer un stat perfecto. Ahora todos los huevos tienen la misma (1 de cada 100 por stat).', 'El número de Poder ahora cuenta el golpe y el disparo (antes sólo mostraba el golpe), así que también cambia según lo fuerte de sus disparos.', 'Aguante ahora cuenta igual la vida y la defensa, y Técnica también cuenta la espera y el alcance de los disparos: así los números reflejan mejor lo que le tocó al nacer.'] },
   { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).', 'Táctica «Distancia»: al centro disparan y golpean; hacia «de lejos» disparan más y golpean menos, y hacia «de cerca» al revés. En los extremos usan sólo uno de los dos (sólo disparos o sólo golpes), pero más fuertes y seguidos.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
