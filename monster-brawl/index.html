@@ -945,7 +945,7 @@ function genome5(seed, stage, v6 = false) {
   if (v6 >= 9) applyAnatomy9(g, seed, v6); if (g.plan === 'octopus') g.neck.len = 0; // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
-  if (L.blob || g.plan === 'slime') { g.blob = true; g.spots = []; g.head.none = false; g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
+  if (L.blob || g.plan === 'slime') { g.blob = true; g.spots = []; g.head.none = false; g.neck.len = 0; /* el bebé es una sola pieza: sin cuello (la anatomía «cuello largo» le dibujaba un palo grueso hacia arriba) */ g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
   else if (!c.head || g.plan === 'crab') { if (g.plan === 'crab') { const U = g.torso.upper; U.h = Math.max(U.h, U.w * 0.36); U.w = Math.min(U.w, U.h * 2.8); } g.head.none = true; fitHeadless(g); } // cangrejo: caparazón ancho, pero no una tira // sin cabeza sorteada: la cara va en el torso
   return g;
 }
@@ -4752,6 +4752,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
   { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
@@ -5038,11 +5039,12 @@ async function fsReq(method, path, fields, query = '', keepalive = false) {
 const PROFILE_MS = 60e3, ONLINE_MS = 150e3; // se publica cada minuto; se considera en línea si lo hizo hace menos de 2,5 min
 let profLast = null, profT = 0;
 const myPlace = () => scene === 'battle' ? 'battle' : 'ranch';
+const myRivals = () => battle && battle.lan && !battle.spec ? [...new Set(battle.ms.filter(m => !m.isPlayer && !m.cloneOf && m.rec && m.rec.user && m.rec.user !== save.user).map(m => m.rec.user))].join(', ') : ''; // en Online: contra quién pelea
 function profilePush(off) {
   if (!cloud || !save.user || importing) return;
   const st = off ? 'off' : myPlace(); profLast = st; profT = Date.now();
   const team = save.monsters.filter(r => r.stage !== 'egg').map(r => ({ ...lanRec(r), w: r.wins || 0, l: r.losses || 0, best: r.bestRun || 0, run: r.run || 0 })), A = save.stats || {};
-  const fields = { w: { integerValue: String(A.w || 0) }, l: { integerValue: String(A.l || 0) }, best: { integerValue: String(A.best || 0) }, name: { stringValue: save.user }, st: { stringValue: st }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
+  const fields = { w: { integerValue: String(A.w || 0) }, l: { integerValue: String(A.l || 0) }, best: { integerValue: String(A.best || 0) }, name: { stringValue: save.user }, st: { stringValue: st }, vs: { stringValue: st === 'battle' ? myRivals() : '' }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
   if (off && cloud.tok && Date.now() < cloud.exp - 30e3) { fetch(fsDoc(`profiles/${cloud.uid}`), { method: 'PATCH', keepalive: true, headers: { Authorization: 'Bearer ' + cloud.tok, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) }).catch(() => { }); return; } // al salir de la app: sin esperar
   fsReq('PATCH', `profiles/${cloud.uid}`, fields).catch(() => { });
 }
@@ -5053,9 +5055,9 @@ setInterval(() => { // cada 5 s revisa si cambió (rancho ↔ combate) y cada mi
 }, 5000);
 document.addEventListener('visibilitychange', () => { if (cloud && save.user) { if (document.hidden) profilePush(true); else profilePush(); } });
 const fJson = (d, k) => { try { return JSON.parse(fGet(d, k) || 'null'); } catch (e) { return null; } };
-async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [], w: +(fGet(d, 'w') || 0), l: +(fGet(d, 'l') || 0), best: +(fGet(d, 'best') || 0) }; }
+async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), vs: fGet(d, 'vs') || '', t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [], w: +(fGet(d, 'w') || 0), l: +(fGet(d, 'l') || 0), best: +(fGet(d, 'best') || 0) }; }
 const isOnline = p => p && p.st && p.st !== 'off' && Date.now() - p.t < ONLINE_MS;
-const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? 'En combate' : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
+const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? (p.vs ? `En combate contra ${esc(p.vs)}` : 'En combate') : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
 const FR = { profs: {}, sel: null, timer: 0, wasOn: new Set(), newOn: new Set() };
 // Solicitudes de amistad (pedido del dueño): freqs/{para}/from/{de} = pedido, freqs/{para}/ok/{de} = aceptó, freqs/{para}/rm/{de} = te quitó. Así quedan amigos los dos sin que el otro tenga que buscarte.
 const FREQ = { inc: [] };
@@ -5114,8 +5116,8 @@ function friendView() { // su equipo del rancho; tocar uno muestra sus estadíst
   $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}`;
   const T = $('fdTeam'), team = (p && p.team) || []; T.innerHTML = team.length ? '' : '<p class="tdesc">No tiene monstruos en su rancho.</p>';
   team.forEach(r => { const d = document.createElement('button'); d.className = 'lanp'; d.style.setProperty('--tc', 'var(--panel2)'); d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span>`; try { drawThumb(d.querySelector('canvas'), r); } catch (e) { } d.onclick = () => friendMon(r); T.appendChild(d); });
-  $('fdFight').disabled = !on || (p && p.st === 'battle');
-  $('fdFight').textContent = !on ? '⚔️ Invitar a pelear (desconectado)' : p.st === 'battle' ? '⚔️ Invitar a pelear (está en combate)' : '⚔️ Invitar a pelear';
+  const fighting = on && p.st === 'battle'; $('fdFight').disabled = !on;
+  $('fdFight').textContent = !on ? '⚔️ Invitar a pelear (desconectado)' : fighting ? '👁️ Espectar su pelea' : '⚔️ Invitar a pelear'; // si está peleando, se puede mirar su pelea (pedido del dueño)
 }
 function friendMon(r) { // estadísticas de un monstruo de un amigo
   let m; try { m = new Monster(r); } catch (e) { return; }
@@ -5152,6 +5154,7 @@ $('fdRemove').onclick = async () => {
 let invT = 0; const invSeen = new Set();
 $('fdFight').onclick = async () => {
   const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f || !cloud) return;
+  const pf = FR.profs[f.uid]; if (isOnline(pf) && pf.st === 'battle') { specStart(f); return; } // está peleando: espectar
   if (!save.monsters.length || cur().stage === 'egg' || !window.RTCPeerConnection) { $('settings').classList.remove('on'); ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
   $('settings').classList.remove('on'); if (lanLinked()) { lanSend({ t: 'bye' }); lanClose(); }
   LAN.invited = f.name; $('lan').classList.add('on'); await lanHost('fight');
@@ -5159,6 +5162,82 @@ $('fdFight').onclick = async () => {
   try { await fsReq('PATCH', `invites/${f.uid}`, { from: { stringValue: cloud.uid }, name: { stringValue: save.user }, room: { stringValue: LAN.room }, t: { integerValue: String(Date.now()) } }); lanUI('lobby'); }
   catch (e) { LAN.invited = null; lanUI('lobby'); ask(e.message, { ok: 'Entendido', cancel: null }); }
 };
+// ---------- Espectar (pedido del dueño): mirar en vivo la pelea de un amigo ----------
+// El que mira escribe specs/{amigo}/w/{yo}; el que pelea (si tiene cuenta y está en combate) le responde con una conexión directa (WebRTC, como Online) y le manda el estado de la pelea.
+const SPEC = { viewers: [], sendT: 0, endSent: false, watch: null };
+async function specServe() { // el que pelea: atiende a los que quieren mirar
+  if (!cloud || !save.user || scene !== 'battle' || !battle || battle.spec || SPEC.busy) return; SPEC.busy = true;
+  try {
+    const l = await fsReq('GET', `specs/${cloud.uid}/w`);
+    for (const d of (l && l.documents) || []) {
+      const vid = d.name.split('/').pop(), V = SPEC.viewers.find(v => v.vid === vid), ans = fGet(d, 'answer');
+      if (!V) {
+        if (Date.now() - +(fGet(d, 't') || 0) > 60e3 || SPEC.viewers.length >= 6) { fsReq('DELETE', `specs/${cloud.uid}/w/${vid}`).catch(() => { }); continue; }
+        const pc = new RTCPeerConnection({ iceServers: LAN_ICE }), v = { vid, pc, dc: pc.createDataChannel('spec', { ordered: true }), open: false, t: Date.now() };
+        v.dc.onopen = () => { v.open = true; fsReq('DELETE', `specs/${cloud.uid}/w/${vid}`).catch(() => { }); specSendStart(v); };
+        v.dc.onclose = () => { SPEC.viewers = SPEC.viewers.filter(x => x !== v); };
+        SPEC.viewers.push(v);
+        await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
+        await fsReq('PATCH', `specs/${cloud.uid}/w/${vid}`, { offer: { stringValue: JSON.stringify(pc.localDescription) } }, '?updateMask.fieldPaths=offer');
+      } else if (ans && V.pc.signalingState === 'have-local-offer') await V.pc.setRemoteDescription(JSON.parse(ans));
+      else if (!V.open && Date.now() - V.t > 25e3) { try { V.pc.close(); } catch (e) { } SPEC.viewers = SPEC.viewers.filter(x => x !== V); fsReq('DELETE', `specs/${cloud.uid}/w/${vid}`).catch(() => { }); }
+    }
+  } catch (e) { } finally { SPEC.busy = false; }
+}
+function specSendStart(v) {
+  const B = battle; if (!B || !v.open) return;
+  const recs = B.ms.map(m => ({ ...lanRec(m.rec), user: m.isPlayer ? save.user : m.rec.user })); // en Online, cada monstruo con el nombre de su jugador
+  try { v.dc.send(JSON.stringify({ t: 'vstart', aw: ARENA_W, ad: ARENA_D, mode: B.mode, teams: B.ms.map(m => m.team), recs, me: B.ms.map(m => !!m.isPlayer), clone: B.ms.map(m => m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1), who: save.user, lan: !!B.lan })); } catch (e) { }
+}
+function specTick() { // cada pocos cuadros, el estado de la pelea a los que miran
+  const open = SPEC.viewers.filter(v => v.open); if (!open.length || !battle || battle.spec) return;
+  if ((SPEC.sendT = (SPEC.sendT + 1) % 3) === 0) { const s = JSON.stringify(lanSnapshot()); for (const v of open) try { v.dc.send(s); } catch (e) { } }
+  if (battle.over && !SPEC.endSent) { SPEC.endSent = true; const m = JSON.stringify({ t: 'vend', win: battle.winTeam, rank: battle.ranking }); for (const v of open) try { v.dc.send(m); } catch (e) { } setTimeout(specCloseViewers, 4000); }
+}
+function specCloseViewers() { for (const v of SPEC.viewers) { try { v.dc.close(); v.pc.close(); } catch (e) { } } SPEC.viewers = []; SPEC.endSent = false; }
+setInterval(() => { if (scene === 'battle' && battle && !battle.spec && cloud && save.user && !document.hidden) specServe(); else if (SPEC.viewers.length && scene !== 'battle') specCloseViewers(); }, 3000);
+function specUI(msg, cancel) { // ventana mientras se conecta
+  $('lanTitle').textContent = 'Espectar'; $('lanInfo').textContent = msg; $('lanList').innerHTML = ''; $('lanCode').hidden = true;
+  const B = $('lanBtns'); B.innerHTML = ''; B.classList.remove('col'); const b = document.createElement('button'); b.className = 'btn'; b.textContent = cancel ? 'Cancelar' : 'Cerrar'; b.onclick = () => { specStop(); $('lan').classList.remove('on'); }; B.append(b);
+  $('lan').classList.add('on');
+}
+async function specStart(f) { // el que mira
+  $('settings').classList.remove('on'); specStop();
+  const W = SPEC.watch = { f, t0: Date.now(), pc: null, poll: 0 }; specUI(`Conectando con la pelea de ${f.name}…`, true);
+  try { await fsReq('PATCH', `specs/${f.uid}/w/${cloud.uid}`, { name: { stringValue: save.user }, t: { integerValue: String(Date.now()) } }); } catch (e) { specUI(e.message); return; }
+  W.poll = setInterval(async () => {
+    if (SPEC.watch !== W || W.busy) return; W.busy = true;
+    try {
+      if (W.pc) { if (Date.now() - W.t0 > 35e3 && !W.open) { specStop(); specUI('No se pudo conectar. Puede ser la red, o la pelea ya terminó.'); } return; }
+      if (Date.now() - W.t0 > 25e3) { specStop(); specUI(`No se pudo ver la pelea de ${f.name}. Puede que ya haya terminado.`); return; }
+      const d = await fsReq('GET', `specs/${f.uid}/w/${cloud.uid}`), offer = fGet(d, 'offer'); if (!offer) return;
+      const pc = W.pc = new RTCPeerConnection({ iceServers: LAN_ICE });
+      pc.ondatachannel = ev => { const dc = W.dc = ev.channel; dc.onopen = () => { W.open = true; }; dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (er) { return; } specMsg(m, W); }; dc.onclose = () => { if (SPEC.watch === W && battle && battle.spec && !battle.over) specFinish(null); }; };
+      await pc.setRemoteDescription(JSON.parse(offer)); await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+      await fsReq('PATCH', `specs/${f.uid}/w/${cloud.uid}`, { answer: { stringValue: JSON.stringify(pc.localDescription) } }, '?updateMask.fieldPaths=answer');
+    } catch (e) { } finally { W.busy = false; }
+  }, 1500);
+}
+function specStop() { const W = SPEC.watch; if (!W) return; SPEC.watch = null; clearInterval(W.poll); try { W.dc && W.dc.close(); W.pc && W.pc.close(); } catch (e) { } if (cloud) fsReq('DELETE', `specs/${W.f.uid}/w/${cloud.uid}`).catch(() => { }); }
+function specMsg(m, W) {
+  if (m.t === 'vstart') {
+    clearInterval(W.poll); $('lan').classList.remove('on');
+    const list = m.recs.map((r, i) => { const mo = new Monster(r); mo.team = m.teams[i]; return mo; });
+    m.clone.forEach((c, i) => { if (c >= 0 && list[c]) list[i].cloneOf = list[c]; });
+    lanSetupBattle(list, m.aw, m.ad, m.mode); battle.puppet = true; battle.spec = { who: m.who || W.f.name, me: m.me }; LAN.snap = null;
+    const rivals = m.lan ? [...new Set(m.recs.filter((r, i) => !m.me[i] && m.clone[i] < 0 && r.user && r.user !== battle.spec.who).map(r => r.user))] : [];
+    $('modeLbl').textContent = rivals.length ? `${battle.spec.who} vs ${rivals.join(', ')}` : `Espectando a ${battle.spec.who}`; // pelea Online entre jugadores: se ve quién contra quién
+    $('fighters').querySelectorAll('.fighter').forEach((el, i) => el.classList.toggle('me', !!m.me[i])); // los monstruos de tu amigo, marcados
+  } else if (m.t === 's' && battle && battle.spec) LAN.snap = m;
+  else if (m.t === 'vend' && battle && battle.spec) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; setTimeout(() => specFinish(m), 1500); }
+}
+function specFinish(m) {
+  const B = battle; if (!B || B.reported) return; B.reported = true; updateFighters();
+  const won = m && B.ms.some((x, i) => B.spec.me[i] && x.team === m.win);
+  $('resTitle').textContent = !m ? 'Se cortó la conexión' : won ? `¡${B.spec.who} ganó!` : `${B.spec.who} perdió`; $('resTitle').className = !m ? '' : won ? 'win' : 'lose';
+  $('resText').innerHTML = ''; $('resAgain').hidden = true; $('resRoom').hidden = true; $('result').classList.add('on');
+  specStop();
+}
 async function invitePoll() { // ¿algún amigo me invitó a pelear?
   if (!cloud || !save.user || scene === 'battle' || $('dialog').classList.contains('on') || lanLinked()) return;
   let d; try { d = await fsReq('GET', `invites/${cloud.uid}`); } catch (e) { return; }
@@ -5586,10 +5665,11 @@ $('growOk').onclick = () => {
   if (!checkGrowth()) { show.vz = 240; show.setEmo('happy', 2, 3); } // ¿hay otro que también crece?
 };
 $('quit').onclick = async () => {
+  if (battle && battle.spec) { specStop(); goHome(); return; } // dejar de espectar
   if (battle && battle.lan) { if (!await ask('¿Salir de la pelea local? Se corta la conexión con el otro celular.', { ok: 'Salir', cancel: 'Seguir' })) return; lanSend({ t: 'bye' }); lanClose(); goHome(); return; }
   if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome();
 };
-$('resHome').onclick = () => { if (battle && battle.lan) { lanSend({ t: 'bye' }); lanClose(); } $('resAgain').textContent = 'Otra pelea'; goHome(); };
+$('resHome').onclick = () => { if (battle && battle.spec) { specStop(); $('resAgain').hidden = false; goHome(); return; } if (battle && battle.lan) { lanSend({ t: 'bye' }); lanClose(); } $('resAgain').textContent = 'Otra pelea'; goHome(); };
 $('resAgain').onclick = () => {
   if (battle && battle.lan) { if (LAN.role === 'host') lanStartHost(); else { lanSend({ t: 'again' }); $('resAgain').disabled = true; $('resAgain').textContent = 'Esperando…'; } return; }
   startBattle(lastMode);
@@ -5764,6 +5844,7 @@ function loop(now) {
       while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
+    if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
     const k = Math.min(W / bw, (H - top - bottom) / bh);
