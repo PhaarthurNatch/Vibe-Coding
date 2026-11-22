@@ -614,9 +614,9 @@ const stunMul = (aw, tw) => clamp(Math.pow(aw / tw, STUN.poise), 0.7, 1.3); // m
 // Vuelo de los alados: los de carga alar alta (cuerpo pesado para sus alas) saltan alto hacia su objetivo;
 // los livianos flotan un rato para alejarse cuando los tienen encima. En el aire no se les puede golpear (sólo disparar) y ellos disparan hacia abajo.
 // El salto es algo lento (gravedad reducida `leapG`: sube a la misma altura pero tarda más en caer).
-const TAIL_WIND = 0.95, TAIL_SWING = 0.24, TAIL_CD = 7, TAIL_POW = 1.2, TAIL_REACH = 46; // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
+const TAIL_WIND = 0.95, TAIL_SWING = 0.3, TAIL_CD = 6, TAIL_POW = 0.7, TAIL_REACH = 60, TAIL_PUSH = 900, TAIL_BURST_S = 4; // (3 golpes recibidos en 4 s) // serpiente: coletazo lento (se prepara casi 1 s; no lo interrumpen los golpes), fuerte y a todos los que estén cerca, alrededor (pedido del dueño)
 const FLY = { loadSplit: 0.95, airZ: 35, leapVz: 435, leapG: 0.7, leapMin: 220, leapMax: 560, leapAgr: 0.3, leapGap: 150, leapSpd: 2.4, leapT0: 0.6, leapT1: 1.4, burstN: 3, burstS: 2.5, backS: 1.2, airKb: 1.6, airSpd: 1.25, airHitZ: 70, chaseCd: 6, floatZ: 130, floatS: 3.6, airFire: 0.8, floatR: 1.2, cd: 9, cdR: 4 };
-const ROLL = { spd: 2.4, t0: 0.3, t1: 1.0, cd: 6, cdR: 4 }; // cuerpos de una pieza: ruedan hacia su objetivo o hacia atrás según su táctica (pedido del dueño); velocidad proporcional a la de tierra
+const ROLL = { spd: 3.4, t0: 0.3, t1: 1.0, cd: 6, cdR: 4 }; // cuerpos de una pieza: ruedan hacia su objetivo o hacia atrás según su táctica (pedido del dueño); velocidad proporcional a la de tierra
 const floating = e => e.floatT > 0 && e.z > FLY.airZ; // flotando con sus alas: no le llegan la Onda de choque, las Bombas ni el Teletransporte (pedido del dueño)
 const airMelee = (a, e) => a.floatT > 0 && a.z > FLY.airZ && e.z > FLY.airZ && Math.abs(a.z - e.z) < FLY.airHitZ; // el que flota puede golpear cuerpo a cuerpo a otro que está en el aire (pedido del dueño)
 const TGT_EVERY = 0.5;      // cada cuánto re-evalúa (s)
@@ -1264,7 +1264,7 @@ const TEMPER = [
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
-const TAC = { fireNear: 1.5, meleeFar: 1.6, meleeNear: 0.85, specDmgR: 1.28, specCdR: 0.85, specDmgM: 1.3, specCdM: 0.8, cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
+const TAC = { specYoung: { baby: 0.3, child: 0.55 }, specYoungM: { baby: 1.7, child: 1.2 }, fireNear: 1.5, meleeFar: 1.6, meleeNear: 0.85, specDmgR: 1.28, specCdR: 0.85, specDmgM: 1.3, specCdM: 0.8, cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7 }; /* «En equipo» se quitó (pedido del dueño) */ // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
 const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 1, MOOD_DECAY_BARN = 2, MOOD_SAD = 30, MOOD_HAPPY = 70, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 const moodRate = rec => typeof save !== 'undefined' && save && save.barn && save.barn.includes(rec) ? MOOD_DECAY_BARN : MOOD_DECAY_H; // en el granero baja el doble (pedido del dueño)
@@ -1420,7 +1420,7 @@ class Monster {
     { const wg = this.g.wings; this.flyer = wg.pairs ? (this.st.mass / wg.pairs / (WEIGHT_AVG[this.g.stage] || WEIGHT_AVG.adult) >= FLY.loadSplit ? 'leap' : 'float') : null; /* peso por par de alas (comparado con su etapa): pesados saltan, livianos flotan */ }
     this.canFloat = !!this.g.wings.pairs; this.canLeap = this.g.plan === 'spider'; // cada habilidad viene de su parte del cuerpo (pedido del dueño): alas = flotar, patas de araña = saltar, cuerpo de una pieza = rodar (una araña con alas hace las dos)
     this.flyCd = FLY.cd * 0.5 + Math.random() * FLY.cdR; this.floatT = 0; this.airT = 0; this.hitTimes = []; this.floatBack = 0;
-    this.tailCd = 2 + Math.random() * 2; this.tailPh = null; // serpiente: coletazo
+    this.tailCd = 0; this.tailPh = null; // serpiente: coletazo
     this.cols = makeCols(this.g.pal, 0); this.colsF = makeCols(this.g.pal, 38);
     this.x = 0; this.y = 0; this.z = 0; this.vx = 0; this.vy = 0; this.vz = 0;
     this.gx = 0; this.gy = 0; this.s = 1;
@@ -1437,8 +1437,8 @@ class Monster {
     { const ag = this.tp.agr || 0, hasR = this.st.ranged > 0;
       this.kiter = hasR && ag < -0.25; this.onlyRanged = hasR && ag <= -0.75; this.onlyMelee = ag >= 0.75;
       this.fireMul = ag > 0.25 && !this.onlyMelee ? TAC.fireNear : 1; this.meleeMul = this.kiter && !this.onlyRanged ? TAC.meleeFar : ag > 0.25 && !this.onlyMelee ? TAC.meleeNear : 1;
-      if (this.onlyRanged) { this.st.ranged *= TAC.specDmgR; this.st.rangedCd *= TAC.specCdR; } // al extremo, se especializa: sus disparos (o sus golpes) son más fuertes y seguidos
-      if (this.onlyMelee) { this.st.melee *= TAC.specDmgM; this.st.meleeCd *= TAC.specCdM; } }
+      if (this.onlyRanged) { const yk = TAC.specYoung[this.g.stage] ?? 1; this.st.ranged *= 1 + (TAC.specDmgR - 1) * yk; this.st.rangedCd *= 1 + (TAC.specCdR - 1) * yk; } // (bebés y niños: los disparos ya les rinden mucho, sin bono o con castigo) // al extremo, se especializa: sus disparos (o sus golpes) son más fuertes y seguidos
+      if (this.onlyMelee) { const yk = TAC.specYoungM[this.g.stage] ?? 1; this.st.melee *= 1 + (TAC.specDmgM - 1) * yk; this.st.meleeCd *= 1 + (TAC.specCdM - 1) * yk; } } // (bebés y niños que sólo golpean: algo más de bono)
     this.scaredHp = SCARED_HP * (1 - this.tp.valor * 0.7); // los valientes se asustan mucho más tarde
     this.dmgM = 0; this.dmgR = 0; this.switches = 0; this.minHpF = 1; this.backoff = 0; this.berserkSaid = false;
     this.strafe = Math.random() < 0.5 ? 1 : -1; this.strafeT = 2;
@@ -1649,8 +1649,8 @@ class Monster {
 
   // ---------- Animación: define a dónde "quiere" ir cada parte ----------
   animate(dt) {
-    if (this.state === 'roll') this.rollA = (this.rollA || 0) + (Math.sign(this.vx) || 1) * Math.hypot(this.vx, this.vy) / Math.max(12, this.r) * dt; // rodando: el cuerpo gira según lo que avanza
-    else if (this.rollA) { const tg = Math.round(this.rollA / TAU) * TAU; this.rollA += (tg - this.rollA) * Math.min(1, dt * 10); if (Math.abs(tg - this.rollA) < 0.02) this.rollA = 0; } // al parar, termina la vuelta
+    if (this.state === 'roll') { if (!this.rollDir) this.rollDir = Math.sign(this.vx) || 1; this.rollA = (this.rollA || 0) + (this.rollW || this.rollDir * Math.max(TAU * 1.6, Math.hypot(this.vx, this.vy) / Math.max(12, this.r))) * dt; } // rodando (en Online, sin rollW: al menos ~1,6 vueltas por segundo)
+    else if (this.rollA) { const sg = this.rollDir || Math.sign(this.rollA) || 1, tg = (sg > 0 ? Math.ceil(this.rollA / TAU - 0.02) : Math.floor(this.rollA / TAU + 0.02)) * TAU; this.rollA += sg * Math.min(Math.abs(tg - this.rollA), TAU * 2.5 * dt); if (Math.abs(tg - this.rollA) < 0.01) { this.rollA = 0; this.rollDir = 0; this.rollW = 0; } } // al parar, termina la vuelta hacia adelante (nunca se devuelve)
     const g = this.g, N = this.nodes, I = this.ix, s = this.s;
     this.t += dt; const t = this.t;
     this.hurtT = Math.max(0, this.hurtT - dt);
@@ -1910,7 +1910,7 @@ class Monster {
           if (this.stT <= TAIL_SWING * 0.55) { const R = this.r + this.st.reach * 0.85 + TAIL_REACH;
             for (const e of B.ms) { if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
               const ex = e.x - this.x, ey = e.y - this.y, ed = Math.hypot(ex, ey) || 1;
-              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); } } }
+              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); if (!e.dead && e.state !== 'ultcharge') { const V = TAIL_PUSH / Math.pow(e.st.weight, 0.35); e.vx = ex / ed * V; e.vy = ey / ed * V; e.vz = Math.max(e.vz, 240); } /* y los aleja */ } } }
           if (this.stT <= 0) { this.tailPh = null; this.state = 'recover'; this.stT = 0.35; }
         }
         break;
@@ -1934,6 +1934,7 @@ class Monster {
     const fleeD = 240 * (B.mode === 'ffa' ? KITE.ffaRetreat : 1);
     this.fleeing = lowHp && this.tp.valor < -0.2 && (d < fleeD || (this.fleeing && d < fleeD + 60)); // con margen: antes, justo en el límite cambiaba de idea cada cuadro y se quedaba quieto
     if (this.fleeing) fwd = -1; // Prudente con poca vida: se aleja (en todos contra todos, menos)
+    if (this.floatTP && !(T.floatT > 0) && T.z < FLY.airZ) { this.floatT = 0; this.floatTP = false; } // tras teletransportarse en el aire: si su objetivo ya bajó, baja también a seguir peleando (pedido del dueño)
     if (this.floatT > 0) { // flotando: al despegar vuela hacia atrás; después se queda a la distancia de su táctica (pedido del dueño): «de lejos» lejos disparando, «de cerca» encima del rival
       const airPref = this.kiter ? Math.max(pref, reachD + 90) : T.z > FLY.airZ ? reachD * 0.9 : reachD + 45 * (1 - this.tp.agr); // si su objetivo también está en el aire, va a pegarle
       fwd = this.floatBack > 0 ? -1.2 : d > airPref + 20 ? (T.z > FLY.airZ && !this.kiter ? 1.3 : 0.8) : d < airPref - 25 ? -0.6 : 0; } // (persiguiendo a otro en el aire va más rápido)
@@ -1985,8 +1986,9 @@ class Monster {
 
     const air = !airMelee(this, T) && (this.z > FLY.airZ || T.z > FLY.airZ); // alguno en el aire: no hay golpe, sólo disparo (salvo que flote y su objetivo también esté en el aire)
     this.noAtkT = (this.noAtkT || 0) + dt; // si lleva rato sin atacar (p. ej. arrinconado justo entre golpe y disparo), dispara aunque esté cerca
-    if (this.g.plan === 'snake' && !this.onlyRanged && !air && this.tailCd <= 0 && d <= reachD + TAIL_REACH * 0.6 && T.z < 5) { // serpiente: coletazo (pedido del dueño)
-      this.state = 'tail'; this.tailPh = 'wind'; this.stT = TAIL_WIND; this.atkDir = { x: ux, y: uy }; this.tailCd = TAIL_CD + Math.random() * 3; this.desired = { x: 0, y: 0 }; this.noAtkT = 0; this.setEmo('angry', TAIL_WIND + 0.3, 2); return;
+    if (this.g.plan === 'snake' && !this.onlyRanged && this.z < 5 && this.tailCd <= 0 && this.hitTimes.filter(q => B.time - q < TAIL_BURST_S).length >= FLY.burstN && enemies.some(e => e.z < FLY.airZ && Math.hypot(e.x - this.x, e.y - this.y) < this.r + this.st.reach * 0.85 + TAIL_REACH + e.r)) { // serpiente: cuando le llueven golpes (como al flotar), coletazo para sacarse de encima a los que tiene cerca (pedido del dueño)
+      this.hitTimes = [];
+      this.state = 'tail'; this.tailPh = 'swing'; this.stT = TAIL_SWING; this.hitSet.clear(); /* sin preparación: coletazo ancho al tiro (pedido del dueño) */ this.atkDir = { x: ux, y: uy }; this.tailCd = TAIL_CD + Math.random() * 3; this.desired = { x: 0, y: 0 }; this.noAtkT = 0; this.setEmo('angry', TAIL_WIND + 0.3, 2); return;
     }
     if (!air && !this.onlyRanged && d <= reachD + 6 && this.meleeCd <= 0) { this.noAtkT = 0; this.startMelee(T, ux, uy, B); }
     else if (this.st.ranged > 0 && !this.onlyMelee && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air || this.onlyRanged) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
@@ -2014,6 +2016,7 @@ class Monster {
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
     if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
     this.state = 'roll'; this.stT = tR; this.desired = { x: 0, y: 0 }; this.vx = ux * v; this.vy = uy * v;
+    { const sg = Math.sign(this.vx) || 1, turns = Math.max(1, Math.round(v * tR / Math.max(12, this.r) / TAU)); this.rollDir = sg; this.rollW = sg * turns * TAU / tR; } // siempre da al menos 1 vuelta completa (pedido del dueño)
     this.rollCd = ROLL.cd + Math.random() * ROLL.cdR; this.setEmo(away ? 'focus' : 'angry', tR + 0.3, 2);
   }
 
@@ -2091,7 +2094,7 @@ class Monster {
     else if (this.state !== 'leap' && this.state !== 'roll') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
     this.hop(dt);
-    if (this.floatT > 0) this.floatT -= dt; if (this.floatBack > 0) this.floatBack -= dt; if (this.chaseCd > 0) this.chaseCd -= dt;
+    if (this.floatT > 0) this.floatT -= dt; else this.floatTP = false; if (this.floatBack > 0) this.floatBack -= dt; if (this.chaseCd > 0) this.chaseCd -= dt;
     if (this.state === 'leap') { // salto alto: al caer retoma la pelea
       this.airT += dt;
       if (this.z === 0 && this.airT > 0.15) { this.state = 'free'; this.vx *= 0.3; this.vy *= 0.3; if (typeof battle !== 'undefined' && battle) battle.shake = Math.min(12, battle.shake + 5); }
@@ -2893,7 +2896,7 @@ class Battle {
     t.hp -= dmg; t.hurtT = 0.12;
     if (a.buffs.drain > 0 && !a.dead && dmg > 0) { const h = Math.min(a.st.hp - a.hp, dmg * ULT_DRAIN); if (h > 0.5) { a.hp += h; this.texts.push({ x: a.gx, y: a.nodes[a.ix.head].y - a.g.head.h * a.s * 0.7, str: '+' + Math.round(h), col: '#7dff9a', life: 0.8 }); } } // Robo de vida t.mouthOpen = 1; t.minHpF = Math.min(t.minHpF, Math.max(0, t.hp / t.st.hp));
     if (t.floatT > 0) t.floatT = Math.max(0, t.floatT - 0.6); // lo bajan a tiros
-    if (t.canFloat) { t.hitTimes.push(this.time); if (t.hitTimes.length > 6) t.hitTimes.shift(); } // para saber si le llueven golpes
+    if (t.canFloat || t.g.plan === 'snake') { t.hitTimes.push(this.time); if (t.hitTimes.length > 6) t.hitTimes.shift(); } // para saber si le llueven golpes
     t.damageFrom.set(a.id, (t.damageFrom.get(a.id) || 0) + dmg); t.recentFrom.set(a.id, (t.recentFrom.get(a.id) || 0) + dmg);
     if (t.target !== a) t.targetTimer = Math.min(t.targetTimer, 0.1);
     const kb = (kind === 'melee' ? 40 : 30) * pow / t.st.weight, kbA = kb * (t.z > FLY.airZ ? FLY.airKb : 1); // el peso regula el knockback; en el aire lo empujan más (pedido del dueño)
@@ -2993,11 +2996,12 @@ class Battle {
       }
       case 'teleport': { // desaparece y aparece detrás de su objetivo con un golpe fuerte
         const from = { x: m.gx, y: m.gy - 30 };
-        const T = !T0 || floating(T0) ? enemies.filter(e => !floating(e)).sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y))[0] : T0; // al que flota no lo alcanza: va por el más cercano en el suelo
+        const T = T0; // también alcanza al que flota (pedido del dueño): aparece a su altura
         if (T) {
           const dx = T.x - m.x, dy = T.y - m.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, back = T.r + m.r + 8;
           m.x = clamp(T.x + ux * back, m.r, ARENA_W - m.r); m.y = clamp(T.y + uy * back, m.r, ARENA_D - m.r);
           m.vx = m.vy = 0; this.place(m); m.resetRig();
+          if (T.z > FLY.airZ) { m.z = T.z; m.vz = 0; if (m.canFloat) { m.floatT = FLY.floatS + Math.random() * FLY.floatR; m.floatBack = 0; m.floatTP = true; m.flyCd = m.floatT + FLY.cd + Math.random() * FLY.cdR; } } // en el aire: si tiene alas se queda flotando su tiempo de vuelo; si no, cae al suelo
           const dir = { x: -ux, y: -uy }; this.hit(m, T, ultPow(m) * 2.2, dir, 'melee');
           if (!T.dead && T.state !== 'ultcharge') { T.vx += dir.x * 220; T.vy += dir.y * 220; T.state = 'hitstun'; T.stT = 0.7; T.setEmo('dizzy', 1, 4); }
         } else { m.x = ARENA_W * (0.2 + Math.random() * 0.6); m.y = ARENA_D * (0.2 + Math.random() * 0.6); this.place(m); m.resetRig(); }
@@ -4796,6 +4800,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
   { v: '1.65', d: '2026-11-22', items: ['La muerte súbita ahora empieza a los 45 segundos de pelea (antes a los 60).', 'Los monstruos que están flotando con sus alas no reciben la Onda de choque, las Bombas ni el Teletransporte (el Teletransporte va por otro rival en el suelo).', 'La Bala gigante se lanza hacia arriba si su objetivo está en el aire.'] },
   { v: '1.64', d: '2026-11-22', items: ['Arreglado: 1 de cada 5 bebés nacía con la misma velocidad mínima. Ahora la velocidad al nacer también es al azar para todos.', 'Arreglado: los huevos del criadero tenían el doble de chance de traer un stat perfecto. Ahora todos los huevos tienen la misma (1 de cada 100 por stat).', 'El número de Poder ahora cuenta el golpe y el disparo (antes sólo mostraba el golpe), así que también cambia según lo fuerte de sus disparos.', 'Aguante ahora cuenta igual la vida y la defensa, y Técnica también cuenta la espera y el alcance de los disparos: así los números reflejan mejor lo que le tocó al nacer.'] },
   { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).', 'Táctica «Distancia»: al centro disparan y golpean; hacia «de lejos» disparan más y golpean menos, y hacia «de cerca» al revés. En los extremos usan sólo uno de los dos (sólo disparos o sólo golpes), pero más fuertes y seguidos.'] },
