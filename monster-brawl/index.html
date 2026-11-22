@@ -4090,7 +4090,7 @@ function renderTrain() {
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '')
-    + (() => { const md = Math.round(moodOf(rec)), fc = md >= MOOD_HAPPY ? '😊' : md <= MOOD_SAD ? '😞' : '😐'; return `<div class="mood"><span>Ánimo ${fc}</span><div class="bar"><i style="width:${md}%"></i></div><b>${md}</b></div>`; })() + `</div>`; // medidor de ánimo (pedido del dueño)
+    + (() => { const md = Math.round(moodOf(rec)); return `<div class="mood"><span>Ánimo</span><div class="bar"><i style="width:${md}%"></i></div><b>${md}</b></div>`; })() + `</div>`; // medidor de ánimo (pedido del dueño)
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
       <div class="tl">${t.name}${statPerfect(mon.g, t.k) ? '<i class="pstar" title="Stat perfecto">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
