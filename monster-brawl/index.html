@@ -293,7 +293,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <!-- HOME -->
 <div id="home" class="screen on">
-  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn newsbtn" id="btnNews" aria-label="Novedades">📰<b id="newsN" hidden></b></button><button class="gearbtn" id="btnSettings" aria-label="Menú">⚙️</button></div>
+  <div class="top"><button class="instbtn" id="btnInstall" hidden>Instalar</button><div class="coins" title="Monedas"><i></i><span id="coins">0</span></div><button class="gearbtn newsbtn" id="btnNews" aria-label="Novedades">📰<b id="newsN" hidden></b></button><button class="gearbtn newsbtn" id="btnSettings" aria-label="Menú">⚙️<b id="menuN" hidden></b></button></div>
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
@@ -398,6 +398,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="account" hidden>
       <h2 style="font-size:22px" id="accName">Mi cuenta</h2>
       <div class="accstats" id="accStats"></div>
+      <button class="btn setitem" id="accUser"><span>✏️ Nombre de usuario</span><small id="accUserName"></small></button>
       <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
       <button class="btn" data-go="main">‹ Volver</button>
     </div>
@@ -1264,7 +1265,10 @@ function treat(rec, kind) { // kind: 'pet' o 'poke' (tomarlo o lanzarlo no cambi
   last[kind] = now; treatLast.set(rec, last);
   rec.mood = clamp(moodOf(rec) + (kind === 'pet' ? MOOD_PET : MOOD_POKE), 0, 100); rec.moodT = now;
   /* las tácticas ya no cambian con el trato: se eligen en Estadísticas (pedido del dueño); el ánimo sí */
-  persist();
+  persist(); moralRefresh(rec);
+}
+function moralRefresh(rec) { // la barra de moral (y la cara) se actualizan al tiro si ese monstruo está seleccionado (pedido del dueño)
+  try { if (typeof scene !== 'undefined' && scene === 'home' && !ranchMode && save.monsters.length && cur() === rec && rec.stage !== 'egg') { updateSub(); if (show && show.rec === rec) show.baseEmo = baseEmoFor(rec); } } catch (e) { }
 }
 function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: snapT(r.f(-0.3, 0.3)), terco: snapT(r.f(-0.3, 0.3)), valor: snapT(r.f(-0.3, 0.3)), ritmo: 0, def: 0 }; }
 const temperLabel = (k, v) => { const t = TEMPER.find(x => x.k === k); return v > 0.25 ? t.pos : v < -0.25 ? t.neg : null; };
@@ -3401,10 +3405,11 @@ function syncRanch() {
     if (!RANCH.spots) { const n = Math.max(cap, MAX_MONSTERS), o = Array.from({ length: n }, (_, k) => k).sort(() => Math.random() - 0.5), b = Math.random() * TAU; RANCH.spots = o.map(k => b + (k + (Math.random() - 0.5) * 0.6) / n * TAU); } // al entrar, cada uno aparece en un lugar al azar (pedido del dueño)
     if (!a) { const ang = RANCH.spots[i % RANCH.spots.length], rr = 0.7 + 1.1 * Math.random(); a = A[i] = { x: Math.sin(ang) * rr, z: Math.cos(ang) * rr, tx: 0, tz: 0, walk: false, idle: Math.random() * 2, key: null }; }
     if (rec && FROM_BARN.has(rec)) { FROM_BARN.delete(rec); const D = ranchDeco(), q = D.path.find(p => Math.hypot(p.x, p.z) > RANCH_RMAX * 0.93) || { x: 0, z: -RANCH_RMAX }; a.x = q.x; a.z = q.z; a.walk = false; a.idle = 1 + Math.random(); a.fadeIn = 0; } // sale del granero: entra por el camino, junto a la reja, apareciendo poco a poco
-    a.slot = i; a.rec = rec;
+    a.slot = i; a.rec0 = a.rec; a.rec = rec;
     a.kind = !rec ? 'free' : rec.stage === 'egg' ? 'egg' : 'mon';
     const key = rec ? [rec.seed, rec.stage, rec.level, rec.name, JSON.stringify(rec.pts || {}), rec.legacy].join('|') : 'free';
     if (a.key !== key) { // sólo se vuelve a armar si cambió (así no "salta" cada vez)
+      if (a.key && a.rec0 !== rec) for (const k of ['play', 'fam', 'come', 'fly', 'greet', 'rest', 'nap', 'lookWho']) a[k] = null; // otro habitante en este lugar (p. ej. al liberar a uno los demás se corren): se olvida lo que estaba haciendo el anterior
       a.key = key; a.m = a.e = null;
       if (a.kind === 'mon') { a.m = new Monster(rec); a.m.resetRig(); a.sz = a.m.estSize(); }
       else if (a.kind === 'egg') { a.e = new EggView(rec); a.sz = { w: 50, h: 62 }; }
@@ -3413,6 +3418,7 @@ function syncRanch() {
     if (a.m) { a.m.sleep = resting(rec) || !!a.nap; a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
   }
   A.length = cap;
+  for (const a of A) if (a.play && (a.kind !== 'mon' || !a.play.mate || a.play.mate.kind !== 'mon' || !A.includes(a.play.mate) || (a.play.mate.play && a.play.mate.play.mate !== a))) { a.play = null; a.walk = false; a.idle = 1; } // su compañero de juego ya no está: deja de jugar
 }
 const RANCH_RMIN = 0.5, RANCH_RMAX = RANCH_RF * 0.98; // los monstruos andan libres entre el centro (donde está uno parado, sin acercarse a menos de RMIN) y la cerca (radio RANCH_RF)
 function ranchStep(dt) {
@@ -3438,7 +3444,7 @@ function ranchStep(dt) {
     const key = a.slot + '-' + b.slot; if ((RANCH.famCd[key] || 0) > RANCH.t) continue;
     RANCH.famCd[key] = RANCH.t + 40; a.fam = { t: 0 }; b.fam = { t: -0.25 }; a.walk = b.walk = false;
   }
-  for (const a of A) if (a.play && (a === focus || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
+  for (const a of A) if (a.play && (a === focus || !a.m || !a.play.mate || !a.play.mate.m || a.m.sleep || !a.play.mate.play)) { a.play = null; a.walk = false; a.idle = 1; } // se interrumpe el juego
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
     const free = A.filter(canPlay);
@@ -3939,6 +3945,13 @@ function renderHome() {
   $('coins').textContent = save.coins;
   if (barnCtx) { // de cerca en el granero: la misma vista de cerca, con un monstruo del granero (no pelea)
     const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !it.m || !rec) { barnExit(); return; }
+    if (it.key !== barnMonKey(rec)) { // subió un punto (o cambió de ultimate) estando en el granero: se arma de nuevo, en el mismo lugar, para que se note (pedido del dueño)
+      const o = it.m, m = new Monster(rec); m.resetRig();
+      for (const k of ['gx', 'gy', 'x', 'y', 'z', 'vx', 'vy', 'vz']) if (typeof o[k] === 'number') m[k] = o[k];
+      m.sitting = o.sitting; m.sitK = o.sitK; m.sleep = o.sleep;
+      for (let i = 0; i < 20; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
+      it.m = m; it.sz = m.estSize(); it.key = barnMonKey(rec);
+    }
     $('home').classList.remove('vacant', 'first'); $('home').classList.add('barnctx'); homeEmpty = null; egg = null; show = it.m;
     show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
     if (homePage === 2) setTimeout(renderTrain);
@@ -4331,12 +4344,13 @@ function barnBuild() {
   if (ch) persist();
   BARN.last = -1;
 }
+const barnMonKey = r => [r.stage, r.level, JSON.stringify(r.pts || {}), r.ult || ''].join('|'); // si cambia (p. ej. al subir un punto), el monstruo del granero se vuelve a armar
 function barnItem(r) {
   {
     if (r.stage === 'egg') return { rec: r, egg: new EggView(r) };
     const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3); // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño)
     for (let i = 0; i < 30; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
-    return { rec: r, m, sz: m.estSize() };
+    return { rec: r, m, sz: m.estSize(), key: barnMonKey(r) };
   }
 }
 // Entrar/salir del granero al estilo "Liquid Glass" de iOS (pedido del dueño), como abrir y cerrar una app desde su ícono:
@@ -4726,6 +4740,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.', 'Arreglado: en el granero, al subirle un punto a un monstruo no se veía el cambio en sus estadísticas hasta llevarlo al rancho.', 'La barra de moral se actualiza al instante al acariciar o golpear al monstruo seleccionado (y cuando baja con el tiempo), en el rancho y en el granero.', 'Cuando un amigo se conecta, el botón del Menú ⚙️ se pone dorado con un número. Se quita al abrir Amigos.', 'En Menú → Mi cuenta hay un botón para cambiar tu nombre de usuario.', 'Online: en la sala puedes tocar tu monstruo para elegir otro de tu rancho, y tocar tu color para cambiar de equipo. Sirve también cuando entras por una invitación de un amigo.'] },
   { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
@@ -4808,12 +4823,16 @@ function setView(v) {
   if (v === 'account') accountView();
   if (v === 'main') $('accState').textContent = save.user || (cloud ? cloud.email : 'sin cuenta'); // (exportar e importar se quitaron: sólo la Nube, pedido del dueño)
   if (v === 'cloud') gisButton();
-  if (v === 'friends') { $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
+  if (v === 'friends') { FR.newOn.clear(); menuBadge(); $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
   if (v === 'friend') friendView();
 }
+$('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
+  if (!cloud) { $('settings').classList.remove('on'); await ask('Para tener nombre de usuario primero entra a tu cuenta en la Nube.', { ok: 'Entendido', cancel: null }); $('settings').classList.add('on'); setView('cloud'); return; }
+  await pickUser(!!save.user); accountView();
+};
 function accountView() { // Mi cuenta (pedido del dueño): tu nombre, tu récord y la Nube
   const A = save.stats || { w: 0, l: 0, run: 0, best: 0 }, tot = A.w + A.l;
-  $('accName').textContent = save.user || 'Mi cuenta';
+  $('accName').textContent = save.user || 'Mi cuenta'; $('accUserName').textContent = save.user ? 'cambiar' : cloud ? 'crear' : 'requiere la Nube';
   const box = (n, l) => `<div><b>${n}</b><span>${l}</span></div>`;
   $('accStats').innerHTML = box(A.w, 'Victorias') + box(A.l, 'Derrotas') + box(tot ? Math.round(A.w / tot * 100) + '%' : '—', 'Ganadas') + box(A.run || 0, 'Racha actual') + box(A.best || 0, 'Racha más larga');
 }
@@ -5021,7 +5040,10 @@ const fJson = (d, k) => { try { return JSON.parse(fGet(d, k) || 'null'); } catch
 async function getProfile(uid) { const d = await fsReq('GET', `profiles/${uid}`); if (!d) return null; return { name: fGet(d, 'name'), st: fGet(d, 'st'), t: +(fGet(d, 't') || 0), team: fJson(d, 'team') || [], w: +(fGet(d, 'w') || 0), l: +(fGet(d, 'l') || 0), best: +(fGet(d, 'best') || 0) }; }
 const isOnline = p => p && p.st && p.st !== 'off' && Date.now() - p.t < ONLINE_MS;
 const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'battle' ? 'En combate' : 'En el rancho') : p.t ? 'Desconectado · ' + ago(p.t) : 'Desconectado';
-const FR = { profs: {}, sel: null, timer: 0 };
+const FR = { profs: {}, sel: null, timer: 0, wasOn: new Set(), newOn: new Set() };
+function menuBadge() { const n = FR.newOn.size; $('btnSettings').classList.toggle('new', n > 0); $('menuN').hidden = !n; $('menuN').textContent = n; } // un amigo se conectó: el botón del menú se pone dorado con un número (pedido del dueño)
+setInterval(() => { if (cloud && save.user && (save.friends || []).length && !document.hidden && scene !== 'battle' && cloudReady && !FR.timer) friendsRefresh(); }, 30000); // revisa cada 30 s quién se conectó
+setTimeout(() => { if (cloud && save.user && (save.friends || []).length) friendsRefresh(); }, 5000); // y una vez al abrir la app
 function friendsView() { // lista de amigos con su puntito
   const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
   $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Mi cuenta → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Mi cuenta → Nube).' : (save.friends || []).length ? '' : 'Agrega a tus amigos con su nombre de usuario.';
@@ -5031,6 +5053,10 @@ function friendsView() { // lista de amigos con su puntito
 async function friendsRefresh() {
   if (!cloud || !save.user) return;
   await Promise.all((save.friends || []).map(async f => { try { const p = await getProfile(f.uid); FR.profs[f.uid] = p; if (p && p.name && p.name !== f.name) { f.name = p.name; persist(); } } catch (e) { } }));
+  const onNow = new Set((save.friends || []).filter(f => isOnline(FR.profs[f.uid])).map(f => f.uid)), viewing = $('settings').classList.contains('on') && !$('settings').querySelector('[data-view="friends"]').hidden;
+  for (const u of onNow) if (!FR.wasOn.has(u) && !viewing) FR.newOn.add(u); // se acaba de conectar
+  for (const u of [...FR.newOn]) if (!onNow.has(u)) FR.newOn.delete(u); // ya se desconectó
+  FR.wasOn = onNow; menuBadge();
   const v = document.querySelector('#settings .setview:not([hidden])'), on = $('settings').classList.contains('on');
   if (on && v && v.dataset.view === 'friends') friendsView(); else if (on && v && v.dataset.view === 'friend') friendView();
   const n = (save.friends || []).filter(f => isOnline(FR.profs[f.uid])).length; $('frState').textContent = n ? `${n} en línea` : '';
@@ -5705,6 +5731,7 @@ function loop(now) {
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
   if (scene === 'home' && homePage === 1 && homeEmpty != null && frame % 120 === 0) renderSlotBtns(); // cuenta hasta el próximo huevo
+  if (scene === 'home' && frame % 60 === 59 && !ranchMode && save.monsters.length && cur() && cur().stage !== 'egg') moralRefresh(cur()); // (la moral baja con el tiempo)
   if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().napUntil || cur().heartAt || cur().readyAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else if (cur().stage === 'egg') updateEggSub(); else { updateRest(); updateSub(); } }
   requestAnimationFrame(loop);
 }
@@ -5734,15 +5761,16 @@ function lanBindDC(peer, dc) {
   dc.onopen = () => {
     peer.open = true;
     if (LAN.role === 'host') { peer.color = lanFreeColor(); lanUnready(); if (!LAN.peers.includes(peer)) LAN.peers.push(peer); if (LAN.pending === peer) LAN.pending = null; if (peer.gid) { roomDel(`rooms/${LAN.room}/peers/${peer.gid}`); } lanLobbyUpdate(); }
-    else { clearInterval(LAN.poll); LAN.poll = 0; lanSend({ t: 'hi', rec: lanRec(cur()) }); } // invitado: ya conectado, deja de revisar la sala
+    else { clearInterval(LAN.poll); LAN.poll = 0; lanSend({ t: 'hi', rec: lanRec(lanMine()) }); } // invitado: ya conectado, deja de revisar la sala
   };
   dc.onclose = () => lanPeerLost(peer);
   dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
+const lanMine = () => { const ok = r => r && save.monsters.includes(r) && r.stage !== 'egg'; return ok(LAN.mine) ? LAN.mine : ok(cur()) ? cur() : save.monsters.find(ok) || cur(); }; // tu monstruo en Online (se puede cambiar por otro del rancho en la sala, pedido del dueño)
 const lanRec = r => r && ({ user: save.user || undefined, name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
-  LAN.invited = null;
+  LAN.invited = null; LAN.mine = null;
   clearInterval(LAN.poll);
   for (const p of LAN.peers) lanDrop(p); lanDrop(LAN.pending); for (const g in LAN.sig) if (!LAN.sig[g].peer.open) lanDrop(LAN.sig[g].peer);
   if (LAN.role === 'host' && LAN.room) roomClose(LAN.room); else if (LAN.role === 'guest' && LAN.room && LAN.uid) roomDel(`rooms/${LAN.room}/peers/${LAN.uid}`);
@@ -5763,7 +5791,7 @@ function lanPeerLost(peer) {
   lanLobbyUpdate();
 }
 // Anfitrión: lista de jugadores (también se la manda a los invitados)
-function lanPlayers() { return [{ name: cur().name, level: cur().level, color: LAN.color, rec: lanRec(cur()), ready: !!LAN.ready }, ...LAN.peers.filter(p => p.open).map(p => ({ name: p.rec ? p.rec.name : 'conectando…', level: p.rec ? p.rec.level : 0, color: p.color, rec: p.rec, ready: !!p.ready }))]; }
+function lanPlayers() { const me = lanMine(); return [{ name: me.name, level: me.level, color: LAN.color, rec: lanRec(me), ready: !!LAN.ready }, ...LAN.peers.filter(p => p.open).map(p => ({ name: p.rec ? p.rec.name : 'conectando…', level: p.rec ? p.rec.level : 0, color: p.color, rec: p.rec, ready: !!p.ready }))]; }
 const lanUnready = () => { LAN.ready = false; for (const p of LAN.peers) p.ready = false; }; // alguien entró o salió: todos vuelven a marcar «Listo»
 function lanLobbyUpdate() {
   if (LAN.role !== 'host') return;
@@ -5771,7 +5799,7 @@ function lanLobbyUpdate() {
   const players = lanPlayers();
   LAN.peers.filter(p => p.open).forEach((p, i) => lanSend({ t: 'lobby', players, you: i + 1 }, p)); // cada invitado sabe cuál es él
   if (!(battle && battle.lan) && players.length >= 2 && players.every(p => p.ready && p.rec) && lanModeOf(players.map(p => p.color))) { lanStartHost(); return; } // todos marcaron «Listo»: empieza sola
-  if ($('lan').classList.contains('on') && !LAN.pending && !(battle && battle.lan)) lanUI('lobby');
+  if ($('lan').classList.contains('on') && !LAN.pending && !(battle && battle.lan) && LAN.view !== 'mpick') lanUI('lobby');
 }
 // ---------- Salas por internet (pedido del dueño): código de sala de 4 letras ----------
 // Los celulares se encuentran en Firestore (rooms/{CÓDIGO} y rooms/{CÓDIGO}/peers/{uid}): el invitado se anota, el anfitrión le deja su oferta
@@ -5906,7 +5934,7 @@ function lanUI(st, data) {
   const host = LAN.role === 'host', linked = lanLinked();
   const quit = () => { lanSend({ t: 'bye' }); lanClose(); $('lan').classList.remove('on'); };
   const back = B('Cancelar', quit);
-  btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Online';
+  LAN.view = st; btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Online';
   if (st === 'menu') { // sólo los botones (pedido del dueño)
     info.innerHTML = '';
     btns.append(B('🔄 Intercambio', () => lanHost('trade'), 'primary'), B('Crear sala', () => lanHost('fight'), 'primary'), B('Unirme', () => lanUI('join'), 'primary'), B('Cerrar', () => $('lan').classList.remove('on')));
@@ -5926,13 +5954,13 @@ function lanUI(st, data) {
   }
   else if (st === 'lobby') {
     const ps = host ? lanPlayers() : LAN.lobby, meI = host ? 0 : LAN.lobbyMe, n = ps.length, teams = ps.map(p => p.color), mode = lanModeOf(teams);
-    info.innerHTML = (LAN.invited && host && n < 2 ? `Invitaste a <b>${esc(LAN.invited)}</b>. Esperando que acepte…<br>` : '') + (LAN.room ? `Código de la sala<br><span class="roomcode">${LAN.room}</span><br><small>${host ? 'Tus amigos tocan <b>Unirme</b> y escriben este código.' : ''}</small><br>` : '') + `<b>Jugadores (${n}/${LAN_MAX})</b><br><small>Toca tu monstruo para cambiar de color. Mismo color = compañeros.</small>`;
+    info.innerHTML = (LAN.invited && host && n < 2 ? `Invitaste a <b>${esc(LAN.invited)}</b>. Esperando que acepte…<br>` : '') + (LAN.room ? `Código de la sala<br><span class="roomcode">${LAN.room}</span><br><small>${host ? 'Tus amigos tocan <b>Unirme</b> y escriben este código.' : ''}</small><br>` : '') + `<b>Jugadores (${n}/${LAN_MAX})</b><br><small>Toca tu monstruo para cambiarlo y tu color para cambiar de equipo. Mismo color = compañeros.</small>`;
     ps.forEach((p, i) => {
       const col = LAN_COLORS[p.color % LAN_COLORS.length], d = document.createElement(i === meI ? 'button' : 'div');
       d.className = 'lanp' + (i === meI ? ' me' : ''); d.style.setProperty('--tc', col.c);
       d.innerHTML = `<canvas width="144" height="144"></canvas>${p.rec && p.rec.user ? `<span class="usr">👤 ${esc(p.rec.user)}</span>` : ''}<b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
       if (p.rec) drawThumb(d.querySelector('canvas'), p.rec);
-      if (i === meI) d.onclick = () => { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'col' }); };
+      if (i === meI) d.onclick = e => { if (e.target.closest('.tc')) { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'col' }); } else lanUI('mpick'); }; // tocar el color = cambiar de equipo; tocar el monstruo = elegir otro del rancho
       list.appendChild(d);
     });
     btns.append(B('Desconectar', quit));
@@ -5940,6 +5968,15 @@ function lanUI(st, data) {
     const rb = B(meReady ? 'Quitar listo' : '✓ Listo', () => { if (host) { LAN.ready = !LAN.ready; lanLobbyUpdate(); } else lanSend({ t: 'rdy', v: !meReady }); }, meReady ? '' : 'primary');
     rb.disabled = n < 2 && !meReady; btns.append(rb);
     info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
+  } else if (st === 'mpick') { // elegir con qué monstruo del rancho pelear (pedido del dueño)
+    info.innerHTML = '¿Con quién peleas?'; const mine = lanMine();
+    for (const r of save.monsters.filter(r => r.stage !== 'egg')) {
+      const d = document.createElement('button'); d.className = 'lanp me'; d.style.setProperty('--tc', r === mine ? 'var(--acc)' : 'var(--panel2)');
+      d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}${r === mine ? ' ✓' : ''}</span>`; drawThumb(d.querySelector('canvas'), r);
+      d.onclick = () => { if (r !== lanMine()) { LAN.mine = r; if (host) { LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'hi', rec: lanRec(r) }); } lanUI('lobby'); };
+      list.appendChild(d);
+    }
+    btns.append(B('Volver', () => lanUI('lobby')));
   } else if (st === 'error') {
     info.textContent = data;
     btns.append(B(host && linked ? 'Volver' : 'Cerrar', () => { if (host && linked) lanUI('lobby'); else quit(); }));
@@ -5952,7 +5989,7 @@ $('btnLan').onclick = () => {
   $('lan').classList.add('on'); lanLinked() ? lanUI('lobby') : lanUI('menu');
 };
 function lanMsg(m, peer) {
-  if (m.t === 'hi' && LAN.role === 'host') { peer.rec = m.rec; lanLobbyUpdate(); }
+  if (m.t === 'hi' && LAN.role === 'host') { const changed = !!peer.rec; peer.rec = m.rec; if (changed) peer.ready = false; lanLobbyUpdate(); }
   else if (m.t === 'room' && (!battle || battle.over)) lanToRoom(); // volver a la sala para cambiar colores
   else if (m.t === 'tstart' && LAN.role === 'guest') { if (!LAN.tr.done && $('lan').classList.contains('on')) lanUI('trade'); }
   else if (m.t === 'toffer') { const r = m.rec; LAN.tr.theirs = r && typeof r === 'object' && r.seed != null && r.stage && r.stage !== 'egg' ? r : null; LAN.tr.mineOk = LAN.tr.theirsOk = false; lanTradeRefresh(); }
@@ -5961,7 +5998,7 @@ function lanMsg(m, peer) {
   else if (m.t === 'tgot' && LAN.role === 'host') { if (LAN.tr.mineOk && LAN.tr.theirsOk) tradeApply(); }
   else if (m.t === 'col' && LAN.role === 'host') { peer.color = (peer.color + 1) % LAN_COLORS.length; peer.ready = false; lanLobbyUpdate(); }
   else if (m.t === 'rdy' && LAN.role === 'host') { peer.ready = !!m.v; lanLobbyUpdate(); } // un invitado marca «Listo» // un invitado cambia su color
-  else if (m.t === 'lobby' && LAN.role === 'guest' && LAN.kind !== 'trade') { LAN.lobby = m.players; LAN.lobbyMe = m.you; if (!(battle && battle.lan)) { if ($('lan').classList.contains('on')) lanUI('lobby'); } }
+  else if (m.t === 'lobby' && LAN.role === 'guest' && LAN.kind !== 'trade') { LAN.lobby = m.players; LAN.lobbyMe = m.you; if (!(battle && battle.lan)) { if ($('lan').classList.contains('on') && LAN.view !== 'mpick') lanUI('lobby'); } }
   else if (m.t === 'bye') lanPeerLost(peer);
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
   else if (m.t === 's' && battle && battle.puppet) LAN.snap = m;
@@ -5994,9 +6031,9 @@ function lanStartHost() {
   const n = guests.length + 1, teams = [LAN.color, ...guests.map(p => p.color)], mode = lanModeOf(teams); // cada color es un equipo
   if (!mode) { ask('Todos tienen el mismo color: elijan al menos 2 colores para pelear.', { ok: 'Entendido', cancel: null }); return; }
   LAN.mode = mode; lanUnready(); // al volver a la sala, todos marcan «Listo» de nuevo
-  const recs = [lanRec(cur()), ...guests.map(p => p.rec)];
+  const recs = [lanRec(lanMine()), ...guests.map(p => p.rec)];
   const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
-  const list = recs.map((r, i) => { const m = new Monster(i === 0 ? cur() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
+  const list = recs.map((r, i) => { const m = new Monster(i === 0 ? lanMine() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
   guests.forEach((p, i) => p.idx = i + 1);
   lanSetupBattle(list, (mode === '1v1' ? 600 : 640 * Math.sqrt(Math.max(4, n) / 4)) * zoom, null, mode); // más jugadores, arena más grande
   battle.introT = INTRO_S; battle.shake = 6; for (const m of battle.ms) m.setEmo('focus', INTRO_S, 2);
@@ -6004,7 +6041,7 @@ function lanStartHost() {
 }
 function lanStartGuest(m) {
   LAN.me = m.you; LAN.mode = m.mode;
-  const list = m.recs.map((r, i) => { const mo = new Monster(i === m.you ? Object.assign({}, cur(), r) : r); mo.team = m.teams[i]; if (i === m.you) mo.isPlayer = true; return mo; }); // el mío
+  const list = m.recs.map((r, i) => { const mo = new Monster(i === m.you ? Object.assign({}, lanMine(), r) : r); mo.team = m.teams[i]; if (i === m.you) mo.isPlayer = true; return mo; }); // el mío
   lanSetupBattle(list, m.aw, m.ad, m.mode);
   battle.puppet = true; LAN.snap = null;
 }
