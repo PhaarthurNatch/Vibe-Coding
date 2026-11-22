@@ -718,9 +718,11 @@ const LOOKS_NEW9 = { head: ['diamond', 'star', 'wavy'], torso: ['barrel', 'hourg
 // Anatomías gen 9 (pedido del dueño): cambian las proporciones del cuerpo; cada monstruo nuevo puede tener una o dos
 const ANATOMY9 = ['cabezon', 'cuellilargo', 'zancudo', 'brazilargo', 'rechoncho', 'larguirucho', 'ciclope', 'colilargo', 'cornudo'];
 // Gen 11 (pedido del dueño): cuerpos no humanoides. ~22% de los monstruos nuevos: cuadrúpedo, arácnido (6–8 patas), medusa (flota con tentáculos) o serpiente
-function bodyPlan(seed) { const r = rng((seed ^ 0xa4093822) >>> 0), u = r.f(0, 1), u2 = r.f(0, 1); return { plan: u < 0.06 ? 'quad' : u < 0.12 ? 'spider' : u < 0.17 ? 'jelly' : u < 0.22 ? 'snake' : null, u2, n: 5 + Math.floor(r.f(0, 3)), len: r.f(30, 50), th: r.f(4, 7) }; }
-function applyPlan(g, seed) {
-  const P = bodyPlan(seed); if (!P.plan) return; g.plan = P.plan;
+function bodyPlan(seed, gen = 11) { const r = rng((seed ^ 0xa4093822) >>> 0), u = r.f(0, 1), u2 = r.f(0, 1), P = { plan: u < 0.06 ? 'quad' : u < 0.12 ? 'spider' : u < 0.17 ? 'jelly' : u < 0.22 ? 'snake' : null, u2, n: 5 + Math.floor(r.f(0, 3)), len: r.f(30, 50), th: r.f(4, 7) };
+  if (gen >= 16) P.plan = [null, 'quad', 'spider', 'jelly', 'snake'][Math.floor(u * 5)]; // gen 16: todos los cuerpos igual de probables (humanoide incluido)
+  return P; }
+function applyPlan(g, seed, gen) {
+  const P = bodyPlan(seed, gen); if (!P.plan) return; g.plan = P.plan;
   if (P.plan === 'quad') { // cuatro patas, sin brazos, cuerpo ancho y la cabeza baja, por delante
     g.arms.pairs = 0; g.shoulders.size = 0; g.legs.pairs = 2; g.legs.spread = 0.85; g.neck.len = 0;
     g.torso.upper.w *= 1.35; g.torso.upper.h *= 0.9; g.torso.mid = g.torso.lower = null;
@@ -734,7 +736,7 @@ function applyAnatomy9(g, seed, gen = 9) {
   const r = rng((seed ^ (gen >= 10 ? 0x5be0cd19 : 0x9b05688c)) >>> 0), list = [], A = pickParts(seed, 'adult'); // se elige mirando las partes que tendrá de adulto (así es la misma en todas las etapas)
   const need = { zancudo: A.legs, brazilargo: A.arms, colilargo: A.tail, cornudo: A.horns, orejon: A.ears, alon: A.wings, antenudo: A.antennae, paton: A.legs, forzudo: A.arms, hombrudo: A.shoulders && A.arms, colagruesa: A.tail, panzon: A.torso };
   const ok = a => !(a in need) || need[a] > 0, pool = (gen >= 10 ? [...ANATOMY9, ...ANATOMY10] : ANATOMY9).filter(ok); // gen 9 sigue sorteando igual que antes
-  if (r.f(0, 1) < 0.7) list.push(r.pick(pool));
+  const u0 = r.f(0, 1), a0 = r.pick(pool); if (gen >= 16 ? Math.floor(u0 * (pool.length + 1)) < pool.length : u0 < 0.7) list.push(gen >= 16 ? pool[Math.floor(u0 * (pool.length + 1))] : a0); // gen 16: cada anatomía (y «ninguna») igual de probable
   if (list.length && r.f(0, 1) < 0.25) { const b = r.pick(pool); if (!list.includes(b)) list.push(b); }
   const sc = (o, ks, k) => { if (o) for (const q of ks) if (typeof o[q] === 'number') o[q] *= k; };
   for (const a of list) {
@@ -818,6 +820,17 @@ const COLOR_MODES14 = {
 // Texturas (gen 15, pedido del dueño): ~55% de los monstruos nuevos tienen una sobre el cuerpo y la cabeza
 const TEXTURES = ['scales', 'fur', 'slime', 'rock', 'plates', 'feathers', 'sparkle', 'bubbles'];
 function applyTexture15(g, seed) { const r = rng((seed ^ 0x2f3c9a71) >>> 0), u = r.f(0, 1), k = r.pick(TEXTURES); if (u < 0.55) g.texture = k; }
+// Gen 16 (pedido del dueño: "todo lo estético se reparte igual"): cada combinación de colores, dibujo y textura tiene la misma chance
+const BASE_MODES = ['classic', 'pastel', 'neon', 'dark', 'earthy', 'metal', 'candy'];
+function applyLooks16(g, seed) {
+  const r = rng((seed ^ 0x1b873593) >>> 0), all = [...BASE_MODES.map(k => ['base', k]), ...Object.keys(COLOR_MODES8).map(k => [COLOR_MODES8, k]), ...Object.keys(COLOR_MODES14).map(k => [COLOR_MODES14, k])];
+  const [T, key] = all[Math.floor(r.f(0, 1) * all.length)], f = [r.f(0, 1), r.f(0, 1)], h = r.f(0, 360), pat = r.pick(['none', 'stripes', 'gradient', 'patches']), two = r.f(0, 1) < 0.5, tex = r.pick([...TEXTURES, null]);
+  applyVariety(g, seed, T === 'base' ? key : null);
+  const C = (hh, ss, ll) => ({ h: ((hh % 360) + 360) % 360, s: clamp(ss, 0, 100), l: clamp(ll, 0, 100) }), P = g.pal;
+  g.pattern = pat; if (two && !P.two) P.two = C(P.body.h + 120, P.body.s, P.body.l); if (!two) delete P.two; // dos tonos: mitad y mitad
+  if (T !== 'base') { const ob = P.body, np = T[key](C, f, h); if (P.two) P.two = C(np.body.h + (P.two.h - ob.h), np.body.s, np.body.l); if (P.pat) P.pat = C(np.body.h + (P.pat.h - ob.h), np.body.s, np.body.l + (P.pat.l - ob.l)); Object.assign(P, np); }
+  g.colorMode = key; if (tex) g.texture = tex; else delete g.texture; // la piel lisa cuenta como una textura más
+}
 function applyColors14(g, seed) { // igual que applyColors8, con otro flujo de azar
   const r = rng((seed ^ 0x8f1bbcdc) >>> 0), u = r.f(0, 1), keys = Object.keys(COLOR_MODES14), k = r.pick(keys), f = [r.f(0, 1), r.f(0, 1)], h = r.f(0, 360);
   if (u >= 0.45) return;
@@ -839,7 +852,9 @@ function applyColors8(g, seed) {
 function genome5(seed, stage, v6 = false) {
   if (stage === 'egg') stage = 'baby';
   if (stage === 'awakened') stage = 'adult';
-  const g = rollGenome(seed, 'adult'); applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); if (v6 >= 14) applyColors14(g, seed); if (v6 >= 15) applyTexture15(g, seed); // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
+  const g = rollGenome(seed, 'adult');
+  if (v6 >= 16) applyLooks16(g, seed); // gen 16: colores, dibujo y textura con todas las opciones igual de probables (pedido del dueño)
+  else { applyVariety(g, seed); if (v6 >= 8) applyColors8(g, seed); if (v6 >= 14) applyColors14(g, seed); if (v6 >= 15) applyTexture15(g, seed); } // colores, dibujo y tamaños de un adulto (luego se achica según la etapa)
   const c = pickParts(seed, stage), r = rng((seed ^ 0x510e527f) >>> 0);
   // apariencia: todas las variantes igual de probables (siempre se sortean todas, así no cambian al crecer)
   const look = {}; for (const k in LOOKS) look[k] = r.pick(LOOKS[k]);
@@ -865,7 +880,7 @@ function genome5(seed, stage, v6 = false) {
   g.shoulders.size = c.shoulders && c.arms ? (g.shoulders.size || dims.shoulder) : 0; // los hombros van siempre con los brazos principales
   if (!g.torso.mid && !g.torso.lower) g.spots = g.spots.filter(sp => sp.seg === 'upper');
   else g.spots = g.spots.map(sp => ({ ...sp, seg: g.torso[sp.seg] || sp.seg === 'upper' ? sp.seg : 'upper' }));
-  if (v6 >= 11 && stage !== 'baby') applyPlan(g, seed); // gen 11: cuerpos no humanoides (el bebé sigue siendo una bolita)
+  if (v6 >= 11 && stage !== 'baby') applyPlan(g, seed, v6); // gen 11: cuerpos no humanoides (el bebé sigue siendo una bolita)
   if (v6 >= 9) applyAnatomy9(g, seed, v6); // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
@@ -887,12 +902,12 @@ function fitHeadless(g) {
 }
 
 // Variedad: mismo seed = mismas elecciones en todas las etapas (sale de un flujo aparte)
-function applyVariety(g, seed) {
+function applyVariety(g, seed, forceMode) {
   const r = rng((seed ^ 0x5f3759df) >>> 0);
   const C = (h, s, l) => ({ h: ((h % 360) + 360) % 360, s: clamp(s, 0, 100), l: clamp(l, 0, 100) });
   const P = g.pal, hue = P.body.h, h2 = P.accent.h;
   // ---- colores ----
-  const mode = r.pick(['classic', 'classic', 'pastel', 'neon', 'dark', 'earthy', 'metal', 'candy']);
+  let mode = r.pick(['classic', 'classic', 'pastel', 'neon', 'dark', 'earthy', 'metal', 'candy']); if (forceMode) mode = forceMode; // (gen 16 elige el modo afuera, con todos igual de probables)
   const f = [r.f(0, 1), r.f(0, 1), r.f(0, 1), r.f(0, 1)];
   switch (mode) {
     case 'pastel': Object.assign(P, { body: C(hue, 38 + 18 * f[0], 72 + 8 * f[1]), belly: C(hue, 30, 88), accent: C(h2, 50 + 20 * f[2], 74), limb: C(hue + 10, 35, 66), wing: C(h2 + 25, 50, 80), horn: C(h2, 30, 86), spot: C(h2, 45, 82) }); break;
@@ -3039,7 +3054,7 @@ const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que 
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
-  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 15, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
+  const rec = { seed, name: rollGenome(seed).name, level: 1, xp: 0, wins: 0, losses: 0, stage, lives: MAX_LIVES, gen: 16, pts: {}, temper: randomTemper(seed), ultMode: 'save' };
   if (stage === 'egg') { rec.taps = 0; rec.need = 5 + Math.floor(Math.random() * 4); }
   return rec;
 }
@@ -4548,7 +4563,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
+  { v: '1.50', d: '2026-11-22', items: ['Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula al moverse).', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
   { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
