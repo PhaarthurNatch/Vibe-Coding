@@ -398,6 +398,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="account" hidden>
       <h2 style="font-size:22px" id="accName">Mi cuenta</h2>
       <div class="accstats" id="accStats"></div>
+      <button class="btn setitem" id="accUser"><span>✏️ Nombre de usuario</span><small id="accUserName"></small></button>
       <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
       <button class="btn" data-go="main">‹ Volver</button>
     </div>
@@ -4739,7 +4740,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.', 'Arreglado: en el granero, al subirle un punto a un monstruo no se veía el cambio en sus estadísticas hasta llevarlo al rancho.', 'La barra de moral se actualiza al instante al acariciar o golpear al monstruo seleccionado (y cuando baja con el tiempo), en el rancho y en el granero.', 'Cuando un amigo se conecta, el botón del Menú ⚙️ se pone dorado con un número. Se quita al abrir Amigos.'] },
+  { v: '1.57', d: '2026-11-22', items: ['Arreglado: al liberar a un monstruo que estaba jugando con otro, el rancho quedaba congelado con el fondo azul al volver.', 'Arreglado: en el granero, al subirle un punto a un monstruo no se veía el cambio en sus estadísticas hasta llevarlo al rancho.', 'La barra de moral se actualiza al instante al acariciar o golpear al monstruo seleccionado (y cuando baja con el tiempo), en el rancho y en el granero.', 'Cuando un amigo se conecta, el botón del Menú ⚙️ se pone dorado con un número. Se quita al abrir Amigos.', 'En Menú → Mi cuenta hay un botón para cambiar tu nombre de usuario.'] },
   { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
@@ -4825,9 +4826,13 @@ function setView(v) {
   if (v === 'friends') { FR.newOn.clear(); menuBadge(); $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
   if (v === 'friend') friendView();
 }
+$('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
+  if (!cloud) { $('settings').classList.remove('on'); await ask('Para tener nombre de usuario primero entra a tu cuenta en la Nube.', { ok: 'Entendido', cancel: null }); $('settings').classList.add('on'); setView('cloud'); return; }
+  await pickUser(!!save.user); accountView();
+};
 function accountView() { // Mi cuenta (pedido del dueño): tu nombre, tu récord y la Nube
   const A = save.stats || { w: 0, l: 0, run: 0, best: 0 }, tot = A.w + A.l;
-  $('accName').textContent = save.user || 'Mi cuenta';
+  $('accName').textContent = save.user || 'Mi cuenta'; $('accUserName').textContent = save.user ? 'cambiar' : cloud ? 'crear' : 'requiere la Nube';
   const box = (n, l) => `<div><b>${n}</b><span>${l}</span></div>`;
   $('accStats').innerHTML = box(A.w, 'Victorias') + box(A.l, 'Derrotas') + box(tot ? Math.round(A.w / tot * 100) + '%' : '—', 'Ganadas') + box(A.run || 0, 'Racha actual') + box(A.best || 0, 'Racha más larga');
 }
