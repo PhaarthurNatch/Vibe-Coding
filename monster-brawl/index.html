@@ -5675,7 +5675,7 @@ function loop(now) {
       const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2;
       drawCloseUp(ctx, r, true, zoom.dir > 0 ? e : 1 - e);
     } else if (onHome && ranchMode) drawRanch(ctx, r);
-    else if (hasClose) drawCloseUp(ctx, !onHome && $('tCombat').childElementCount ? { left: r.left, top: r.top, width: r.width * 0.58, height: r.height, right: r.left + r.width * 0.58, bottom: r.bottom } : r, onHome, onHome && !firstEgg() ? 1 : null); // Estadísticas: el monstruo va corrido a la izquierda para que quepa su récord a la derecha (pedido del dueño)
+    else if (hasClose) drawCloseUp(ctx, r, onHome, onHome && !firstEgg() ? 1 : null);
   } else if (scene === 'barn') {
     barnStep(dt); drawBarn(ctx);
   } else if (scene === 'grow' && growAnim) {
