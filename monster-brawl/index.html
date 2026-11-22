@@ -115,7 +115,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .trow .tl small{margin-left:auto}
 .tbtn{grid-row:1/4;grid-column:2;display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:14px}
 .ci{flex:none;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 1.5px #b9801a}
-#trainArea{flex:1 1 90px;min-height:90px}
+#trainArea{flex:1 1 90px;min-height:90px;position:relative}
+.tcombat{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:auto auto;gap:6px 10px;font-size:10px;font-weight:700;color:var(--muted);text-shadow:0 1px 3px rgba(0,0,0,.6);max-width:40%}.tcombat:empty{display:none}.tcombat div{display:flex;flex-direction:column;align-items:center;line-height:1.1;text-align:center}.tcombat b{font-size:17px;color:var(--text);font-variant-numeric:tabular-nums}
+.fshead{display:flex;align-items:center;justify-content:center;gap:14px}.fshead .tcombat{position:static;transform:none;text-shadow:none}
 .tpanel.shop{flex:0 0 100%;width:100%;height:100%;gap:14px}
 .shoptabs{position:relative;display:flex;margin:6px 4px 0;touch-action:none}
 .shoptabs button{flex:1;background:none;border:0;color:var(--muted);font:inherit;font-weight:800;font-size:14px;padding:8px 0 9px;cursor:pointer;pointer-events:auto;transition:color .25s}
@@ -327,7 +329,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="page pgStats">
     <button class="edgeLbl up" data-go="1">▲ Monstruo</button>
     <div class="nav"><div class="name"><b id="tName">—</b><span id="tSub"></span></div></div>
-    <div class="spacer" id="trainArea"></div>
+    <div class="spacer" id="trainArea"><div class="tcombat" id="tCombat"></div></div>
     <div class="panel tpanel">
       <div class="tlist" id="tlist"></div>
       <div class="tinfo" id="tinfo"></div>
@@ -460,7 +462,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 </div>
 <div class="modal" id="frStats">
   <div class="card">
-    <canvas id="fsCv" width="144" height="144" style="width:120px;height:120px;align-self:center"></canvas>
+    <div class="fshead"><canvas id="fsCv" width="144" height="144" style="width:120px;height:120px"></canvas><div class="tcombat" id="fsCombat"></div></div>
     <h2 style="font-size:22px" id="fsName"></h2>
     <p class="tdesc" id="fsSub" style="text-align:center"></p>
     <div id="fsList"></div>
@@ -4124,14 +4126,14 @@ addEventListener('click', e => { if (performance.now() - swipedAt < 350) { e.sto
 
 function renderTrain() {
   const rec = cur(), none = homeEmpty != null || !rec; // espacio libre: no hay nada que mostrar
-  $('btnFree').hidden = none || rec.stage === 'egg';
+  $('btnFree').hidden = none || rec.stage === 'egg'; $('tCombat').innerHTML = '';
   if (none) { $('tName').textContent = 'Espacio libre'; $('tSub').textContent = ''; $('tlist').innerHTML = '<p class="eggmsg">Aún no hay nada aquí.<br>En la página del monstruo puedes comprar o criar un huevo para este espacio.</p>'; $('tinfo').textContent = ''; return; }
   $('tName').textContent = rec.stage === 'egg' ? (rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso') : rec.name;
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = `<p class="eggmsg">Aún no hay nada aquí: las estadísticas aparecen cuando nazca.<br>${rec.readyAt > Date.now() ? 'Primero tiene que terminar de incubar.' : 'Vuelve a la página del monstruo y tócalo varias veces para abrirlo.'}</p>`; $('tinfo').textContent = ''; return; }
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const mon = show && show.rec === rec ? show : new Monster(rec), free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = mon.st;
-  let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
+  let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '')
     + `</div>`; // (la moral se ve arriba al seleccionar al monstruo, pedido del dueño)
@@ -4153,6 +4155,7 @@ function renderTrain() {
   h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]); return `<div class="tact"><div class="tname">${t.tn}</div><div class="axis"><span>${v < -0.25 ? `<b>${t.tl}</b>` : t.tl}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${v > 0.25 ? `<b>${t.tr}</b>` : t.tr}</span></div></div>`; }).join('');
   h += `</div>`;
   $('tlist').innerHTML = h;
+  $('tCombat').innerHTML = combatBox(rec);
   $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
   document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
@@ -4187,6 +4190,7 @@ function openUltPick(rec) {
   L.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { $('ultPick').classList.remove('on'); if (b.dataset.up === rec.ult) return; rec.ult = b.dataset.up; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
   $('ultPick').classList.add('on');
 }
+const combatBox = r => [[r.wins ?? r.w ?? 0, 'Victorias'], [r.losses ?? r.l ?? 0, 'Derrotas'], [r.run || 0, 'Racha'], [r.bestRun ?? r.best ?? 0, 'Mejor racha']].map(([n, l]) => `<div><b>${n}</b>${l}</div>`).join(''); // estadísticas de combate junto a la miniatura (pedido del dueño)
 function trainFx(label) {
   show.vz = 230; show.mouthOpen = 1; show.setEmo('angry', 0.5, 2, ['happy', 1.2]); // ¡esfuerzo! y luego contento
   for (const n of show.nodes) { n.vx += (Math.random() - 0.5) * 300; n.vy -= Math.random() * 200; }
@@ -4722,7 +4726,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.'] },
+  { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube.', 'Nuevo en el Menú: «Mi cuenta», con tus victorias, derrotas, porcentaje de victorias, racha actual y racha más larga, y adentro el botón de la Nube.', 'En la página de Estadísticas de cada monstruo, al lado de su miniatura, se ven sus victorias, derrotas, racha actual y mejor racha. Los monstruos de tus amigos se ven igual.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
   { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
@@ -5002,7 +5006,7 @@ const myPlace = () => scene === 'battle' ? 'battle' : 'ranch';
 function profilePush(off) {
   if (!cloud || !save.user || importing) return;
   const st = off ? 'off' : myPlace(); profLast = st; profT = Date.now();
-  const team = save.monsters.filter(r => r.stage !== 'egg').map(r => ({ ...lanRec(r), w: r.wins || 0, l: r.losses || 0, best: r.bestRun || 0 })), A = save.stats || {};
+  const team = save.monsters.filter(r => r.stage !== 'egg').map(r => ({ ...lanRec(r), w: r.wins || 0, l: r.losses || 0, best: r.bestRun || 0, run: r.run || 0 })), A = save.stats || {};
   const fields = { w: { integerValue: String(A.w || 0) }, l: { integerValue: String(A.l || 0) }, best: { integerValue: String(A.best || 0) }, name: { stringValue: save.user }, st: { stringValue: st }, t: { integerValue: String(Date.now()) }, team: { stringValue: JSON.stringify(team) } };
   if (off && cloud.tok && Date.now() < cloud.exp - 30e3) { fetch(fsDoc(`profiles/${cloud.uid}`), { method: 'PATCH', keepalive: true, headers: { Authorization: 'Bearer ' + cloud.tok, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) }).catch(() => { }); return; } // al salir de la app: sin esperar
   fsReq('PATCH', `profiles/${cloud.uid}`, fields).catch(() => { });
@@ -5045,9 +5049,8 @@ function friendView() { // su equipo del rancho; tocar uno muestra sus estadíst
 function friendMon(r) { // estadísticas de un monstruo de un amigo
   let m; try { m = new Monster(r); } catch (e) { return; }
   $('fsName').textContent = r.name; $('fsSub').textContent = `Nv. ${r.level} · ${STAGE_NAME[r.stage] || ''}`;
-  drawThumb($('fsCv'), r);
+  drawThumb($('fsCv'), r); $('fsCombat').innerHTML = combatBox(r);
   $('fsList').innerHTML = PTS.map((t, i) => { const [, fn, mx] = MAIN_DEF[i], v = fn(m.st); return `<div class="trow"><div class="tl">${t.name}${statPerfect(m.g, t.k) ? '<i class="pstar">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${(r.pts || {})[t.k] || 0}/${PTS_MAX} puntos</small></div><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div></div>`; }).join('')
-    + `<div class="frrec mon"><b>${r.w || 0}</b> victorias · <b>${r.l || 0}</b> derrotas · racha más larga <b>${r.best || 0}</b></div>`
     + `<div class="mood"><span>Moral</span><div class="bar"><i style="width:${Math.round(r.mood ?? 50)}%"></i></div><b>${Math.round(r.mood ?? 50)}</b></div>`
     + (r.ult && ULTS[r.ult] ? `<div class="fsult">${ultIcon(r.ult)}<span>${ULTS[r.ult].name}</span></div>` : '');
   $('frStats').classList.add('on');
