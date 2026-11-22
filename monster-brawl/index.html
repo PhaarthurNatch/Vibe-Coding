@@ -945,7 +945,7 @@ function genome5(seed, stage, v6 = false) {
   if (v6 >= 9) applyAnatomy9(g, seed, v6); if (g.plan === 'octopus') g.neck.len = 0; // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
-  if (L.blob || g.plan === 'slime') { g.blob = true; g.spots = []; g.head.none = false; g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
+  if (L.blob || g.plan === 'slime') { g.blob = true; g.spots = []; g.head.none = false; g.neck.len = 0; /* el bebé es una sola pieza: sin cuello (la anatomía «cuello largo» le dibujaba un palo grueso hacia arriba) */ g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
   else if (!c.head || g.plan === 'crab') { if (g.plan === 'crab') { const U = g.torso.upper; U.h = Math.max(U.h, U.w * 0.36); U.w = Math.min(U.w, U.h * 2.8); } g.head.none = true; fitHeadless(g); } // cangrejo: caparazón ancho, pero no una tira // sin cabeza sorteada: la cara va en el torso
   return g;
 }
@@ -4752,6 +4752,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
   { v: '1.59', d: '2026-11-22', items: ['Arreglado: amistades de antes que eran de un solo lado. Ahora le llega una solicitud al que no te tenía agregado, y si alguien que ya tienes de amigo te manda una solicitud, se acepta sola.'] },
