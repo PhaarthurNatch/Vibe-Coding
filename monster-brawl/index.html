@@ -102,6 +102,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px}
 .trow .tl{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:700;min-width:0}
 .trow .tl small{color:var(--muted);font-weight:600;font-size:11px}
+.trow .pstar{color:#ffd36b;font-style:normal;font-size:12px;margin-left:-5px;text-shadow:0 0 6px rgba(255,200,80,.6)}
 .trow .tv{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
 .trow .tv b{color:var(--text)}
 .trow .tv em{font-style:normal;color:var(--good)}
@@ -959,6 +960,31 @@ function rolledStats(seed, stage) {
   for (let i = 1; i <= si; i++) { const A = STAGE_STATS[STAT_STAGES[i - 1]], B = STAGE_STATS[STAT_STAGES[i]], r = rng(((seed >>> 0) ^ (0x6c8e9cf5 * (i + 1))) >>> 0); // al crecer: gana al azar
     for (const k in B) b[k] += (B[k] - (A[k] || 0)) * r.f(0.5, 1.5); }
   return b;
+}
+/* Calidad del sorteo de cada stat (0 = el peor posible, 1 = el mejor) para la estrellita de "stat perfecto" en Estadísticas */
+const STAT_Q_KEYS = { pow: ['melee', 'ranged'], end: ['hp', 'defense'], agi: ['speed', 'dodge'], tec: ['meleeCd', 'rangedCd', 'reach', 'range'] };
+const statBoundsCache = {};
+function statBounds(stage) {
+  if (statBoundsCache[stage]) return statBoundsCache[stage];
+  const si = Math.max(0, STAT_STAGES.indexOf(stage)), base = { ...STAT_BASE, meleeCd: 0.75 }, T0 = STAGE_STATS.baby, o = {};
+  for (const k in base) { const v = base[k] + (T0[k] || 0), cd = k === 'rangedCd' || k === 'meleeCd'; o[k] = [v * (cd ? 0.88 : 0.8), v * (cd ? 1.12 : 1.2)]; }
+  for (let i = 1; i <= si; i++) { const A = STAGE_STATS[STAT_STAGES[i - 1]], B = STAGE_STATS[STAT_STAGES[i]];
+    for (const k in B) { const d = B[k] - (A[k] || 0); o[k][0] += Math.min(d * 0.5, d * 1.5); o[k][1] += Math.max(d * 0.5, d * 1.5); } }
+  return statBoundsCache[stage] = o;
+}
+function statQuality(g, grp) {
+  const sk = g.awake ? 'awakened' : g.stage, src = g.statGenes && g.statGenes[grp] != null ? g.statGenes[grp] : (g.seed || 1);
+  const b = rolledStats(src, sk), bd = statBounds(sk), ks = STAT_Q_KEYS[grp];
+  return ks.reduce((q, k) => { const [lo, hi] = bd[k], x = hi > lo ? (b[k] - lo) / (hi - lo) : 0.5; return q + (k === 'meleeCd' || k === 'rangedCd' ? 1 - x : x); }, 0) / ks.length;
+}
+/* Stat perfecto = entre el 1% mejor de su etapa en ese stat (el máximo exacto es casi imposible); umbral medido con semillas fijas */
+const STAT_PERFECT_TOP = 0.01, statPerfCache = {};
+function statPerfect(g, grp) {
+  if (!g || !g.stage || g.stage === 'egg') return false;
+  const sk = g.awake ? 'awakened' : g.stage, id = sk + grp;
+  if (statPerfCache[id] == null) { const qs = []; for (let i = 1; i <= 4000; i++) qs.push(statQuality({ seed: (i * 2654435761) >>> 0, stage: g.stage, awake: g.awake }, grp));
+    qs.sort((x, y) => x - y); statPerfCache[id] = qs[Math.floor(qs.length * (1 - STAT_PERFECT_TOP))]; }
+  return statQuality(g, grp) >= statPerfCache[id];
 }
 function calcStats(g, level = 1, train = null) {
   const sk = g.awake ? 'awakened' : g.stage, b = rolledStats(g.seed || 1, sk); // (las partes no suman nada)
@@ -3603,13 +3629,13 @@ function renderTrain() {
   if (rec.stage === 'egg') { $('tSub').textContent = 'Todavía no nace'; $('tlist').innerHTML = `<p class="eggmsg">Aún no hay nada aquí: las estadísticas aparecen cuando nazca.<br>${rec.readyAt > Date.now() ? 'Primero tiene que terminar de incubar.' : 'Vuelve a la página del monstruo y tócalo varias veces para abrirlo.'}</p>`; $('tinfo').textContent = ''; return; }
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
-  const free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = (show && show.rec === rec ? show : new Monster(rec)).st;
+  const mon = show && show.rec === rec ? show : new Monster(rec), free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = mon.st;
   let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div><span>${rec.wins}V ${rec.losses}D</span></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '') + `</div>`;
   h += `<div class="tsec"><div class="thead">Estadísticas <span class="pill ${free ? 'on' : ''}">${free} ${free === 1 ? 'punto' : 'puntos'} por gastar</span></div>`;
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
-      <div class="tl">${t.name} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
+      <div class="tl">${t.name}${statPerfect(mon.g, t.k) ? '<i class="pstar" title="Stat perfecto">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
       <button class="btn tbtn" data-pt="${t.k}" ${!free || n >= PTS_MAX ? 'disabled' : ''}>+1</button>
       <div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div>
       <div class="tdesc">${t.desc}</div></div>`; }).join('');
@@ -4197,7 +4223,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.42', d: '2026-11-21', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.', 'Las crías ahora también heredan los stats de sus papás: cada uno (Poder, Aguante, Agilidad y Técnica) sale de uno de los dos.', 'Nuevos genes de stats en la Tienda: elige qué stat heredará sí o sí su próxima cría.', 'La Tienda ahora tiene pestañas (Ultimates y Genes): desliza a los lados para cambiar.'] },
+  { v: '1.42', d: '2026-11-21', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.', 'Las crías ahora también heredan los stats de sus papás: cada uno (Poder, Aguante, Agilidad y Técnica) sale de uno de los dos.', 'Nuevos genes de stats en la Tienda: elige qué stat heredará sí o sí su próxima cría.', 'La Tienda ahora tiene pestañas (Ultimates y Genes): desliza a los lados para cambiar.', 'Si un monstruo tiene un stat perfecto (entre el 1% mejor de su etapa), sale una estrellita dorada al lado en Estadísticas.'] },
   { v: '1.41', d: '2026-11-21', items: ['Arreglado: al tocar una cama libre, el menú a veces se abría y se cerraba al instante.', 'La zona para tocar una cama libre del granero es más grande (también el espacio sobre la cama), y tocar la paja o la madera de una cama ocupada también elige al monstruo o abre el huevo.', 'Comprar huevos, criar y el criadero ahora están en las camas libres del granero: toca una cama libre y elige qué hacer (o trae a un monstruo del rancho). El huevo queda en esa cama y lo abres ahí mismo a toques.', 'Para criar puedes elegir padres del rancho y del granero.', 'En el rancho ya no hay huevos ni espacios libres para comprar: al deslizar de cerca pasas sólo por tus monstruos, y los huevos que tenías en el rancho se fueron a camas del granero.'] },
   { v: '1.40', d: '2026-11-20', items: ['En el granero, si estás viendo de cerca a un monstruo, los que van entrando a sus camas o saliendo al rancho siguen caminando (ya no se detienen).', 'Al tocar el granero entras directo, y con «▲ Rancho» sales directo, sin animación.', 'En el granero, los monstruos que entran o salen por la puerta aparecen y desaparecen poco a poco.', 'Si lanzas a un monstruo hacia un lado en el rancho, cae donde lo lanzaste; en el granero, si lo sueltas sin lanzarlo, se vuelve a sentar en su cama.', 'Se quitó la ✕ del granero: para volver usa «▲ Rancho» o desliza el dedo hacia abajo.', 'Arreglado: ahora puedes lanzar varios monstruos seguidos desde el granero y todos salen caminando al rancho a la vez.', 'En el granero, arriba ahora dice «▲ Rancho» (en vez del contador del granero) y se toca para volver al rancho.', 'En el granero ya no hay botón «Guardar uno»: toca una cama libre y elige a un monstruo del rancho. Entra por la puerta, camina hasta esa cama y se sienta.', 'Al abrir el juego y al volver del granero, el rancho se ve mirando hacia el granero, que queda al centro.', 'En el granero, el nombre del monstruo de la cama del medio ahora aparece arriba.', 'Arreglado: si tenías a todos tus monstruos en el granero (rancho vacío), al abrir el juego la partida empezaba de cero. Ahora se carga bien, y si alguna vez la partida empieza de cero pero hay una copia guardada con más monstruos, el juego te ofrece recuperarla.', 'Arreglado: la primera ventana del granero ya no se monta sobre la puerta.', 'Los pies de los monstruos quedan un poco más abajo y la pierna ya no se asoma por debajo del pie.', 'Si sales del granero antes de que el monstruo que mandaste al rancho llegue a la puerta, ya está en el rancho.', 'Los monstruos que salen del granero aparecen poco a poco en el rancho, entrando por el camino junto a la reja.', 'Ya se pueden guardar todos los monstruos en el granero: el rancho puede quedar vacío.', 'En el granero, tocar a un monstruo lo selecciona igual que en el rancho: la cámara se acerca a su cama con la misma vista de cerca (tocarlo, acariciarlo, tomarlo, ver sus estadísticas y deslizar a los lados para ver al siguiente). Arriba dice «▲ Granero» y al volver regresas al granero.', 'Para mandar un monstruo del granero al rancho, lánzalo: la cámara vuelve al granero, él baja como en el rancho y medio segundo después de caer camina hasta la puerta, a la misma velocidad con que caminan en el rancho, y sale. Se quitó el botón «Sacar al rancho».', 'En el granero cada monstruo tiene su cama: cuando uno se va, los demás se quedan en la suya.', 'Las ventanas del granero muestran el mismo cielo del rancho a esa hora (día, amanecer, atardecer o noche).', 'En el granero hay 1 ventana por cada 3 faroles.'] },
   { v: '1.39', d: '2026-11-20', items: ['En el granero, desliza el dedo hacia abajo o toca «Rancho ▼» para volver al rancho.', 'Dentro del granero hay faroles encendidos y ventanas: por ellas se ve si afuera es de día o de noche, pero adentro siempre está iluminado. De día duermen unos 3 de cada 10 monstruos y de noche unos 7 de cada 10.', 'De noche el granero tiene luz: la ventana y la puerta se iluminan y hay un farol sobre la puerta.', 'Se quitaron los árboles que estaban detrás de la cerca.', 'Arreglado: al girar la vista, el extremo cercano del camino ya no muestra esquinas.', 'Nuevo camino de tierra con dos curvas suaves que va desde donde estás hasta el granero.', 'Arreglado: en el rancho, para elegir a un monstruo hay que tocar su cuerpo; tocar debajo de uno que va por el aire (por ejemplo, frente al granero) ya no lo elige.', 'El rancho ahora tiene siempre 8 espacios.', 'Nuevo granero: tócalo en el rancho para entrar. Adentro tus monstruos guardados descansan sentados en camas de paja y los vas viendo deslizando a los lados. Caben 10; puedes guardar uno del rancho o sacarlo al rancho. Sólo pelean los que están en el rancho.', 'Ya no hay límite de un huevo al día: puedes comprar todos los que quieras.', 'Nuevo Criadero en los espacios libres del rancho, con especímenes adultos disponibles.', 'Puedes comprar el huevo de cualquiera de ellos por 100 monedas: nace igual a él y crece hasta verse como en el Criadero.'] },
