@@ -4260,6 +4260,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.48', d: '2026-11-22', items: ['En Online, los botones Intercambio, Crear sala y Unirme son dorados.'] },
   { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
   { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
@@ -5354,7 +5355,7 @@ function lanUI(st, data) {
   btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Online';
   if (st === 'menu') { // sólo los botones (pedido del dueño)
     info.innerHTML = '';
-    btns.append(B('🔄 Intercambio', () => lanHost('trade')), B('Crear sala', () => lanHost('fight'), 'primary'), B('Unirme', () => lanUI('join')), B('Cerrar', () => $('lan').classList.remove('on')));
+    btns.append(B('🔄 Intercambio', () => lanHost('trade'), 'primary'), B('Crear sala', () => lanHost('fight'), 'primary'), B('Unirme', () => lanUI('join'), 'primary'), B('Cerrar', () => $('lan').classList.remove('on')));
   }
   else if (st === 'troom') { info.innerHTML = `<span class="roomcode">${LAN.room}</span>`; btns.append(back); }
   else if (st === 'trade' || st === 'tpick') lanTradeUI(st, info, list, btns, B, quit);
