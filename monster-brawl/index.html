@@ -299,7 +299,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
     <div class="row fightrow">
-      <button class="btn" id="btnLan">🌐 Pelea online</button>
+      <button class="btn" id="btnLan">🌐 Online</button>
     </div>
     <div class="row fightrow">
       <button class="btn primary" data-mode="1v1">1 vs 1</button>
@@ -352,7 +352,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 
 <div class="modal" id="lan">
   <div class="card lancard">
-    <h2 style="font-size:22px" id="lanTitle">Pelea online</h2>
+    <h2 style="font-size:22px" id="lanTitle">Online</h2>
     <p id="lanInfo"></p>
     <input class="setin roomin" id="lanCode" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" hidden>
     <div class="lanlist" id="lanList"></div>
@@ -1077,7 +1077,8 @@ const TEMPER = [
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
-const MOOD_PET = 2, MOOD_POKE = -3, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
+const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = -5, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
+function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6), d = rec.mood - 50; return 50 + Math.sign(d) * Math.max(0, Math.abs(d) - MOOD_DECAY_H * h); } // vuelve despacio a 50
 const treatLast = new WeakMap();
 function treat(rec, kind) { // kind: 'pet' o 'poke' (tomarlo o lanzarlo no cambia nada)
@@ -4259,7 +4260,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Pelea online» y muestra sólo los botones.', 'Nuevo: 🔄 Intercambio. En «Pelea online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
+  { v: '1.47', d: '2026-11-22', items: ['«Pelea con amigos» ahora se llama «Online» y muestra sólo los botones.', 'Perder una pelea le baja el ánimo a tu monstruo (y con poco ánimo pelea un poco peor).', 'Nuevo: 🔄 Intercambio. En «Online», toca «Intercambio» y pásale el código a un amigo; él toca «Unirme» y lo escribe. Cada uno elige un monstruo (del rancho o del granero) y, cuando los dos aceptan, se los cambian.'] },
   { v: '1.46', d: '2026-11-22', items: ['Arreglado: en iPhone, la ventana de Novedades quedaba más alta que la pantalla y no se veía la ✕ para cerrarla.', 'Arreglado: en iPhone, con la app instalada, la pantalla (también la arena) no llegaba hasta abajo.'] },
   { v: '1.45', d: '2026-11-22', items: ['La pelea local ahora es «Pelea con amigos» y funciona por internet: uno toca «Crear sala» y le aparece un código de 4 letras; los demás tocan «Unirme» y lo escriben. Ya no hace falta estar en el mismo WiFi ni escanear códigos QR.'] },
   { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes entrar con tu cuenta de Google, o crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
@@ -4928,6 +4929,7 @@ function finishBattle() {
     const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
     rec.xp += xp; save.coins += coins;
     place === 1 ? rec.wins++ : rec.losses++;
+    if (place !== 1) moodAdd(rec, MOOD_LOSE); // perder la pelea le baja el ánimo (pedido del dueño)
     // vidas: sólo se pierde una si lo noquearon (el resultado sólo muestra XP y monedas, pedido del dueño)
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
@@ -5349,7 +5351,7 @@ function lanUI(st, data) {
   const host = LAN.role === 'host', linked = lanLinked();
   const quit = () => { lanSend({ t: 'bye' }); lanClose(); $('lan').classList.remove('on'); };
   const back = B('Cancelar', quit);
-  btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Pelea online';
+  btns.classList.toggle('col', st === 'menu'); $('lanTitle').textContent = LAN.kind === 'trade' && st !== 'menu' && st !== 'join' ? 'Intercambio' : 'Online';
   if (st === 'menu') { // sólo los botones (pedido del dueño)
     info.innerHTML = '';
     btns.append(B('Crear sala', () => lanHost('fight'), 'primary'), B('🔄 Intercambio', () => lanHost('trade')), B('Unirme', () => lanUI('join')), B('Cerrar', () => $('lan').classList.remove('on')));
