@@ -198,7 +198,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .newsv ul{margin:0;padding-left:18px;font-size:13px;line-height:1.35}.newsv li{margin:3px 0}
 .setitem{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:14px}
 .setitem small{font-size:11px;font-weight:600;color:var(--muted)}
-#setInfo:empty{display:none}#setInfo{color:var(--good)}
+
 .setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
 .frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
@@ -389,7 +389,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="main">
       <h2 style="font-size:22px">Menú</h2>
       <button class="btn setitem" data-go="friends"><span>👥 Amigos</span><small id="frState"></small></button>
-      <button class="btn setitem" data-go="partida"><span>💾 Partida</span><span>›</span></button>
+      <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
       <button class="btn" data-close>Cerrar</button>
     </div>
     <div class="setview" data-view="friends" hidden>
@@ -407,21 +407,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn primary" id="fdFight">⚔️ Invitar a pelear</button>
       <button class="btn" id="fdRemove">Quitar amigo</button>
       <button class="btn" data-go="friends">‹ Volver</button>
-    </div>
-    <div class="setview" data-view="partida" hidden>
-      <h2 style="font-size:22px">Partida</h2>
-      <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
-      <button class="btn setitem" id="btnExport"><span>📤 Exportar</span><small>copia el código</small></button>
-      <button class="btn setitem" data-go="import"><span>📥 Importar</span><span>›</span></button>
-      <button class="btn setitem" id="btnUndoImp" hidden><span>↩️ Deshacer la última importación</span></button>
-      <p class="tdesc" id="setInfo"></p>
-      <button class="btn" data-go="main">‹ Volver</button>
-    </div>
-    <div class="setview" data-view="import" hidden>
-      <h2 style="font-size:22px">Importar partida</h2>
-      <p class="tdesc">Pega el código que exportaste. Reemplaza la partida de aquí; antes se guarda un respaldo para poder deshacerlo.</p>
-      <textarea id="impCode" placeholder="Pega aquí el código" autocomplete="off" spellcheck="false"></textarea>
-      <div class="row"><button class="btn" data-go="partida">‹ Volver</button><button class="btn primary" id="btnImport">Importar</button></div>
     </div>
     <div class="setview" data-view="cloud" hidden>
       <h2 style="font-size:22px">Nube</h2>
@@ -441,13 +426,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
         <button class="btn setitem" id="cLogout"><span>Cerrar sesión</span></button>
       </div>
       <p class="tdesc" id="cloudMsg"></p>
-      <button class="btn" data-go="partida">‹ Volver</button>
-    </div>
-    <div class="setview" data-view="code" hidden>
-      <h2 style="font-size:22px">Tu código</h2>
-      <p class="tdesc">No se pudo copiar solo: mantén presionado el código, elige «Seleccionar todo» y luego «Copiar».</p>
-      <textarea id="expCode" readonly></textarea>
-      <button class="btn" data-go="partida">‹ Volver</button>
+      <button class="btn" data-go="main">‹ Volver</button>
     </div>
   </div>
 </div>
@@ -4733,16 +4712,10 @@ setInterval(saveCopy, COPY_EVERY_MS);
 document.addEventListener('visibilitychange', () => { if (document.hidden) { saveCopy(); greetHidAt = Date.now(); } else if (greetHidAt && Date.now() - greetHidAt > 5 * 60e3) ranchGreetAll(); }); // al volver tras 5 min, te saludan
 let greetHidAt = 0;
 setTimeout(ranchGreetAll, 700); // al entrar a la app
-const encodeSave = json => 'MB1-' + btoa(unescape(encodeURIComponent(json)));
-function decodeSave(code) {
-  const c = (code || '').replace(/\s+/g, ''); if (!c.startsWith('MB1-')) return null;
-  try { const o = JSON.parse(decodeURIComponent(escape(atob(c.slice(4))))); return o && Array.isArray(o.monsters) ? o : null; } catch (e) { return null; }
-}
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
-// Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.'] },
+  { v: '1.56', d: '2026-11-22', items: ['El ánimo ahora se llama «Moral».', 'La barra de moral se ve arriba, bajo el nombre, al seleccionar un monstruo (ya no está en Estadísticas).', 'Se quitó todo lo que quedaba de los códigos QR: el juego pesa menos y carga más rápido.', 'En el perfil de tus amigos se ven sus victorias, derrotas y su racha de victorias más larga, de la cuenta y de cada monstruo. Las rachas se empiezan a contar desde esta versión.', 'Se quitaron Exportar e Importar: la partida se guarda sólo con la Nube. «Nube» ahora está directo en el Menú.'] },
   { v: '1.55', d: '2026-11-22', items: ['«Ajustes» ahora se llama «Menú».', 'Amigos (en el Menú): agrégalos con su nombre de usuario. Un puntito verde indica si están jugando y dice si están en el rancho o en combate. Al tocar a un amigo ves los monstruos de su rancho, y al tocar uno ves sus estadísticas.', 'Invitar a pelear: desde un amigo en línea; a él le aparece un aviso y, si acepta, entra directo a tu sala sin escribir el código.'] },
   { v: '1.54', d: '2026-11-22', items: ['El ánimo baja con el tiempo de a 1 punto por hora en el rancho y de a 2 en el granero.'] },
   { v: '1.53', d: '2026-11-22', items: ['Se quitó la táctica «En equipo»: ahora son 5 tácticas de combate.', 'Ya no se regala una ultimate al crecer: se compran en la Tienda, que las desbloquea cuando tienes tu primer monstruo adolescente (con un aviso). La que compres se equipa sola a los monstruos que no tenían ninguna. Las que ya tenían tus monstruos se quedan.', 'Cada ultimate tiene su ícono. En Estadísticas hay una sola ranura con el ícono de la ultimate del monstruo: al tocarla se abre una ventana con todas tus ultimates compradas y eliges cuál ponerle.'] },
@@ -4820,45 +4793,16 @@ function renderNews(count) {
 }
 function setView(v) {
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
-  if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
-  if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
-  if (v === 'partida' || v === 'cloud') cloudUI();
+  if (v === 'main' || v === 'cloud') cloudUI(); // (exportar e importar se quitaron: sólo la Nube, pedido del dueño)
   if (v === 'cloud') gisButton();
   if (v === 'friends') { $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
   if (v === 'friend') friendView();
 }
-function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); if (cloud && save.user) friendsRefresh(); }
+function openSettings() { setView('main'); $('settings').classList.add('on'); if (cloud && save.user) friendsRefresh(); }
 $('btnSettings').onclick = openSettings;
-document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => { $('setInfo').textContent = ''; setView(b.dataset.go); });
+document.querySelectorAll('#settings [data-go]').forEach(b => b.onclick = () => setView(b.dataset.go));
 document.querySelectorAll('#settings [data-close]').forEach(b => b.onclick = () => $('settings').classList.remove('on'));
-$('expCode').onfocus = () => $('expCode').select();
-async function copyText(txt) {
-  try { await navigator.clipboard.writeText(txt); return true; } catch (e) { }
-  try { // respaldo para cuando el portapapeles no está permitido (por ejemplo, dentro de claude.ai)
-    const ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
-    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, txt.length); const ok = document.execCommand('copy'); ta.remove(); return ok;
-  } catch (e) { return false; }
-}
-$('btnExport').onclick = async () => {
-  const code = encodeSave(saveCopy().data);
-  if (await copyText(code)) $('setInfo').textContent = '¡Código copiado! Pégalo en Ajustes → Partida → Importar en el otro lugar.';
-  else { $('expCode').value = code; setView('code'); }
-};
 function applyImport(json, fromCloud) { if (cloud && !fromCloud) { cloud.dirty = true; cloudSave(); } /* lo importado se sube a la nube */ importing = true; lsSet(SAVE_KEY, json); location.reload(); }
-$('btnImport').onclick = async () => {
-  const o = decodeSave($('impCode').value);
-  if (!o) { ask('Ese código no sirve. Revisa que lo hayas copiado completo (empieza con MB1-).', { ok: 'Entendido', cancel: null }); return; }
-  $('settings').classList.remove('on');
-  if (!await ask(`¿Reemplazar esta partida (${saveSummary(save)}) por la del código (${saveSummary(o)})? Se guarda un respaldo por si quieres deshacerlo.`, { ok: 'Importar' })) { $('settings').classList.add('on'); return; }
-  lsSet(UNDO_KEY, JSON.stringify(save)); applyImport(JSON.stringify(o));
-};
-$('btnUndoImp').onclick = async () => {
-  const u = lsGet(UNDO_KEY); let o = null; try { o = JSON.parse(u); } catch (e) { }
-  if (!o || !Array.isArray(o.monsters)) { lsSet(UNDO_KEY, null); $('btnUndoImp').hidden = true; return; }
-  $('settings').classList.remove('on');
-  if (!await ask(`¿Volver a la partida que tenías antes de importar (${saveSummary(o)})?`, { ok: 'Deshacer' })) { $('settings').classList.add('on'); return; }
-  lsSet(UNDO_KEY, null); applyImport(u);
-};
 
 // ---------- Nube (Firebase, pedido del dueño): cuenta con correo y contraseña; la partida se sube sola ----------
 // Sin bibliotecas: se usan las direcciones web de Firebase (Authentication + Firestore, documento saves/{uid} = {data, t, n}).
@@ -5061,7 +5005,7 @@ const placeText = p => !p ? 'sin datos todavía' : isOnline(p) ? (p.st === 'batt
 const FR = { profs: {}, sel: null, timer: 0 };
 function friendsView() { // lista de amigos con su puntito
   const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
-  $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Partida → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Partida → Nube).' : (save.friends || []).length ? '' : 'Agrega a tus amigos con su nombre de usuario.';
+  $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Nube).' : (save.friends || []).length ? '' : 'Agrega a tus amigos con su nombre de usuario.';
   L.innerHTML = ok ? (save.friends || []).map(f => { const p = FR.profs[f.uid]; return `<button class="btn fritem" data-fr="${f.uid}"><i class="frdot ${isOnline(p) ? 'on' : ''}"></i><span>${esc((p && p.name) || f.name)}<br><small>${placeText(p)}</small></span><span>›</span></button>`; }).join('') : '';
   L.querySelectorAll('[data-fr]').forEach(b => b.onclick = () => { FR.sel = b.dataset.fr; setView('friend'); });
 }
