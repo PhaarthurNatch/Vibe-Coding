@@ -241,7 +241,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .axis{display:grid;grid-template-columns:76px 1fr 76px;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
 .axis span:last-child{text-align:right}
 .axis b{color:var(--text)}
-.axslide{position:relative;padding:10px 0 2px} /* personalidad: sólo se ve; cambia de a poco con el trato (pedido del dueño) */
+.axslide{position:relative;padding:10px 0 2px;touch-action:none;cursor:pointer} /* táctica: se desliza y queda en uno de los números */
+.axslide.drag .axtrack i{transition:none;transform:translate(-50%,-50%) scale(1.15)}
+.tact{margin:6px 0 4px}.tname{font-size:12px;font-weight:800;color:var(--text);margin-bottom:-4px}
 .trait{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);line-height:1.4}.trait b{color:var(--text);font-size:14px}
 .mood{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;font-size:13px;font-weight:700}.mood b{font-variant-numeric:tabular-nums;font-size:13px}
 .axtrack{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,rgba(90,169,255,.35),rgba(255,255,255,.12),rgba(255,122,90,.35))}
@@ -1202,16 +1204,20 @@ function bodyFromTraining(g, pts) {
   return c;
 }
 
-// ----- Personalidad: 3 ejes de -1 a 1 -----
+// ----- Tácticas de combate (antes «personalidad»; pedido del dueño: se eligen en Estadísticas): ejes de -1 a 1; tn = nombre de la táctica, tl/tr = lado izquierdo (negativo) / derecho (positivo) -----
 const TEMPER = [
-  { k: 'agr', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' , posL: 'Se lanza a pelear cuerpo a cuerpo, persigue a su rival y casi nunca retrocede.', negL: 'Prefiere pelear de lejos: mantiene la distancia, dispara más y se aleja después de golpear.' },
-  { k: 'terco', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Elige a un rival y no lo suelta hasta noquearlo, aunque haya otros más fáciles.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
-  { k: 'valor', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' , posL: 'Cuando le queda poca vida no se rinde: pelea con más fuerza y tarda más en asustarse.', negL: 'Cuando le queda poca vida se cuida: se aleja del peligro y esquiva más.' },
+  { k: 'agr', tn: 'Distancia', tl: 'De lejos', tr: 'De cerca', pos: 'Agresivo', neg: 'Cauto', posD: 'busca el cuerpo a cuerpo y no retrocede', negD: 'mantiene distancia y se aleja tras golpear' , posL: 'Se lanza a pelear cuerpo a cuerpo, persigue a su rival y casi nunca retrocede.', negL: 'Prefiere pelear de lejos: mantiene la distancia, dispara más y se aleja después de golpear.' },
+  { k: 'terco', tn: 'Objetivo', tl: 'Al más débil', tr: 'No lo suelta', pos: 'Terco', neg: 'Oportunista', posD: 'no suelta a su objetivo', negD: 'va por el más débil o el distraído y lo remata con más fuerza' , posL: 'Elige a un rival y no lo suelta hasta noquearlo, aunque haya otros más fáciles.', negL: 'Busca al rival más débil o distraído y aprovecha para rematarlo con más fuerza.' },
+  { k: 'valor', tn: 'Con poca vida', tl: 'Se cuida', tr: 'Con todo', pos: 'Valiente', neg: 'Prudente', posD: 'con poca vida pelea más fuerte', negD: 'con poca vida se aleja y esquiva más' , posL: 'Cuando le queda poca vida no se rinde: pelea con más fuerza y tarda más en asustarse.', negL: 'Cuando le queda poca vida se cuida: se aleja del peligro y esquiva más.' },
+  { k: 'ritmo', tn: 'Ritmo de ataque', tl: 'Golpes fuertes', tr: 'Golpes rápidos', pos: 'Rápido', neg: 'Fuerte' }, // nuevas (pedido del dueño)
+  { k: 'def', tn: 'Defensa', tl: 'Aguantar', tr: 'Esquivar', pos: 'Esquivador', neg: 'Aguantador' },
+  { k: 'team', tn: 'En equipo', tl: 'Separados', tr: 'Juntos', pos: 'Juntos', neg: 'Separados' },
 ];
 // La personalidad (−1 a 1) cambia de a poco según cómo lo tratas (treat); snapT redondea a los 5 puntos 2 · 1 · 0 · 1 · 2 para mostrarla
 const TEMPER_STEP = 0.5, snapT = v => clamp(Math.round((v || 0) / TEMPER_STEP) * TEMPER_STEP, -1, 1);
 const ULT_MODES = { ready: { name: 'Apenas pueda', desc: 'la usa en cuanto lleva 3 golpes en la pelea' }, finisher: { name: 'Como remate', desc: 'la guarda para cuando su objetivo tiene poca vida' }, save: { name: 'Para salvarse', desc: 'la usa cuando él tiene poca vida' } };
 /* Trato (pedido del dueño): caricias y golpes cambian de a poco el ánimo (0–100, pelea mejor o peor) y la personalidad */
+const TAC = { cd: 0.2, fastDmg: 0.06, strongDmg: 0.075, dodgeUp: 0.3, dodgeDown: 0.3, armorDown: 4, armorUp: 7, team: 2, teamUp: 0.8 }; // tácticas nuevas: ritmo (esperas vs daño), defensa (esquiva vs defensa), en equipo (mismo objetivo que el compañero o no)
 const MOOD_PET = 2, MOOD_POKE = -3, MOOD_LOSE = MOOD_POKE, MOOD_WIN = 3, MOOD_DECAY_H = 2, MOOD_FX = 0.08, TREAT_GAP_MS = 2000, TEMPER_DRIFT = 0.03;
 function moodAdd(rec, d) { rec.mood = clamp(moodOf(rec) + d, 0, 100); rec.moodT = Date.now(); }
 function moodOf(rec) { if (!rec || rec.mood == null) return 50; const h = Math.max(0, (Date.now() - (rec.moodT || Date.now())) / 3.6e6), d = rec.mood - 50; return 50 + Math.sign(d) * Math.max(0, Math.abs(d) - MOOD_DECAY_H * h); } // vuelve despacio a 50
@@ -1221,12 +1227,10 @@ function treat(rec, kind) { // kind: 'pet' o 'poke' (tomarlo o lanzarlo no cambi
   const now = Date.now(), last = treatLast.get(rec) || {}; if (now - (last[kind] || 0) < TREAT_GAP_MS) return; // cuenta como mucho una cada 2 s
   last[kind] = now; treatLast.set(rec, last);
   rec.mood = clamp(moodOf(rec) + (kind === 'pet' ? MOOD_PET : MOOD_POKE), 0, 100); rec.moodT = now;
-  const T = rec.temper || (rec.temper = { agr: 0, terco: 0, valor: 0 }), mv = (k, d) => { T[k] = clamp((T[k] || 0) + d, -1, 1); };
-  const d = kind === 'pet' ? TEMPER_DRIFT : -TEMPER_DRIFT; // caricia: más valiente, oportunista y agresivo; golpe: al revés (prudente, terco y cauto)
-  mv('valor', d); mv('terco', -d); mv('agr', d);
+  /* las tácticas ya no cambian con el trato: se eligen en Estadísticas (pedido del dueño); el ánimo sí */
   persist();
 }
-function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: snapT(r.f(-0.3, 0.3)), terco: snapT(r.f(-0.3, 0.3)), valor: snapT(r.f(-0.3, 0.3)) }; }
+function randomTemper(seed) { const r = rng((seed ^ 0x7e3a91c5) >>> 0); return { agr: snapT(r.f(-0.3, 0.3)), terco: snapT(r.f(-0.3, 0.3)), valor: snapT(r.f(-0.3, 0.3)), ritmo: 0, def: 0, team: 0 }; }
 const temperLabel = (k, v) => { const t = TEMPER.find(x => x.k === k); return v > 0.25 ? t.pos : v < -0.25 ? t.neg : null; };
 
 function makeCols(P, fl) {
@@ -1370,6 +1374,9 @@ class Monster {
     this.damageFrom = new Map(); this.recentFrom = new Map(); this.kills = 0; this.commitT = 0; this.stunChain = 0; this.lastStun = -9; this.stunImmune = 0;
     this.meleeCd = Math.random() * 0.5; this.rangedCd = 0.6 + Math.random(); this.dodgeCd = 0;
     this.tp = rec.temper || randomTemper(rec.seed); this.ultMode = rec.ultMode || 'save';
+    { const rt = clamp(this.tp.ritmo || 0, -1, 1), df = clamp(this.tp.def || 0, -1, 1), S = this.st; // tácticas: ritmo de ataque y defensa
+      if (rt) { const cd = 1 - TAC.cd * rt, dm = 1 - (rt > 0 ? TAC.fastDmg : TAC.strongDmg) * rt; S.meleeCd *= cd; S.rangedCd *= cd; S.melee *= dm; S.ranged *= dm; } // rápidos: esperan menos y pegan algo menos; fuertes: al revés
+      if (df) { S.dodge = clamp(S.dodge * (1 + (df > 0 ? TAC.dodgeUp : TAC.dodgeDown) * df), 0.03, 0.6); S.defense = Math.max(0, S.defense - (df > 0 ? TAC.armorDown : TAC.armorUp) * df); } } // esquivar: más esquiva y menos defensa; aguantar: al revés
     { const f = (moodOf(rec) - 50) / 50; if (f) { this.st.melee *= 1 + MOOD_FX * f; this.st.ranged *= 1 + MOOD_FX * f; this.st.dodge = clamp(this.st.dodge + 0.03 * f, 0.05, 0.6); } } // ánimo: pelea mejor o peor (rivales siempre en 50)
     // estilo: el cuerpo dice si es mejor de lejos o de cerca, y su personalidad (Agresivo/Cauto) lo inclina
     const rp = this.st.ranged > 0 ? clamp(this.st.ranged / (this.st.melee * 0.6) - 1, -1, 1) : -2;
@@ -1693,7 +1700,7 @@ class Monster {
     const W = TGT_W;
     const angry = threat * (W.threat + W.threatAgr * agr) + onMe * W.onMe + grudge * (W.grudge + W.grudgeTerco * pos(terco));
     const opp = vuln * (W.vuln + W.vulnOpp * neg(terco)) + distr * (W.distr + W.distrOpp * neg(terco));
-    const sc = close * (W.close + W.closeAgr * agr) + angry + opp + team * W.team - crowd * W.crowd - shield * W.shield
+    const sc = close * (W.close + W.closeAgr * agr) + angry + opp + team * W.team * (1 + ((this.tp.team || 0) > 0 ? TAC.teamUp : TAC.team) * (this.tp.team || 0)) - crowd * W.crowd - shield * W.shield
       + (danger - 0.5) * (W.dangerValor * valor - W.dangerCauto * neg(agr));
     return { sc, angry, opp };
   }
@@ -4019,6 +4026,7 @@ document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => se
 let swipe = null, swipedAt = 0;
 function swipeStart(x, y, target) {
   if (scene !== 'home' || document.querySelector('.modal.on')) return;
+  if (target && target.closest && target.closest('.axslide')) { swipe = null; return; } // arrastrar un medidor de táctica no cambia de página ni de monstruo
   const sc = target && target.closest ? target.closest('.tpanel') : null;
   swipe = { x, y, t: performance.now(), touch: touch || (RANCH.drag && RANCH.drag.act ? RANCH.drag : null), top: !sc || sc.scrollTop <= 1, bot: !sc || sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 2 };
 }
@@ -4098,15 +4106,34 @@ function renderTrain() {
     }).join('')}</div>`;
     h += `</div>`;
   }
-  /* (sin sección de personalidad ni ánimo, pedido del dueño: ambos igual cambian con el trato y se notan al pelear) */
+  h += `<div class="tsec"><div class="thead">Tácticas de combate</div>`; // (el ánimo no se muestra, pedido del dueño)
+  const NUMS = [2, 1, 0, 1, 2];
+  h += TEMPER.map(t => { const v = snapT(rec.temper[t.k]); return `<div class="tact"><div class="tname">${t.tn}</div><div class="axis"><span>${v < -0.25 ? `<b>${t.tl}</b>` : t.tl}</span><div class="axslide" data-ax="${t.k}"><div class="axtrack">${NUMS.map((n, i) => `<u style="left:${i * 25}%"></u>`).join('')}<i style="left:${(v + 1) * 50}%"></i></div><div class="axnums">${NUMS.map((n, i) => `<span style="left:${i * 25}%" class="${Math.abs((v + 1) * 2 - i) < 0.01 ? 'on' : ''}">${n}</span>`).join('')}</div></div><span>${v > 0.25 ? `<b>${t.tr}</b>` : t.tr}</span></div></div>`; }).join('');
+  h += `</div>`;
   $('tlist').innerHTML = h;
   $('tinfo').textContent = ''; // las monedas ya se ven arriba
   document.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => addPoint(b.dataset.pt));
+  document.querySelectorAll('.axslide').forEach(el => temperSlider(el, rec));
   document.querySelectorAll('[data-ulteq]').forEach(b => b.onclick = () => { rec.ult = b.dataset.ulteq; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
     if (save.coins < RESPEC_COST) return;
     save.coins -= RESPEC_COST; rec.pts = {}; persist(); renderHome(); renderTrain();
+  };
+}
+// Medidor de táctica: se toca o arrastra y queda en el número más cercano; al soltar se guarda
+function temperSlider(el, rec) {
+  const k = el.dataset.ax, t = TEMPER.find(x => x.k === k), knob = el.querySelector('i'), nums = el.querySelectorAll('.axnums span');
+  let v = snapT(rec.temper[k]), id = null;
+  const at = x => { const r = el.querySelector('.axtrack').getBoundingClientRect(); return snapT(clamp((x - r.left) / r.width, 0, 1) * 2 - 1); };
+  const showV = () => { knob.style.left = (v + 1) * 50 + '%'; nums.forEach((n, i) => n.classList.toggle('on', Math.abs((v + 1) * 2 - i) < 0.01)); };
+  el.onpointerdown = e => { id = e.pointerId; try { el.setPointerCapture(id); } catch (err) { } el.classList.add('drag'); v = at(e.clientX); showV(); };
+  el.onpointermove = e => { if (e.pointerId !== id) return; const nv = at(e.clientX); if (nv !== v) { v = nv; showV(); try { navigator.vibrate && navigator.vibrate(8); } catch (err) { } } };
+  el.onpointerup = el.onpointercancel = e => {
+    if (e.pointerId !== id) return; id = null; el.classList.remove('drag');
+    if (v === snapT(rec.temper[k])) return;
+    rec.temper[k] = v; persist(); renderTrain();
+    trainFx(v > 0.25 ? t.tr : v < -0.25 ? t.tl : 'Equilibrado');
   };
 }
 function trainFx(label) {
@@ -4180,7 +4207,7 @@ function makeChild(A, B) {
   }
   delete A.geneLock; delete B.geneLock; // los genes se gastan en esta cría
   const mix = k => snapT((((A.temper || {})[k] || 0) + ((B.temper || {})[k] || 0)) / 2 + (Math.random() - 0.5) * 0.4);
-  rec.temper = { agr: mix('agr'), terco: mix('terco'), valor: mix('valor') };
+  rec.temper = Object.fromEntries(TEMPER.map(t => [t.k, mix(t.k)]));
   rec.parents = [A.name, B.name]; rec.parentSeeds = [A.seed, B.seed]; rec.lineage = Math.max(A.lineage || 1, B.lineage || 1) + 1;
   rec.ultGift = (Math.random() < 0.5 ? A : B).ult || null; // al despertar trae la ultimate de uno de sus padres
   return rec;
@@ -4650,6 +4677,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.52', d: '2026-11-22', items: ['Tácticas de combate: en Estadísticas eliges cómo pelea cada monstruo con 6 medidores: distancia (de lejos o de cerca), objetivo (al más débil o no lo suelta), con poca vida (se cuida o con todo), y tres nuevas: ritmo de ataque (golpes fuertes o rápidos), defensa (aguantar o esquivar) y en equipo (separados o juntos). Acariciar y golpear ya no las cambian, pero siguen subiendo y bajando el ánimo.'] },
   { v: '1.51', d: '2026-11-22', items: ['Nombre de usuario: al entrar a tu cuenta de la Nube creas uno (no se puede repetir entre jugadores). Se ve en Online sobre tu monstruo y se puede cambiar en Ajustes → Partida → Nube.'] },
   { v: '1.50', d: '2026-11-22', items: ['8 texturas nuevas para los monstruos que nazcan desde ahora: cristal, madera, lunares, magma, circuito, panal, escarcha y polvo de estrellas. Todas las texturas (y la piel lisa) salen con la misma probabilidad.', 'Se quitó la textura de burbujas: los monstruos que la tenían ahora tienen otra.', '5 cuerpos nuevos para los monstruos que nazcan desde ahora: centauro, slime (una gota grande), ave (con pico, alas y patas de garra), cangrejo (caparazón con pinzas levantadas) y pulpo (8 tentáculos por el suelo). Todos los cuerpos salen con la misma probabilidad.', 'Los monstruos que nazcan desde ahora pueden tener anatomías nuevas: cabezón, cuello largo, patas largas, brazos largos, rechoncho, larguirucho, cíclope de un ojo gigante, cola larga o cuernos enormes (a veces dos a la vez).', 'Y aún más anatomías, también para las demás partes: orejas enormes, alas gigantes, antenas larguísimas, ojos grandes o chiquititos, pies grandes, brazos forzudos, hombreras enormes, boca de oreja a oreja, cola gruesa, cabeza chiquita y panza grande.', 'Cuerpos no humanoides: algunos monstruos nuevos (más o menos 1 de cada 5) nacen como cuadrúpedos (cuatro patas, sin brazos y la cabeza baja), arañas (6 u 8 patas: dos adelante, dos atrás y el resto a los lados), medusas (flotan con tentáculos) o serpientes (cuerpo de muchos segmentos enrollado en el suelo que ondula de lado a lado al moverse, sin rebotar).', 'Ganar una pelea le sube el ánimo a tu monstruo (y perder se lo baja).', 'Las serpientes dan coletazos: levantan la cola despacio (los golpes no las detienen) y la barren a su alrededor, golpeando a todos los que alcance (pueden pegarle a varios a la vez).', 'Los alados que saltan lo hacen cuando su rival está lejos, para acercarse; los que flotan despegan cuando les llueven golpes y vuelan hacia atrás para alejarse.', 'Todo lo estético ahora se reparte parejo en los monstruos nuevos: cada combinación de colores, dibujo, textura (o piel lisa), anatomía (o ninguna) y tipo de cuerpo (humanoide incluido) tiene la misma chance.', 'Texturas: más o menos la mitad de los monstruos nuevos tienen escamas, pelo, slime (con gotitas), roca, placas de armadura, plumas, brillitos o burbujas.', '22 combinaciones de colores nuevas: arrecife, selva, desierto, aurora, pavo real, flamenco, panda, tigre, sakura, chocolate, caramelo de maíz, ciberneón, oro, cromo, rubí, esmeralda, zafiro, amatista, fantasma, calabaza, menta con chocolate y slime.', 'Más partes nuevas: alas mecánicas, de hueso y de nubes; cabezas de campana, de escudo y de maní; cuerpos de hombros anchos y de escudo; pupilas triangulares, de cerradura y dobles; cuernos de unicornio, de sierra y tridente; antenas de rayo, pompón y esfera con anillo; orejas de hoja, de púas y de abanico; bocas de sonrisa enorme, de vampiro y cosida (las dos últimas conservan sus colmillos o su costura con cualquier expresión), trompa y tentáculos (que se mecen); manos de guante de boxeo, martillo y ventosas; pies de aleta, zancos y nubecitas; y colas con flecha, sol y hueso.', 'Formas nuevas: cabezas de rombo, estrella y ondulada; cuerpos de barril y de reloj de arena; manos de taladro y de burbujas; ruedas y patas de palo; colas con cascabel, media luna o gema; y antenas de ampolleta y de flor.'] },
   { v: '1.49', d: '2026-11-22', items: ['En las peleas Online, cada jugador toca «✓ Listo» y la pelea empieza sola cuando todos están listos.', 'En Online, la ventana al terminar la pelea muestra sólo «¡Ganaste!» o «Perdiste» y los botones.'] },
@@ -5095,7 +5123,7 @@ function makeFoe(ref) {
   const r = newRec(ref.stage); // los rivales siempre son de la versión más nueva
   r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
   r.pts = randomPts(r.level);
-  r.temper = { agr: snapT(Math.random() * 1.6 - 0.8), terco: snapT(Math.random() * 1.6 - 0.8), valor: snapT(Math.random() * 1.6 - 0.8) };
+  r.temper = Object.fromEntries(TEMPER.map(t => [t.k, snapT(Math.random() * 1.6 - 0.8)])); // rivales: tácticas al azar
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
   r.ult = ULT_KEYS[Math.floor(Math.random() * ULT_KEYS.length)];
   return new Monster(r);
