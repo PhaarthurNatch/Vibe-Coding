@@ -4734,7 +4734,10 @@ $('btnFree').onclick = async () => {
     if (m) { m.setEmo('sad', 999, 6); m.crying = true; m.vz = 90; }
     if (!await ask(`¿Liberar a ${r.name}? No vuelve.`, { ok: 'Liberar', low: true })) { if (m) { m.crying = false; m.setEmo('happy', 1.6, 7); m.vz = 230; } return; }
     if (m) await new Promise(res => setTimeout(res, 1300));
-    save.barn.splice(save.barn.indexOf(r), 1); persist(); setPage(1); barnExit(); barnBuild(); barnUI(true); return;
+    save.barn.splice(save.barn.indexOf(r), 1); persist(); BARN.ms[i] = null; // su cama queda libre (los demás no se mueven)
+    let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = (i + st) % BARN_MAX, it = BARN.ms[q]; if (it && it.m && !barnLeaving(it)) { j = q; break; } }
+    if (j != null) { const it = BARN.ms[j]; barnCtx.i = j; barnSelect(j); BARN.goto = null; it.m.sitting = false; it.settle = true; fx.parts = []; renderHome(); return; } // como en el rancho: se queda en Estadísticas con el siguiente del granero (pedido del dueño)
+    setPage(1); barnExit(); barnBuild(); barnUI(true); return;
   }
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
   const m = show; // el monstruo se pone triste (y llora) mientras decides
@@ -4762,7 +4765,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.'] },
+  { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.'] },
   { v: '1.62', d: '2026-11-22', items: ['Arreglado: a algunos bebés les salía un palo grueso hacia arriba. Era el cuello largo, que los bebés no deben tener porque son de una sola pieza.', 'Espectar: si un amigo está peleando, en su perfil el botón de invitar cambia a «👁️ Espectar su pelea» y puedes ver su pelea en vivo.', 'También se pueden espectar las peleas Online entre jugadores: en Amigos dice «En combate contra X» y al mirar se ve arriba quién pelea contra quién.'] },
   { v: '1.61', d: '2026-11-22', items: ['Ya no se muestra cuántos toques le faltan a un huevo para abrirse.', 'Los huevos criados y los del criadero también pueden traer un stat perfecto propio (la misma probabilidad que un huevo comprado), además de los que hereden de sus padres.'] },
   { v: '1.60', d: '2026-11-22', items: ['Al tocar una cama libre del granero, la ventana muestra tus monedas arriba a la derecha.'] },
