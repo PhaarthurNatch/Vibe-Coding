@@ -192,6 +192,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 #setInfo:empty{display:none}#setInfo{color:var(--good)}
 .setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
+.setin{font:inherit;font-size:16px;border-radius:12px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:12px;width:100%;user-select:text;-webkit-user-select:text}.setin:focus{outline:none;border-color:var(--acc)}
+.setlink{background:none;box-shadow:none;color:var(--muted);font-size:13px;padding:4px}
 .coins i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff1b8,#ffc93c 55%,#d99a1c);box-shadow:inset 0 0 0 2px #b9801a}
 .hearts,.nav .name .hearts{color:var(--bad);letter-spacing:1px}
 .rest{display:flex;align-items:center;justify-content:space-between;gap:10px;background:rgba(255,93,108,.13);border-radius:12px;padding:8px 8px 8px 12px;font-size:13px;line-height:1.35}
@@ -370,6 +372,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     </div>
     <div class="setview" data-view="partida" hidden>
       <h2 style="font-size:22px">Partida</h2>
+      <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
       <button class="btn setitem" id="btnExport"><span>📤 Exportar</span><small>copia el código</small></button>
       <button class="btn setitem" data-go="import"><span>📥 Importar</span><span>›</span></button>
       <button class="btn setitem" id="btnUndoImp" hidden><span>↩️ Deshacer la última importación</span></button>
@@ -381,6 +384,23 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <p class="tdesc">Pega el código que exportaste. Reemplaza la partida de aquí; antes se guarda un respaldo para poder deshacerlo.</p>
       <textarea id="impCode" placeholder="Pega aquí el código" autocomplete="off" spellcheck="false"></textarea>
       <div class="row"><button class="btn" data-go="partida">‹ Volver</button><button class="btn primary" id="btnImport">Importar</button></div>
+    </div>
+    <div class="setview" data-view="cloud" hidden>
+      <h2 style="font-size:22px">Nube</h2>
+      <div class="setview" id="cloudOut">
+        <p class="tdesc">Crea una cuenta para guardar tu partida en internet. Se guarda sola, y en otro celular puedes seguir jugando entrando con la misma cuenta.</p>
+        <input class="setin" id="cEmail" type="email" placeholder="Correo" autocomplete="email" autocapitalize="off" spellcheck="false">
+        <input class="setin" id="cPass" type="password" placeholder="Contraseña (mínimo 6 letras o números)" autocomplete="current-password">
+        <div class="row"><button class="btn" id="cSignup" style="flex:1">Crear cuenta</button><button class="btn primary" id="cLogin" style="flex:1">Entrar</button></div>
+        <button class="btn setlink" id="cForgot">Olvidé mi contraseña</button>
+      </div>
+      <div class="setview" id="cloudIn" hidden>
+        <p class="tdesc" id="cloudWho"></p>
+        <button class="btn setitem" id="cPush"><span>☁️ Guardar ahora</span><small id="cLast"></small></button>
+        <button class="btn setitem" id="cLogout"><span>Cerrar sesión</span></button>
+      </div>
+      <p class="tdesc" id="cloudMsg"></p>
+      <button class="btn" data-go="partida">‹ Volver</button>
     </div>
     <div class="setview" data-view="code" hidden>
       <h2 style="font-size:22px">Tu código</h2>
@@ -2748,7 +2768,7 @@ function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY)
   try { if (raw && raw.length > 40) localStorage.setItem(LOST_KEY, raw); } catch (e) { } // no se pudo leer: se guarda aparte para no perderla (se ofrece recuperarla)
   return { monsters: [newRec()], sel: 0, coins: 0, ults: [], slots: SLOTS_START, barn: [] }; } // partida nueva: empieza en Adoptar abriendo su primer huevo
 let importing = false; // mientras se importa una partida no se vuelve a guardar la anterior encima
-function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+function persist() { if (importing) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { } cloudMark(); }
 const xpNeed = l => 60 + l * 40;
 const save = loadSave(); persist();
 let barnCtx = null; // viendo de cerca un monstruo del granero ({ i: su cama }): la misma vista de cerca del rancho, con el granero de fondo
@@ -4221,6 +4241,7 @@ const saveSummary = o => { const n = saveCount(o); /* también cuenta los del gr
 // Menú de ajustes: Ajustes → Partida → Exportar (copia el código al tocar) / Importar (ventana para pegarlo)
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.44', d: '2026-11-22', items: ['Nuevo: guardar en la nube. En Ajustes → Partida → Nube puedes crear una cuenta con tu correo y una contraseña. Tu partida se guarda sola en internet, y en otro celular sigues jugando entrando con la misma cuenta.', 'Si la partida de la nube y la de tu celular no coinciden, el juego te pregunta cuál quieres usar.'] },
   { v: '1.43', d: '2026-11-22', items: ['Nuevo: Ánimo. Acariciar a tu monstruo le sube el ánimo y golpearlo se lo baja, de a poco. Con buen ánimo pelea mejor y con mal ánimo, peor. Con el tiempo vuelve solo al medio. No se muestra: se nota al pelear.', 'La personalidad ya no se muestra ni se cambia a mano: cambia de a poco según cómo lo tratas. Las caricias lo vuelven más valiente, oportunista y agresivo; los golpes, al revés: más prudente, terco y cauto.'] },
   { v: '1.42', d: '2026-11-22', items: ['Las partes del cuerpo ahora son sólo de adorno: ya no cambian los stats.', 'Los stats de cada monstruo salen al azar al nacer, y cada vez que crece a otra etapa gana un poco más, también al azar. Tus monstruos actuales tienen stats nuevos.', 'Al despertar (Awakened) también ganan stats al azar.', 'Las crías ahora también heredan los stats de sus papás: cada uno (Poder, Aguante, Agilidad y Técnica) sale de uno de los dos.', 'Nuevos genes de stats en la Tienda: elige qué stat heredará sí o sí su próxima cría.', 'La Tienda ahora tiene pestañas (Ultimates y Genes): desliza a los lados para cambiar.', 'Stats perfectos: algunos monstruos nacen con un stat perfecto (1 de cada 100 en cada stat) y lo mantienen perfecto en todas las etapas. Se ve con una estrellita dorada al lado en Estadísticas.'] },
   { v: '1.41', d: '2026-11-21', items: ['Arreglado: al tocar una cama libre, el menú a veces se abría y se cerraba al instante.', 'La zona para tocar una cama libre del granero es más grande (también el espacio sobre la cama), y tocar la paja o la madera de una cama ocupada también elige al monstruo o abre el huevo.', 'Comprar huevos, criar y el criadero ahora están en las camas libres del granero: toca una cama libre y elige qué hacer (o trae a un monstruo del rancho). El huevo queda en esa cama y lo abres ahí mismo a toques.', 'Para criar puedes elegir padres del rancho y del granero.', 'En el rancho ya no hay huevos ni espacios libres para comprar: al deslizar de cerca pasas sólo por tus monstruos, y los huevos que tenías en el rancho se fueron a camas del granero.'] },
@@ -4288,6 +4309,7 @@ function setView(v) {
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
   if (v === 'partida') $('btnUndoImp').hidden = !lsGet(UNDO_KEY);
   if (v === 'import') { $('impCode').value = ''; setTimeout(() => $('impCode').focus(), 50); }
+  if (v === 'partida' || v === 'cloud') cloudUI();
 }
 function openSettings() { $('setInfo').textContent = ''; setView('main'); $('settings').classList.add('on'); }
 $('btnSettings').onclick = openSettings;
@@ -4306,7 +4328,7 @@ $('btnExport').onclick = async () => {
   if (await copyText(code)) $('setInfo').textContent = '¡Código copiado! Pégalo en Ajustes → Partida → Importar en el otro lugar.';
   else { $('expCode').value = code; setView('code'); }
 };
-function applyImport(json) { importing = true; lsSet(SAVE_KEY, json); location.reload(); }
+function applyImport(json, fromCloud) { if (cloud && !fromCloud) { cloud.dirty = true; cloudSave(); } /* lo importado se sube a la nube */ importing = true; lsSet(SAVE_KEY, json); location.reload(); }
 $('btnImport').onclick = async () => {
   const o = decodeSave($('impCode').value);
   if (!o) { ask('Ese código no sirve. Revisa que lo hayas copiado completo (empieza con MB1-).', { ok: 'Entendido', cancel: null }); return; }
@@ -4321,6 +4343,119 @@ $('btnUndoImp').onclick = async () => {
   if (!await ask(`¿Volver a la partida que tenías antes de importar (${saveSummary(o)})?`, { ok: 'Deshacer' })) { $('settings').classList.add('on'); return; }
   lsSet(UNDO_KEY, null); applyImport(u);
 };
+
+// ---------- Nube (Firebase, pedido del dueño): cuenta con correo y contraseña; la partida se sube sola ----------
+// Sin bibliotecas: se usan las direcciones web de Firebase (Authentication + Firestore, documento saves/{uid} = {data, t, n}).
+// La sesión va aparte de la partida (CLOUD_KEY): {email, uid, rt, tok, exp, syncT (t de la versión de la nube en que se basa esta), dirty (cambios sin subir), last}.
+const FB = { key: 'AIzaSyBW0J1OGqbiwqdXdHugQ2R1Jq17Ryk-wqU', pid: 'monster-brawl-db197' };
+const CLOUD_KEY = 'monster_brawl_cloud', CLOUD_PUSH_MS = 4000;
+var cloud = (() => { try { return JSON.parse(lsGet(CLOUD_KEY) || 'null'); } catch (e) { return null; } })(), cloudReady = false, cloudBusy = false, cloudTimer = 0, cloudHidAt = 0;
+function cloudSave() { lsSet(CLOUD_KEY, cloud ? JSON.stringify(cloud) : null); }
+const FB_ERR = { EMAIL_EXISTS: 'Ya hay una cuenta con ese correo: toca «Entrar».', EMAIL_NOT_FOUND: 'No hay una cuenta con ese correo: toca «Crear cuenta».', INVALID_PASSWORD: 'La contraseña no es correcta.',
+  INVALID_LOGIN_CREDENTIALS: 'El correo o la contraseña no son correctos.', INVALID_EMAIL: 'Ese correo no es válido.', MISSING_PASSWORD: 'Escribe una contraseña.', MISSING_EMAIL: 'Escribe tu correo.',
+  WEAK_PASSWORD: 'La contraseña debe tener al menos 6 letras o números.', TOO_MANY_ATTEMPTS_TRY_LATER: 'Demasiados intentos: espera un rato y vuelve a probar.', USER_DISABLED: 'Esta cuenta está desactivada.', OPERATION_NOT_ALLOWED: 'La nube todavía no está lista (falta activar el correo en Firebase).' };
+const NET_ERR = 'No se pudo conectar. Revisa tu internet.';
+async function fbAuth(path, body) {
+  let r; try { r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${path}?key=${FB.key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) { throw new Error(NET_ERR); }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const c = ((j.error && j.error.message) || '').split(/[ :]/)[0]; throw new Error(FB_ERR[c] || NET_ERR); }
+  return j;
+}
+async function cloudToken() {
+  if (cloud.tok && Date.now() < cloud.exp - 60e3) return cloud.tok;
+  const r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FB.key}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(cloud.rt) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(r.status === 400 ? 'Tu sesión venció: vuelve a entrar.' : NET_ERR);
+  cloud.tok = j.id_token; cloud.rt = j.refresh_token || cloud.rt; cloud.exp = Date.now() + (+j.expires_in || 3600) * 1000; cloudSave(); return cloud.tok;
+}
+const fsUrl = () => `https://firestore.googleapis.com/v1/projects/${FB.pid}/databases/(default)/documents/saves/${cloud.uid}`;
+async function cloudGet() {
+  const r = await fetch(fsUrl(), { headers: { Authorization: 'Bearer ' + await cloudToken() } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(NET_ERR);
+  const f = ((await r.json()) || {}).fields || {};
+  return { data: f.data && f.data.stringValue, t: +((f.t && f.t.integerValue) || 0) };
+}
+async function cloudPut() {
+  const json = JSON.stringify(save), t = Date.now(), tok = await cloudToken();
+  const r = await fetch(fsUrl(), { method: 'PATCH', keepalive: json.length < 60000, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: { data: { stringValue: json }, t: { integerValue: String(t) }, n: { integerValue: String(saveCount(save)) } } }) });
+  if (!r.ok) throw new Error(NET_ERR);
+  cloud.syncT = t; cloud.dirty = false; cloud.last = t; cloud.err = null; cloudSave();
+}
+function cloudMark() { // cada vez que se guarda la partida: se sube a los pocos segundos
+  if (!cloud || !cloudReady || importing) return;
+  if (!cloud.dirty) { cloud.dirty = true; cloudSave(); }
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudPush, CLOUD_PUSH_MS);
+}
+async function cloudPush() {
+  if (!cloud || cloudBusy || !cloud.dirty || importing) return;
+  cloudBusy = true;
+  try { const c = await cloudGet(); if (c && c.data && c.t > (cloud.syncT || 0)) await cloudResolve(c); else await cloudPut(); } // otro celular subió algo más nuevo: preguntar antes de pisarlo
+  catch (e) { cloud.err = e.message; cloudSave(); }
+  finally { cloudBusy = false; cloudUI(); }
+}
+function applyCloud(c) { lsSet(UNDO_KEY, JSON.stringify(save)); cloud.syncT = c.t; cloud.dirty = false; cloud.last = c.t; cloudSave(); applyImport(c.data, true); }
+async function cloudResolve(c) { // la nube tiene una partida distinta a la de aquí
+  let o = null; try { o = JSON.parse(c.data); } catch (e) { }
+  if (!o || !Array.isArray(o.monsters)) { await cloudPut(); return; }
+  if (!cloud.dirty || saveCount(save) <= 1) { applyCloud(c); return; } // aquí no hay cambios propios (o la partida recién empieza): se usa la de la nube
+  if (scene === 'battle') { cloud.dirty = true; return; } // se pregunta después de la pelea
+  $('settings').classList.remove('on');
+  const when = new Date(c.t).toLocaleString('es', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const useCloud = await ask(`Tu partida en la nube (${saveSummary(o)}, guardada el ${when}) es distinta a la de este celular (${saveSummary(save)}). ¿Cuál quieres usar? La otra se reemplaza.`, { ok: 'La de la nube', cancel: 'La de este celular' });
+  if (useCloud) applyCloud(c); else await cloudPut();
+}
+async function cloudSync() { // al abrir la app, al entrar a la cuenta y al volver a la app
+  if (!cloud || cloudBusy || importing) { cloudReady = true; return; }
+  cloudBusy = true;
+  try {
+    const c = await cloudGet();
+    if (!c || !c.data) await cloudPut(); // la nube está vacía: se sube la de aquí
+    else if (c.t === cloud.syncT) { if (cloud.dirty) await cloudPut(); } // la nube tiene lo mismo que conocíamos: subir lo nuevo de aquí
+    else await cloudResolve(c);
+    cloud.err = null;
+  } catch (e) { cloud.err = e.message; }
+  finally { if (cloud) cloudSave(); cloudBusy = false; cloudReady = true; cloudUI(); if (cloud && cloud.dirty) { clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudPush, CLOUD_PUSH_MS); } }
+}
+function ago(t) { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; }
+function cloudUI() {
+  $('cloudState').textContent = cloud ? cloud.email : 'sin cuenta';
+  $('cloudOut').hidden = !!cloud; $('cloudIn').hidden = !cloud;
+  if (cloud) { $('cloudWho').innerHTML = `Conectado como <b>${esc(cloud.email)}</b>. Tu partida se guarda sola en la nube.`;
+    $('cLast').textContent = cloudBusy ? 'guardando…' : cloud.err ? 'sin conexión' : cloud.dirty ? 'pendiente' : cloud.last ? 'guardada ' + ago(cloud.last) : ''; }
+}
+const cloudMsg = (t, bad) => { $('cloudMsg').textContent = t || ''; $('cloudMsg').style.color = bad ? 'var(--bad)' : ''; };
+async function cloudEnter(signup) {
+  const email = $('cEmail').value.trim(), password = $('cPass').value;
+  if (!email) { cloudMsg('Escribe tu correo.', true); return; }
+  cloudMsg(signup ? 'Creando la cuenta…' : 'Entrando…');
+  try {
+    const j = await fbAuth(signup ? 'signUp' : 'signInWithPassword', { email, password, returnSecureToken: true });
+    cloud = { email: j.email || email, uid: j.localId, rt: j.refreshToken, tok: j.idToken, exp: Date.now() + (+j.expiresIn || 3600) * 1000, syncT: 0, dirty: true }; cloudSave();
+    $('cPass').value = ''; cloudMsg(''); cloudUI(); await cloudSync();
+    cloudMsg(cloud && cloud.err ? cloud.err : signup ? '¡Cuenta creada! Tu partida ya está en la nube.' : '¡Listo! Tu partida está en la nube.', !!(cloud && cloud.err));
+  } catch (e) { cloudMsg(e.message, true); }
+}
+$('cSignup').onclick = () => cloudEnter(true);
+$('cLogin').onclick = () => cloudEnter(false);
+$('cForgot').onclick = async () => {
+  const email = $('cEmail').value.trim(); if (!email) { cloudMsg('Escribe tu correo arriba y vuelve a tocar «Olvidé mi contraseña».', true); return; }
+  try { await fbAuth('sendOobCode', { requestType: 'PASSWORD_RESET', email }); cloudMsg('Te mandamos un correo para cambiar la contraseña (revisa también el spam).'); } catch (e) { cloudMsg(e.message, true); }
+};
+$('cPush').onclick = async () => { if (!cloud) return; cloud.dirty = true; cloudMsg('Guardando…'); await cloudPush(); cloudMsg(cloud && cloud.err ? cloud.err : cloud && !cloud.dirty ? '¡Guardada en la nube!' : '', !!(cloud && cloud.err)); };
+$('cLogout').onclick = async () => {
+  $('settings').classList.remove('on');
+  const ok = await ask(`¿Cerrar sesión? Tu partida sigue en este celular y en la nube; para volver a sincronizarla, entra de nuevo.${cloud && cloud.dirty ? ' Ojo: hay cambios que todavía no se suben.' : ''}`, { ok: 'Cerrar sesión' });
+  $('settings').classList.add('on'); if (!ok) return;
+  cloud = null; cloudSave(); clearTimeout(cloudTimer); cloudMsg(''); cloudUI();
+};
+document.addEventListener('visibilitychange', () => {
+  if (!cloud) return;
+  if (document.hidden) { cloudHidAt = Date.now(); if (cloud.dirty) { clearTimeout(cloudTimer); cloudPush(); } } // al salir de la app se sube lo pendiente
+  else if (cloudHidAt && Date.now() - cloudHidAt > 20e3 && scene !== 'battle') cloudSync(); // al volver, revisar si otro celular guardó algo
+});
+setTimeout(cloudSync, 1200);
 
 // ---------- Selector de equipo (2 vs 2) ----------
 let lastTeam = null;
