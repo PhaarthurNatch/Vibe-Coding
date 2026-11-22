@@ -4353,7 +4353,7 @@ var cloud = (() => { try { return JSON.parse(lsGet(CLOUD_KEY) || 'null'); } catc
 function cloudSave() { lsSet(CLOUD_KEY, cloud ? JSON.stringify(cloud) : null); }
 const FB_ERR = { EMAIL_EXISTS: 'Ya hay una cuenta con ese correo: toca «Entrar».', EMAIL_NOT_FOUND: 'No hay una cuenta con ese correo: toca «Crear cuenta».', INVALID_PASSWORD: 'La contraseña no es correcta.',
   INVALID_LOGIN_CREDENTIALS: 'El correo o la contraseña no son correctos.', INVALID_EMAIL: 'Ese correo no es válido.', MISSING_PASSWORD: 'Escribe una contraseña.', MISSING_EMAIL: 'Escribe tu correo.',
-  WEAK_PASSWORD: 'La contraseña debe tener al menos 6 letras o números.', TOO_MANY_ATTEMPTS_TRY_LATER: 'Demasiados intentos: espera un rato y vuelve a probar.', USER_DISABLED: 'Esta cuenta está desactivada.', OPERATION_NOT_ALLOWED: 'La nube todavía no está lista (falta activar el correo en Firebase).' };
+  WEAK_PASSWORD: 'La contraseña debe tener al menos 6 letras o números.', TOO_MANY_ATTEMPTS_TRY_LATER: 'Demasiados intentos: espera un rato y vuelve a probar.', USER_DISABLED: 'Esta cuenta está desactivada.', OPERATION_NOT_ALLOWED: 'La nube todavía no está lista (falta activar el correo en Firebase).', CONFIGURATION_NOT_FOUND: 'La nube todavía no está lista (falta activar el correo en Firebase).' };
 const NET_ERR = 'No se pudo conectar. Revisa tu internet.';
 async function fbAuth(path, body) {
   let r; try { r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:${path}?key=${FB.key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); } catch (e) { throw new Error(NET_ERR); }
