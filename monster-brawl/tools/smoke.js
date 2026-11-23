@@ -31,11 +31,11 @@ const { chromium, devices } = require('playwright');
   await p.mouse.click(a.x, a.y); await p.waitForTimeout(700); // tocar = verlo de cerca
   if (await p.evaluate(() => ranchMode)) { errs.push('tocar al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
   await p.click('#btnFight'); await p.waitForTimeout(200); // "Luchar" abre los modos
-  await p.click('[data-mode="boss"]'); await p.waitForTimeout(500);
+  await p.click('[data-mode="boss"]'); await p.waitForFunction(() => scene === 'battle' && battle && battle.ms, null, { timeout: 15000 }); await p.waitForTimeout(300); // (pasa por la pantalla de carga de la arena)
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });
   console.log('resultado:', await p.textContent('#resTitle'), '|', (await p.innerText('#resText')).replace(/\n/g, ' | '));
-  await p.click('#resHome'); await p.waitForTimeout(300);
+  await p.click('#resHome'); await p.waitForFunction(() => scene === 'home' && document.getElementById('ld').hidden, null, { timeout: 10000 }); // (pantalla de carga al volver)
   console.log(errs.join('; ') || 'no errors');
   await b.close();
   process.exit(errs.length ? 1 : 0);
