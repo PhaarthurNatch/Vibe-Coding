@@ -14,6 +14,14 @@
 <title>Monster Brawl</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
+/* pantalla de carga al abrir (pedido del dueño: que no se vea trabado mientras carga) */
+#boot{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 42%,#2c2250,var(--bg) 70%);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease}
+#boot.out{opacity:0;pointer-events:none}.bootin{display:flex;flex-direction:column;align-items:center;gap:18px}
+.bootegg{width:74px;height:94px;border-radius:50% 50% 48% 48%/58% 58% 42% 42%;background:#f4ead8;border:4px solid #2a1f3d;position:relative;animation:bootwig 1.4s ease-in-out infinite;transform-origin:50% 90%;box-shadow:0 10px 0 -4px rgba(0,0,0,.25)}
+.bootegg i{position:absolute;border-radius:50%;background:#e06a3b}.bootegg i:nth-child(1){width:18px;height:14px;left:14px;top:22px}.bootegg i:nth-child(2){width:12px;height:12px;right:16px;top:40px}.bootegg i:nth-child(3){width:16px;height:12px;left:26px;bottom:16px}
+@keyframes bootwig{0%,55%,100%{transform:rotate(0)}62%{transform:rotate(-9deg)}70%{transform:rotate(8deg)}78%{transform:rotate(-5deg)}86%{transform:rotate(3deg)}}
+.bootbar{width:160px;height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}.bootbar b{display:block;height:100%;width:40%;border-radius:4px;background:var(--acc);animation:bootbar 1.1s ease-in-out infinite}
+@keyframes bootbar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}.boottx{color:var(--muted);font-weight:700;font-size:15px;letter-spacing:.5px}
 :root{color-scheme:dark;--bg:#1b1530;--panel:#251d3d;--panel2:#33295a;--text:#f3eefe;--muted:#a99fc7;--acc:#ffb84d;--good:#5ee08a;--bad:#ff5d6c}
 [hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -200,7 +208,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .newsv h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .newsv h3 small{font-size:11px;font-weight:600;color:var(--muted)}
 .newsv ul{margin:0;padding-left:18px;font-size:13px;line-height:1.35}.newsv li{margin:3px 0}
-.voicelist{max-height:52vh;overflow-y:auto;transition:opacity .2s}.voicelist.dim{opacity:.45}.swrow{cursor:pointer;flex-direction:row}.swrow>span{flex:1}.card input.sw{appearance:none;-webkit-appearance:none;width:50px;min-width:50px;height:30px;padding:0;border:0;border-radius:15px;background:#4a4266;position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}.card input.sw::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}.card input.sw:checked{background:var(--acc)}.card input.sw:checked::after{transform:translateX(20px)}.vitem{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;text-align:left;padding:10px 12px}.vitem.on{outline:2px solid var(--acc)}.vitem small{display:block;color:var(--muted);font-size:11px;font-weight:600}.vitem .vtry{padding:6px 10px;font-size:13px} /* elegir la voz del relator (pedido del dueño) */
+.voicelist{max-height:52vh;overflow-y:auto;transition:opacity .2s}.voicelist.dim{opacity:.45}.swrow{cursor:pointer;flex-direction:row}.swrow>span{flex:1}.card input.sw{appearance:none;-webkit-appearance:none;width:50px;min-width:50px;height:30px;padding:0;border:0;border-radius:15px;background:#4a4266;position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}.card input.sw::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}.card input.sw:checked{background:var(--acc)}.card input.sw:checked::after{transform:translateX(20px)}
+.arsw{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:16px}.arsw input.sw{appearance:none;-webkit-appearance:none;width:40px;min-width:40px;height:24px;padding:0;border:0;border-radius:12px;background:#4a4266;position:relative;cursor:pointer;transition:background .2s;margin:0}.arsw input.sw::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}.arsw input.sw:checked{background:var(--acc)}.arsw input.sw:checked::after{transform:translateX(16px)} /* interruptor de los comentaristas en la arena (pedido del dueño) */.vitem{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;text-align:left;padding:10px 12px}.vitem.on{outline:2px solid var(--acc)}.vitem small{display:block;color:var(--muted);font-size:11px;font-weight:600}.vitem .vtry{padding:6px 10px;font-size:13px} /* elegir la voz del relator (pedido del dueño) */
 .setitem{display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:14px}
 .setitem small{font-size:11px;font-weight:600;color:var(--muted)}
 
@@ -295,6 +304,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 </style>
 </head>
 <body>
+<div id="boot" aria-label="Cargando"><div class="bootin"><div class="bootegg"><i></i><i></i><i></i></div><div class="bootbar"><b></b></div><div class="boottx">Cargando…</div></div></div>
 <canvas id="cv"></canvas>
 
 <!-- HOME -->
@@ -326,7 +336,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn" id="btnLan">🌐 Online</button>
     </div>
     <div class="row fightrow">
-      <button class="btn primary" data-mode="1v1">1 vs 1</button>
+      <button class="btn primary" data-mode="boss">👑 Jefe</button>
       <button class="btn primary" data-mode="2v2">2 vs 2</button>
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
@@ -360,7 +370,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="topbar">
     <button class="roundbtn" id="quit">✕</button>
     <div class="mode" id="modeLbl">1 vs 1</div>
-    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
+    <label class="arsw" aria-label="Comentaristas"><span>🎙️</span><input type="checkbox" class="sw" id="arCastSw"></label>
   </div>
   <div class="fighters" id="fighters"></div>
   <div class="spacer"></div>
@@ -568,7 +578,7 @@ const TAU = Math.PI * 2;
 let ARENA_W = 600;                   // ancho del suelo (más chico para bebés = cámara más cerca)
 let ARENA_D = 560;                    // fondo del suelo (más largo con el celular en vertical)
 const DEPTH = 0.7;                    // compresión de profundidad (vista 2.5D)
-const TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
+let TOP = 170;                      // espacio sobre la arena para que se vean los cuerpos
 const SAVE_KEY = 'monster_brawl_v1';
 // ----- Ultimate (sólo etapa Awakened) -----
 const ULT_HITS = 5;     // golpes (dados o recibidos) que necesita llevar en la pelea
@@ -1733,7 +1743,7 @@ let MID = 0;
 class Monster {
   constructor(rec) {
     this.id = ++MID; this.rec = rec;
-    this.g = recGenome(rec, rec.stage || 'adult');
+    this.g = recGenome(rec, rec.stage || 'adult'); if (rec.noArms) { this.g.arms.pairs = 0; this.g.shoulders.size = 0; } // (el jefe del fondo no tiene brazos propios: sus manos pelean en la arena)
     this.name = rec.name || this.g.name;
     this.level = rec.level || 1;
     this.st = calcStats(this.g, this.level, rec.pts);
@@ -1961,6 +1971,7 @@ class Monster {
     if (this.emoT > 0) return this.emo;
     if (this.winEmo) return this.winEmo;
     if (this.hp / this.st.hp < (this.scaredHp ?? SCARED_HP)) return this.tp && this.tp.valor > 0.2 ? 'angry' : 'scared';
+    if (this.baseEmo === 'mhappy') { const ph = ((this.t || 0) + (this.moodPh ??= Math.random() * MOOD_FACE_T)) % MOOD_FACE_T; return ph < MOOD_FACE_ON ? 'happy' : 'neutral'; } // contento por la moral, pero la mayor parte del tiempo con su cara normal (con ojos; pedido del dueño)
     return this.baseEmo || 'neutral';
   }
   setEmo(e, dur, prio = 1, next = null) {
@@ -3204,12 +3215,74 @@ class Monster {
 // ============================================================================
 // BATALLA
 // ============================================================================
+
+// ============================================================================
+// JEFE (pedido del dueño): un monstruo enorme al fondo de la arena, del torso para arriba; sus manos bajan a la arena
+// y golpean el suelo tratando de aplastar a tus monstruos. Cada mano es un «rival» más (equipo 1), así sirven todas
+// las mecánicas de siempre (objetivo, golpes, disparos, ultimates). Si destruyes las dos manos, ganas; si se acaba el tiempo, gana el jefe.
+// ============================================================================
+const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, scale: 4, top: 430 };
+const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
+function bossRec(i = 0) { const b = BOSS_LIST[i]; const r = newRec('adult'); r.seed = b.seed || r.seed; r.name = b.name; r.level = 20; r.noArms = true; r.temper = { agr: 1, terco: 0, valor: 1 }; return r; }
+class BossHand extends Monster {
+  constructor(rec, side, me, k) {
+    super(rec); this.isHand = true; this.side = side; this.name = side < 0 ? 'Mano izquierda' : 'Mano derecha';
+    const S = this.st, P = me.st; S.hp = Math.round(P.hp * BOSS.handHp); S.melee = P.hp * BOSS.slam * (BOSS.young[me.g.stage] || 1); /* el golpe al suelo quita una parte fija de tu vida (parejo en todas las etapas) */ S.ranged = 0; S.defense = P.defense; S.weight = 40; S.dodge = 0; S.speed = 0;
+    this.hp = S.hp; this.r = 30 * k; this.k = k; this.canFloat = false; this.canLeap = false; this.flyer = null; this.canUlt = false; this.ultReady = false; this.ultType = null;
+    this.phase = 'rest'; this.ph = side < 0 ? 0.8 : 2.6; this.homeX = 0; this.homeY = 0;
+  }
+  incoming() { return false; } // no esquiva
+  physics(dt) { this.vx = this.vy = 0; } // (no la empujan: se mueve sola)
+  animate(dt) { this.t = (this.t || 0) + dt; if (this.hurtT > 0) this.hurtT -= dt; }
+  rigStep() { }
+  sync() { for (const n of this.nodes) { n.x = this.gx; n.y = this.gy - this.z - this.r; n.vx = n.vy = 0; } } // (los textos y partículas salen de sus «nodos»)
+  die() { this.dead = true; this.state = 'dead'; this.target = null; this.z = 0; this.vz = 0; this.phase = 'dead'; for (const k in this.buffs) this.buffs[k] = 0; }
+  think(dt, B) {
+    if (this.dead) { this.deadT = (this.deadT || 0) + dt; this.z = Math.max(0, this.z - 600 * dt); B.place(this); this.sync(); return; }
+    this.state = 'free'; this.stT = 0; this.ph -= dt;
+    const foes = B.ms.filter(m => !m.dead && m.team !== this.team);
+    if (this.phase === 'rest') { this.z = 0; if (this.ph <= 0 && foes.length && !B.over) { this.target = foes[Math.floor(Math.random() * foes.length)]; this.phase = 'lift'; this.ph = BOSS.lift; } }
+    else if (this.phase === 'lift' || this.phase === 'aim') { // sube y se pone encima de su objetivo (se ve su sombra)
+      const T = this.target && !this.target.dead ? this.target : foes[0]; if (!T) { this.phase = 'rest'; this.ph = 1; }
+      else { const f = Math.min(1, dt * (this.phase === 'lift' ? 3.2 : 1.6)); this.x += (clamp(T.x, this.r, ARENA_W - this.r) - this.x) * f; this.y += (clamp(T.y, this.r, ARENA_D - this.r) - this.y) * f; }
+      this.z += (BOSS.liftZ * this.k - this.z) * Math.min(1, dt * 5);
+      if (this.ph <= 0) { if (this.phase === 'lift') { this.phase = 'aim'; this.ph = BOSS.aim; } else { this.phase = 'slam'; this.vz = -200; } }
+    } else if (this.phase === 'slam') { // ¡golpe al suelo!
+      this.vz -= 4200 * dt; this.z += this.vz * dt;
+      if (this.z <= 0) { this.z = 0; this.vz = 0; this.phase = 'rest'; this.ph = BOSS.rest + Math.random() * 0.8; this.slamAt = this.t;
+        const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 12); B.rings.push({ x: this.x, y: this.y, r: 10, max: R, life: 0.45, col: '#ffd9a0' });
+        if (B.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); }
+        for (const e of foes) { if (e.z > FLY.airZ || e.state === 'ultcharge') continue; let dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy); if (d > R + e.r) continue; if (d < 1) { dx = 1; dy = 0; d = 1; }
+          B.hit(this, e, this.st.melee * (d < R * 0.5 ? 1 : 0.6), { x: dx / d, y: dy / d }, 'melee'); if (!e.dead) { e.vx += dx / d * 260; e.vy += dy / d * 260; e.vz = 260; } } }
+    }
+    this.x = clamp(this.x, this.r, ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync();
+  }
+  draw(ctx) { // un puño enorme
+    const x = this.gx, y = this.gy - this.z - this.r * 0.55, r = this.r * 1.05, c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
+    if (A && !dead) { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
+    ctx.save(); if (dead) ctx.globalAlpha = 0.75; const fill = dead ? '#6d6670' : this.hurtT > 0 ? '#ffffff' : hsl(c), dk = dead ? '#3c373f' : hsl(c, -22);
+    ctx.lineWidth = 4; ctx.strokeStyle = dk; ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.85, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    for (let i = -1.5; i <= 1.5; i++) { ctx.beginPath(); ctx.arc(x + i * r * 0.42, y - r * 0.55, r * 0.26, 0, TAU); ctx.fill(); ctx.stroke(); } // nudillos
+    ctx.beginPath(); ctx.ellipse(x - this.side * r * 0.85, y + r * 0.05, r * 0.32, r * 0.22, this.side * 0.6, 0, TAU); ctx.fill(); ctx.stroke(); // pulgar
+    ctx.restore();
+  }
+}
+function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para arriba) y sus brazos hasta las manos
+  const body = B.bossBody; if (!body) return; const sc = BOSS.scale * (B.bossK || 1);
+  body.x = body.gx = ARENA_W / 2; body.s = sc;
+  ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); body.draw(ctx); ctx.restore(); // se corta en el piso: sólo se ve del torso para arriba
+  const ch = body.nodes[body.ix.mid], sw = Math.max(body.g.torso.upper.w * 0.62, 34) * sc, c = body.g.pal.body;
+  for (const h of B.ms) { if (!h.isHand) continue; const sx = ch.x + h.side * sw, sy = Math.min(ch.y - 6 * sc, TOP - 20), hx = h.gx, hy = h.gy - h.z - h.r * 0.55, mx = (sx + hx) / 2 + h.side * 40, my = Math.min(sy, hy) - 30 - h.z * 0.2;
+    ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = h.dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 34 * sc * 0.5 + 8; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(mx, my, hx, hy); ctx.stroke();
+    ctx.strokeStyle = h.dead ? '#6d6670' : hsl(c); ctx.lineWidth = 34 * sc * 0.5; ctx.stroke(); ctx.restore(); }
+}
 class Battle {
   constructor(ms, mode) {
     this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = []; this.mines = [];
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
-    const P0 = mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
+    const P0 = mode === 'boss' ? [[0.5, 0.72], [0.27, 0.3], [0.73, 0.3]] : mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
     const P = ms.length <= P0.length && mode !== 'teams' ? P0 : spawnRing(ms); // pelea local por colores o más de 4: equipos repartidos en un óvalo
     ms.forEach((m, i) => {
       m.x = P[i][0] * ARENA_W; m.y = P[i][1] * ARENA_D;
@@ -3227,7 +3300,7 @@ class Battle {
   hit(a, t, pow, dir, kind) {
     if (this.timedOut) return; // se acabó el tiempo: los disparos o bombas que quedaban ya no hacen daño
     if (t.state === 'ultcharge') return; // cargando la ultimate: invencible (ni daño ni empujón; no lo interrumpen), pedido del dueño
-    const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
+    const ot = this.time > OT_START && this.mode !== 'boss' ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
     const lightB = a.st.weight < t.st.weight ? Math.pow(t.st.weight / a.st.weight, STUN.light) : 1; // golpe/disparo preciso del más liviano
     const shielded = t.buffs.defense > 0;
@@ -3376,6 +3449,7 @@ class Battle {
   }
 
   step(dt) {
+    if (this.bossBody) { const b = this.bossBody, sc = BOSS.scale * (this.bossK || 1); b.x = b.gx = ARENA_W / 2; b.s = sc; if (b.gy == null || !this._bossFit) { b.gy = TOP + 120 * sc; } b.animate(dt); b.rigStep(dt / 2); b.rigStep(dt / 2); const ch = b.nodes[b.ix.mid]; if (ch) { b.gy += (TOP - 12 * sc - ch.y) * Math.min(1, dt * 8); this._bossFit = true; } } // el jefe respira y se mueve al fondo
     if (this.kcam) { const k = this.kcam; k.t += dt; if (k.t >= KC_T) this.kcam = null; else dt *= k.t < 0.2 ? 0.03 : k.t < 0.95 ? 0.3 : 0.3 + 0.7 * (k.t - 0.95) / 0.4; } // kill cam: se congela un instante en el golpe y sigue en cámara lenta
     if (this.introT > 0) { // cuenta regresiva: se mueven en el lugar, todavía no pelean
       const n0 = Math.ceil(this.introT / INTRO_STEP);
@@ -3454,17 +3528,18 @@ class Battle {
     for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
     // fin
     if (!this.over) {
-      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) { ANN.ev('ot'); SFX.otStart(); } }
+      if (this.time > OT_START && !this.otShown && this.mode !== 'boss') { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) { ANN.ev('ot'); SFX.otStart(); } }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
       if (alive.size === 1 && this.ms.length > 1) this.lastT = this.lastT ?? this.time; // queda uno: se espera un instante por si el otro cae «al mismo tiempo» (un disparo o bomba ya lanzados)
-      if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT || (this.otShown && this.time - OT_START >= OT_TIMER * BATTLE_SPEED)) {
-        this.over = true; this.timedOut = alive.size > 1; this.isDraw = alive.size === 0 || this.timedOut; // empate: los últimos caen al mismo tiempo (pedido del dueño; antes eran 15 s de muerte súbita sin K.O.)
+      if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT || (this.otShown && this.time - OT_START >= OT_TIMER * BATTLE_SPEED) || (this.mode === 'boss' && alive.size > 1 && this.time >= BOSS.time * BATTLE_SPEED)) {
+        this.over = true; this.timedOut = alive.size > 1; const bossTO = this.timedOut && this.mode === 'boss'; this.isDraw = alive.size === 0 || (this.timedOut && !bossTO); /* con el jefe, si se acaba el tiempo gana el jefe */ // empate: los últimos caen al mismo tiempo (pedido del dueño; antes eran 15 s de muerte súbita sin K.O.)
         if (this.timedOut) this.otCheer = (this.otHits || 0) / Math.max(1, this.ms.filter(m => !m.dead && !m.cloneOf).length) / Math.max(1, this.time - OT_START) >= OT_INTENSE; // se acabó el tiempo: ¿fue intenso?
         if (this.isDraw && this.kcamOn) { this.drawBig = { t: -(alive.size === 0 ? KO_DELAY : 0), cheer: !!this.otCheer, tout: this.timedOut }; setTimeout(() => { if (battle === this) { drawCrowd(this.drawBig); ANN.ev('draw', this.timedOut ? (this.otCheer ? 1 : 0.5) : 0); } }, alive.size === 0 ? KO_DELAY * 1000 : 0); } else if (this.kcamOn) this.koBig = { t: -KO_DELAY }; // última muerte: «K.O.» martillado (aparece 1 s después; pedido del dueño)
         // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
         for (const tm of new Set(this.ms.map(m => m.team))) if (!this.ranking.includes(tm)) this.ranking.push(tm); // (por si alguno no quedó anotado como eliminado)
+        if (bossTO) { const bt = (this.ms.find(m => m.isHand) || {}).team; if (bt != null) this.ranking = [bt, ...this.ranking.filter(t => t !== bt)]; if (this.kcamOn) this.timeBig = { t: 0, text: '¡TIEMPO!' }; } // se acabó el tiempo: el jefe sigue en pie
         this.winTeam = this.ranking[0];
         for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam && !this.isDraw ? 'happy' : 'sad'; m.emoT = 0; if (m.state !== 'leap') { m.state = 'free'; m.stT = 0; } m.atkArm = null; m.strikeExt = 0; m.ulting = false; } // al terminar nadie queda a medio golpe
       }
@@ -3487,6 +3562,7 @@ class Battle {
       ctx.translate(cx, cy); ctx.scale(z, z); ctx.translate(-lerp(cx, fx, e), -lerp(cy, fy, e));
     }
     drawArena(ctx, this.arena);
+    if (this.bossBody) drawBossBack(ctx, this); // el jefe al fondo
     // sombras
     for (const m of this.ms) {
       if (m.alpha <= 0) continue;
@@ -3672,7 +3748,7 @@ const HEART_MS = 2 * 60 * 1000;   // recupera 1 corazón cada 2 min (si le queda
 const EGG_COST = 80;              // monedas para comprar un huevo en un espacio libre (el primero de una partida nueva viene gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
 // [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
-const REWARDS = { '1v1': [[60, 12], [20, 4]], '2v2': [[45, 8], [15, 2]], ffa: [[80, 20], [50, 12], [30, 6], [15, 2]] }; // [XP, monedas]; monedas a la mitad (pedido del dueño: se ganaban demasiadas), XP igual
+const REWARDS = { boss: [[100, 20], [20, 4]], '1v1': [[60, 12], [20, 4]], '2v2': [[45, 8], [15, 2]], ffa: [[80, 20], [50, 12], [30, 6], [15, 2]] }; // [XP, monedas]; monedas a la mitad (pedido del dueño: se ganaban demasiadas), XP igual
 const KO_XP = 10, KO_COINS = 2;
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar', '5.º lugar', '6.º lugar', '7.º lugar', '8.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
@@ -4427,7 +4503,7 @@ function toRanch() {
   }
   ranchMode = true; renderHome();
 }
-let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = '1v1', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
+let scene = 'home', show = null, egg = null, battle = null, growAnim = null, lastMode = 'boss', homeView = null, homeEmpty = null; // homeEmpty: viendo un espacio libre (número de espacio)
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2.5); W = innerWidth; H = innerHeight;
@@ -4452,7 +4528,8 @@ function personaText(rec) {
 // Ánimo en el menú: feliz un rato después de acariciarlo; triste un rato después de perder un corazón (acariciarlo se la quita);
 // con 1 corazón o menos queda machacado: cara cansada, curitas y ojo morado.
 const PET_HAPPY_MS = 5 * 1000, LOSS_SAD_MS = 60 * 1000;
-const baseEmoFor = rec => { const md = moodOf(rec); return rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : md <= MOOD_SAD ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : md >= MOOD_HAPPY ? 'happy' : rec.lives >= ENERGETIC_LIVES ? 'energetic' : null; }; // el ánimo se ve en la cara (pedido del dueño): bajo = triste, alto = contento
+const MOOD_FACE_T = 12, MOOD_FACE_ON = 3; // con moral alta: 3 s contento cada 12 s
+const baseEmoFor = rec => { const md = moodOf(rec); return rec.happyUntil > Date.now() ? 'happy' : rec.sadUntil > Date.now() ? 'sad' : md <= MOOD_SAD ? 'sad' : rec.lives <= BATTERED_LIVES ? 'beat' : md >= MOOD_HAPPY ? 'mhappy' : rec.lives >= ENERGETIC_LIVES ? 'energetic' : null; }; /* 'mhappy' = contento por la moral: sólo a ratos (ver face) */ // el ánimo se ve en la cara (pedido del dueño): bajo = triste, alto = contento
 const isBattered = rec => rec.lives <= BATTERED_LIVES; // machacado: con curitas y un ojo morado (se ve aunque esté feliz o durmiendo)
 function renderHome() {
   wakeUp();
@@ -4839,7 +4916,7 @@ const isAdultFoe = f => f.stage === 'adult' || f.stage === 'awakened';
 const adultFoes = () => (save.foes || []).map((f, i) => [f, i]).filter(([f]) => isAdultFoe(f));
 function recordFoes(b) {
   const rank = b.ranking || [], me = rank.indexOf(0);
-  const foes = b.ms.filter(m => !m.isPlayer && !m.cloneOf && m.team !== 0 && m.rec && isAdultFoe(m.rec)); // sólo rivales adultos (o Awakened)
+  const foes = b.ms.filter(m => !m.isPlayer && !m.cloneOf && !m.isHand && m.team !== 0 && m.rec && isAdultFoe(m.rec)); // sólo rivales adultos (o Awakened)
   save.foes = save.foes || [];
   for (const f of foes) { const r = f.rec, them = rank.indexOf(f.team);
     save.foes.unshift({ seed: r.seed, gen: r.gen, name: r.name, stage: r.stage, level: r.level, pts: r.pts, won: me >= 0 && them >= 0 ? me < them : b.winTeam === 0, t: Date.now() }); }
@@ -5276,7 +5353,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.74', d: '2026-11-23', items: ['Siempre narra el relator; la comentarista aparece en 4 de cada 10 peleas de todos contra todos y de 2 vs 2.'] },
+  { v: '1.74', d: '2026-11-23', items: ['Nuevo modo Jefe (reemplaza al 1 vs 1): un monstruo gigante al fondo de la arena golpea el suelo con sus manos; destrúyelas antes de que se acabe el tiempo. Primer jefe: Titán.', 'Pantalla de carga al abrir el juego.', 'Interruptor para apagar a los comentaristas arriba a la derecha en la arena.', 'Siempre narra el relator; la comentarista aparece en 4 de cada 10 peleas de todos contra todos y de 2 vs 2.', 'Con la moral alta los monstruos se ven contentos sólo a ratos; el resto del tiempo tienen su cara normal.'] },
   { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'El relator viene ahora en español (El Faraón). Guy en inglés sigue en Menú ⚙️ → Voz del relator.', 'A veces el relator viene acompañado por una comentarista (Angélica), que dice la mitad de los comentarios y conversa mucho más con el relator (16 conversaciones nuevas)', 'Los comentaristas ahora son sólo en español (se quitaron los de inglés).', 'El doble de frases para los comentaristas: más de 350 nuevas, incluidas 30 conversaciones nuevas entre ellos.', 'La comentarista ahora es Diana (voz mexicana), un poco más bajita.', 'Los comentaristas ahora hablan de tu monstruo: cuando pega fuerte, cuando lo castigan, si noquea o cae, si viene en racha o está por crecer, y te dicen si ganaste o perdiste.', 'Reacciones cortas en los golpes («¡Uy!», «¡Pum!») para que suene más en vivo.', 'Al terminar comentan cómo fue la pelea (varios nocauts, casi sin recibir golpes, muy rápida o muy larga).', 'Los comentaristas siempre se escuchan: mientras hablan, el público, la música y los golpes bajan.', 'En todos contra todos siempre están los dos comentaristas; en 2 vs 2 sólo él.', 'Se regrabaron 7 frases del relator que balbuceaban o decían palabras de más (como «¡Batalla terminada! ¡Bravo!»).', 'Se regrabó la frase «¡Lanzado al otro lado de la arena!», que sonaba rara: son viejos amigos, conversan entre ellos y ella también comenta lo que pasa.', 'Las bombas y la onda de choque ahora también lanzan a los cuerpos de los noqueados que alcanzan.', 'Arreglado: a veces un monstruo ya noqueado salía volando al caer el último. Ahora, una vez tendido, se queda quieto.', 'El relator habla menos (cerca de 40% menos) y reparte sus frases entre varias peleas, sin repetirlas hasta haberlas dicho todas. Con la comentarista, ella habla más seguido y conversan entre ellos.', 'El relator usa mucho más variado sus frases: ahora narra también golpes, esquivas, vuelos, saltos, bombas y más, ya no repite tanto los comentarios de relleno, y se oyen todas sus presentaciones (el «¡A luchar!» espera a que termine).', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».', 'La muerte súbita ahora dura 20 segundos y en los últimos 10 aparece un reloj: si llega a 0 sin ganador, los monstruos dejan de pelear y es empate. Si se golpearon mucho el público aplaude; si no, abuchea. El relator lo comenta.', 'El «K.O.» del final sale centrado y más grande, y las letras grandes (K.O., FIGHT!, DRAW) se ven más limpias.'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
   { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.', 'Los audios del relator ya no se cortan entre sí: lo importante espera a que termine la frase anterior.', 'El público tiene 10 reacciones distintas de cada tipo (ovación, «¡oooh!», sorpresa, aplausos y abucheo) que salen al azar.', 'La voz del relator en español ahora suena tan fuerte como la de inglés.', 'El relator presenta la pelea durante la cuenta regresiva 3, 2, 1, grita «Fight!» o «¡A luchar!» al empezar, y el resultado aparece cuando termina de anunciar el final.', 'Muchas más frases del relator (cerca de 250 por idioma, incluidas intros y cierres) que se van turnando sin repetirse hasta usarlas todas, también de una pelea a otra.'] },
@@ -5410,6 +5487,7 @@ function voiceView() { $('castSw').checked = !CAST.muted; $('crowdSw').checked =
 }
 $('crowdSw').onchange = e => { CROWD.set(e.target.checked); SFX.click(); if (e.target.checked) { CROWD.preload(); setTimeout(() => CROWD.react('cheer'), 600); } };
 $('castSw').onchange = e => { CAST.setMuted(!e.target.checked); voiceView(); SFX.click(); };
+$('arCastSw').onchange = e => { CAST.setMuted(!e.target.checked); SFX.click(); if (!CAST.muted && battle && !battle.over) { ANN.on = true; CLIP.preload(CAST.lang); } }; // en la arena, arriba a la derecha (pedido del dueño)
 try { speechSynthesis.addEventListener('voiceschanged', () => { if (!$('settings').querySelector('[data-view="voice"]').hidden) voiceView(); }); } catch (e) { }
 $('sndBtn').onclick = () => { SFX.set(!SFX.on); sndUI(); if (SFX.on) SFX.coin(); };
 $('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
@@ -6005,27 +6083,29 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
   }
   lastMode = mode; lastTeam = mode === '2v2' ? team : null;
   const me = team[0];
+  TOP = mode === 'boss' ? BOSS.top : 170; // con el jefe, más espacio arriba para su cuerpo
   const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1, awakened: 1 }[r.stage] || 1)));
   ARENA_W = 600 * zoom;
   const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
   const foe = ref => makeFoe(ref);
   const list = [...players];
   if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
+  else if (mode === 'boss') { const brec = bossRec(); for (const sd of [-1, 1]) { const h = new BossHand(brec, sd, players[0], zoom); h.team = 1; list.push(h); } list.bossRec = brec; } // el jefe: sus dos manos pelean en la arena
   else if (mode === '2v2') {
     if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
     for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
   }
   else for (let i = 0; i < 3; i++) { const e = foe(me); e.team = i + 1; list.push(e); }
-  $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
-  $('modeLbl').textContent = { '1v1': '1 vs 1', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
+  $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('arCastSw').checked = !CAST.muted; $('result').classList.remove('on');
+  $('modeLbl').textContent = { '1v1': '1 vs 1', boss: 'Jefe', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : m.isHand ? '👑 ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
   setupUltBar(list);
   // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores (y sobre el botón ULTIMATE)
   if (H / W > 1.25) {
     const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8;
     ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
   } else ARENA_D = 560 * zoom;
-  battle = new Battle(list, mode); battle.kcamOn = true; battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
+  battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('angry', 9999, 1); battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
   battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
   scene = 'battle';
   keepAwake(true);
@@ -6034,7 +6114,7 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
   let txt, p, big = false;
-  if (b.introT > 0) { if (!b._annIntro) { b._annIntro = true; ANN.start(); const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('intro', 0, A0 && A0.name, B0 && B0.name); } const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.count(n); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); if (!ANN.on) ANN.start(); ANN.ev('go'); } // el relator presenta durante el 3, 2, 1 y grita «Fight!» / «¡A luchar!» (pedido del dueño) // sonido de la cuenta regresiva y del FIGHT!
+  if (b.introT > 0) { if (!b._annIntro && b.mode === 'boss') b._annIntro = true; /* contra el jefe no hay comentaristas ni público (pedido del dueño) */ if (!b._annIntro) { b._annIntro = true; ANN.start(); const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('intro', 0, A0 && A0.name, B0 && B0.name); } const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.count(n); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); if (b.mode !== 'boss') { if (!ANN.on) ANN.start(); ANN.ev('go'); } } // el relator presenta durante el 3, 2, 1 y grita «Fight!» / «¡A luchar!» (pedido del dueño) // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
   else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
   else return;
@@ -6059,12 +6139,13 @@ const KO_HIT = [0.12, 0.62], KO_FALL = 0.14, KO_DELAY = 1; // KO_DELAY: el «K.O
 function drawCrowd(k) { // reacción del público al empate: aplausos si fue intenso, abucheo si no (pedido del dueño)
   if (k.cheer) { CROWD.react('clap'); setTimeout(() => CROWD.react('cheer'), 400); } else if (!CROWD.react('boo')) SFX.boo(); }
 function drawOTTimer(b, top = H * 0.05) { // reloj de la muerte súbita: 10 s que bajan (pedido del dueño)
-  if (!(b.time > OT_START) || b.over || b.drawBig || b.koBig) return; const left = Math.max(0, OT_TIMER - (b.time - OT_START) / BATTLE_SPEED), n = Math.ceil(left); if (left > OT_SHOW) return;
-  if (b._otSec !== n) { b._otSec = n; if (n <= 3 && n > 0) SFX.count(4 - n); else if (n > 0) SFX.beep(false); if (n === 5) ANN.ev('tleft'); }
-  const fr = left - Math.floor(left), urg = n <= 3, pulse = 1 + (urg ? 0.25 : 0.1) * Math.pow(fr, 3), fs0 = Math.min(W * 0.09, H * 0.065), fs = fs0 * pulse, x = W / 2, y = top + fs0 * 0.8; // justo bajo los datos de los peleadores
-  ctx.save(); ctx.globalAlpha = Math.min(1, (OT_SHOW - left) / 0.4); const r = fs * 0.75;
+  const boss = b.mode === 'boss', TOT = boss ? BOSS.time : OT_SHOW; // con el jefe, el reloj se ve toda la pelea (pedido del dueño)
+  if (boss ? (b.over || b.introT > 0 || b.koBig || b.timeBig) : (!(b.time > OT_START) || b.over || b.drawBig || b.koBig)) return; const left = boss ? Math.max(0, BOSS.time - b.time / BATTLE_SPEED) : Math.max(0, OT_TIMER - (b.time - OT_START) / BATTLE_SPEED), n = Math.ceil(left); if (left > TOT) return;
+  if (b._otSec !== n) { b._otSec = n; if (n <= 3 && n > 0) SFX.count(4 - n); else if (n > 0 && n <= 10) SFX.beep(false); if (n === 5) ANN.ev('tleft'); }
+  const fr = left - Math.floor(left), urg = n <= (boss ? 10 : 3), pulse = 1 + (urg ? 0.25 : 0.1) * Math.pow(fr, 3), fs0 = Math.min(W * 0.09, H * 0.065), fs = fs0 * pulse, x = boss ? fs0 * 1.1 + 6 : W / 2, y = top + fs0 * 0.8; /* con el jefe, a un costado para no taparle la cara */ // justo bajo los datos de los peleadores
+  ctx.save(); ctx.globalAlpha = Math.min(1, (TOT - left) / 0.4 + (boss ? 1 : 0)); const r = fs * 0.75;
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(15,5,15,.75)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left / OT_SHOW); ctx.lineWidth = Math.max(4, fs * 0.1); ctx.strokeStyle = urg ? '#ff4a4a' : '#ffcf4a'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left / TOT); ctx.lineWidth = Math.max(4, fs * 0.1); ctx.strokeStyle = urg ? '#ff4a4a' : '#ffcf4a'; ctx.stroke();
   ctx.font = `900 ${Math.round(fs)}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   ctx.lineWidth = fs * 0.12; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(String(n), x, y + fs * 0.04); ctx.fillStyle = urg ? '#ff6b6b' : '#fff3c4'; ctx.fillText(String(n), x, y + fs * 0.04);
   ctx.restore(); }
@@ -6076,9 +6157,10 @@ function drawDraw(k) { // empate: «DRAW» que cae y rebota, y el público abuch
   const p = clamp(t / 0.35, 0, 1), oy = -(1 - p * p) * H * 0.3, after = t - 0.35, q = clamp(after / 0.2, 0, 1), sq = after > 0 ? Math.sin(q * Math.PI) * (1 - q) : 0;
   ctx.save(); ctx.translate(W / 2, y0 + oy + fs * 0.45); ctx.scale(1 + 0.18 * sq, 1 - 0.22 * sq); ctx.translate(0, -fs * 0.45);
   ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.globalAlpha = clamp(p * 3, 0, 1);
-  ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText('DRAW', 0, fs * 0.04);
-  const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); ['#f2f2ff', '#b9c2d8', '#7d869e', '#3f4458'].forEach((c, j) => g.addColorStop(j / 3, c));
-  ctx.fillStyle = g; ctx.fillText('DRAW', 0, 0); glossText('DRAW', fs);
+  const T = k.text || 'DRAW'; if (k.text) { const w = ctx.measureText(T).width; if (w > W * 0.9) ctx.font = `900 ${fs * W * 0.9 / w}px Impact, "Arial Black", system-ui, sans-serif`; } // («¡TIEMPO!» con el jefe)
+  ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(T, 0, fs * 0.04);
+  const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); (k.text ? ['#ffe9d6', '#ff9a5a', '#e0402a', '#7a1010'] : ['#f2f2ff', '#b9c2d8', '#7d869e', '#3f4458']).forEach((c, j) => g.addColorStop(j / 3, c));
+  ctx.fillStyle = g; ctx.fillText(T, 0, 0); glossText(T, fs);
   ctx.restore();
   if (t > 0.2 && k.cheer) { ctx.save(); ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(fs * 0.24)}px system-ui`; ctx.lineJoin = 'round'; // «👏 ¡BRAVO!» del público por los bordes (sin «¡BUUU!»: el dueño lo quitó; el abucheo sólo se oye)
     for (let i = 0; i < 10; i++) { const st = 0.25 + i * 0.22, lt = t - st; if (lt < 0) continue; const a = clamp(1 - (lt % 1.6) / 1.6, 0, 1), side = i % 2 ? 1 : -1;
@@ -6499,9 +6581,10 @@ function loop(now) {
     drawIntro(battle);
     drawOTTimer(battle, top);
     if (battle.koBig) { battle.koBig.t += dt; drawKO(battle.koBig); }
+    if (battle.timeBig) { battle.timeBig.t += dt; drawDraw(battle.timeBig); }
     if (battle.drawBig) { battle.drawBig.t += dt; drawDraw(battle.drawBig); }
     if (++frame % 6 === 0) { updateFighters(); updateUltBar(); }
-    if (battle.over && battle.endT > (battle.koBig ? 1.8 + KO_DELAY : battle.drawBig ? (battle.timedOut ? 3.2 : 3.2 + KO_DELAY) : 1.8) && !battle.reported && ((performance.now() > (battle._annUntil || 0) && !CAST.busy) || performance.now() - (battle._overAt || 0) > 9000)) { /* (espera el cierre del relator, como mucho 9 s) */ if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
+    if (battle.over && battle.endT > (battle.koBig ? 1.8 + KO_DELAY : battle.drawBig || battle.timeBig ? (battle.timedOut ? 3.2 : 3.2 + KO_DELAY) : 1.8) && !battle.reported && ((performance.now() > (battle._annUntil || 0) && !CAST.busy) || performance.now() - (battle._overAt || 0) > 9000)) { /* (espera el cierre del relator, como mucho 9 s) */ if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
   if (scene === 'home' && homePage === 1 && homeEmpty != null && frame % 120 === 0) renderSlotBtns(); // cuenta hasta el próximo huevo
@@ -6789,11 +6872,11 @@ function lanToRoom(ask) {
 }
 $('resRoom').onclick = () => lanToRoom(true);
 // ---------- La pelea ----------
-function lanSetupBattle(list, aw, ad, mode) {
-  $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
+function lanSetupBattle(list, aw, ad, mode) { TOP = 170;
+  $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('arCastSw').checked = !CAST.muted; $('result').classList.remove('on');
   $('modeLbl').textContent = 'Online · ' + lanModeName(list.map(m => m.team));
   ARENA_W = aw;
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, 'lan')}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : m.isHand ? '👑 ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, 'lan')}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
   setupUltBar(list);
   if (ad) ARENA_D = ad;
   else if (H / W > 1.25) { const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8; ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420, 1400); }
@@ -6913,6 +6996,10 @@ setTimeout(async () => { // la partida empezó de cero pero hay una copia con m�
   if (await ask(`Encontramos una copia de tu partida (${saveSummary(best)}). ¿Quieres recuperarla?`, { ok: 'Recuperar' })) { lsSet(UNDO_KEY, JSON.stringify(save)); lsSet(LOST_KEY, null); applyImport(JSON.stringify(best)); }
 }, 900);
 requestAnimationFrame(loop);
+// Pantalla de carga (pedido del dueño): se va cuando la página terminó de cargar y el juego ya dibujó sus primeros cuadros
+(function bootHide() { const el = document.getElementById('boot'); if (!el) return; let done = false; const go = () => { if (done) return; done = true; el.classList.add('out'); setTimeout(() => el.remove(), 600); };
+  const ready = Promise.all([new Promise(r => document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })), document.fonts ? document.fonts.ready.catch(() => { }) : 0]);
+  ready.then(() => { let n = 0; const f = () => { if (++n < 18) requestAnimationFrame(f); else setTimeout(go, 120); }; requestAnimationFrame(f); }); setTimeout(go, 8000); })();
 </script>
 </body>
 </html>
