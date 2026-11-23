@@ -22,7 +22,7 @@
 .bootegg i{position:absolute;border-radius:50%;background:#e06a3b}.bootegg i:nth-child(1){width:18px;height:14px;left:14px;top:22px}.bootegg i:nth-child(2){width:12px;height:12px;right:16px;top:40px}.bootegg i:nth-child(3){width:16px;height:12px;left:26px;bottom:16px}
 /* al terminar la carga el huevo nace (medio segundo antes de que se quite la pantalla; pedido del dueño): se parte en zigzag, la tapa sale volando y asoma un monstruito */
 .bootnest.hatch .bootegg.top{clip-path:polygon(0 0,100% 0,100% 50%,87% 42%,75% 52%,62% 42%,50% 52%,37% 42%,25% 52%,12% 42%,0 50%)}.bootegg.bot{clip-path:polygon(0 50%,12% 42%,25% 52%,37% 42%,50% 52%,62% 42%,75% 52%,87% 42%,100% 50%,100% 100%,0 100%)}
-.bootbaby{position:absolute;left:-17px;top:-44px;width:108px;height:108px;transform:scale(0);transform-origin:50% 92%} /* un monstruo al azar (bebé o niño) dibujado con el juego */
+.bootbaby{position:absolute;left:-17px;top:-44px;width:108px;height:108px;transform:scale(0);transform-origin:50% 92%} /* un bebé al azar dibujado con el juego */
 .bootnest.hatch .bootegg{animation:none}.bootnest.hatch .bootegg.top{animation:capfly .5s cubic-bezier(.3,.6,.4,1) forwards}.bootnest.hatch .bootbaby{animation:babypop .45s .08s cubic-bezier(.3,1.6,.5,1) forwards}
 @keyframes capfly{0%{transform:none}25%{transform:translate(0,-6px) rotate(-6deg)}100%{transform:translate(-34px,-70px) rotate(-55deg);opacity:0}}
 @keyframes babypop{0%{transform:scale(0) translateY(14px)}100%{transform:scale(1) translateY(-6px)}}
@@ -6207,7 +6207,7 @@ function makeFoe(ref) {
 }
 
 // Pantallas de carga al entrar a la arena, al granero y al volver al rancho (pedido del dueño: «así escondemos todo»)
-const eggBaby = el => { const c = el.querySelector('canvas.bootbaby'); if (!c) return; try { drawThumb(c, newRec(Math.random() < 0.5 ? 'baby' : 'child')); } catch (e) { } }; // el que nace es un monstruo al azar (pedido del dueño)
+const eggBaby = el => { const c = el.querySelector('canvas.bootbaby'); if (!c) return; try { drawThumb(c, newRec('baby')); /* sólo bebés (pedido del dueño) */ } catch (e) { } }; // el que nace es un monstruo al azar (pedido del dueño)
 const eggHatch = el => { const n = el.querySelector('.bootnest'); if (n) { n.classList.remove('hatch'); void n.offsetWidth; n.classList.add('hatch'); } }; // el huevo nace
 const ldReset = el => { const n = el.querySelector('.bootnest'); if (n) n.classList.remove('hatch'); eggBaby(el); };
 const ldHide = el => { eggHatch(el); loadScreen.t = setTimeout(() => { el.classList.add('out'); loadScreen.t = setTimeout(() => { el.hidden = true; }, 480); }, 500); }; // nace medio segundo antes de quitarse (pedido del dueño)
