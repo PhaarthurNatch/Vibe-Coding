@@ -888,10 +888,11 @@ let ANN_IDLE_CO = 1.8, ANN_IDLE = 8, ANN_BASE = 0.2, ANN_DECAY = 0.5, ANN_HOT = 
 const urgentK = k => ['tleft', 'ko', 'pko', 'pdown', 'ult', 'uc', 'fight', 'draw', 'ot', 'end', 'first', 'flung', 'boom'].includes(k);
 const ANN_LAG = 0.55, ANN_LAG_K = { intro: 0, go: 0, fight: 0, tleft: 0, end: 0, ult: 1.7, uc: 0, flung: 1.1, leap: 0.9, fly: 0.8, roll: 0.7 }; /* salir volando: cuando ya cayó al otro lado (pedido del dueño); saltar, volar y rodar: cuando ya lo está haciendo */ // (segundos reales de espera antes de narrar)
 const CO_P = 0.2, CO_F = { hit: 'fhit', ko: 'fko', ult: 'fult', end: 'fend', ot: 'fot', low: 'flow', pgood: 'fpgood', pbad: 'fpbad', pko: 'fpko', pdown: 'fpdown', plow: 'flow' };
-const ANN_REACT = 0.5, ANN_REACT_GAP = 2.5; // reacciones cortas en los golpes: chance y espera mínima entre una y otra (s)
+const ANN_REACT = 0.3, ANN_REACT_GAP = 2.5; // reacciones cortas en los golpes: chance y espera mínima entre una y otra (s)
 function annSummary(B) { // comentario final de cómo fue la pelea (pedido del dueño)
   const w = B.ms.filter(x => x.team === B.winTeam && !x.cloneOf); if (!w.length) return null; const kos = w.reduce((a, x) => a + (x.kills || 0), 0), taken = w.reduce((a, x) => a + (x.hitsTaken || 0), 0) / w.length;
-  return kos >= 3 ? 'sko3' : kos === 2 && B.mode === 'ffa' ? 'sko2' : taken <= 5 && B.time > 12 ? 'sclean' : B.time < 26 ? 'sfast' : B.otShown ? 'slong' : null; }
+  return kos >= 3 ? 'sko3' : kos === 2 && B.mode === 'ffa' ? 'sko2' : taken <= 12 && B.time > 12 ? 'sclean' : B.time < 45 ? 'sfast' : B.otShown ? 'slong' : null; }
+const SUM_P = { sko3: 0.45, sko2: 0.55, sclean: 1, sfast: 1, slong: 0.3 }; // chance de cada resumen (equilibrado con la simulación: los que pasan seguido se dicen menos)
 const ANN = { exc: 0.2, cd: 1.5, on: false, last: {}, co: false,
   clip(k, u) { // audios grabados: elige uno de ese evento sin repetir el anterior (y el nombre de la ultimate después)
     if (k === 'uc') { if (!u) return null; const i = BAG.next(`${CAST.lang}_uc_${u}`, VOZ.uc); return [`${CAST.lang}_uc_${u}_${i}`]; } // lo que hace cada ultimate («¡Ahora son dos!»)
@@ -902,7 +903,7 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {}, co: false,
   line(k, n, m, u) { const L = ((CAST.lang === 'es' ? CAST_LINES_ES : CAST_LINES)[k] || []).filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
     let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
     return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
-  hot() { return battle && battle.otShown || Math.random() < clamp((this.exc - 0.12) / 0.3, 0.15, 0.9); }, // relleno intenso o tranquilo según la emoción (al azar, para que se oigan los dos parecido; en la muerte súbita siempre intenso)
+  hot() { return battle && battle.otShown || Math.random() < clamp((this.exc - 0.2) / 0.45, 0.1, 0.75); }, // relleno intenso o tranquilo según la emoción (al azar, para que se oigan los dos parecido; en la muerte súbita siempre intenso)
   start() { this.exc = 0.4; this.cd = 2.5; this.on = true; this.co = CAST.el && !!battle && Math.random() < CO_P; /* siempre narra él; ella en 20% de las peleas (al azar; antes 40%), en todos los modos (pedido del dueño; se probó una bolsa de exactamente 4 de cada 10 y prefirió el 40% al azar) */ CROWD.start(); },
   stop() { this.on = false; CAST.stop(); CROWD.stop(); SFX.otStop(); },
   // kind: fight, hit, ult, uc (efecto de la ultimate), ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block, first, airhit, flung. n = quien hace, m = a quien, u = ultimate
@@ -937,22 +938,22 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {}, co: false,
     if (kind === 'first' && CAST.busy) return; // (el primer golpe no corta el «FIGHT»)
     const soon = kind === 'flung' || kind === 'boom'; // (salir volando y las bombas suelen pasar mientras habla: van a continuación si falta poco)
     const urgent = soon || kind === 'tleft' || kind === 'ko' || kind === 'ult' || kind === 'uc' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end' || kind === 'first';
-    if (kind === 'hit' && CAST.el && !CAST.busy && (this.cd > 0 || Math.random() > (ANN_ACC[pv] ?? ANN_ACC.hit))) { // reacciones cortas («¡Uy!», «¡Pum!»): suenan más seguido sin cansar (pedido del dueño)
+    if (kind === 'hit' && CAST.el && !CAST.busy && (this.cd > 0 || Math.random() > (ANN_ACC[pv] ?? ANN_ACC.hit) * (this.co ? 2 : 1))) { // reacciones cortas («¡Uy!», «¡Pum!»): suenan más seguido sin cansar (pedido del dueño)
       if ((this.t || 0) - (this.reactT ?? -9) > ANN_REACT_GAP && Math.random() < ANN_REACT) { this.speak(this.co && Math.random() < 0.5 ? 'freact' : 'react', '', 0, 0.6); this.reactT = this.t || 0; this.cd = Math.max(this.cd, 1); } return; }
     if (!urgent && (CAST.busy || this.cd > 0)) return; // lo menor sólo se narra si está callado
     if (kind !== 'hit' && Math.random() > (ANN_ACC[pv] ?? ANN_ACC[kind] ?? 1)) return; // y según qué tan seguido pasa, para que cada frase se oiga parecido (las esquivas pasan muchísimo; las bombas, poco)
     const wait = CLIP.wait(); if (urgent && wait > (kind === 'ko' || kind === 'end' || kind === 'draw' ? 3.5 : soon ? 0.8 : 1.2)) return; // lo importante espera su turno (ya no corta lo anterior); si tendría que esperar mucho, se omite
     const t = this.line(kind, n, m, u ? (CAST.lang === 'es' ? (ULTS[u] && ULTS[u].name) : ULT_EN[u]) || '' : ''); if (!t && !CAST.el) return;
     this.speak(ck, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u, extra, urgent);
-    if (sumK && Math.random() < 0.8) { const ks = this.clip(sumK); if (ks && !CLIP.play(ks, true)) ks.forEach(k => CLIP.load(k)); } // y cómo fue la pelea («¡Tres nocauts en una sola pelea!»)
+    if (sumK && Math.random() < (SUM_P[sumK] ?? 0.8)) { const ks = this.clip(sumK); if (ks && !CLIP.play(ks, true)) ks.forEach(k => CLIP.load(k)); } // y cómo fue la pelea («¡Tres nocauts en una sola pelea!»)
     this.cd = urgent ? 3 : 4 + Math.random() * 3; }, // (pausas más largas: hablaba demasiado, pedido del dueño)
   step(dt) { if (!this.on) return; this.t = (this.t || 0) + dt; this.exc += (ANN_BASE - this.exc) * Math.min(1, dt * ANN_DECAY); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
     if (this.cd > 0 || CAST.busy || (battle && battle.over)) { this.idleT = 0; return; } // (terminada la pelea sólo anuncia al ganador)
     if ((this.idleT = (this.idleT || 0) + dt) < (this.co && CAST.el ? ANN_IDLE_CO : ANN_IDLE)) return; this.idleT = 0; // el relleno espera un poco: si pasa algo, se narra eso (antes el relleno se quedaba siempre con el turno)
     const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
     if (this.co && CAST.el) { const r = Math.random(), L = CAST.lang; // con la comentarista: a veces conversan entre ellos y a veces habla ella
-      if (r < 0.75) { const fem = Math.random() < 0.45, a = fem ? 'af' : 'dm', b = fem ? 'am' : 'df', i = BAG.next(`${L}_${a}`, VOZ.n[a]), ks = [`${L}_${a}_${i}`, `${L}_${b}_${i}`]; if (!CLIP.play(ks)) ks.forEach(k => CLIP.load(k)); this.cd = 6 + Math.random() * 4; return; }
-      if (r < 0.95) { this.speak(Math.random() < 0.35 ? 'fop' : this.hot() ? 'fhot' : 'fcalm', '', 0, 0.5); this.cd = 5 + Math.random() * 3; return; } } // (ella también da su opinión y sus favoritos)
+      if (r < 0.55) { const fem = Math.random() < 0.45, a = fem ? 'af' : 'dm', b = fem ? 'am' : 'df', i = BAG.next(`${L}_${a}`, VOZ.n[a]), ks = [`${L}_${a}_${i}`, `${L}_${b}_${i}`]; if (!CLIP.play(ks)) ks.forEach(k => CLIP.load(k)); this.cd = 6 + Math.random() * 4; return; }
+      if (r < 0.9) { this.speak(Math.random() < 0.3 ? 'fop' : this.hot() ? 'fhot' : 'fcalm', '', 0, 0.5); this.cd = 5 + Math.random() * 3; return; } } // (ella también da su opinión y sus favoritos)
     const k = Math.random() < 0.3 ? 'op' : this.hot() ? 'hot' : 'calm'; /* a veces él da su opinión o dice quién es su favorito (pedido del dueño: que tengan personalidad) */ this.speak(k, this.line(k, a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 5 + Math.random() * 3; }
 };
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
