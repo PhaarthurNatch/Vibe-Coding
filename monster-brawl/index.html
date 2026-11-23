@@ -401,12 +401,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <button class="btn setitem" data-go="friends"><span>👥 Amigos</span><small id="frState"></small></button>
       <button class="btn setitem" data-go="account"><span>👤 Mi cuenta</span><small id="accState"></small></button>
       <button class="btn setitem" id="sndBtn"><span id="sndIco">🔊 Sonido</span><small id="sndState"></small></button>
-      <button class="btn setitem" data-go="voice"><span>🎙️ Voz del relator</span><small id="voiceState"></small></button>
+      <button class="btn setitem" data-go="voice"><span>🎙️ Relator y público</span><small id="voiceState"></small></button>
       <button class="btn" data-close>Cerrar</button>
     </div>
     <div class="setview" data-view="voice" hidden>
-      <h2 style="font-size:22px">Voz del relator</h2>
+      <h2 style="font-size:22px">Relator y público</h2>
       <label class="btn setitem swrow"><span>🎙️ Relator</span><input type="checkbox" class="sw" id="castSw"></label>
+      <label class="btn setitem swrow"><span>👥 Público</span><input type="checkbox" class="sw" id="crowdSw"></label>
       <div class="frlist voicelist" id="voiceList"></div>
       <button class="btn" data-go="main">‹ Volver</button>
     </div>
@@ -637,7 +638,7 @@ const SFX = (() => {
   const lastPick = {}; const pick5 = (k, n = 5) => { let i; do i = Math.random() * n | 0; while (i === lastPick[k]); return lastPick[k] = i; };
   const S = {
     get on() { return on; },
-    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) CAST.stop(); if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
     unlock() { ctx(); CAST.unlock(); },
     actx() { return ctx(); }, // (los audios grabados del relator usan el mismo contexto de sonido)
     // pelea
@@ -730,10 +731,10 @@ const CAST = { voices: [], unl: false, lang: 'en', // lang: idioma de las frases
   best(vs, l) { const male = l === 'es' ? /jorge|diego|juan|carlos|pablo|enrique|andr[eé]s|miguel|javier|alvaro|álvaro|eddy|reed|rocko|grandpa|male|hombre|antonio|jos[eé]|luis|francisco/i
       : /daniel|alex|fred|aaron|arthur|rishi|tom|male|guy|david|mark|james|george|oliver|ralph|reed|gordon|eddy|rocko|grandpa|thomas|matthew|lee|christopher|eric|roger|brian/i;
     const L = vs.filter(v => this.isL(v, l)), M = L.filter(v => male.test(v.name)), P = M.length ? M : L; return P.find(v => l === 'en' ? /en.US/i.test(v.lang) : /es.(ES|MX|US|AR)/i.test(v.lang)) || P[0] || null; },
-  init() { if (!this.ok()) return; const load = () => { const vs = speechSynthesis.getVoices().filter(v => this.isL(v, 'en') || this.isL(v, 'es')); if (!vs.length) return;
+  init() { if (this.el) { this.lang = this.pick.slice(3); } if (!this.ok()) return; const load = () => { /* (el idioma de las voces grabadas no depende de las voces del celular) */ const vs = speechSynthesis.getVoices().filter(v => this.isL(v, 'en') || this.isL(v, 'es')); if (!vs.length) return;
       this.all = vs.slice().sort((a, b) => (this.isL(a, 'es') - this.isL(b, 'es')) || a.name.localeCompare(b.name)); this.applyPick(); };
     load(); if (!this._ev) { this._ev = true; try { speechSynthesis.addEventListener('voiceschanged', load); } catch (e) { } } },
-  all: [], pick: (() => { try { const k = localStorage.getItem('monster_brawl_voice') || 'el-en'; return k === 'off' ? (localStorage.getItem('monster_brawl_voice_prev') || 'auto') : k; } catch (e) { return 'auto'; } })(), // 'auto' (inglés), 'auto-es' (español) o una voz (se guarda en este celular)
+  all: [], pick: (() => { try { const k = localStorage.getItem('monster_brawl_voice') || 'el-en'; return /^el-/.test(k) ? k : k === 'auto-es' ? 'el-es' : 'el-en'; } catch (e) { return 'el-en'; } })(), // sólo las voces grabadas (pedido del dueño); las opciones antiguas pasan a Guy (o a El Faraón si era «automática · español») // 'auto' (inglés), 'auto-es' (español) o una voz (se guarda en este celular)
   muted: (() => { try { return localStorage.getItem('monster_brawl_cast_off') === '1' || localStorage.getItem('monster_brawl_voice') === 'off'; } catch (e) { return false; } })(), // interruptor «Relator» (antes «Sin relator» era una voz más)
   setMuted(v) { this.muted = v; try { localStorage.setItem('monster_brawl_cast_off', v ? '1' : '0'); if (localStorage.getItem('monster_brawl_voice') === 'off') localStorage.setItem('monster_brawl_voice', this.pick); } catch (e) { } if (v) this.stop(); },
   get el() { return /^el-/.test(this.pick); }, // voz grabada con ElevenLabs (Guy en inglés, El Faraón en español)
@@ -749,18 +750,33 @@ const CAST = { voices: [], unl: false, lang: 'en', // lang: idioma de las frases
 };
 // Audios grabados del relator (ElevenLabs; pedido del dueño): carpeta voz/, «{idioma}_{evento}_{n}.mp3» y «{idioma}_u_{ultimate}.mp3» con el nombre de cada ultimate.
 // No dicen los nombres de los monstruos (se inventan al nacer). Si un audio no está o no carga, esa frase la dice la voz del celular.
-const VOZ = { n: { block: 2, boom: 3, calm: 4, dodge: 3, draw: 2, end: 3, fight: 4, fly: 2, hit: 6, hot: 5, ko: 5, leap: 2, low: 3, ot: 2, roll: 2, tail: 2, ult: 4 },
+const VOZ = { n: { block: 2, boom: 3, calm: 4, dodge: 3, draw: 2, end: 3, fight: 4, fly: 2, hit: 6, hot: 5, ko: 5, leap: 2, low: 3, ot: 2, roll: 2, tail: 2, ult: 4,
+    ffa: 2, team: 2, first: 2, airhit: 2, flung: 2, comeback: 2, last2: 2, perfect: 2, close: 2 }, // (más situaciones: todos contra todos, equipos, primer golpe, golpe en el aire, sale volando, remontada, quedan dos, victoria perfecta o muy pareja)
   voices: { 'el-en': { name: 'Guy · ElevenLabs', sub: 'locutor en inglés · voz grabada' }, 'el-es': { name: 'El Faraón · ElevenLabs', sub: 'relator en español · voz grabada' } } };
 const CLIP = { buf: {}, loading: {}, srcs: [], end: 0, out: null,
-  load(k) { if (k in this.buf) return Promise.resolve(); if (this.loading[k]) return this.loading[k]; const c = SFX.actx(); if (!c) return Promise.resolve();
-    return (this.loading[k] = fetch('voz/' + k + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(a => new Promise((res, rej) => c.decodeAudioData(a, res, rej))).then(b => { this.buf[k] = b; }).catch(() => { this.buf[k] = null; })); },
-  preload(lang) { if (!SFX.actx()) return; for (const [e, n] of Object.entries(VOZ.n)) for (let i = 1; i <= n; i++) this.load(`${lang}_${e}_${i}`); for (const u of ULT_KEYS) this.load(`${lang}_u_${u}`); },
+  load(k, dir = 'voz/') { if (k in this.buf) return Promise.resolve(); if (this.loading[k]) return this.loading[k]; const c = SFX.actx(); if (!c) return Promise.resolve();
+    return (this.loading[k] = fetch(dir + k + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(a => new Promise((res, rej) => c.decodeAudioData(a, res, rej))).then(b => { this.buf[k] = b; }).catch(() => { this.buf[k] = null; })); },
+  preload(lang) { if (!SFX.actx()) return; for (const [e, n] of Object.entries(VOZ.n)) for (let i = 1; i <= n; i++) this.load(`${lang}_${e}_${i}`); for (const u of ULT_KEYS) { this.load(`${lang}_u_${u}`); this.load(`${lang}_uc_${u}`); } },
   ready(keys) { return keys.every(k => this.buf[k]); },
   play(keys) { const c = SFX.actx(); if (!c || !this.ready(keys)) return false; this.stop();
     if (!this.out) { this.out = c.createGain(); this.out.gain.value = 0.95; this.out.connect(c.destination); }
     let t = c.currentTime + 0.02; for (const k of keys) { const s = c.createBufferSource(); s.buffer = this.buf[k]; s.connect(this.out); s.start(t); t += this.buf[k].duration - 0.05; this.srcs.push(s); } this.end = t; return true; },
   stop() { for (const s of this.srcs) try { s.stop(); } catch (e) { } this.srcs = []; this.end = 0; },
   get busy() { if (!this.end || !SFX.on) return false; const c = SFX.actx(); return !!c && c.currentTime < this.end; },
+};
+// Público (pedido del dueño; efectos grabados con ElevenLabs en sfx/): murmullo del estadio en bucle que sube con la emoción y reacciones (ooh, sorpresa, ovación, aplausos, abucheo)
+const CROWD = { on: (() => { try { return localStorage.getItem('monster_brawl_crowd') !== '0'; } catch (e) { return true; } })(), loop: null, g: null, out: null, last: 0,
+  keys: ['crowd_loop', 'crowd_cheer_1', 'crowd_cheer_2', 'crowd_ooh_1', 'crowd_ooh_2', 'crowd_gasp', 'crowd_clap', 'crowd_boo'],
+  set(v) { this.on = v; try { localStorage.setItem('monster_brawl_crowd', v ? '1' : '0'); } catch (e) { } if (!v) this.stop(); },
+  preload() { if (SFX.actx()) for (const k of this.keys) CLIP.load(k, 'sfx/'); },
+  bus(c) { if (!this.out) { this.out = c.createGain(); this.out.gain.value = 0.55; this.out.connect(c.destination); } return this.out; },
+  start() { const c = SFX.actx(); if (!c || !this.on || !SFX.on || this.loop) return; const b = CLIP.buf.crowd_loop; if (!b) { CLIP.load('crowd_loop', 'sfx/').then(() => { if (ANN.on && CLIP.buf.crowd_loop) this.start(); }); return; }
+    const src = c.createBufferSource(), g = c.createGain(); src.buffer = b; src.loop = true; g.gain.value = 0.0001; g.gain.setTargetAtTime(0.35, c.currentTime, 0.8); src.connect(g); g.connect(this.bus(c)); src.start(); this.loop = src; this.g = g; },
+  level(e) { const c = SFX.actx(); if (c && this.g) this.g.gain.setTargetAtTime(0.25 + 0.6 * clamp(e, 0, 1), c.currentTime, 0.5); },
+  stop() { const c = SFX.actx(); if (!this.loop || !c) { this.loop = null; return; } const L = this.loop, g = this.g; this.loop = null; this.g = null; g.gain.setTargetAtTime(0.0001, c.currentTime, 0.6); setTimeout(() => { try { L.stop(); } catch (e) { } }, 2500); },
+  react(kind) { const c = SFX.actx(); if (!c || !this.on || !SFX.on) return false; const now = performance.now(); if (kind !== 'boo' && kind !== 'clap' && now - this.last < 900) return false;
+    const k = { cheer: Math.random() < 0.5 ? 'crowd_cheer_1' : 'crowd_cheer_2', ooh: Math.random() < 0.5 ? 'crowd_ooh_1' : 'crowd_ooh_2', gasp: 'crowd_gasp', clap: 'crowd_clap', boo: 'crowd_boo' }[kind], b = k && CLIP.buf[k]; if (!b) return false;
+    this.last = now; const src = c.createBufferSource(), g = c.createGain(); src.buffer = b; g.gain.value = kind === 'ooh' ? 0.8 : 1; src.connect(g); g.connect(this.bus(c)); src.start(); return true; },
 };
 CAST.init();
 document.addEventListener('visibilitychange', () => { if (document.hidden) CAST.stop(); });
@@ -807,25 +823,32 @@ const CAST_LINES_ES = {
 };
 const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
   clip(k, u) { // audios grabados: elige uno de ese evento sin repetir el anterior (y el nombre de la ultimate después)
+    if (k === 'uc') return u ? [`${CAST.lang}_uc_${u}`] : null; // lo que hace cada ultimate («¡Ahora son dos!»)
     const n = VOZ.n[k]; if (!n) return null; let i, tries = 0; do i = 1 + Math.floor(Math.random() * n); while (n > 1 && i === this.lastC[k] && tries++ < 5); this.lastC[k] = i;
     const ks = [`${CAST.lang}_${k}_${i}`]; if (k === 'ult' && u) ks.push(`${CAST.lang}_u_${u}`); return ks; },
-  speak(kind, text, who, E, u) { if (CAST.muted || !SFX.on) return; if (CAST.el) { const ks = this.clip(kind, u); if (ks && CLIP.play(ks)) return; } if (text) CAST.say(text, who, E); }, // grabado si está listo; si no, la voz del celular
+  speak(kind, text, who, E, u, extra) { if (CAST.muted || !SFX.on) return; if (CAST.el) { const ks = this.clip(kind, u); if (ks && extra) { const x = this.clip(extra); if (x && CLIP.ready(x)) ks.push(...x); } if (ks && CLIP.play(ks)) return; } if (text) CAST.say(text, who, E); }, // grabado si está listo; si no, la voz del celular
   lastC: {},
-  line(k, n, m, u) { const L = (CAST.lang === 'es' ? CAST_LINES_ES : CAST_LINES)[k].filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
+  line(k, n, m, u) { const L = ((CAST.lang === 'es' ? CAST_LINES_ES : CAST_LINES)[k] || []).filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
     let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
     return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
-  start() { this.exc = 0.4; this.cd = 2.5; this.on = true; },
-  stop() { this.on = false; CAST.stop(); },
-  // kind: fight, hit, ult, ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block. n = quien hace, m = a quien, u = ultimate
-  ev(kind, v = 0, n, m, u) { if (!this.on) return;
-    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4, dodge: 0.08, fly: 0.12, leap: 0.1, roll: 0.08, tail: 0.15, boom: 0.3, block: 0.15 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
-    const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end';
+  start() { this.exc = 0.4; this.cd = 2.5; this.on = true; CROWD.start(); },
+  stop() { this.on = false; CAST.stop(); CROWD.stop(); },
+  // kind: fight, hit, ult, uc (efecto de la ultimate), ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block, first, airhit, flung. n = quien hace, m = a quien, u = ultimate
+  ev(kind, v = 0, n, m, u) { if (!this.on) return; const B = battle;
+    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, uc: 0.3, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4, dodge: 0.08, fly: 0.12, leap: 0.1, roll: 0.08, tail: 0.15, boom: 0.3, block: 0.15, first: 0.2, airhit: 0.3, flung: 0.3 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
+    { const cr = { fight: 'cheer', hit: v > 0.35 ? 'ooh' : null, ult: 'gasp', ko: 'cheer', ot: 'gasp', boom: 'ooh', tail: 'ooh', flung: 'ooh', airhit: 'ooh' }[kind]; if (cr) CROWD.react(cr); if (kind === 'end') { CROWD.react('cheer'); setTimeout(() => CROWD.react('clap'), 900); } CROWD.level(this.exc); } // el público reacciona
+    let ck = kind, extra = null; // qué audio grabado: algunas situaciones tienen su frase especial
+    if (kind === 'fight' && B) ck = B.mode === 'ffa' ? 'ffa' : B.mode === '2v2' || B.mode === 'teams' ? 'team' : 'fight';
+    if (kind === 'ko' && B) { const att = B.ms.find(x => x.name === n && !x.dead); if (att && att.hp / att.st.hp < 0.2 && Math.random() < 0.7) ck = 'comeback'; if (new Set(B.ms.filter(x => !x.dead).map(x => x.team)).size === 2 && new Set(B.ms.map(x => x.team)).size > 2) extra = 'last2'; }
+    if (kind === 'end' && B) { const w = B.ms.filter(x => x.team === B.winTeam && !x.cloneOf), f = w.reduce((a, x) => a + Math.max(0, x.hp) / x.st.hp, 0) / Math.max(1, w.length); ck = f > 0.9 ? 'perfect' : f < 0.15 ? 'close' : 'end'; }
+    if (kind === 'first' && CAST.busy) return; // (el primer golpe no corta el «FIGHT»)
+    const urgent = kind === 'ko' || kind === 'ult' || kind === 'uc' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end' || kind === 'first';
     if (!urgent && (CAST.busy || this.cd > 0)) return; // lo menor sólo se narra si está callado
     if (urgent) CAST.stop(); // lo importante corta lo que estaba diciendo
     const t = this.line(kind, n, m, u ? (CAST.lang === 'es' ? (ULTS[u] && ULTS[u].name) : ULT_EN[u]) || '' : ''); if (!t && !CAST.el) return;
-    this.speak(kind, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u);
+    this.speak(ck, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u, extra);
     this.cd = urgent ? 1.6 : 1.1 + Math.random() * 1.2; },
-  step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt;
+  step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
     if (this.cd > 0 || CAST.busy || (battle && battle.over)) return; // (terminada la pelea sólo anuncia al ganador)
     const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
     const k = this.exc > 0.5 ? 'hot' : 'calm'; this.speak(k, this.line(k, a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
@@ -3154,6 +3177,7 @@ class Battle {
         if (++t.stunChain >= STUN.chain) { t.stunImmune = STUN.immune + t.stT; t.stunChain = 0; } // aguanta: el próximo golpe no lo frena
       }
     }
+    if (this.kcamOn && !shielded && t.st) { if (!this._annFirst && dmg > 0) { this._annFirst = true; ANN.ev('first', 0, (a.cloneOf || a).name, t.name); } else if (kind === 'melee' && a.z > FLY.airZ && t.z > FLY.airZ) ANN.ev('airhit', 0, a.name, t.name); else if (kb > 300) ANN.ev('flung', 0, a.name, t.name); }
     if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
     for (const n of t.nodes) { n.vx += dir.x * kbA * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
@@ -3209,6 +3233,7 @@ class Battle {
     }
   }
   execUlt(m) {
+    if (this.kcamOn) setTimeout(() => { if (battle === this) ANN.ev('uc', 0, m.name, null, m.ultType); }, 300);
     if (this.kcamOn) SFX.ult(m.ultType === 'defense' ? 'shield' : m.ultType);
     m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
@@ -3359,7 +3384,7 @@ class Battle {
       if (alive.size === 1 && this.ms.length > 1) this.lastT = this.lastT ?? this.time; // queda uno: se espera un instante por si el otro cae «al mismo tiempo» (un disparo o bomba ya lanzados)
       if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT) {
         this.over = true; this.timedOut = alive.size > 1; this.isDraw = alive.size === 0 || this.timedOut; // empate: los últimos caen al mismo tiempo (pedido del dueño; antes eran 15 s de muerte súbita sin K.O.)
-        if (this.isDraw && this.kcamOn) { this.drawBig = { t: -(alive.size === 0 ? KO_DELAY : 0) }; setTimeout(() => { if (battle === this) { SFX.boo(); ANN.ev('draw'); } }, alive.size === 0 ? KO_DELAY * 1000 : 0); } else if (this.kcamOn) this.koBig = { t: -KO_DELAY }; // última muerte: «K.O.» martillado (aparece 1 s después; pedido del dueño)
+        if (this.isDraw && this.kcamOn) { this.drawBig = { t: -(alive.size === 0 ? KO_DELAY : 0) }; setTimeout(() => { if (battle === this) { if (!CROWD.react('boo')) SFX.boo(); ANN.ev('draw'); } }, alive.size === 0 ? KO_DELAY * 1000 : 0); } else if (this.kcamOn) this.koBig = { t: -KO_DELAY }; // última muerte: «K.O.» martillado (aparece 1 s después; pedido del dueño)
         // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
@@ -5175,7 +5200,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.'] },
+  { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.'] },
   { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).'] },
   { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Relator en las peleas: narra en inglés con la voz del celular, al estilo de los locutores de batallas de monstruos, lo que hace cada uno por su nombre («Tito unleashes Shockwave!», «Lora dodges it!», «And the winner is Tito!») y se emociona más con los golpes fuertes, las ultimates y los K.O.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
@@ -5295,19 +5320,16 @@ function rankView() {
     return `<button class="btn rkrow${r.me ? ' me' : ''}" ${r.uid ? `data-rku="${r.uid}"` : ''}><span class="pos">${medal[i] || i + 1}</span><span>${r.me ? '<b>Tú</b> · ' : ''}${esc(r.name)}${r.on ? ' <i class="frdot on" style="display:inline-block;vertical-align:middle"></i>' : ''}<br><small>${r.none ? 'sin datos todavía' : sub}</small></span><span class="val">${v}</span></button>`; }).join('');
   $('rkList').querySelectorAll('[data-rku]').forEach(b => b.onclick = () => { FR.sel = b.dataset.rku; setView('friend'); });
 }
-function voiceView() { $('castSw').checked = !CAST.muted; $('voiceList').classList.toggle('dim', CAST.muted); // interruptor arriba para callar al relator (pedido del dueño)
-  // lista de voces en inglés de este celular, con «Probar» (pedido del dueño)
-  const el = $('voiceList'); if (!CAST.ok()) { el.innerHTML = '<p class="tdesc">Este navegador no tiene voces para el relator.</p>'; return; }
-  if (!CAST.all.length) CAST.init();
-  const row = (k, name, sub, test) => `<div class="btn vitem${CAST.pick === k ? ' on' : ''}" data-vk="${esc(k)}"><span>${CAST.pick === k ? '✓ ' : ''}${esc(name)}<small>${esc(sub)}</small></span>${test ? `<button class="btn vtry nosnd" data-vt="${esc(k)}">▶ Probar</button>` : '<span></span>'}</div>`;
-  el.innerHTML = Object.entries(VOZ.voices).map(([k, v]) => row(k, v.name, v.sub, true)).join('') + row('auto', 'Automática · inglés', 'el juego elige una voz en inglés', true) + row('auto-es', 'Automática · español', 'el juego elige una voz en español', true)
-    + (CAST.all.length ? CAST.all.map(v => row(v.voiceURI || v.name, v.name, v.lang + (CAST.isL(v, 'es') ? ' · español' : ' · inglés') + (v.localService === false ? ' · necesita internet' : ''), true)).join('') : '<p class="tdesc">Cargando las voces… vuelve a abrir esta pantalla en un momento.</p>');
+function voiceView() { $('castSw').checked = !CAST.muted; $('crowdSw').checked = CROWD.on; $('voiceList').classList.toggle('dim', CAST.muted); // interruptores arriba (relator y público; pedido del dueño)
+  const el = $('voiceList'), row = (k, name, sub) => `<div class="btn vitem${CAST.pick === k ? ' on' : ''}" data-vk="${esc(k)}"><span>${CAST.pick === k ? '✓ ' : ''}${esc(name)}<small>${esc(sub)}</small></span><button class="btn vtry nosnd" data-vt="${esc(k)}">▶ Probar</button></div>`;
+  el.innerHTML = Object.entries(VOZ.voices).map(([k, v]) => row(k, v.name, v.sub)).join(''); // sólo inglés (Guy) y español (El Faraón), grabadas con ElevenLabs
   el.querySelectorAll('[data-vk]').forEach(r => r.onclick = e => { if (e.target.closest('[data-vt]')) return; CAST.setPick(r.dataset.vk); voiceView(); });
-  el.querySelectorAll('[data-vt]').forEach(b => b.onclick = () => { const k = b.dataset.vt, old = CAST.pick; CAST.unlock(); CAST.stop(); CAST.pick = k; CAST.applyPick();
-    if (CAST.el) { const L = CAST.lang, tries = [[L + '_fight_1'], [L + '_ult_1', L + '_u_melee'], [L + '_ko_1'], [L + '_end_1']], ks = tries[Math.floor(Math.random() * tries.length)]; const go = () => { if (!CLIP.play(ks)) CAST.say(L === 'es' ? '¡Que comience la batalla!' : 'Let the battle begin!', 0, 0.8, true); };
-      if (CLIP.ready(ks)) go(); else Promise.all(ks.map(x => CLIP.load(x))).then(go); CAST.pick = old; CAST.applyPick(); return; }
-    CAST.say((CAST.lang === 'es' ? ['¡Tito desata Onda de choque! ¡Qué golpe!', '¡Y el ganador es Tito!', '¡Lora cae! ¡Lora ya no puede seguir!'] : ['Tito unleashes Shockwave! What a hit!', 'And the winner is Tito!', 'Lora is down! Lora can no longer battle!'])[Math.floor(Math.random() * 3)], 0, 0.8, true); CAST.pick = old; CAST.applyPick(); });
+  el.querySelectorAll('[data-vt]').forEach(b => b.onclick = () => { const L = b.dataset.vt.slice(3); CAST.unlock(); CAST.stop();
+    const tries = [[L + '_fight_1'], [L + '_ult_1', L + '_u_melee'], [L + '_ko_1'], [L + '_end_1'], [L + '_perfect_1']], ks = tries[Math.floor(Math.random() * tries.length)];
+    const go = () => { if (!CLIP.play(ks)) CAST.say(L === 'es' ? '¡Que comience la batalla!' : 'Let the battle begin!', 0, 0.8, true); };
+    if (CLIP.ready(ks)) go(); else Promise.all(ks.map(x => CLIP.load(x))).then(go); });
 }
+$('crowdSw').onchange = e => { CROWD.set(e.target.checked); SFX.click(); if (e.target.checked) { CROWD.preload(); setTimeout(() => CROWD.react('cheer'), 600); } };
 $('castSw').onchange = e => { CAST.setMuted(!e.target.checked); voiceView(); SFX.click(); };
 try { speechSynthesis.addEventListener('voiceschanged', () => { if (!$('settings').querySelector('[data-view="voice"]').hidden) voiceView(); }); } catch (e) { }
 $('sndBtn').onclick = () => { SFX.set(!SFX.on); sndUI(); if (SFX.on) SFX.coin(); };
@@ -5897,7 +5919,7 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); // (viene de un toque: el iPhone deja que la voz hable)
+function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); // (viene de un toque: el iPhone deja que la voz hable)
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
     goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
@@ -6718,7 +6740,7 @@ function lanSnapshot() {
 function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima las partes localmente
   const B = battle, s = LAN.snap;
   if (s) {
-    if (s.ar != null) B.arena = s.ar; B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0 }; SFX.boo(); ANN.ev('draw'); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
+    if (s.ar != null) B.arena = s.ar; B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0 }; if (!CROWD.react('boo')) SFX.boo(); ANN.ev('draw'); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
