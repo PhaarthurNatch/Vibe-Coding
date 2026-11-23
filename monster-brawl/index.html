@@ -3283,10 +3283,9 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   ctx.restore();
   for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55; // los brazos entran por los costados de la arena (pedido del dueño)
     // el antebrazo intenta quedar horizontal (pedido del dueño): el codo va al lado de la mano, hacia afuera (aunque quede fuera de la pantalla), apenas más abajo
-    const FL = (V.x1 - V.x0) * 0.42, ex = hx + h.side * FL, ey = hy + FL * 0.08;
+    const FL = (V.x1 - V.x0) * 0.42, ex = h.side < 0 ? V.x0 - w1 * 0.2 : V.x1 + w1 * 0.2, ey = hy + Math.abs(hx - ex) * 0.08; // el codo en el borde de la pantalla: el brazo existe, pero queda fuera; en pantalla se mueve el resto (pedido del dueño)
     const sx = h.side < 0 ? Math.min(V.x0, ex) - L1 : Math.max(V.x1, ex) + L1, sy = ey * 0.75 + ay * 0.25; // (el brazo, casi todo fuera de la pantalla, sigue al codo)
-    const bl = Math.hypot(sx - ex, sy - ey) || 1, k = Math.min(1, w1 * 1.3 / bl); // del brazo sólo se ve un poquito: del codo en adelante (pedido del dueño)
-    ctx.save(); seg(ex + (sx - ex) * k, ey + (sy - ey) * k, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
+    ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
 }
 
 class Battle {
