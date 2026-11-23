@@ -7,7 +7,7 @@ const { chromium, devices } = require('playwright');
   const p = await (await b.newContext({ ...devices['iPhone 13'] })).newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
-  await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(400);
+  await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#boot', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(200); // (espera que se vaya la pantalla de carga)
   // partida nueva: empieza en el Home con su primer huevo (gratis); se abre tocándolo
   for (let i = 0; i < 12 && await p.evaluate(() => !!egg); i++) {
     const e = await p.evaluate(() => ({ x: homeView.cx + egg.gx * homeView.k, y: homeView.gy - (egg.z + egg.h * 0.45) * homeView.k }));
@@ -18,7 +18,7 @@ const { chromium, devices } = require('playwright');
   // el Home tiene que quedar centrado (también al volver a abrir el juego)
   const offCenter = () => p.evaluate(() => Math.abs(document.getElementById('pgHome').getBoundingClientRect().top - document.querySelector('.pager').getBoundingClientRect().top)); // el Rancho (página del medio) a la vista
   if (await offCenter() > 5) errs.push('el Home no está centrado tras nacer');
-  await p.reload(); await p.waitForTimeout(400);
+  await p.reload(); await p.waitForSelector('#boot', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(200); // (espera que se vaya la pantalla de carga)
   if (await offCenter() > 5) errs.push('el Home no está centrado al abrir el juego');
   if (errs.length) { console.log(errs.join('; ')); await b.close(); process.exit(1); }
   // al abrir se ve el rancho: se toca al monstruo para verlo de cerca
