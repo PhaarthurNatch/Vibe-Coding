@@ -625,6 +625,7 @@ function ultTypeOf(g, train) {
   return ULT_KEYS.filter(k => k in st).map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
 // ---------- Sonido (pedido del dueño): todo sintetizado con Web Audio (sin archivos); 🔊/🔇 en el Menú, se recuerda en este celular ----------
+const REC_SFX = ['ko_taan', 'ko_anvil', 'cd_tick', 'cd_fight', 'ot_music']; // efectos grabados con ElevenLabs (sfx/)
 const SFX = (() => {
   let ac = null, out = null, last = {};
   const KEY = 'monster_brawl_sound', VOL = 0.32;
@@ -639,13 +640,17 @@ const SFX = (() => {
   const lastPick = {}; const pick5 = (k, n = 5) => { let i; do i = Math.random() * n | 0; while (i === lastPick[k]); return lastPick[k] = i; };
   const S = {
     get on() { return on; },
-    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
-    unlock() { ctx(); CAST.unlock(); if (!S._pre) { S._pre = true; setTimeout(() => { if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); CLIP.load('ko_taan', 'sfx/'); CLIP.load('ko_anvil', 'sfx/'); }, 300); } }, // con el primer toque ya se cargan los audios del relator y del público (así la intro no llega tarde)
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); S.otStop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    unlock() { ctx(); CAST.unlock(); if (!S._pre) { S._pre = true; setTimeout(() => { if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); }, 300); } }, // con el primer toque ya se cargan los audios del relator y del público (así la intro no llega tarde)
     actx() { return ctx(); }, // (los audios grabados del relator usan el mismo contexto de sonido)
     // pelea
+    count(n) { if (smp('cd_tick', 1 + 0.06 * (3 - clamp(n, 1, 3)), 1)) return; S.beep(false); }, // 3, 2, 1 grabado (cada número un poco más agudo)
+    otStart() { S._otWant = true; const c = ctx(); if (!c || S._ot) return; const b = CLIP.buf.ot_music; if (!b) { CLIP.load('ot_music', 'sfx/').then(() => { if (S._otWant) S.otStart(); }); return; } // música de «se acaba el tiempo» en la muerte súbita (pedido del dueño)
+      const src = c.createBufferSource(), g = c.createGain(); src.buffer = b; src.loop = true; src.loopStart = 0.025; src.loopEnd = Math.min(b.duration, 8.025); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.55, c.currentTime + 0.6); src.connect(g); g.connect(c.destination); src.start(); S._ot = { src, g }; },
+    otStop() { S._otWant = false; const o = S._ot, c = ac; S._ot = null; if (!o || !c) return; o.g.gain.setTargetAtTime(0.0001, c.currentTime, 0.25); setTimeout(() => { try { o.src.stop(); } catch (e) { } }, 1500); },
     beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
-    fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
-    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4); noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.45 * k }); tone(heavy ? 90 : 150, 0.12, { type: 'sine', to: 50, v: 0.55 * k }); },
+    fight() { if (smp('cd_fight', 1, 1)) return; noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
+    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4); noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.85 * k }); tone(heavy ? 90 : 150, 0.12, { type: 'sine', to: 50, v: 1.0 * k }); }, // (más fuerte, pedido del dueño)
     shot() { if (!gap('shot', 50)) return; tone(900, 0.14, { type: 'triangle', to: 360, v: 0.16 }); },
     impact() { if (!gap('imp', 40)) return; noise(0.08, { f: 1800, fto: 400, v: 0.3 }); },
     dodge() { if (!gap('dodge', 80)) return; noise(0.16, { ft: 'bandpass', f: 1800, fto: 600, q: 1.5, v: 0.25 }); },
@@ -684,7 +689,7 @@ const SFX = (() => {
       else if (type === 'clone') { tone(523, 0.18, { type: 'square', v: 0.15 }); tone(659, 0.18, { type: 'square', v: 0.15, at: 0.1 }); tone(784, 0.25, { type: 'square', v: 0.15, at: 0.2 }); }
       else if (type === 'dodge') { noise(0.4, { ft: 'bandpass', f: 2500, fto: 800, q: 3, v: 0.3 }); tone(1200, 0.3, { to: 300, v: 0.12 }); }
       else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); noise(0.6, { ft: 'bandpass', f: 300, fto: 1200, q: 1.5, v: 0.3, at: 0.1 }); } }, // Onda de choque: golpe al suelo y la onda que se expande
-    ko(n = 0) { smp('ko_taan', Math.pow(2, 2 * Math.min(n, 7) / 12)); /* «¡taaan!» grabado: cada K.O. de la pelea suena 2 semitonos más agudo (pedido del dueño) */ noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
+    ko(n = 0) { smp('ko_taan', Math.pow(2, 2 * Math.min(n, 7) / 12), 1.3); /* «¡taaan!» grabado: cada K.O. de la pelea suena 2 semitonos más agudo (pedido del dueño) */ noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
     anvil() { if (smp('ko_anvil', 1, 0.85)) return; /* martillazo de herrero grabado (si no cargó, el sintetizado) */ tone(1568, 0.6, { type: 'triangle', v: 0.35 }); tone(2350, 0.45, { type: 'sine', v: 0.2 }); tone(523, 0.3, { type: 'square', v: 0.12 }); noise(0.12, { f: 3000, v: 0.4 }); },
     win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i === 3 ? 0.45 : 0.16, { type: 'square', v: 0.16, at: i * 0.12 })); },
     lose() { [392, 349, 311, 262].forEach((f, i) => tone(f, i === 3 ? 0.5 : 0.22, { type: 'triangle', v: 0.22, at: i * 0.2 })); },
@@ -850,7 +855,7 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
     let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
     return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
   start() { this.exc = 0.4; this.cd = 2.5; this.on = true; CROWD.start(); },
-  stop() { this.on = false; CAST.stop(); CROWD.stop(); },
+  stop() { this.on = false; CAST.stop(); CROWD.stop(); SFX.otStop(); },
   // kind: fight, hit, ult, uc (efecto de la ultimate), ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block, first, airhit, flung. n = quien hace, m = a quien, u = ultimate
   ev(kind, v = 0, n, m, u) { if (!this.on) return; const B = battle;
     /* emoción (pedido del dueño: antes los golpes, que son muchos, la tenían casi siempre arriba y sólo sonaban las frases intensas):
@@ -3409,7 +3414,7 @@ class Battle {
     for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
     // fin
     if (!this.over) {
-      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) ANN.ev('ot'); }
+      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) { ANN.ev('ot'); SFX.otStart(); } }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
       if (alive.size === 1 && this.ms.length > 1) this.lastT = this.lastT ?? this.time; // queda uno: se espera un instante por si el otro cae «al mismo tiempo» (un disparo o bomba ya lanzados)
       if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT) {
@@ -5230,7 +5235,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.'] },
+  { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
   { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.', 'Los audios del relator ya no se cortan entre sí: lo importante espera a que termine la frase anterior.', 'El público tiene 10 reacciones distintas de cada tipo (ovación, «¡oooh!», sorpresa, aplausos y abucheo) que salen al azar.', 'La voz del relator en español ahora suena tan fuerte como la de inglés.', 'El relator presenta la pelea durante la cuenta regresiva 3, 2, 1, grita «Fight!» o «¡A luchar!» al empezar, y el resultado aparece cuando termina de anunciar el final.', 'Muchas más frases del relator (cerca de 250 por idioma, incluidas intros y cierres) que se van turnando sin repetirse hasta usarlas todas, también de una pelea a otra.'] },
   { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).'] },
@@ -5951,7 +5956,7 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); // (viene de un toque: el iPhone deja que la voz hable)
+function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); // (viene de un toque: el iPhone deja que la voz hable)
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
     goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
@@ -5987,7 +5992,7 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
   let txt, p, big = false;
-  if (b.introT > 0) { if (!b._annIntro) { b._annIntro = true; ANN.start(); const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('intro', 0, A0 && A0.name, B0 && B0.name); } const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.beep(false); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); if (!ANN.on) ANN.start(); ANN.ev('go'); } // el relator presenta durante el 3, 2, 1 y grita «Fight!» / «¡A luchar!» (pedido del dueño) // sonido de la cuenta regresiva y del FIGHT!
+  if (b.introT > 0) { if (!b._annIntro) { b._annIntro = true; ANN.start(); const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('intro', 0, A0 && A0.name, B0 && B0.name); } const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.count(n); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); if (!ANN.on) ANN.start(); ANN.ev('go'); } // el relator presenta durante el 3, 2, 1 y grita «Fight!» / «¡A luchar!» (pedido del dueño) // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
   else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
   else return;
@@ -6420,7 +6425,7 @@ function loop(now) {
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
     ANN.step(dt);
-    if (battle.over && !battle._annEnd) { const B = battle; B._annEnd = true; B._overAt = performance.now(); const talk = ANN.on && !CAST.muted && SFX.on; B._annUntil = talk ? Infinity : 0; // cierre del relator: el resultado espera a que termine (pedido del dueño)
+    if (battle.over && !battle._annEnd) { SFX.otStop(); const B = battle; B._annEnd = true; B._overAt = performance.now(); const talk = ANN.on && !CAST.muted && SFX.on; B._annUntil = talk ? Infinity : 0; // cierre del relator: el resultado espera a que termine (pedido del dueño)
       if (talk) setTimeout(() => { if (battle !== B) return; if (!B.isDraw) { const w = B.ms.find(x => x.team === B.winTeam && !x.cloneOf); ANN.ev('end', 0, w && w.name); }
         ANN.on = false; B._annUntil = performance.now() + CLIP.wait() * 1000 + 350; setTimeout(() => { if (battle === B || !ANN.on) CROWD.stop(); }, CLIP.wait() * 1000 + 4000); }, B.koBig ? (KO_DELAY + 0.75) * 1000 : B.drawBig ? (KO_DELAY + 0.3) * 1000 : 500); }
     if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
@@ -6775,7 +6780,7 @@ function lanSnapshot() {
 function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima las partes localmente
   const B = battle, s = LAN.snap;
   if (s) {
-    if (s.ar != null) B.arena = s.ar; B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0 }; if (!CROWD.react('boo')) SFX.boo(); ANN.ev('draw'); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
+    if (s.ar != null) B.arena = s.ar; B.time = s.tm; if (s.tm > OT_START && !B._otMus && !B.over) { B._otMus = true; SFX.otStart(); } B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0 }; if (!CROWD.react('boo')) SFX.boo(); ANN.ev('draw'); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
