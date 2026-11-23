@@ -3115,7 +3115,7 @@ class Battle {
       if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
       if (alive.size <= 1 || this.time > HARD_LIMIT) {
-        this.over = true; this.timedOut = alive.size > 1;
+        this.over = true; this.timedOut = alive.size > 1; if (!this.timedOut && this.kcamOn) this.koBig = { t: 0 }; // última muerte: «K.O.» martillado
         // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
@@ -4816,7 +4816,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.', 'Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.'] },
+  { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.', 'Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.65', d: '2026-11-22', items: ['La muerte súbita ahora empieza a los 45 segundos de pelea (antes a los 60).', 'Los monstruos que están flotando con sus alas no reciben la Onda de choque, las Bombas ni el Teletransporte (el Teletransporte va por otro rival en el suelo).', 'La Bala gigante se lanza hacia arriba si su objetivo está en el aire.'] },
   { v: '1.64', d: '2026-11-22', items: ['Arreglado: 1 de cada 5 bebés nacía con la misma velocidad mínima. Ahora la velocidad al nacer también es al azar para todos.', 'Arreglado: los huevos del criadero tenían el doble de chance de traer un stat perfecto. Ahora todos los huevos tienen la misma (1 de cada 100 por stat).', 'El número de Poder ahora cuenta el golpe y el disparo (antes sólo mostraba el golpe), así que también cambia según lo fuerte de sus disparos.', 'Aguante ahora cuenta igual la vida y la defensa, y Técnica también cuenta la espera y el alcance de los disparos: así los números reflejan mejor lo que le tocó al nacer.'] },
   { v: '1.63', d: '2026-11-22', items: ['Los monstruos con alas que saltan o flotan ahora respetan su táctica de distancia: los «de lejos» saltan hacia atrás si se les acercan y flotan lejos disparando; los «de cerca» se quedan encima del rival.', 'En el granero, al liberar a un monstruo desde Estadísticas pasas al siguiente del granero sin salir de Estadísticas, igual que en el rancho.', 'En el granero los huevos también se pueden elegir: se ven de cerca en su cama y se abren tocándolos ahí. Al pasar de un monstruo a otro también pasas por los huevos, y la cámara se acerca igual que al elegir un monstruo.', 'Tácticas de combate: «Objetivo» ahora elige entre «Al más débil» y «Al más cercano» (antes «No lo suelta»).', 'Los monstruos con alas que flotan ahora pueden pegarle cuerpo a cuerpo a otros que están en el aire (flotando o saltando), y si su rival despega, despegan a perseguirlo. En el aire los golpes los empujan más lejos.', 'La velocidad de vuelo ahora depende de lo rápido que es el monstruo en tierra: los rápidos saltan y vuelan más rápido (en la pelea y en el rancho).', 'Los monstruos de una sola pieza (bebés y slimes) ahora ruedan en la pelea: los «de cerca» ruedan hacia el rival si quedó lejos y los «de lejos» ruedan hacia atrás si se les acerca.', 'Los que se alejan saltando o rodando ya no se desvían hacia el rival cuando están cerca de la pared: se van hacia un costado.', 'Ahora todos los monstruos con alas pueden flotar, y en el aire vuelan algo más rápido que lo que caminan.', 'Cada habilidad depende de su parte del cuerpo: los que tienen alas flotan, las arañas saltan y los de una pieza ruedan (una araña con alas puede saltar y flotar). Los alados ya no saltan.', 'Los que flotan se quedan más tiempo en el aire (unos 4 segundos en vez de 2).', 'Táctica «Distancia»: al centro disparan y golpean; hacia «de lejos» disparan más y golpean menos, y hacia «de cerca» al revés. En los extremos usan sólo uno de los dos (sólo disparos o sólo golpes), pero más fuertes y seguidos.'] },
@@ -5548,6 +5548,36 @@ function drawIntro(b) {
   ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(txt, 0, 0);
   ctx.restore(); ctx.globalAlpha = 1;
 }
+// «K.O.» al final (pedido del dueño): misma letra que el 3, 2, 1, FIGHT!; primero cae la K y después la O, como martilladas en un yunque
+const KO_HIT = [0.12, 0.62], KO_FALL = 0.14;
+function drawKO(k) {
+  const t = k.t, fs = Math.min(W * 0.24, H * 0.26), y0 = H * 0.42;
+  ctx.fillStyle = `rgba(10,5,20,${0.3 * clamp(t / 0.2, 0, 1)})`; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  const segs = ['K.', 'O.'], ws = segs.map(x => ctx.measureText(x).width), gap = fs * 0.06, tot = ws[0] + ws[1] + gap; let x = W / 2 - tot / 2;
+  segs.forEach((txt, i) => {
+    const hitT = KO_HIT[i], cx = x + ws[i] / 2; x += ws[i] + gap;
+    const p = (t - (hitT - KO_FALL)) / KO_FALL; if (p < 0) return; // todavía no cae
+    const after = t - hitT;
+    if (after >= 0 && !k['h' + i]) { k['h' + i] = true; if (battle) battle.shake = Math.max(battle.shake, 13); k['f' + i] = 0; } // ¡golpe!
+    let sy = 1, sx = 1, oy = 0, sc = 1, a = 1;
+    if (after < 0) { const e = clamp(p, 0, 1), ein = e * e; oy = -(1 - ein) * H * 0.35; sc = 1.7 - 0.7 * ein; a = clamp(e * 3, 0, 1); } // baja acelerando, como un martillo
+    else { const q = clamp(after / 0.16, 0, 1), sq = Math.sin(q * Math.PI) * (1 - q); sy = 1 - 0.28 * sq - 0.22 * (1 - q) * (after < 0.04 ? 1 : 0); sx = 1 + 0.22 * sq; } // aplastada al golpear y rebota a su forma
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, y0 + oy + fs * 0.45); ctx.scale(sc * sx, sc * sy); ctx.translate(0, -fs * 0.45); ctx.textAlign = 'center';
+    ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(txt, 0, fs * 0.04);
+    const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); ['#fff6c2', '#ffc21a', '#ff5a12', '#a3100a'].forEach((c, j) => g.addColorStop(j / 3, c));
+    ctx.fillStyle = g; ctx.fillText(txt, 0, 0); ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(txt, 0, 0);
+    ctx.restore();
+    if (after >= 0 && after < 0.35) { // chispas de herrero desde la base de la letra
+      const f = after / 0.35, by = y0 + fs * 0.42; ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let j = 0; j < 14; j++) { const ang = Math.PI + (j / 13) * Math.PI + Math.sin(j * 7.3 + i) * 0.15, r0 = fs * (0.25 + 0.9 * f) * (0.7 + 0.5 * ((j * 37 % 10) / 10)), r1 = r0 + fs * 0.18 * (1 - f);
+        ctx.strokeStyle = j % 3 ? `rgba(255,190,80,${1 - f})` : `rgba(255,255,230,${1 - f})`; ctx.lineWidth = Math.max(1.5, fs * 0.03 * (1 - f)); ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(ang) * r0 * 0.6, by + Math.sin(ang) * r0 * 0.35 + f * f * fs * 0.3); ctx.lineTo(cx + Math.cos(ang) * r1 * 0.6, by + Math.sin(ang) * r1 * 0.35 + f * f * fs * 0.3); ctx.stroke(); }
+      if (after < 0.08) { ctx.fillStyle = `rgba(255,240,200,${0.5 * (1 - after / 0.08)})`; ctx.fillRect(0, 0, W, H); } // destello del golpe
+      ctx.restore(); }
+  });
+  ctx.restore();
+}
 function drawBanner(b) {
   const a = clamp(b.t / 0.2, 0, 1) * clamp((2.4 - b.t) / 0.4, 0, 1), y = H * 0.42, sc = 1 + (1 - clamp(b.t / 0.25, 0, 1)) * 0.5;
   ctx.globalAlpha = a; ctx.textAlign = 'center';
@@ -5925,6 +5955,7 @@ function loop(now) {
     if (battle.cine) drawCineOverlay(battle.cine); else if (battle.kcam) { const e = kcamE(battle.kcam.t), v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.75); v.addColorStop(0, 'rgba(10,5,20,0)'); v.addColorStop(1, `rgba(10,5,20,${0.55 * e})`); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H); } // kill cam: bordes oscuros
     if (battle.banner) drawBanner(battle.banner);
     drawIntro(battle);
+    if (battle.koBig) { battle.koBig.t += dt; drawKO(battle.koBig); }
     if (++frame % 6 === 0) { updateFighters(); updateUltBar(); }
     if (battle.over && battle.endT > 1.8 && !battle.reported) { if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
   }
@@ -6249,7 +6280,7 @@ const R1 = v => Math.round(v * 10) / 10;
 function lanSnapshot() {
   const B = battle;
   return { t: 's', tm: R1(B.time), it: R1(B.introT || 0), ft: B.fightT == null ? null : R1(B.fightT), sh: R1(B.shake), ov: B.over,
-    ban: B.banner, cine: B.cine ? [B.ms.indexOf(B.cine.m), R1(B.cine.t * 100) / 100] : null, kc: B.kcam ? [B.ms.indexOf(B.kcam.m), R1(B.kcam.t * 100) / 100] : null,
+    ban: B.banner, cine: B.cine ? [B.ms.indexOf(B.cine.m), R1(B.cine.t * 100) / 100] : null, kc: B.kcam ? [B.ms.indexOf(B.kcam.m), R1(B.kcam.t * 100) / 100] : null, ko: B.koBig ? 1 : 0,
     ms: B.ms.map(m => [R1(m.x), R1(m.y), R1(m.z), R1(m.vx), R1(m.vy), Math.round(m.hp), m.dead ? 1 : 0, m.state, R1(m.strikeExt || 0), [R1(m.atkDir.x * 100) / 100, R1(m.atkDir.y * 100) / 100],
       m.atkArm ? m.ix.arms.indexOf(m.atkArm) : -1, B.ms.indexOf(m.target), m.emo, R1(m.emoT), m.emoP, R1(m.hurtT), R1(m.mouthOpen),
       [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
@@ -6262,7 +6293,7 @@ function lanSnapshot() {
 function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima las partes localmente
   const B = battle, s = LAN.snap;
   if (s) {
-    B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null;
+    B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: 0 };
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
