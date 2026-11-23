@@ -6153,10 +6153,10 @@ function drawOTTimer(b, top = H * 0.05) { // reloj de la muerte súbita: 10 s qu
   const boss = b.mode === 'boss', TOT = boss ? BOSS.time : OT_SHOW; // con el jefe, el reloj se ve toda la pelea (pedido del dueño)
   if (boss ? (b.over || b.introT > 0 || b.koBig || b.timeBig) : (!(b.time > OT_START) || b.over || b.drawBig || b.koBig)) return; const left = boss ? Math.max(0, BOSS.time - b.time / BATTLE_SPEED) : Math.max(0, OT_TIMER - (b.time - OT_START) / BATTLE_SPEED), n = Math.ceil(left); if (left > TOT) return;
   if (b._otSec !== n) { b._otSec = n; if (n <= 3 && n > 0) SFX.count(4 - n); else if (n > 0 && n <= 10) SFX.beep(false); if (n === 5) ANN.ev('tleft'); }
-  const fr = left - Math.floor(left), urg = n <= (boss ? 10 : 3), pulse = 1 + (urg ? 0.25 : 0.1) * Math.pow(fr, 3), fs0 = Math.min(W * 0.09, H * 0.065), fs = fs0 * pulse, x = boss ? fs0 * 1.1 + 6 : W / 2, y = top + fs0 * 0.8; /* con el jefe, a un costado para no taparle la cara */ // justo bajo los datos de los peleadores
+  const fr = left - Math.floor(left), urg = n <= 3, /* igual que el de la muerte súbita (pedido del dueño) */ pulse = 1 + (urg ? 0.25 : 0.1) * Math.pow(fr, 3), fs0 = Math.min(W * 0.09, H * 0.065), fs = fs0 * pulse, x = boss ? fs0 * 1.1 + 6 : W / 2, y = top + fs0 * 0.8; /* con el jefe, a un costado para no taparle la cara */ // justo bajo los datos de los peleadores
   ctx.save(); ctx.globalAlpha = Math.min(1, (TOT - left) / 0.4 + (boss ? 1 : 0)); const r = fs * 0.75;
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(15,5,15,.75)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left / TOT); ctx.lineWidth = Math.max(4, fs * 0.1); ctx.strokeStyle = urg ? '#ff4a4a' : '#ffcf4a'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, left / OT_SHOW)); ctx.lineWidth = Math.max(4, fs * 0.1); ctx.strokeStyle = urg ? '#ff4a4a' : '#ffcf4a'; ctx.stroke();
   ctx.font = `900 ${Math.round(fs)}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   ctx.lineWidth = fs * 0.12; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(String(n), x, y + fs * 0.04); ctx.fillStyle = urg ? '#ff6b6b' : '#fff3c4'; ctx.fillText(String(n), x, y + fs * 0.04);
   ctx.restore(); }
