@@ -396,6 +396,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <h2 style="font-size:22px">Menú</h2>
       <button class="btn setitem" data-go="friends"><span>👥 Amigos</span><small id="frState"></small></button>
       <button class="btn setitem" data-go="account"><span>👤 Mi cuenta</span><small id="accState"></small></button>
+      <button class="btn setitem" id="sndBtn"><span id="sndIco">🔊 Sonido</span><small id="sndState"></small></button>
       <button class="btn" data-close>Cerrar</button>
     </div>
     <div class="setview" data-view="account" hidden>
@@ -610,6 +611,62 @@ function ultTypeOf(g, train) {
   const st = calcStats(g, 1, train);
   return ULT_KEYS.filter(k => k in st).map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
+// ---------- Sonido (pedido del dueño): todo sintetizado con Web Audio (sin archivos); 🔊/🔇 en el Menú, se recuerda en este celular ----------
+const SFX = (() => {
+  let ac = null, out = null, last = {};
+  const KEY = 'monster_brawl_sound', VOL = 0.32;
+  let on = (() => { try { return localStorage.getItem(KEY) !== 'off'; } catch (e) { return true; } })();
+  const ctx = () => { if (!on) return null; if (!ac) { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ac = new A(); out = ac.createGain(); out.gain.value = VOL; out.connect(ac.destination); } catch (e) { return null; } } if (ac.state === 'suspended') ac.resume().catch(() => { }); return ac; };
+  const gap = (k, ms) => { const n = performance.now(); if (last[k] && n - last[k] < ms) return false; last[k] = n; return true; };
+  const env = (g, t, a, d, v) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
+  const tone = (f, d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), os = c.createOscillator(), g = c.createGain(); os.type = o.type || 'sine'; os.frequency.setValueAtTime(f, t); if (o.to) os.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + d); env(g, t, o.a || 0.005, d, o.v ?? 0.5); os.connect(g); g.connect(out); os.start(t); os.stop(t + d + 0.05); };
+  let nbuf = null; const noiseBuf = c => { if (nbuf) return nbuf; nbuf = c.createBuffer(1, c.sampleRate * 1.5, c.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return nbuf; };
+  const noise = (d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = noiseBuf(c); f.type = o.ft || 'lowpass'; f.frequency.setValueAtTime(o.f || 1200, t); if (o.fto) f.frequency.exponentialRampToValueAtTime(o.fto, t + d); f.Q.value = o.q || 0.7; env(g, t, o.a || 0.003, d, o.v ?? 0.5); src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random()); src.stop(t + d + 0.05); };
+  const S = {
+    get on() { return on; },
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    unlock() { ctx(); },
+    // pelea
+    beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
+    fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
+    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4); noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.45 * k }); tone(heavy ? 90 : 150, 0.12, { type: 'sine', to: 50, v: 0.55 * k }); },
+    shot() { if (!gap('shot', 50)) return; tone(900, 0.14, { type: 'triangle', to: 360, v: 0.16 }); },
+    impact() { if (!gap('imp', 40)) return; noise(0.08, { f: 1800, fto: 400, v: 0.3 }); },
+    dodge() { if (!gap('dodge', 80)) return; noise(0.16, { ft: 'bandpass', f: 1800, fto: 600, q: 1.5, v: 0.25 }); },
+    ultCharge() { tone(160, 1.3, { type: 'sawtooth', to: 720, v: 0.18, a: 0.15 }); tone(240, 1.3, { type: 'sine', to: 1080, v: 0.12, a: 0.2 }); },
+    ult(type) { const c = ctx(); if (!c) return;
+      if (type === 'mines') { noise(0.5, { f: 400, v: 0.9 }); tone(70, 0.5, { to: 35, v: 0.6 }); }
+      else if (type === 'teleport') { tone(300, 0.25, { type: 'square', to: 2200, v: 0.18 }); tone(2400, 0.2, { type: 'sine', to: 600, v: 0.15, at: 0.18 }); }
+      else if (type === 'shield') { tone(196, 1.0, { type: 'sine', v: 0.4 }); tone(392, 0.9, { type: 'sine', v: 0.2 }); tone(587, 0.8, { type: 'sine', v: 0.12 }); }
+      else if (type === 'speed') { noise(0.5, { ft: 'bandpass', f: 600, fto: 3000, q: 2, v: 0.35 }); }
+      else if (type === 'drain') { tone(220, 0.6, { type: 'triangle', to: 110, v: 0.3 }); tone(330, 0.6, { type: 'triangle', to: 165, v: 0.2, at: 0.05 }); }
+      else if (type === 'clone') { tone(523, 0.18, { type: 'square', v: 0.15 }); tone(659, 0.18, { type: 'square', v: 0.15, at: 0.1 }); tone(784, 0.25, { type: 'square', v: 0.15, at: 0.2 }); }
+      else if (type === 'dodge') { noise(0.4, { ft: 'bandpass', f: 2500, fto: 800, q: 3, v: 0.3 }); tone(1200, 0.3, { to: 300, v: 0.12 }); }
+      else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); } },
+    ko() { noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
+    anvil() { tone(1568, 0.6, { type: 'triangle', v: 0.35 }); tone(2350, 0.45, { type: 'sine', v: 0.2 }); tone(523, 0.3, { type: 'square', v: 0.12 }); noise(0.12, { f: 3000, v: 0.4 }); },
+    win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i === 3 ? 0.45 : 0.16, { type: 'square', v: 0.16, at: i * 0.12 })); },
+    lose() { [392, 349, 311, 262].forEach((f, i) => tone(f, i === 3 ? 0.5 : 0.22, { type: 'triangle', v: 0.22, at: i * 0.2 })); },
+    boing() { if (!gap('boing', 120)) return; tone(220, 0.3, { type: 'sine', to: 520, v: 0.3 }); },
+    roll() { if (!gap('roll', 150)) return; noise(0.45, { ft: 'bandpass', f: 300, fto: 900, q: 1, v: 0.3 }); },
+    flap() { if (!gap('flap', 250)) return; for (let i = 0; i < 3; i++) noise(0.07, { ft: 'bandpass', f: 500, q: 1, v: 0.25, at: i * 0.11 }); },
+    // monstruos y menú
+    voice(size, brave) { if (!gap('voice', 90)) return; const f = clamp(700 / Math.max(0.5, size), 180, 1100); if (brave) tone(f * 0.6, 0.18, { type: 'sawtooth', to: f * 0.45, v: 0.2 }); else { tone(f, 0.08, { type: 'square', to: f * 1.4, v: 0.16 }); tone(f * 1.3, 0.09, { type: 'square', to: f * 1.1, v: 0.12, at: 0.08 }); } },
+    heart() { if (!gap('heart', 120)) return; tone(1760 + Math.random() * 300, 0.12, { type: 'sine', v: 0.14 }); },
+    tap() { if (!gap('tap', 60)) return; tone(420, 0.06, { type: 'triangle', v: 0.25 }); noise(0.04, { f: 2500, v: 0.15 }); },
+    hatch() { noise(0.25, { f: 2500, fto: 600, v: 0.5 }); [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.2, { type: 'triangle', v: 0.18, at: 0.15 + i * 0.09 })); },
+    grow() { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone(f, 0.5, { type: 'triangle', v: 0.14, at: i * 0.14 })); },
+    click() { if (!gap('click', 40)) return; tone(1100, 0.03, { type: 'square', v: 0.08 }); },
+    coin() { tone(988, 0.08, { type: 'square', v: 0.14 }); tone(1319, 0.25, { type: 'square', v: 0.14, at: 0.08 }); },
+    bird() { const f = 2400 + Math.random() * 1400; for (let i = 0, n = 2 + (Math.random() * 3 | 0); i < n; i++) tone(f * (0.9 + Math.random() * 0.2), 0.07, { type: 'sine', to: f * 1.25, v: 0.05, at: i * 0.11 }); },
+    cricket() { for (let i = 0; i < 4; i++) tone(4200, 0.03, { type: 'square', v: 0.02, at: i * 0.05 }); },
+    wind() { noise(2.5, { ft: 'bandpass', f: 400, fto: 700, q: 0.6, v: 0.07, a: 0.8 }); },
+  };
+  for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, () => S.unlock(), { passive: true });
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b && !b.disabled) S.click(); }, true);
+  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend().catch(() => { }); else if (on) ac.resume().catch(() => { }); });
+  return S;
+})();
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
 // Peleas largas: desde OT_START s de juego empieza la muerte súbita (el daño sube poco a poco) para que siempre termine con un K.O.
@@ -1849,6 +1906,7 @@ class Monster {
   hop(dt) { const snk = this.g.plan === 'snake'; if (snk && this.z === 0 && this.vz > 0 && this.vz <= 300 && !this.held && !this.flung) this.vz *= 0.15; /* serpiente: los saltitos son apenas un levantón (pedido del dueño) */ if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 && !snk ? -this.vz * 0.25 : 0; } } // (la serpiente no rebota al caer)
 
   poke(px, py) {
+    { const tp = this.tp || {}; SFX.voice(this.s || 1, (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0); } // su vocecita: más aguda si es chico; un gruñido si es valiente
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
     { const tp = this.tp || {}, angry = (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0; if (!this.sleep) this.setEmo(angry ? 'angry' : 'scared', 5, 3); treat(this.rec, 'poke'); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
@@ -1990,7 +2048,7 @@ class Monster {
         if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startLeap(T, d, pref + 40) !== false) return; }
       const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
       if (this.canFloat && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
-        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
+        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; if (B.kcamOn) SFX.flap(); this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
     }
     // Tus monstruos la lanzan cuando aprietas su botón (una vez por pelea); los rivales deciden solos
     const wantUlt = this.isPlayer || this.remoteCtl ? this.ultRequest : ultNow && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8));
@@ -2011,7 +2069,8 @@ class Monster {
     else if (this.st.ranged > 0 && !this.onlyMelee && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air || this.onlyRanged) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
-  startLeap(T, d, goal) { // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
+  startLeap(T, d, goal) {
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) SFX.boing(); // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
     const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
@@ -2028,7 +2087,8 @@ class Monster {
     return null;
   }
 
-  startRoll(T, d, goal) { // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
+  startRoll(T, d, goal) {
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) SFX.roll(); // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * ROLL.spd, tR = clamp(dist / Math.max(1, vMax), ROLL.t0, ROLL.t1), v = Math.min(vMax, dist / tR);
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
     if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
@@ -2060,6 +2120,7 @@ class Monster {
   }
 
   shoot(T, B) {
+    if (B.kcamOn) SFX.shot();
     const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire * (this.onlyRanged ? 0.7 : 1) /* (el que sólo dispara, menos castigado) */ : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
     this.rangedCd = this.st.rangedCd * this.fireMul * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
@@ -2101,7 +2162,7 @@ class Monster {
     if (Math.random() < 0.25) { px = -px; py = -py; }
     const sp = 330 + this.st.speed * 0.6;
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
-    this.state = 'dodge'; this.stT = 0.28;
+    this.state = 'dodge'; this.stT = 0.28; if (B && B.kcamOn) SFX.dodge();
     this.setEmo('surprised', 0.5, 2);
   }
 
@@ -2937,8 +2998,9 @@ class Battle {
     }
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
+    if (this.kcamOn) { if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) SFX.ko(); (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
         for (let i = 0; i < 48; i++) { const a2 = Math.random() * TAU, sp = 120 + Math.random() * 420; this.parts.push({ x: kx, y: ky, vx: Math.cos(a2) * sp + dir.x * 160, vy: Math.sin(a2) * sp * 0.8 - 160, life: 0.6 + Math.random() * 0.7, col: cols[i % cols.length], r: 2.5 + Math.random() * 4 }); }
         this.rings.push({ x: t.x, y: t.y, r: 10, max: 130, life: 0.5, col: '#fff3b0' }); this.shake = Math.min(14, this.shake + 6); }
@@ -2950,6 +3012,7 @@ class Battle {
 
   // ---------- Ultimate ----------
   startUlt(m) {
+    if (this.kcamOn) SFX.ultCharge();
     this.cine = { m, t: 0 }; m.state = 'free';
     m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
@@ -2977,6 +3040,7 @@ class Battle {
     }
   }
   execUlt(m) {
+    if (this.kcamOn) SFX.ult(m.ultType === 'defense' ? 'shield' : m.ultType);
     m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
@@ -3408,7 +3472,7 @@ function drawFxParts(ctx) {
     ctx.restore();
   }
 }
-function heartFx(x, y) { fx.parts.push({ heart: true, x, y, vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 30, rot: 0, vr: 0, life: 1.3, col: '#ff7aa2', r: 5 + Math.random() * 3, ph: Math.random() * TAU }); }
+function heartFx(x, y) { SFX.heart(); fx.parts.push({ heart: true, x, y, vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 30, rot: 0, vr: 0, life: 1.3, col: '#ff7aa2', r: 5 + Math.random() * 3, ph: Math.random() * TAU }); }
 function fxStep(dt) {
   for (const q of fx.parts) if (q.heart) { q.x += (q.vx + Math.sin(q.life * 6 + q.ph) * 25) * dt; q.y += q.vy * dt; q.life -= dt; }
   for (const q of fx.parts) { if (q.heart) continue; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 700 * dt; q.rot += q.vr * dt; q.life -= dt; if (q.y > 0) { q.y = 0; q.vy *= -0.3; q.vx *= 0.7; } }
@@ -3963,7 +4027,7 @@ function ranchPet(a, x, y, dist) {
     for (const n of m.nodes) { const dd = Math.hypot(n.x - B.x, n.y - B.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } }
   }
   RANCH.petAcc = (RANCH.petAcc || 0) + dist;
-  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; SFX.heart(); RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
   const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000); treat(rec, 'pet');
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
@@ -4260,7 +4324,7 @@ function renderTrain() {
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
     if (save.coins < RESPEC_COST) return;
-    save.coins -= RESPEC_COST; rec.pts = {}; persist(); renderHome(); renderTrain();
+    save.coins -= RESPEC_COST; SFX.coin(); rec.pts = {}; persist(); renderHome(); renderTrain();
   };
 }
 // Medidor de táctica: se toca o arrastra y queda en el número más cercano; al soltar se guarda
@@ -4308,13 +4372,13 @@ function updateEggSub() {
 function tapEgg() {
   const rec = cur();
   if (rec.readyAt > Date.now()) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; egg.sq = 0.08; fx.label = `Incubando · ${hmm(rec.readyAt - Date.now())}`; fx.labelT = 1.4; return; } // todavía incubando
-  rec.taps = (rec.taps || 0) + 1;
+  rec.taps = (rec.taps || 0) + 1; SFX.tap();
   egg.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); egg.sq = 0.12;
   burst((Math.random() - 0.5) * 30, -egg.h * (0.4 + Math.random() * 0.4), 3, hsl(egg.pal.body, 24), 160, [2, 3.5]);
   if (rec.taps < (rec.need || 6)) { persist(); updateEggSub(); return; }
   // ¡nace!
   const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
-  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
+  SFX.hatch(); rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
   if (barnCtx) { const nit = BARN.ms[barnCtx.i] = barnItem(rec); nit.m.sleep = false; nit.m.sitting = false; nit.settle = true; } // en el granero: nace en su cama
   renderHome();
@@ -4393,7 +4457,7 @@ function openBreedPick() {
 function doBreed(A, B) {
   const bed = BARN.bedTarget; if (!A || !B || A === B || resting(A) || resting(B) || save.coins < BREED_COST || bed == null || BARN.ms[bed]) return;
   $('breedPick').classList.remove('on');
-  save.coins -= BREED_COST;
+  save.coins -= BREED_COST; SFX.coin();
   const rec = makeChild(A, B); rec.readyAt = Date.now() + INCUBATE_MS; // incuba en este espacio
   A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = (A.bred || 0) + 1; B.bred = (B.bred || 0) + 1; // pueden volver a criar tras descansar (bred = cuántas crías tuvo)
   breedSel.clear(); putInBed(rec, bed); // incuba en esa cama del granero
@@ -4624,7 +4688,7 @@ function barnPet(it, a, b) { // la misma caricia que de cerca en el rancho
   const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d < 0.3) return;
   for (const n of m.nodes) { const dd = Math.hypot(n.x - b.x, n.y - b.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } } // las partes bajo el dedo se dejan llevar
   if (m.sleep) { m.sleep = false; } m.setEmo('love', 0.9, 2); m.petBowT = 0.3; m.lookAt = null; // baja la cabeza mientras lo acaricias
-  it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
+  it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; SFX.heart(); const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
   const rec = it.rec; treat(rec, 'pet'); rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy';
 }
 function barnGrab(it, G) { // mantener presionado = tomarlo, igual que de cerca
@@ -4684,7 +4748,7 @@ async function buyBedEgg(bed) {
   $('barnModal').classList.remove('on');
   if (!await ask(`¿Comprar un huevo misterioso por ${EGG_COST} monedas?`, { ok: 'Comprar' })) return;
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
-  save.coins -= EGG_COST; putInBed(newRec(), bed);
+  save.coins -= EGG_COST; SFX.coin(); putInBed(newRec(), bed);
 }
 function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, camina hasta la cama y se sienta
   const R = save.monsters, r = R[i]; save.barn = save.barn || [];
@@ -4733,7 +4797,7 @@ function buyFoeEgg(i) {
   const f = (save.foes || [])[i];
   const bed = BARN.bedTarget; if (!f || f.bought || bed == null || BARN.ms[bed] || save.coins < FOE_EGG_COST) return;
   const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name; // (su semilla ya trae la misma chance de stat perfecto que un huevo comprado, 1% por stat: si además se sorteaba otro 1%, quedaba en 2%)
-  save.coins -= FOE_EGG_COST; f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
+  save.coins -= FOE_EGG_COST; SFX.coin(); f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
 }
 function renderShopGenes() {
   const el = $('shopGenes'), btn = k => `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`;
@@ -4761,7 +4825,7 @@ function openGenePick(grp) {
   };
   go.onclick = () => {
     const r = save.monsters[sel]; if (!r || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
-    save.coins -= GENE_COST; r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
+    save.coins -= GENE_COST; SFX.coin(); r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
     $('genePick').classList.remove('on'); renderHome(); fx.label = `🧬 ${GENE_NAMES[grp]}`; fx.labelT = 2;
   };
   $('gpNo').onclick = () => $('genePick').classList.remove('on');
@@ -4778,7 +4842,7 @@ function renderShopUlts(hide) {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
     if (save.coins < ULT_COST || ownsUlt(k)) return;
-    save.coins -= ULT_COST; grantUlt(k); [...save.monsters, ...(save.barn || [])].forEach(m => { if (canUlt(m.stage) && !(m.ult && ULTS[m.ult])) m.ult = k; }); /* se equipa sola a los que no tenían */ persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
+    save.coins -= ULT_COST; SFX.coin(); grantUlt(k); [...save.monsters, ...(save.barn || [])].forEach(m => { if (canUlt(m.stage) && !(m.ult && ULTS[m.ult])) m.ult = k; }); /* se equipa sola a los que no tenían */ persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
   });
 }
 $('btnFree').onclick = async () => {
@@ -4818,7 +4882,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -4907,10 +4971,12 @@ newsBadge();
 function renderNews(count) {
   $('newsList').innerHTML = CHANGELOG.slice(0, count).map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
 }
+function sndUI() { $('sndIco').textContent = SFX.on ? '🔊 Sonido' : '🔇 Sonido'; $('sndState').textContent = SFX.on ? 'activado' : 'apagado'; }
 function setView(v) {
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
   if (v === 'main' || v === 'cloud' || v === 'account') cloudUI();
   if (v === 'account') accountView();
+  if (v === 'main') sndUI();
   if (v === 'main') $('accState').textContent = save.user || (cloud ? cloud.email : 'sin cuenta'); // (exportar e importar se quitaron: sólo la Nube, pedido del dueño)
   if (v === 'cloud') gisButton();
   if (v === 'friends') { FR.newOn.clear(); menuBadge(); $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
@@ -4933,6 +4999,7 @@ function rankView() {
     return `<button class="btn rkrow${r.me ? ' me' : ''}" ${r.uid ? `data-rku="${r.uid}"` : ''}><span class="pos">${medal[i] || i + 1}</span><span>${r.me ? '<b>Tú</b> · ' : ''}${esc(r.name)}${r.on ? ' <i class="frdot on" style="display:inline-block;vertical-align:middle"></i>' : ''}<br><small>${r.none ? 'sin datos todavía' : sub}</small></span><span class="val">${v}</span></button>`; }).join('');
   $('rkList').querySelectorAll('[data-rku]').forEach(b => b.onclick = () => { FR.sel = b.dataset.rku; setView('friend'); });
 }
+$('sndBtn').onclick = () => { SFX.set(!SFX.on); sndUI(); if (SFX.on) SFX.coin(); };
 $('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
   if (!cloud) { $('settings').classList.remove('on'); await ask('Para tener nombre de usuario primero entra a tu cuenta en la Nube.', { ok: 'Entendido', cancel: null }); $('settings').classList.add('on'); setView('cloud'); return; }
   await pickUser(!!save.user); accountView();
@@ -5551,6 +5618,7 @@ function startBattle(mode, team) {
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
   let txt, p, big = false;
+  if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.beep(false); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); } // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
   else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
   else return;
@@ -5581,7 +5649,7 @@ function drawKO(k) {
     const hitT = KO_HIT[i], cx = x + ws[i] / 2; x += ws[i] + gap;
     const p = (t - (hitT - KO_FALL)) / KO_FALL; if (p < 0) return; // todavía no cae
     const after = t - hitT;
-    if (after >= 0 && !k['h' + i]) { k['h' + i] = true; if (battle) battle.shake = Math.max(battle.shake, 13); k['f' + i] = 0; } // ¡golpe!
+    if (after >= 0 && !k['h' + i]) { k['h' + i] = true; SFX.anvil(); if (battle) battle.shake = Math.max(battle.shake, 13); k['f' + i] = 0; } // ¡golpe!
     let sy = 1, sx = 1, oy = 0, sc = 1, a = 1;
     if (after < 0) { const e = clamp(p, 0, 1), ein = e * e; oy = -(1 - ein) * H * 0.35; sc = 1.7 - 0.7 * ein; a = clamp(e * 3, 0, 1); } // baja acelerando, como un martillo
     else { const q = clamp(after / 0.16, 0, 1), sq = Math.sin(q * Math.PI) * (1 - q); sy = 1 - 0.28 * sq - 0.22 * (1 - q) * (after < 0.04 ? 1 : 0); sx = 1 + 0.22 * sq; } // aplastada al golpear y rebota a su forma
@@ -5706,7 +5774,7 @@ function checkGrowth() {
   for (let i = 1; i < chain.length; i++) chain[i].hidden = new Set(newParts(chain[i - 1].g, chain[i].g));
   chain.forEach(m => m.resetRig());
   const fe = chain[chain.length - 1].estSize(); // encuadre según el tamaño final
-  growAnim = { rec, chain, t: 0, k: Math.min(H * 0.48 / fe.h, W * 0.78 / fe.w, 3.5) };
+  SFX.grow(); growAnim = { rec, chain, t: 0, k: Math.min(H * 0.48 / fe.h, W * 0.78 / fe.w, 3.5) };
   setGrowStep(0);
   fx.parts = []; fx.label = null;
   scene = 'grow'; touch = null;
@@ -5825,6 +5893,7 @@ function finishBattle() {
     for (const m of incub) m.readyAt = Math.max(Date.now(), m.readyAt - INCUBATE_FIGHT_MS);
   }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
+  (place === 1 ? SFX.win : SFX.lose)();
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
   if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * KO_COINS, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
@@ -5986,6 +6055,7 @@ function loop(now) {
   if (scene === 'home' && homePage === 1 && homeEmpty != null && frame % 120 === 0) renderSlotBtns(); // cuenta hasta el próximo huevo
   if (scene === 'home' && frame % 60 === 59 && !ranchMode && save.monsters.length && cur() && cur().stage !== 'egg') moralRefresh(cur()); // (la moral baja con el tiempo)
   if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().napUntil || cur().heartAt || cur().readyAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else if (cur().stage === 'egg') updateEggSub(); else { updateRest(); updateSub(); } }
+  if (!document.hidden && ((scene === 'home' && ranchMode) || scene === 'barn')) { const night = dayInfo().dark > 0.2, wint = seasonInfo() === 'invierno'; if (!wint && Math.random() < dt * (night ? 0.9 : 0.22)) (night ? SFX.cricket : SFX.bird)(); if (wint && Math.random() < dt * 0.12) SFX.wind(); } // ambiente del rancho: pajaritos de día, grillos de noche, viento en invierno
   requestAnimationFrame(loop);
 }
 // ============================================================================
@@ -6321,6 +6391,7 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
+    { const seen = B._sndTx || (B._sndTx = new Map()), now = performance.now(); for (const t of B.texts) { const key = t.str + '|' + Math.round(t.x / 8); if (t.life < 0.6 || seen.has(key) && now - seen.get(key) < 900) continue; seen.set(key, now); if (t.str === 'K.O.') SFX.ko(); else if (/^\d+$/.test(t.str)) SFX.hit(+t.str, false); } } // títere (Online / espectar): suena con los números de daño que llegan
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
       const m = B.ms[i]; if (!m) return;
@@ -6344,7 +6415,7 @@ function lanFinish() {
   if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut });
   updateFighters();
   const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
-  $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste';
+  $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste'; (place === 1 ? SFX.win : SFX.lose)();
   $('resTitle').className = place === 1 ? 'win' : 'lose';
   $('resText').innerHTML = '';
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha'; $('resRoom').hidden = false;
