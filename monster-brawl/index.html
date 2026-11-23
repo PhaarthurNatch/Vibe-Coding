@@ -2158,7 +2158,7 @@ class Monster {
 
     // Elegir objetivo: puntaje por factores (cercanía, amenaza, quién lo ataca, vulnerable, distraído, equipo,
     // amontonamiento, escudo, peligro); la personalidad decide cuánto pesa cada uno. Cambia sólo si el nuevo es claramente mejor.
-    const enemies = B.ms.filter(m => !m.dead && m.team !== this.team);
+    const enemies = B.over ? [] : B.ms.filter(m => !m.dead && m.team !== this.team); // terminada la pelea (también por tiempo) ya nadie pelea (pedido del dueño)
     if (!enemies.length) { this.target = null; this.desired = { x: 0, y: 0 }; if (this.state !== 'leap') { this.state = 'free'; this.stT = 0; this.atkArm = null; this.strikeExt = 0; } return; } // sin rivales (ganó): deja el golpe que tenía a medias; antes el brazo quedaba trabado estirado mientras celebraba
     if (!this.target || this.target.dead || this.targetTimer <= 0) {
       const allies = B.ms.filter(m => !m.dead && m.team === this.team && m !== this);
@@ -3191,6 +3191,7 @@ class Battle {
   text(m, str, col, big) { const h = m.nodes[m.ix.head]; this.texts.push({ x: m.gx + (Math.random() - 0.5) * 16, y: h.y - m.g.head.h * m.s * 0.6, str, col, life: 0.9, big }); }
 
   hit(a, t, pow, dir, kind) {
+    if (this.timedOut) return; // se acabó el tiempo: los disparos o bombas que quedaban ya no hacen daño
     if (t.state === 'ultcharge') return; // cargando la ultimate: invencible (ni daño ni empujón; no lo interrumpen), pedido del dueño
     const ot = this.time > OT_START ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
