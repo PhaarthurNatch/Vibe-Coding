@@ -204,6 +204,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
 .frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
+.rktabs{display:flex;gap:6px}.rktabs .btn{flex:1;padding:9px 4px;font-size:13px}.rktabs .btn.on{background:linear-gradient(#ffe08a,#ffb23c);color:#2a1200}.rkrow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;text-align:left;padding:11px 14px}.rkrow .pos{font-size:20px;font-weight:900;text-align:center;color:var(--muted)}.rkrow small{color:var(--muted);font-size:12px}.rkrow .val{font-size:20px;font-weight:900;color:#ffd36b}.rkrow.me{outline:2px solid #ffcf6e}
 .frrec{display:block;margin-top:4px;font-size:13px;color:var(--muted)}.frrec b{color:var(--text)}.frrec.mon{text-align:center;margin:0 0 2px}
 .accstats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:4px}.accstats div:nth-child(-n+3){grid-column:span 2}.accstats div:nth-child(n+4){grid-column:span 3}.accstats div{background:var(--panel2);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}.accstats b{font-size:22px;font-variant-numeric:tabular-nums}.accstats span{font-size:11px;color:var(--muted);font-weight:700;text-align:center}
 .frreq{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;background:var(--panel2);border-radius:14px;padding:8px 10px;border:2px solid var(--acc)}.frreq b{font-size:14px}.frreq small{display:block;color:var(--muted);font-size:11px}.frreq .btn{padding:8px 10px;font-size:13px}
@@ -408,10 +409,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <h2 style="font-size:22px">Amigos</h2>
       <p class="tdesc" id="frInfo"></p>
       <div id="frReqs" class="frlist"></div>
+      <button class="btn primary" id="frRankBtn" hidden>🏆 Ranking</button>
       <div id="frList" class="frlist"></div>
       <div class="row" id="frAddRow"><input class="setin" id="frName" placeholder="Nombre de usuario" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn primary" id="frAdd">Enviar solicitud</button></div>
       <p class="tdesc" id="frMsg"></p>
       <button class="btn" data-go="main">‹ Volver</button>
+    </div>
+    <div class="setview" data-view="rank" hidden>
+      <h2 style="font-size:22px">🏆 Ranking</h2>
+      <div class="rktabs" id="rkTabs"><button class="btn" data-rk="w">Victorias</button><button class="btn" data-rk="best">Mejor racha</button><button class="btn" data-rk="pct">% victorias</button></div>
+      <div id="rkList" class="frlist"></div>
+      <button class="btn" data-go="friends">‹ Volver</button>
     </div>
     <div class="setview" data-view="friend" hidden>
       <h2 style="font-size:22px" id="fdName"></h2>
@@ -4810,7 +4818,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -4907,6 +4915,23 @@ function setView(v) {
   if (v === 'cloud') gisButton();
   if (v === 'friends') { FR.newOn.clear(); menuBadge(); $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
   if (v === 'friend') friendView();
+  if (v === 'rank') { rankView(); friendsRefresh().then(() => { if (!$('settings').querySelector('[data-view="rank"]').hidden) rankView(); }).catch(() => { }); }
+}
+// Ranking entre amigos (pedido del dueño): tú y tus amigos ordenados por victorias, mejor racha o % de victorias (los datos vienen de tu partida y de sus perfiles públicos)
+let rkSort = 'w';
+$('frRankBtn').onclick = () => setView('rank');
+document.querySelectorAll('#rkTabs [data-rk]').forEach(b => b.onclick = () => { rkSort = b.dataset.rk; rankView(); });
+function rankView() {
+  const A = save.stats || {}, rows = [{ me: true, name: save.user || 'Tú', w: A.w || 0, l: A.l || 0, best: A.best || 0 }];
+  for (const f of save.friends || []) { const p = FR.profs[f.uid]; rows.push({ uid: f.uid, name: (p && p.name) || f.name, w: p ? p.w : 0, l: p ? p.l : 0, best: p ? p.best : 0, on: isOnline(p), none: !p }); }
+  const pct = r => r.w + r.l ? r.w / (r.w + r.l) : -1, key = r => rkSort === 'pct' ? pct(r) : r[rkSort];
+  rows.sort((a, b) => key(b) - key(a) || b.w - a.w || a.name.localeCompare(b.name));
+  document.querySelectorAll('#rkTabs [data-rk]').forEach(b => b.classList.toggle('on', b.dataset.rk === rkSort));
+  const medal = ['🥇', '🥈', '🥉'];
+  $('rkList').innerHTML = rows.map((r, i) => { const v = rkSort === 'pct' ? (pct(r) < 0 ? '—' : Math.round(pct(r) * 100) + '%') : r[rkSort];
+    const sub = rkSort === 'w' ? `${r.l} derrotas` : rkSort === 'best' ? `${r.w} victorias` : `${r.w} V · ${r.l} D`;
+    return `<button class="btn rkrow${r.me ? ' me' : ''}" ${r.uid ? `data-rku="${r.uid}"` : ''}><span class="pos">${medal[i] || i + 1}</span><span>${r.me ? '<b>Tú</b> · ' : ''}${esc(r.name)}${r.on ? ' <i class="frdot on" style="display:inline-block;vertical-align:middle"></i>' : ''}<br><small>${r.none ? 'sin datos todavía' : sub}</small></span><span class="val">${v}</span></button>`; }).join('');
+  $('rkList').querySelectorAll('[data-rku]').forEach(b => b.onclick = () => { FR.sel = b.dataset.rku; setView('friend'); });
 }
 $('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
   if (!cloud) { $('settings').classList.remove('on'); await ask('Para tener nombre de usuario primero entra a tu cuenta en la Nube.', { ok: 'Entendido', cancel: null }); $('settings').classList.add('on'); setView('cloud'); return; }
@@ -5151,7 +5176,7 @@ function menuBadge() { const n = FR.newOn.size + FREQ.inc.length; $('btnSettings
 setInterval(() => { if (cloud && save.user && !document.hidden && scene !== 'battle' && cloudReady && !FR.timer) friendsRefresh(); }, 30000); // revisa cada 30 s quién se conectó
 setTimeout(() => { if (cloud && save.user) friendsRefresh(); }, 5000); // y una vez al abrir la app
 function friendsView() { // lista de amigos con su puntito
-  const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
+  const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok; $('frRankBtn').hidden = !ok || !(save.friends || []).length;
   $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Mi cuenta → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Mi cuenta → Nube).' : (save.friends || []).length || FREQ.inc.length || (save.friendOut || []).length ? '' : 'Mándale una solicitud a tus amigos con su nombre de usuario.';
   const R = $('frReqs'); R.innerHTML = ok ? FREQ.inc.map(r => `<div class="frreq"><span><b>${esc(r.name)}</b><small>quiere ser tu amigo</small></span><button class="btn primary" data-fra="${r.uid}">Aceptar</button><button class="btn" data-frr="${r.uid}">Rechazar</button></div>`).join('') : '';
   R.querySelectorAll('[data-fra]').forEach(b => b.onclick = () => freqAccept(FREQ.inc.find(r => r.uid === b.dataset.fra)));
