@@ -639,6 +639,7 @@ const SFX = (() => {
     get on() { return on; },
     set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) CAST.stop(); if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
     unlock() { ctx(); CAST.unlock(); },
+    actx() { return ctx(); }, // (los audios grabados del relator usan el mismo contexto de sonido)
     // pelea
     beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
     fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
@@ -732,18 +733,34 @@ const CAST = { voices: [], unl: false, lang: 'en', // lang: idioma de las frases
   init() { if (!this.ok()) return; const load = () => { const vs = speechSynthesis.getVoices().filter(v => this.isL(v, 'en') || this.isL(v, 'es')); if (!vs.length) return;
       this.all = vs.slice().sort((a, b) => (this.isL(a, 'es') - this.isL(b, 'es')) || a.name.localeCompare(b.name)); this.applyPick(); };
     load(); if (!this._ev) { this._ev = true; try { speechSynthesis.addEventListener('voiceschanged', load); } catch (e) { } } },
-  all: [], pick: (() => { try { const k = localStorage.getItem('monster_brawl_voice') || 'auto'; return k === 'off' ? (localStorage.getItem('monster_brawl_voice_prev') || 'auto') : k; } catch (e) { return 'auto'; } })(), // 'auto' (inglés), 'auto-es' (español) o una voz (se guarda en este celular)
+  all: [], pick: (() => { try { const k = localStorage.getItem('monster_brawl_voice') || 'el-en'; return k === 'off' ? (localStorage.getItem('monster_brawl_voice_prev') || 'auto') : k; } catch (e) { return 'auto'; } })(), // 'auto' (inglés), 'auto-es' (español) o una voz (se guarda en este celular)
   muted: (() => { try { return localStorage.getItem('monster_brawl_cast_off') === '1' || localStorage.getItem('monster_brawl_voice') === 'off'; } catch (e) { return false; } })(), // interruptor «Relator» (antes «Sin relator» era una voz más)
   setMuted(v) { this.muted = v; try { localStorage.setItem('monster_brawl_cast_off', v ? '1' : '0'); if (localStorage.getItem('monster_brawl_voice') === 'off') localStorage.setItem('monster_brawl_voice', this.pick); } catch (e) { } if (v) this.stop(); },
-  applyPick() { const k = this.pick, v = k === 'auto' ? this.best(this.all, 'en') : k === 'auto-es' ? this.best(this.all, 'es') : this.all.find(x => x.voiceURI === k || x.name === k);
+  get el() { return /^el-/.test(this.pick); }, // voz grabada con ElevenLabs (Guy en inglés, El Faraón en español)
+  applyPick() { if (this.el) { this.lang = this.pick.slice(3); const b = this.best(this.all, this.lang); this.voices = [b, b]; CLIP.preload(this.lang); return; } const k = this.pick, v = k === 'auto' ? this.best(this.all, 'en') : k === 'auto-es' ? this.best(this.all, 'es') : this.all.find(x => x.voiceURI === k || x.name === k);
     this.voices = [v || null, v || null]; this.lang = k === 'auto-es' || (v && this.isL(v, 'es')) ? 'es' : 'en'; },
   setPick(k) { this.pick = k; try { localStorage.setItem('monster_brawl_voice', k); } catch (e) { } this.applyPick(); },
-  label() { if (this.muted) return 'apagado'; if (this.pick === 'auto') return 'automática (inglés)'; if (this.pick === 'auto-es') return 'automática (español)'; const v = this.all.find(x => x.voiceURI === this.pick || x.name === this.pick); return v ? v.name : 'automática'; },
+  label() { if (this.muted) return 'apagado'; if (VOZ.voices[this.pick]) return VOZ.voices[this.pick].name; if (this.pick === 'auto') return 'automática (inglés)'; if (this.pick === 'auto-es') return 'automática (español)'; const v = this.all.find(x => x.voiceURI === this.pick || x.name === this.pick); return v ? v.name : 'automática'; },
   unlock() { if (this.unl || !this.ok()) return; this.unl = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }, // el iPhone sólo deja hablar después de un toque
   say(text, who, E, force) { if (!SFX.on || !this.ok() || (this.muted && !force)) return; try { const u = new SpeechSynthesisUtterance(text), v = this.voices[who]; u.lang = v ? v.lang : this.lang === 'es' ? 'es-ES' : 'en-US'; if (v) u.voice = v;
     u.pitch = who ? 0.85 : 0.9 + 0.45 * E; u.rate = who ? 1.0 : 1.05 + 0.35 * E; /* relator entusiasta: más agudo y rápido con la emoción */ u.volume = 1; speechSynthesis.speak(u); } catch (e) { } },
-  stop() { try { if (this.ok()) speechSynthesis.cancel(); } catch (e) { } },
-  get busy() { return this.ok() && (speechSynthesis.speaking || speechSynthesis.pending); },
+  stop() { CLIP.stop(); try { if (this.ok()) speechSynthesis.cancel(); } catch (e) { } },
+  get busy() { return CLIP.busy || (this.ok() && (speechSynthesis.speaking || speechSynthesis.pending)); },
+};
+// Audios grabados del relator (ElevenLabs; pedido del dueño): carpeta voz/, «{idioma}_{evento}_{n}.mp3» y «{idioma}_u_{ultimate}.mp3» con el nombre de cada ultimate.
+// No dicen los nombres de los monstruos (se inventan al nacer). Si un audio no está o no carga, esa frase la dice la voz del celular.
+const VOZ = { n: { block: 2, boom: 3, calm: 4, dodge: 3, draw: 2, end: 3, fight: 4, fly: 2, hit: 6, hot: 5, ko: 5, leap: 2, low: 3, ot: 2, roll: 2, tail: 2, ult: 4 },
+  voices: { 'el-en': { name: 'Guy · ElevenLabs', sub: 'locutor en inglés · voz grabada' }, 'el-es': { name: 'El Faraón · ElevenLabs', sub: 'relator en español · voz grabada' } } };
+const CLIP = { buf: {}, loading: {}, srcs: [], end: 0, out: null,
+  load(k) { if (k in this.buf) return Promise.resolve(); if (this.loading[k]) return this.loading[k]; const c = SFX.actx(); if (!c) return Promise.resolve();
+    return (this.loading[k] = fetch('voz/' + k + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(a => new Promise((res, rej) => c.decodeAudioData(a, res, rej))).then(b => { this.buf[k] = b; }).catch(() => { this.buf[k] = null; })); },
+  preload(lang) { if (!SFX.actx()) return; for (const [e, n] of Object.entries(VOZ.n)) for (let i = 1; i <= n; i++) this.load(`${lang}_${e}_${i}`); for (const u of ULT_KEYS) this.load(`${lang}_u_${u}`); },
+  ready(keys) { return keys.every(k => this.buf[k]); },
+  play(keys) { const c = SFX.actx(); if (!c || !this.ready(keys)) return false; this.stop();
+    if (!this.out) { this.out = c.createGain(); this.out.gain.value = 0.95; this.out.connect(c.destination); }
+    let t = c.currentTime + 0.02; for (const k of keys) { const s = c.createBufferSource(); s.buffer = this.buf[k]; s.connect(this.out); s.start(t); t += this.buf[k].duration - 0.05; this.srcs.push(s); } this.end = t; return true; },
+  stop() { for (const s of this.srcs) try { s.stop(); } catch (e) { } this.srcs = []; this.end = 0; },
+  get busy() { if (!this.end || !SFX.on) return false; const c = SFX.actx(); return !!c && c.currentTime < this.end; },
 };
 CAST.init();
 document.addEventListener('visibilitychange', () => { if (document.hidden) CAST.stop(); });
@@ -789,6 +806,11 @@ const CAST_LINES_ES = {
   hot: ['¡Qué batalla tan feroz!', '¡El público está enloquecido!', '¡Ninguno da un paso atrás!', '¡Esta batalla es increíble!', '¡Acción sin parar!'],
 };
 const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
+  clip(k, u) { // audios grabados: elige uno de ese evento sin repetir el anterior (y el nombre de la ultimate después)
+    const n = VOZ.n[k]; if (!n) return null; let i, tries = 0; do i = 1 + Math.floor(Math.random() * n); while (n > 1 && i === this.lastC[k] && tries++ < 5); this.lastC[k] = i;
+    const ks = [`${CAST.lang}_${k}_${i}`]; if (k === 'ult' && u) ks.push(`${CAST.lang}_u_${u}`); return ks; },
+  speak(kind, text, who, E, u) { if (CAST.muted || !SFX.on) return; if (CAST.el) { const ks = this.clip(kind, u); if (ks && CLIP.play(ks)) return; } if (text) CAST.say(text, who, E); }, // grabado si está listo; si no, la voz del celular
+  lastC: {},
   line(k, n, m, u) { const L = (CAST.lang === 'es' ? CAST_LINES_ES : CAST_LINES)[k].filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
     let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
     return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
@@ -800,13 +822,13 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
     const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end';
     if (!urgent && (CAST.busy || this.cd > 0)) return; // lo menor sólo se narra si está callado
     if (urgent) CAST.stop(); // lo importante corta lo que estaba diciendo
-    const t = this.line(kind, n, m, u ? (CAST.lang === 'es' ? (ULTS[u] && ULTS[u].name) : ULT_EN[u]) || '' : ''); if (!t) return;
-    CAST.say(t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc));
+    const t = this.line(kind, n, m, u ? (CAST.lang === 'es' ? (ULTS[u] && ULTS[u].name) : ULT_EN[u]) || '' : ''); if (!t && !CAST.el) return;
+    this.speak(kind, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u);
     this.cd = urgent ? 1.6 : 1.1 + Math.random() * 1.2; },
   step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt;
     if (this.cd > 0 || CAST.busy || (battle && battle.over)) return; // (terminada la pelea sólo anuncia al ganador)
     const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
-    CAST.say(this.line(this.exc > 0.5 ? 'hot' : 'calm', a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
+    const k = this.exc > 0.5 ? 'hot' : 'calm'; this.speak(k, this.line(k, a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
 };
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
@@ -5153,7 +5175,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.'] },
+  { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.'] },
   { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Relator en las peleas: narra en inglés con la voz del celular, al estilo de los locutores de batallas de monstruos, lo que hace cada uno por su nombre («Tito unleashes Shockwave!», «Lora dodges it!», «And the winner is Tito!») y se emociona más con los golpes fuertes, las ultimates y los K.O.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
@@ -5277,10 +5299,12 @@ function voiceView() { $('castSw').checked = !CAST.muted; $('voiceList').classLi
   const el = $('voiceList'); if (!CAST.ok()) { el.innerHTML = '<p class="tdesc">Este navegador no tiene voces para el relator.</p>'; return; }
   if (!CAST.all.length) CAST.init();
   const row = (k, name, sub, test) => `<div class="btn vitem${CAST.pick === k ? ' on' : ''}" data-vk="${esc(k)}"><span>${CAST.pick === k ? '✓ ' : ''}${esc(name)}<small>${esc(sub)}</small></span>${test ? `<button class="btn vtry nosnd" data-vt="${esc(k)}">▶ Probar</button>` : '<span></span>'}</div>`;
-  el.innerHTML = row('auto', 'Automática · inglés', 'el juego elige una voz en inglés', true) + row('auto-es', 'Automática · español', 'el juego elige una voz en español', true)
+  el.innerHTML = Object.entries(VOZ.voices).map(([k, v]) => row(k, v.name, v.sub, true)).join('') + row('auto', 'Automática · inglés', 'el juego elige una voz en inglés', true) + row('auto-es', 'Automática · español', 'el juego elige una voz en español', true)
     + (CAST.all.length ? CAST.all.map(v => row(v.voiceURI || v.name, v.name, v.lang + (CAST.isL(v, 'es') ? ' · español' : ' · inglés') + (v.localService === false ? ' · necesita internet' : ''), true)).join('') : '<p class="tdesc">Cargando las voces… vuelve a abrir esta pantalla en un momento.</p>');
   el.querySelectorAll('[data-vk]').forEach(r => r.onclick = e => { if (e.target.closest('[data-vt]')) return; CAST.setPick(r.dataset.vk); voiceView(); });
   el.querySelectorAll('[data-vt]').forEach(b => b.onclick = () => { const k = b.dataset.vt, old = CAST.pick; CAST.unlock(); CAST.stop(); CAST.pick = k; CAST.applyPick();
+    if (CAST.el) { const L = CAST.lang, tries = [[L + '_fight_1'], [L + '_ult_1', L + '_u_melee'], [L + '_ko_1'], [L + '_end_1']], ks = tries[Math.floor(Math.random() * tries.length)]; const go = () => { if (!CLIP.play(ks)) CAST.say(L === 'es' ? '¡Que comience la batalla!' : 'Let the battle begin!', 0, 0.8, true); };
+      if (CLIP.ready(ks)) go(); else Promise.all(ks.map(x => CLIP.load(x))).then(go); CAST.pick = old; CAST.applyPick(); return; }
     CAST.say((CAST.lang === 'es' ? ['¡Tito desata Onda de choque! ¡Qué golpe!', '¡Y el ganador es Tito!', '¡Lora cae! ¡Lora ya no puede seguir!'] : ['Tito unleashes Shockwave! What a hit!', 'And the winner is Tito!', 'Lora is down! Lora can no longer battle!'])[Math.floor(Math.random() * 3)], 0, 0.8, true); CAST.pick = old; CAST.applyPick(); });
 }
 $('castSw').onchange = e => { CAST.setMuted(!e.target.checked); voiceView(); SFX.click(); };
@@ -5872,7 +5896,7 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) { CAST.unlock(); // (viene de un toque: el iPhone deja que la voz hable)
+function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); // (viene de un toque: el iPhone deja que la voz hable)
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
     goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
