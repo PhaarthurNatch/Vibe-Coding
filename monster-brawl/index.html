@@ -3224,7 +3224,7 @@ class Monster {
 // las mecánicas de siempre (objetivo, golpes, disparos, ultimates). Si destruyes las dos manos, ganas; si se acaba el tiempo, gana el jefe.
 // ============================================================================
 const bossScale = b => ((ARENA_W + 60) / 2 * BOSS.reach) / (b.g.torso.upper.w * 0.5); // tan grande que sus hombros casi tocan los bordes de la pantalla (pedido del dueño)
-const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.06, top: 430 };
+const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.06, top: 430, shoulderOut: 1.14 };
 const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
 function bossRec(i = 0) { const b = BOSS_LIST[i]; const r = newRec('adult'); r.seed = b.seed || r.seed; r.name = b.name; r.level = 20; r.noArms = true; r.broad = 4; r.temper = { agr: 1, terco: 0, valor: 1 }; return r; }
 class BossHand extends Monster {
@@ -3279,12 +3279,17 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   const seg = (ax, ay, bx, by, w, dead) => { ctx.lineCap = 'round'; ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = w + 8; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.strokeStyle = dead ? '#6d6670' : hsl(c); ctx.lineWidth = w; ctx.stroke(); };
   const ball = (x, y, r, dead) => { ctx.fillStyle = dead ? '#6d6670' : hsl(c); ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke(); };
   ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); body.draw(ctx); // se corta en el piso: sólo se ve del torso para arriba
-  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
+  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
   ctx.restore();
-  for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55; // los brazos entran por los costados de la arena (pedido del dueño)
-    // el antebrazo intenta quedar horizontal (pedido del dueño): el codo va al lado de la mano, hacia afuera (aunque quede fuera de la pantalla), apenas más abajo
-    const FL = (V.x1 - V.x0) * 0.42, ex = h.side < 0 ? V.x0 - w1 * 0.55 : V.x1 + w1 * 0.55, ey = hy + Math.abs(hx - ex) * 0.08; // el codo en el borde de la pantalla: el brazo existe, pero queda fuera; en pantalla se mueve el resto (pedido del dueño)
-    const sx = up.x + h.side * sw, sy = up.y - U.h * sc * 0.3; // el brazo sale del hombro del monstruo y baja por el borde hasta el codo (casi todo fuera de la pantalla)
+  for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55;
+    // brazo de verdad (pedido del dueño): sale del hombro (más afuera que el torso) con largos fijos; de las dos posiciones posibles del codo se elige la que deja
+    // el antebrazo más horizontal, apenas subiendo hacia el codo; se ve o no según dónde esté, sin forzarlo
+    const sx = up.x + h.side * sw * BOSS.shoulderOut, sy = up.y - U.h * sc * 0.3, Vw = V.x1 - V.x0, L2 = Vw * 0.5, L1 = Math.hypot(sx - (h.side < 0 ? V.x0 : V.x1), sy - (TOP + ARENA_D * DEPTH * 0.45));
+    let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1, ex, ey;
+    if (d >= L1 + L2) { ex = sx + dx / d * L1; ey = sy + dy / d * L1; } // no alcanza: brazo estirado
+    else { const dd = Math.max(d, Math.abs(L1 - L2) + 1), a = (L1 * L1 - L2 * L2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a)), ux = dx / d, uy = dy / d, px = sx + ux * a, py = sy + uy * a;
+      const c1 = [px - uy * hh, py + ux * hh], c2 = [px + uy * hh, py - ux * hh], want = hy - L2 * 0.12, sc1 = Math.abs(c1[1] - want), sc2 = Math.abs(c2[1] - want);
+      [ex, ey] = sc1 <= sc2 ? c1 : c2; }
     ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
 }
 
