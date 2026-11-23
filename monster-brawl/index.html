@@ -15,8 +15,8 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* pantalla de carga al abrir (pedido del dueño: que no se vea trabado mientras carga) */
-#boot{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 42%,#2c2250,var(--bg) 70%);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease}
-#boot.out{opacity:0;pointer-events:none}.bootin{display:flex;flex-direction:column;align-items:center;gap:18px}
+#boot,#ld{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 42%,#2c2250,var(--bg) 70%);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease}
+#boot.out,#ld.out{opacity:0;pointer-events:none}.bootin{display:flex;flex-direction:column;align-items:center;gap:18px}
 .bootegg{width:74px;height:94px;border-radius:50% 50% 48% 48%/58% 58% 42% 42%;background:#f4ead8;border:4px solid #2a1f3d;position:relative;animation:bootwig 1.4s ease-in-out infinite;transform-origin:50% 90%;box-shadow:0 10px 0 -4px rgba(0,0,0,.25)}
 .bootegg i{position:absolute;border-radius:50%;background:#e06a3b}.bootegg i:nth-child(1){width:18px;height:14px;left:14px;top:22px}.bootegg i:nth-child(2){width:12px;height:12px;right:16px;top:40px}.bootegg i:nth-child(3){width:16px;height:12px;left:26px;bottom:16px}
 @keyframes bootwig{0%,55%,100%{transform:rotate(0)}62%{transform:rotate(-9deg)}70%{transform:rotate(8deg)}78%{transform:rotate(-5deg)}86%{transform:rotate(3deg)}}
@@ -310,6 +310,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 </head>
 <body>
 <div id="boot" aria-label="Cargando"><div class="bootin"><div class="bootegg"><i></i><i></i><i></i></div><div class="bootbar"><b></b></div><div class="boottx">Cargando…</div></div></div>
+<div id="ld" aria-label="Cargando" hidden><div class="bootin"><div class="bootegg"><i></i><i></i><i></i></div><div class="bootbar"><b></b></div><div class="boottx" id="ldTx">Cargando…</div></div></div>
 <canvas id="cv"></canvas>
 
 <!-- HOME -->
@@ -656,7 +657,7 @@ const SFX = (() => {
   const S = {
     get on() { return on; },
     set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); S.otStop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
-    unlock() { ctx(); CAST.unlock(); if (!S._pre) { S._pre = true; setTimeout(() => { REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); }, 1500) /* (en fila, de a uno: ver CLIP.queued) */; } }, // con el primer toque ya se cargan los audios del relator y del público (así la intro no llega tarde)
+    unlock() { ctx(); CAST.unlock(); if (!S._pre) { S._pre = true; CLIP.preloadAll() /* (si no empezó al abrir la app; en fila, de a uno: ver CLIP.queued) */; } }, // con el primer toque ya se cargan los audios del relator y del público (así la intro no llega tarde)
     actx() { return ctx(); },
     duckGains() { return out ? [[out.gain, VOL], [sbus.gain, 1]] : []; }, // los comentaristas tienen prioridad: golpes y efectos bajan mientras hablan (pedido del dueño) // (los audios grabados del relator usan el mismo contexto de sonido)
     // pelea
@@ -791,11 +792,19 @@ const CLIP = { sprites: {},
   chain: Promise.resolve(), dec: null,
   decode(a) { const c = SFX.actx(); if (!this.dec) { try { const O = window.OfflineAudioContext || window.webkitOfflineAudioContext; this.dec = O ? new O(1, 1, 22050) : null; } catch (e) { this.dec = null; } }
     const d = this.dec || c, keep = this.dec && c ? a.slice(0) : null; /* (copia por si hay que reintentar con el contexto normal) */ return new Promise((res, rej) => { try { const p = d.decodeAudioData(a, res, rej); if (p && p.catch) p.catch(() => { }); } catch (e) { rej(e); } }).catch(() => keep ? new Promise((res, rej) => c.decodeAudioData(keep, res, rej)).catch(() => null) : null); },
-  queued(fn) { const p = this.chain.then(fn).then(r => new Promise(res => setTimeout(() => res(r), 60))); this.chain = p.catch(() => null); return p; },
-  sprite(f) { if (this.sprites[f]) return this.sprites[f]; return (this.sprites[f] = this.queued(() => fetch(f).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(a => this.decode(a))).catch(() => null)); }, buf: {}, loading: {}, srcs: [], end: 0, out: null,
+  queued(fn) { const p = this.chain.then(fn).then(r => new Promise(res => setTimeout(() => res(r), 25))); this.chain = p.catch(() => null); return p; },
+  sprite(f) { if (this.sprites[f]) return this.sprites[f]; const dl = fetch(f).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }); dl.catch(() => { }); /* (se bajan en paralelo; se decodifican de a uno) */ return (this.sprites[f] = this.queued(() => dl.then(a => this.decode(a))).catch(() => null)); }, buf: {}, loading: {}, srcs: [], end: 0, out: null,
   load(k, dir = 'voz/') { if (k in this.buf) return Promise.resolve(); if (this.loading[k]) return this.loading[k]; const c = SFX.actx(); if (!c) return Promise.resolve();
     const sp = SPR[k]; if (sp) return (this.loading[k] = this.sprite(sp[0]).then(B => { if (!B) { this.buf[k] = null; return; } const off = Math.max(0, sp[1] - 0.04), dur = Math.min(B.duration - off, sp[2] + 0.12); this.buf[k] = { sp: B, off, dur, duration: dur }; })); /* su parte del paquete (sin copiarla) */
-    return (this.loading[k] = this.queued(() => fetch(dir + k + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(a => this.decode(a))).then(b => { this.buf[k] = b || null; }).catch(() => { this.buf[k] = null; })); },
+    const dl = fetch(dir + k + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }); dl.catch(() => { }); return (this.loading[k] = this.queued(() => dl.then(a => this.decode(a))).then(b => { this.buf[k] = b || null; }).catch(() => { this.buf[k] = null; })); },
+  // Todo en orden de prioridad (pedido del dueño: entrando altiro a una pelea se quedaba callado hasta que cargaban): primero los efectos y lo que se dice siempre
+  // (presentación, «¡A luchar!», K.O., cierre, ultimate…), después el resto. essP = lo esencial (lo espera la pantalla de carga de la app), allP = todo (lo espera la de la arena).
+  preloadAll() { if (this.allP) return this.allP; if (!SFX.actx()) return Promise.resolve(); const L = CAST.lang || 'es', ks = [...REC_SFX.map(k => [k, 'sfx/']), ['crowd_loop', 'sfx/']];
+    const pri = ['intro', 'go', 'fight', 'ffa', 'team', 'cointro', 'fhi', 'ko', 'end', 'ult'], add = e => { for (let i = 1; i <= (VOZ.n[e] || 0); i++) ks.push([`${L}_${e}_${i}`]); };
+    pri.forEach(add); for (const u of ULT_KEYS) ks.push([`${L}_u_${u}`]); const nEss = ks.length;
+    Object.keys(VOZ.n).filter(e => !pri.includes(e)).forEach(add); for (const u of ULT_KEYS) for (let i = 1; i <= VOZ.uc; i++) ks.push([`${L}_uc_${u}_${i}`]);
+    for (const k of CROWD.keys) if (k !== 'crowd_loop') ks.push([k, 'sfx/']);
+    const ps = ks.map(([k, d]) => this.load(k, d)); this.essP = Promise.all(ps.slice(0, nEss)); return (this.allP = Promise.all(ps)); },
   start(src, k, when = 0) { const b = this.buf[k]; if (b && b.sp) { src.buffer = b.sp; src.start(when, b.off, b.dur); } else { src.buffer = b; src.start(when); } }, // toca una frase (de su paquete o suelta)
   preload(lang) { if (!SFX.actx()) return; for (const [e, n] of Object.entries(VOZ.n)) for (let i = 1; i <= n; i++) this.load(`${lang}_${e}_${i}`); for (const u of ULT_KEYS) { this.load(`${lang}_u_${u}`); for (let i = 1; i <= VOZ.uc; i++) this.load(`${lang}_uc_${u}_${i}`); } },
   ready(keys) { return keys.every(k => this.buf[k]); },
@@ -5065,8 +5074,8 @@ function barnItem(r) {
 // al entrar, el rancho se acerca al granero, se desenfoca y se pone vidrioso, y el granero aparece acercándose y enfocándose; al salir, al revés
 // (el rancho se aleja desde el granero y se enfoca). Sin silueta de tarjeta (el dueño la quitó: parecía abrir una app); antes fue un zoom caricaturesco con un círculo.
 // Entrar y salir del granero: directo, sin transición (pedido del dueño; se probaron varias animaciones y se quitaron)
-function enterBarn() { SFX.thud(); openBarnView(); }
-function leaveBarn() { SFX.thud(); closeBarnView(); }
+function enterBarn() { SFX.thud(); loadScreen('Entrando al granero…', openBarnView); }
+function leaveBarn() { SFX.thud(); loadScreen('Volviendo al rancho…', closeBarnView); }
 function openBarnView() {
   fightMenu(false); RANCH.drag = null; scene = 'barn';
   $('home').classList.remove('on'); $('barnUI').classList.add('on');
@@ -5450,7 +5459,7 @@ $('btnFree').onclick = async () => {
   save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
 };
 if (!BOSS_OPEN) document.querySelector('[data-mode="boss"]').textContent = '🔒 Jefe · pronto';
-document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === 'ffa' ? openTeamPick() : startBattle(b.dataset.mode, [cur()]));
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === 'ffa' ? openTeamPick() : goBattle(b.dataset.mode, [cur()]));
 // "Luchar" abre los modos de pelea (y la pelea local); ✕ los cierra. Se cierran solos al cambiar de monstruo o volver al rancho.
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
@@ -5468,7 +5477,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.75', d: '2026-11-23', items: ['El juego ya no se traba al empezar: los audios del relator se cargan de a poco y ocupan mucha menos memoria (también por eso a veces se cortaban).', 'Tocando la ventana del resultado se adelanta la animación de los premios, paso a paso.', 'Los comentaristas narran lo que pasa un instante después, como en la realidad (la ultimate, cuando ya se lanzó).', 'El resultado muestra la racha de victorias de cada monstruo (y en cuánto se cortó si perdió).', 'La racha más larga (en Mi cuenta, el ranking y para tus amigos) ahora toma en cuenta la de tus monstruos.', 'En la Tienda las ultimates y arenas que ya tienes siguen apareciendo, después de las que te faltan.', 'La comentarista aparece en 2 de cada 10 peleas.', 'Los comentaristas ya no le hablan al jugador: narran para todos por igual, dan sus opiniones, cuentan quiénes son sus favoritos y se molestan con cariño entre ellos.', '164 frases nuevas de los comentaristas: más conversaciones entre ellos y más comentarios de cada uno.'] },
+  { v: '1.75', d: '2026-11-23', items: ['El juego ya no se traba al empezar: los audios del relator se cargan de a poco y ocupan mucha menos memoria (también por eso a veces se cortaban).', 'Pantallas de carga al entrar a la arena, al granero y al volver al rancho; la de abrir la app dura un poco más y deja listas las voces de los comentaristas.', 'Tocando la ventana del resultado se adelanta la animación de los premios, paso a paso.', 'Los comentaristas narran lo que pasa un instante después, como en la realidad (la ultimate, cuando ya se lanzó).', 'El resultado muestra la racha de victorias de cada monstruo (y en cuánto se cortó si perdió).', 'La racha más larga (en Mi cuenta, el ranking y para tus amigos) ahora toma en cuenta la de tus monstruos.', 'En la Tienda las ultimates y arenas que ya tienes siguen apareciendo, después de las que te faltan.', 'La comentarista aparece en 2 de cada 10 peleas.', 'Los comentaristas ya no le hablan al jugador: narran para todos por igual, dan sus opiniones, cuentan quiénes son sus favoritos y se molestan con cariño entre ellos.', '164 frases nuevas de los comentaristas: más conversaciones entre ellos y más comentarios de cada uno.'] },
   { v: '1.74', d: '2026-11-23', items: ['Se viene el modo Jefe (todavía bloqueado; reemplaza al 1 vs 1): un monstruo gigante al fondo de la arena golpea el suelo con sus manos; destrúyelas antes de que se acabe el tiempo. Primer jefe: Titán.', 'Las peleas son siempre de a 4: el botón «Pelea de a 4» te deja elegir 1 monstruo (todos contra todos) o 2 (2 vs 2).', 'Pantalla de carga al abrir el juego.', 'Interruptor para apagar a los comentaristas arriba a la derecha en la arena.', 'Siempre narra el relator; la comentarista aparece en 4 de cada 10 peleas, en todos los modos.', 'Con la moral alta los monstruos se ven contentos sólo a ratos; el resto del tiempo tienen su cara normal.', 'El jefe ahora es gigante (sus hombros enormes quedan mitad fuera de la pantalla), sus brazos entran por los costados de la arena y se ve sobre todo el antebrazo (sólo se le puede pegar a las manos) y su vida se ve en una sola barra grande arriba. Brazos y manos proporcionales a su cuerpo, y se inclina hacia el lado contrario cuando sube un brazo. Sus puños se ven desde el dorso y siguen al antebrazo sin doblarse hacia abajo, el codo nunca queda más alto que el hombro ni cruza al otro lado, el Titán se mueve hacia los lados y sube y baja siguiendo a sus manos (más si hace falta para no doblar el brazo hacia adentro), y tiene mucho más detalle: músculos, cicatriz, arrugas y venas.', 'Arreglado: los comentaristas ya no se cortan entre ellos con un audio nuevo.', 'En 2 vs 2 y todos contra todos el resultado aparece 1 segundo antes.', 'Al terminar la pelea, mientras el relator cierra, los premios van apareciendo de a poco, contando la experiencia y las monedas, y los botones salen al final.', 'Arreglado: si la música de la muerte súbita no alcanzaba a cargar, el juego se congelaba.', 'Arreglado: el Titán rebotaba en su lugar y quedaba inclinado hacia la izquierda.', 'Arreglado: a veces al abrir el juego preguntaba si usar la partida de la nube o la del celular aunque fueran la misma.'] },
   { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'El relator viene ahora en español (El Faraón). Guy en inglés sigue en Menú ⚙️ → Voz del relator.', 'A veces el relator viene acompañado por una comentarista (Angélica), que dice la mitad de los comentarios y conversa mucho más con el relator (16 conversaciones nuevas)', 'Los comentaristas ahora son sólo en español (se quitaron los de inglés).', 'El doble de frases para los comentaristas: más de 350 nuevas, incluidas 30 conversaciones nuevas entre ellos.', 'La comentarista ahora es Diana (voz mexicana), un poco más bajita.', 'Los comentaristas ahora hablan de tu monstruo: cuando pega fuerte, cuando lo castigan, si noquea o cae, si viene en racha o está por crecer, y te dicen si ganaste o perdiste.', 'Reacciones cortas en los golpes («¡Uy!», «¡Pum!») para que suene más en vivo.', 'Al terminar comentan cómo fue la pelea (varios nocauts, casi sin recibir golpes, muy rápida o muy larga).', 'Los comentaristas siempre se escuchan: mientras hablan, el público, la música y los golpes bajan.', 'En todos contra todos siempre están los dos comentaristas; en 2 vs 2 sólo él.', 'Se regrabaron 7 frases del relator que balbuceaban o decían palabras de más (como «¡Batalla terminada! ¡Bravo!»).', 'Se regrabó la frase «¡Lanzado al otro lado de la arena!», que sonaba rara: son viejos amigos, conversan entre ellos y ella también comenta lo que pasa.', 'Las bombas y la onda de choque ahora también lanzan a los cuerpos de los noqueados que alcanzan.', 'Arreglado: a veces un monstruo ya noqueado salía volando al caer el último. Ahora, una vez tendido, se queda quieto.', 'El relator habla menos (cerca de 40% menos) y reparte sus frases entre varias peleas, sin repetirlas hasta haberlas dicho todas. Con la comentarista, ella habla más seguido y conversan entre ellos.', 'El relator usa mucho más variado sus frases: ahora narra también golpes, esquivas, vuelos, saltos, bombas y más, ya no repite tanto los comentarios de relleno, y se oyen todas sus presentaciones (el «¡A luchar!» espera a que termine).', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».', 'La muerte súbita ahora dura 20 segundos y en los últimos 10 aparece un reloj: si llega a 0 sin ganador, los monstruos dejan de pelear y es empate. Si se golpearon mucho el público aplaude; si no, abuchea. El relator lo comenta.', 'El «K.O.» del final sale centrado y más grande, y las letras grandes (K.O., FIGHT!, DRAW) se ven más limpias.'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
@@ -6046,7 +6055,7 @@ function openTeamPick() { // peleas de a 4 (pedido del dueño): con 1 monstruo t
     go.disabled = !sel.size; go.textContent = sel.size === 2 ? 'Pelear 2 vs 2' : sel.size ? 'Pelear todos vs todos' : 'Elige un monstruo';
   };
   $('tpInfo').textContent = 'Con 1 monstruo es todos contra todos; con 2, pelean juntos en 2 vs 2.';
-  go.onclick = () => { $('teamPick').classList.remove('on'); startBattle(sel.size === 2 ? '2v2' : 'ffa', [...sel].map(i => save.monsters[i])); };
+  go.onclick = () => { $('teamPick').classList.remove('on'); goBattle(sel.size === 2 ? '2v2' : 'ffa', [...sel].map(i => save.monsters[i])); };
   $('tpNo').onclick = () => $('teamPick').classList.remove('on');
   refresh();
   $('teamPick').classList.add('on');
@@ -6189,6 +6198,15 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
+// Pantallas de carga al entrar a la arena, al granero y al volver al rancho (pedido del dueño: «así escondemos todo»)
+function loadScreen(txt, fn, wait = null, min = 650, max = 8000) {
+  const el = $('ld'); $('ldTx').textContent = txt || 'Cargando…'; el.hidden = false; el.classList.remove('out'); clearTimeout(loadScreen.t);
+  const sleep = ms => new Promise(r => setTimeout(r, ms)), t0 = performance.now();
+  requestAnimationFrame(() => requestAnimationFrame(() => { // (que se vea la pantalla antes de cambiar nada)
+    const go = () => { try { fn && fn(); } finally { requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.add('out'); loadScreen.t = setTimeout(() => { el.hidden = true; }, 480); })); } };
+    if (!wait) { fn && fn(); fn = null; sleep(Math.max(0, min - (performance.now() - t0))).then(go); }
+    else Promise.race([Promise.all([wait, sleep(min)]), sleep(max)]).then(go); })); }
+function goBattle(mode, team) { loadScreen('Entrando a la arena…', () => startBattle(mode, team), CLIP.preloadAll(), 750); } // espera a que estén todas las voces (como mucho 8 s)
 function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); // (viene de un toque: el iPhone deja que la voz hable)
   const pick = mode === 'ffa' || mode === '2v2'; team = team || (pick && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
@@ -6497,15 +6515,16 @@ $('growOk').onclick = () => {
   renderHome();
   if (!checkGrowth()) { show.vz = 240; show.setEmo('happy', 2, 3); } // ¿hay otro que también crece?
 };
+const goHomeLd = () => loadScreen('Volviendo al rancho…', goHome); // (pantalla de carga al volver de la arena)
 $('quit').onclick = async () => {
-  if (battle && battle.spec) { specStop(); goHome(); return; } // dejar de espectar
-  if (battle && battle.lan) { if (!await ask('¿Salir de la pelea local? Se corta la conexión con el otro celular.', { ok: 'Salir', cancel: 'Seguir' })) return; lanSend({ t: 'bye' }); lanClose(); goHome(); return; }
-  if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHome();
+  if (battle && battle.spec) { specStop(); goHomeLd(); return; } // dejar de espectar
+  if (battle && battle.lan) { if (!await ask('¿Salir de la pelea local? Se corta la conexión con el otro celular.', { ok: 'Salir', cancel: 'Seguir' })) return; lanSend({ t: 'bye' }); lanClose(); goHomeLd(); return; }
+  if (battle && !battle.over && !await ask('¿Abandonar la pelea? No ganas XP.', { ok: 'Abandonar', cancel: 'Seguir' })) return; goHomeLd();
 };
-$('resHome').onclick = () => { if (battle && battle.spec) { specStop(); $('resAgain').hidden = false; goHome(); return; } if (battle && battle.lan) { lanSend({ t: 'bye' }); lanClose(); } $('resAgain').textContent = 'Otra pelea'; goHome(); };
+$('resHome').onclick = () => { if (battle && battle.spec) { specStop(); $('resAgain').hidden = false; goHomeLd(); return; } if (battle && battle.lan) { lanSend({ t: 'bye' }); lanClose(); } $('resAgain').textContent = 'Otra pelea'; goHomeLd(); };
 $('resAgain').onclick = () => {
   if (battle && battle.lan) { if (LAN.role === 'host') lanStartHost(); else { lanSend({ t: 'again' }); $('resAgain').disabled = true; $('resAgain').textContent = 'Esperando…'; } return; }
-  startBattle(lastMode);
+  goBattle(lastMode);
 };
 
 // Mientras el relator termina de hablar, los premios van apareciendo de a poco, contando cada número desde 0 como si los calculara, y los botones salen al final (pedido del dueño)
@@ -7140,8 +7159,10 @@ setTimeout(async () => { // la partida empezó de cero pero hay una copia con m�
 requestAnimationFrame(loop);
 // Pantalla de carga (pedido del dueño): se va cuando la página terminó de cargar y el juego ya dibujó sus primeros cuadros
 (function bootHide() { const el = document.getElementById('boot'); if (!el) return; let done = false; const go = () => { if (done) return; done = true; el.classList.add('out'); setTimeout(() => el.remove(), 600); };
-  const ready = Promise.all([new Promise(r => document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })), document.fonts ? document.fonts.ready.catch(() => { }) : 0]);
-  ready.then(() => { let n = 0; const f = () => { if (++n < 18) requestAnimationFrame(f); else setTimeout(go, 1120); }; requestAnimationFrame(f); }); setTimeout(go, 9000); })(); // (+1 s, pedido del dueño)
+  try { CLIP.preloadAll(); } catch (e) { } // los audios empiezan a cargar ya, escondidos tras la pantalla de carga (pedido del dueño)
+  const aud = Promise.race([CLIP.allP || Promise.resolve(), new Promise(r => setTimeout(r, 8000))]); // (espera todas las voces, como mucho 8 s; lo que falte lo espera la pantalla de la arena)
+  const ready = Promise.all([new Promise(r => document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })), document.fonts ? document.fonts.ready.catch(() => { }) : 0, aud]);
+  ready.then(() => { let n = 0; const f = () => { if (++n < 18) requestAnimationFrame(f); else setTimeout(go, 1200); }; requestAnimationFrame(f); }); setTimeout(go, 14000); })(); // (algo más larga, pedido del dueño)
 </script>
 </body>
 </html>
