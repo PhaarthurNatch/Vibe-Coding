@@ -631,83 +631,23 @@ const SFX = (() => {
     // pelea
     beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
     fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
-    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4), lo = heavy ? 0.65 : 1; [ // 10 golpes distintos al azar (sin repetir el anterior; pedido del dueño); más fuerte = más volumen, pesado = más grave
-      () => { noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.45 * k }); tone(150 * lo, 0.12, { to: 50, v: 0.55 * k }); }, // el de antes
-      () => { noise(0.06, { f: 2600, fto: 700, v: 0.4 * k }); tone(220 * lo, 0.08, { type: 'triangle', to: 90, v: 0.4 * k }); }, // seco y rápido
-      () => { noise(0.14, { f: 500, fto: 120, v: 0.55 * k }); tone(80 * lo, 0.2, { to: 40, v: 0.6 * k }); }, // golpe sordo
-      () => { noise(0.05, { ft: 'highpass', f: 1800, v: 0.35 * k }); tone(320 * lo, 0.06, { type: 'square', to: 120, v: 0.15 * k }); }, // cachetada
-      () => { noise(0.1, { ft: 'bandpass', f: 1200, fto: 400, q: 2, v: 0.5 * k }); tone(130 * lo, 0.14, { type: 'triangle', to: 55, v: 0.45 * k }); }, // puñetazo
-      () => { tone(260 * lo, 0.1, { type: 'sawtooth', to: 70, v: 0.22 * k }); noise(0.07, { f: 1400, v: 0.3 * k }); }, // crujido
-      () => { noise(0.04, { f: 3200, v: 0.3 * k }); noise(0.1, { f: 700, fto: 150, v: 0.45 * k, at: 0.02 }); tone(110 * lo, 0.12, { to: 45, v: 0.5 * k, at: 0.02 }); }, // doble impacto
-      () => { tone(180 * lo, 0.16, { type: 'sine', to: 360, v: 0.3 * k }); noise(0.05, { f: 1800, v: 0.3 * k }); }, // golpe elástico
-      () => { noise(0.08, { ft: 'bandpass', f: 600, q: 1.2, v: 0.6 * k }); tone(95 * lo, 0.1, { type: 'square', to: 50, v: 0.18 * k }); }, // patada
-      () => { noise(0.12, { f: 1600, fto: 300, v: 0.4 * k }); tone(170 * lo, 0.09, { to: 60, v: 0.5 * k }); tone(85 * lo, 0.14, { to: 40, v: 0.35 * k, at: 0.03 }); }, // contundente
-      () => { noise(0.07, { ft: 'bandpass', f: 900, q: 3, v: 0.5 * k }); tone(140 * lo, 0.1, { type: 'triangle', to: 70, v: 0.4 * k }); }, // golpe hueco
-      () => { tone(400 * lo, 0.05, { type: 'square', to: 150, v: 0.14 * k }); noise(0.09, { f: 1000, fto: 250, v: 0.45 * k }); }, // chasquido
-      () => { noise(0.16, { f: 350, fto: 90, v: 0.6 * k }); tone(65 * lo, 0.22, { to: 35, v: 0.6 * k }); }, // mazazo
-      () => { noise(0.03, { ft: 'highpass', f: 3000, v: 0.3 * k }); tone(240 * lo, 0.07, { type: 'triangle', to: 110, v: 0.35 * k }); }, // toque rápido
-      () => { tone(160 * lo, 0.12, { type: 'sine', to: 50, v: 0.5 * k }); noise(0.06, { ft: 'bandpass', f: 2000, q: 2, v: 0.3 * k, at: 0.01 }); }, // golpe al estómago
-      () => { noise(0.1, { ft: 'bandpass', f: 400, fto: 1200, q: 1.5, v: 0.4 * k }); tone(120 * lo, 0.1, { to: 60, v: 0.4 * k }); }, // zarpazo
-      () => { tone(300 * lo, 0.08, { type: 'sawtooth', to: 100, v: 0.15 * k }); tone(150 * lo, 0.12, { to: 50, v: 0.45 * k, at: 0.02 }); noise(0.05, { f: 2400, v: 0.25 * k }); }, // impacto metálico
-      () => { noise(0.2, { f: 800, fto: 100, v: 0.35 * k }); tone(100 * lo, 0.18, { type: 'triangle', to: 45, v: 0.45 * k }); }, // golpe arrastrado
-      () => { for (let i = 0; i < 3; i++) noise(0.03, { f: 1800 - i * 400, v: (0.35 - i * 0.08) * k, at: i * 0.035 }); tone(130 * lo, 0.12, { to: 55, v: 0.45 * k }); }, // ráfaga de golpecitos
-      () => { tone(200 * lo, 0.1, { type: 'sine', to: 80, v: 0.55 * k }); noise(0.08, { ft: 'lowpass', f: 1200, v: 0.35 * k }); }, // cabezazo
-    ][pick5('hit', 20)](); },
-    shot() { if (!gap('shot', 50)) return; [ // 10 disparos distintos al azar (sin repetir el anterior; pedido del dueño)
-      () => tone(900, 0.14, { type: 'triangle', to: 360, v: 0.16 }), // el de antes
-      () => tone(1400, 0.12, { type: 'square', to: 500, v: 0.08 }), // láser
-      () => { tone(600, 0.1, { type: 'sine', to: 1200, v: 0.14 }); tone(1200, 0.08, { type: 'sine', to: 700, v: 0.08, at: 0.08 }); }, // fiu-fiu
-      () => { noise(0.12, { ft: 'bandpass', f: 2200, fto: 900, q: 3, v: 0.22 }); tone(500, 0.1, { type: 'triangle', to: 250, v: 0.1 }); }, // soplido
-      () => { tone(250, 0.12, { type: 'sine', to: 700, v: 0.2 }); }, // bloop
-      () => { noise(0.05, { f: 2500, v: 0.25 }); tone(320, 0.1, { type: 'sawtooth', to: 140, v: 0.1 }); }, // escupitajo
-      () => { tone(1800, 0.06, { type: 'triangle', v: 0.08 }); tone(1350, 0.06, { type: 'triangle', v: 0.08, at: 0.05 }); tone(900, 0.1, { type: 'triangle', v: 0.08, at: 0.1 }); }, // tres notas
-      () => { noise(0.18, { ft: 'bandpass', f: 800, fto: 2400, q: 2, v: 0.2 }); }, // ráfaga de viento
-      () => { tone(700, 0.16, { type: 'sine', to: 300, v: 0.12 }); tone(710, 0.16, { type: 'sine', to: 305, v: 0.1 }); }, // zumbido
-      () => { tone(2000, 0.09, { type: 'square', to: 300, v: 0.06 }); noise(0.04, { f: 4000, v: 0.12 }); }, // pew
-      () => { tone(400, 0.15, { type: 'triangle', to: 1600, v: 0.1 }); }, // silbido que sube
-      () => { noise(0.08, { f: 1200, v: 0.25 }); tone(180, 0.1, { type: 'sine', to: 90, v: 0.2 }); }, // cañoncito
-      () => { tone(1000, 0.05, { type: 'sine', v: 0.1 }); tone(1500, 0.05, { type: 'sine', v: 0.08, at: 0.04 }); }, // pip-pip
-      () => { tone(350, 0.2, { type: 'sawtooth', to: 120, v: 0.07 }); noise(0.15, { ft: 'bandpass', f: 1500, q: 2, v: 0.12 }); }, // bola de fuego
-      () => { tone(800, 0.12, { type: 'sine', to: 400, v: 0.12 }); tone(1600, 0.08, { type: 'sine', to: 800, v: 0.05 }); }, // gota
-      () => { noise(0.1, { ft: 'highpass', f: 2500, v: 0.18 }); tone(600, 0.08, { type: 'square', to: 300, v: 0.05 }); }, // chispa
-      () => { tone(1200, 0.18, { type: 'triangle', to: 600, v: 0.1 }); tone(1230, 0.18, { type: 'triangle', to: 615, v: 0.08 }); }, // rayo vibrante
-      () => { tone(220, 0.08, { type: 'square', to: 440, v: 0.08 }); tone(440, 0.1, { type: 'square', to: 220, v: 0.06, at: 0.07 }); }, // boing de goma
-      () => { noise(0.14, { ft: 'bandpass', f: 3000, fto: 1200, q: 5, v: 0.18 }); }, // flecha
-      () => { tone(500, 0.1, { type: 'sine', to: 1000, v: 0.12 }); noise(0.06, { f: 900, v: 0.12, at: 0.06 }); }, // burbuja que revienta
-    ][pick5('shot', 20)](); },
+    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4); noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.45 * k }); tone(heavy ? 90 : 150, 0.12, { type: 'sine', to: 50, v: 0.55 * k }); },
+    shot() { if (!gap('shot', 50)) return; tone(900, 0.14, { type: 'triangle', to: 360, v: 0.16 }); },
     impact() { if (!gap('imp', 40)) return; noise(0.08, { f: 1800, fto: 400, v: 0.3 }); },
     dodge() { if (!gap('dodge', 80)) return; noise(0.16, { ft: 'bandpass', f: 1800, fto: 600, q: 1.5, v: 0.25 }); },
-    ultCharge() { [ // 10 cargas de ultimate distintas al azar (sin repetir la anterior; pedido del dueño); duran lo que la carga (1,3 s)
-      () => { tone(160, 1.3, { type: 'sawtooth', to: 720, v: 0.18, a: 0.15 }); tone(240, 1.3, { type: 'sine', to: 1080, v: 0.12, a: 0.2 }); }, // la de antes
-      () => { tone(110, 1.3, { type: 'square', to: 440, v: 0.1, a: 0.3 }); tone(220, 1.3, { type: 'square', to: 880, v: 0.06, a: 0.4 }); }, // motor que acelera
-      () => { noise(1.3, { ft: 'bandpass', f: 300, fto: 3000, q: 4, v: 0.25, a: 0.5 }); tone(200, 1.3, { type: 'sine', to: 600, v: 0.1, a: 0.3 }); }, // viento que sube
-      () => { for (let i = 0; i < 8; i++) tone(330 * Math.pow(1.19, i), 0.15, { type: 'triangle', v: 0.12, at: i * 0.16 }); }, // escalera de notas
-      () => { tone(80, 1.3, { type: 'sawtooth', to: 160, v: 0.22, a: 0.2 }); noise(1.3, { f: 200, fto: 900, v: 0.2, a: 0.6 }); }, // rugido grave
-      () => { tone(523, 1.3, { type: 'sine', to: 1046, v: 0.1, a: 0.2 }); tone(659, 1.3, { type: 'sine', to: 1318, v: 0.08, a: 0.3 }); tone(784, 1.3, { type: 'sine', to: 1568, v: 0.06, a: 0.4 }); }, // acorde mágico
-      () => { for (let i = 0; i < 10; i++) noise(0.06, { ft: 'bandpass', f: 1500 + i * 300, q: 6, v: 0.12 + i * 0.015, at: i * 0.12 }); tone(300, 1.3, { type: 'triangle', to: 900, v: 0.08, a: 0.5 }); }, // chispazos eléctricos
-      () => { tone(60, 1.3, { type: 'sine', to: 120, v: 0.45, a: 0.4 }); tone(1200, 1.3, { type: 'sine', to: 2400, v: 0.04, a: 0.8 }); }, // temblor
-      () => { for (let i = 0; i < 6; i++) tone(200 + i * 90, 0.22, { type: 'sawtooth', to: 260 + i * 120, v: 0.08, at: i * 0.2 }); }, // pulsos
-      () => { tone(900, 1.3, { type: 'triangle', to: 200, v: 0.1, a: 0.1 }); tone(200, 1.3, { type: 'triangle', to: 900, v: 0.1, a: 0.1 }); }, // cruce de tonos
-      () => { for (let i = 0; i < 12; i++) tone(800 + Math.random() * 1200, 0.08, { type: 'sine', v: 0.07, at: i * 0.1 }); tone(150, 1.3, { type: 'sine', to: 300, v: 0.15, a: 0.4 }); }, // estrellitas
-      () => { tone(100, 1.3, { type: 'square', to: 100, v: 0.06, a: 0.2 }); tone(101.5, 1.3, { type: 'square', to: 400, v: 0.06, a: 0.2 }); }, // tensión
-      () => { noise(1.3, { ft: 'lowpass', f: 150, fto: 1500, v: 0.35, a: 0.9 }); }, // ola que crece
-      () => { for (let i = 0; i < 5; i++) tone(262 * Math.pow(1.26, i), 0.25, { type: 'square', v: 0.07, at: i * 0.25 }); }, // fanfarria corta
-      () => { tone(50, 1.3, { type: 'sawtooth', to: 200, v: 0.15, a: 0.3 }); tone(2000, 1.3, { type: 'sine', to: 500, v: 0.04, a: 0.3 }); }, // agujero negro
-      () => { for (let i = 0; i < 4; i++) tone(180, 0.18, { type: 'sine', to: 120, v: 0.35, at: i * 0.32 }); }, // latidos
-      () => { tone(440, 1.3, { type: 'sine', to: 880, v: 0.1, a: 0.2 }); tone(445, 1.3, { type: 'sine', to: 890, v: 0.1, a: 0.2 }); noise(1.3, { ft: 'highpass', f: 4000, v: 0.04, a: 0.6 }); }, // coro
-      () => { for (let i = 0; i < 16; i++) tone(i % 2 ? 600 : 400, 0.06, { type: 'triangle', v: 0.08 + i * 0.005, at: i * 0.08 }); }, // alarma
-      () => { noise(1.3, { ft: 'bandpass', f: 1000, fto: 200, q: 8, v: 0.3, a: 0.3 }); tone(300, 1.3, { type: 'sawtooth', to: 75, v: 0.08, a: 0.3 }); }, // remolino
-      () => { tone(196, 1.3, { type: 'triangle', to: 392, v: 0.15, a: 0.5 }); tone(294, 1.3, { type: 'triangle', to: 587, v: 0.1, a: 0.6 }); tone(98, 1.3, { type: 'sine', to: 196, v: 0.2, a: 0.4 }); }, // poder que despierta
-    ][pick5('ultc', 20)](); },
+    ultCharge() { tone(160, 1.3, { type: 'sawtooth', to: 720, v: 0.18, a: 0.15 }); tone(240, 1.3, { type: 'sine', to: 1080, v: 0.12, a: 0.2 }); },
+    shieldHit() { if (!gap('shield', 70)) return; tone(1250, 0.35, { type: 'triangle', v: 0.16 }); tone(1870, 0.25, { type: 'sine', v: 0.1 }); tone(620, 0.2, { type: 'square', v: 0.05 }); noise(0.05, { ft: 'highpass', f: 3500, v: 0.18 }); }, // golpe contra el Escudo de hierro: «¡clang!» metálico (pedido del dueño)
+    mineBoom() { if (!gap('mboom', 60)) return; noise(0.7, { f: 900, fto: 60, v: 1 }); tone(55, 0.7, { to: 28, v: 0.8 }); tone(140, 0.25, { type: 'sawtooth', to: 50, v: 0.25 }); noise(0.1, { f: 4000, v: 0.3 }); }, // explosión de una bomba (pedido del dueño)
     ult(type) { const c = ctx(); if (!c) return;
-      if (type === 'mines') { noise(0.5, { f: 400, v: 0.9 }); tone(70, 0.5, { to: 35, v: 0.6 }); }
+      if (type === 'mines') { for (let i = 0; i < 3; i++) { tone(500 + i * 80, 0.25, { type: 'triangle', to: 1100 + i * 120, v: 0.13, at: i * 0.09 }); noise(0.05, { f: 1500, v: 0.2, at: i * 0.09 }); } } // lanza 3 bombas (fiu-fiu-fiu); la explosión suena aparte (mineBoom)
+      else if (type === 'ranged') { noise(0.35, { f: 1800, fto: 300, v: 0.7 }); tone(120, 0.5, { type: 'sawtooth', to: 60, v: 0.4 }); tone(900, 0.45, { type: 'sine', to: 200, v: 0.15, at: 0.05 }); } // Bala gigante: cañonazo con silbido
       else if (type === 'teleport') { tone(300, 0.25, { type: 'square', to: 2200, v: 0.18 }); tone(2400, 0.2, { type: 'sine', to: 600, v: 0.15, at: 0.18 }); }
       else if (type === 'shield') { tone(196, 1.0, { type: 'sine', v: 0.4 }); tone(392, 0.9, { type: 'sine', v: 0.2 }); tone(587, 0.8, { type: 'sine', v: 0.12 }); }
       else if (type === 'speed') { noise(0.5, { ft: 'bandpass', f: 600, fto: 3000, q: 2, v: 0.35 }); }
       else if (type === 'drain') { tone(220, 0.6, { type: 'triangle', to: 110, v: 0.3 }); tone(330, 0.6, { type: 'triangle', to: 165, v: 0.2, at: 0.05 }); }
       else if (type === 'clone') { tone(523, 0.18, { type: 'square', v: 0.15 }); tone(659, 0.18, { type: 'square', v: 0.15, at: 0.1 }); tone(784, 0.25, { type: 'square', v: 0.15, at: 0.2 }); }
       else if (type === 'dodge') { noise(0.4, { ft: 'bandpass', f: 2500, fto: 800, q: 3, v: 0.3 }); tone(1200, 0.3, { to: 300, v: 0.12 }); }
-      else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); } },
+      else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); noise(0.6, { ft: 'bandpass', f: 300, fto: 1200, q: 1.5, v: 0.3, at: 0.1 }); } }, // Onda de choque: golpe al suelo y la onda que se expande
     ko() { noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
     anvil() { tone(1568, 0.6, { type: 'triangle', v: 0.35 }); tone(2350, 0.45, { type: 'sine', v: 0.2 }); tone(523, 0.3, { type: 'square', v: 0.12 }); noise(0.12, { f: 3000, v: 0.4 }); },
     win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i === 3 ? 0.45 : 0.16, { type: 'square', v: 0.16, at: i * 0.12 })); },
@@ -3081,7 +3021,7 @@ class Battle {
     }
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
-    if (this.kcamOn) { if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe
+    if (this.kcamOn) { if (shielded) SFX.shieldHit(); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
     if (t.hp <= 0 && !t.dead) {
       t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) SFX.ko(); (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
@@ -3112,6 +3052,7 @@ class Battle {
     b.done = true; const o = b.owner;
     this.rings.push({ x: b.x, y: b.y, r: 8, max: MINE_R, life: 0.4, col: '#ffb347' }); this.shake = Math.max(this.shake, 10);
     const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
+    if (this.kcamOn) SFX.mineBoom();
     this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
     for (const e of this.ms) {
       if (e.dead || e.team === b.team || floating(e)) continue;
@@ -4971,7 +4912,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Los golpes, los disparos y la carga de la ultimate en la arena ahora tienen 20 sonidos distintos cada uno que salen al azar, para que las peleas suenen más variadas.', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido (la Bala gigante y la Onda de choque ahora suenan distinto), las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -6484,7 +6425,7 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
-    { const seen = B._sndTx || (B._sndTx = new Map()), now = performance.now(); for (const t of B.texts) { const key = t.str + '|' + Math.round(t.x / 8); if (t.life < 0.6 || seen.has(key) && now - seen.get(key) < 900) continue; seen.set(key, now); if (t.str === 'K.O.') SFX.ko(); else if (/^\d+$/.test(t.str)) SFX.hit(+t.str, false); } } // títere (Online / espectar): suena con los números de daño que llegan
+    { const seen = B._sndTx || (B._sndTx = new Map()), now = performance.now(); for (const t of B.texts) { const key = t.str + '|' + Math.round(t.x / 8); if (t.life < 0.6 || seen.has(key) && now - seen.get(key) < 900) continue; seen.set(key, now); if (t.str === 'K.O.') SFX.ko(); else if (t.str === '¡BUM!') SFX.mineBoom(); else if (/^\d+$/.test(t.str)) SFX.hit(+t.str, false); } } // títere (Online / espectar): suena con los números de daño que llegan
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
       const m = B.ms[i]; if (!m) return;
