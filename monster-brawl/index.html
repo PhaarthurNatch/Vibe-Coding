@@ -5240,7 +5240,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».', 'La muerte súbita ahora dura 15 segundos y en los últimos 10 aparece un reloj: si llega a 0 sin ganador, los monstruos dejan de pelear y es empate. Si se golpearon mucho el público aplaude; si no, abuchea. El relator lo comenta.'] },
+  { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».', 'La muerte súbita ahora dura 15 segundos y en los últimos 10 aparece un reloj: si llega a 0 sin ganador, los monstruos dejan de pelear y es empate. Si se golpearon mucho el público aplaude; si no, abuchea. El relator lo comenta.', 'El «K.O.» del final sale centrado y más grande, y las letras grandes (K.O., FIGHT!, DRAW) se ven más limpias.'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
   { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.', 'Los audios del relator ya no se cortan entre sí: lo importante espera a que termine la frase anterior.', 'El público tiene 10 reacciones distintas de cada tipo (ovación, «¡oooh!», sorpresa, aplausos y abucheo) que salen al azar.', 'La voz del relator en español ahora suena tan fuerte como la de inglés.', 'El relator presenta la pelea durante la cuenta regresiva 3, 2, 1, grita «Fight!» o «¡A luchar!» al empezar, y el resultado aparece cuando termina de anunciar el final.', 'Muchas más frases del relator (cerca de 250 por idioma, incluidas intros y cierres) que se van turnando sin repetirse hasta usarlas todas, también de una pelea a otra.'] },
   { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).'] },
@@ -6014,7 +6014,7 @@ function drawIntro(b) {
   const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5);
   (big ? ['#fff6c2', '#ffc21a', '#ff5a12', '#a3100a'] : ['#ffffff', '#ffe08a', '#e0901f', '#7a3a08']).forEach((c, i) => g.addColorStop(i / 3, c));
   ctx.fillStyle = g; ctx.fillText(txt, 0, 0);
-  ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(txt, 0, 0);
+  glossText(txt, fs);
   ctx.restore(); ctx.globalAlpha = 1;
 }
 // «K.O.» al final (pedido del dueño): misma letra que el 3, 2, 1, FIGHT!; primero cae la K y después la O, como martilladas en un yunque
@@ -6031,6 +6031,8 @@ function drawOTTimer(b, top = H * 0.05) { // reloj de la muerte súbita: 10 s qu
   ctx.font = `900 ${Math.round(fs)}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
   ctx.lineWidth = fs * 0.12; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(String(n), x, y + fs * 0.04); ctx.fillStyle = urg ? '#ff6b6b' : '#fff3c4'; ctx.fillText(String(n), x, y + fs * 0.04);
   ctx.restore(); }
+function glossText(txt, fs) { // brillo en la mitad de arriba de las letras grandes (antes un borde blanco que dejaba ver las esquinas de los trazos por dentro de la letra; pedido del dueño)
+  const gl = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.02); gl.addColorStop(0, 'rgba(255,255,255,.5)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gl; ctx.fillText(txt, 0, 0); }
 function drawDraw(k) { // empate: «DRAW» que cae y rebota, y el público abuchea (pedido del dueño)
   if (k.t < 0) return; const t = k.t, fs = Math.min(W * 0.2, H * 0.2), y0 = H * 0.42;
   ctx.fillStyle = `rgba(10,5,20,${0.35 * clamp(t / 0.3, 0, 1)})`; ctx.fillRect(0, 0, W, H);
@@ -6039,7 +6041,7 @@ function drawDraw(k) { // empate: «DRAW» que cae y rebota, y el público abuch
   ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.globalAlpha = clamp(p * 3, 0, 1);
   ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText('DRAW', 0, fs * 0.04);
   const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); ['#f2f2ff', '#b9c2d8', '#7d869e', '#3f4458'].forEach((c, j) => g.addColorStop(j / 3, c));
-  ctx.fillStyle = g; ctx.fillText('DRAW', 0, 0); ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.strokeText('DRAW', 0, 0);
+  ctx.fillStyle = g; ctx.fillText('DRAW', 0, 0); glossText('DRAW', fs);
   ctx.restore();
   if (t > 0.2 && k.cheer) { ctx.save(); ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(fs * 0.24)}px system-ui`; ctx.lineJoin = 'round'; // «👏 ¡BRAVO!» del público por los bordes (sin «¡BUUU!»: el dueño lo quitó; el abucheo sólo se oye)
     for (let i = 0; i < 10; i++) { const st = 0.25 + i * 0.22, lt = t - st; if (lt < 0) continue; const a = clamp(1 - (lt % 1.6) / 1.6, 0, 1), side = i % 2 ? 1 : -1;
@@ -6047,10 +6049,11 @@ function drawDraw(k) { // empate: «DRAW» que cae y rebota, y el público abuch
       ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; const w = k.cheer ? (i % 3 ? '👏' : '¡BRAVO!') : (i % 3 ? '¡BUUU!' : '¡FUERA!'); ctx.strokeText(w, 0, 0); ctx.fillStyle = k.cheer ? (i % 3 ? '#fff' : '#7dff9a') : i % 3 ? '#ff8a8a' : '#ffd36b'; ctx.fillText(w, 0, 0); /* aplausos si fue intenso */ ctx.restore(); }
     ctx.restore(); }
 }
-function drawKO(k) {
-  const t = k.t, fs = Math.min(W * 0.24, H * 0.26), y0 = H * 0.42;
+function drawKO(k) { // centrado en la pantalla y grande (pedido del dueño)
+  const t = k.t; let fs = Math.min(W * 0.36, H * 0.32); const y0 = H * 0.5;
   ctx.fillStyle = `rgba(10,5,20,${0.3 * clamp(t / 0.2, 0, 1)})`; ctx.fillRect(0, 0, W, H);
   ctx.save(); ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  { const w0 = ctx.measureText('K.O.').width * 1.1; if (w0 > W * 0.9) { fs *= W * 0.9 / w0; ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; } } // que siempre quepa a lo ancho
   const segs = ['K.', 'O.'], ws = segs.map(x => ctx.measureText(x).width), gap = fs * 0.06, tot = ws[0] + ws[1] + gap; let x = W / 2 - tot / 2;
   segs.forEach((txt, i) => {
     const hitT = KO_HIT[i], cx = x + ws[i] / 2; x += ws[i] + gap;
@@ -6063,7 +6066,7 @@ function drawKO(k) {
     ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, y0 + oy + fs * 0.45); ctx.scale(sc * sx, sc * sy); ctx.translate(0, -fs * 0.45); ctx.textAlign = 'center';
     ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText(txt, 0, fs * 0.04);
     const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); ['#fff6c2', '#ffc21a', '#ff5a12', '#a3100a'].forEach((c, j) => g.addColorStop(j / 3, c));
-    ctx.fillStyle = g; ctx.fillText(txt, 0, 0); ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.strokeText(txt, 0, 0);
+    ctx.fillStyle = g; ctx.fillText(txt, 0, 0); glossText(txt, fs);
     ctx.restore();
     if (after >= 0 && after < 0.35) { // chispas de herrero desde la base de la letra
       const f = after / 0.35, by = y0 + fs * 0.42; ctx.save(); ctx.globalCompositeOperation = 'lighter';
