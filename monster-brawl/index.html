@@ -877,7 +877,7 @@ const ANN_ACC = { pgood: 0.45, pbad: 0.45, pko: 0.8, pdown: 0.9, plow: 0.6, dodg
 let ANN_IDLE_CO = 1.8, ANN_IDLE = 8, ANN_BASE = 0.2, ANN_DECAY = 0.5, ANN_HOT = 0.38, ANN_FLUNG = 1400; // emoción de reposo, cuánto baja por segundo, desde dónde usa las frases intensas, empujón que cuenta como «sale volando»
 // Comentarista mujer (pedido del dueño): en algunas peleas (CO_P) acompaña al relator; son viejos amigos, conversan (dm→df, af→am, mismo número) y ella comenta por su cuenta (f*)
 const urgentK = k => ['tleft', 'ko', 'pko', 'pdown', 'ult', 'uc', 'fight', 'draw', 'ot', 'end', 'first', 'flung', 'boom'].includes(k);
-const ANN_LAG = 0.55, ANN_LAG_K = { intro: 0, go: 0, fight: 0, tleft: 0, end: 0, ult: 1.7, uc: 0 }; // (segundos reales de espera antes de narrar)
+const ANN_LAG = 0.55, ANN_LAG_K = { intro: 0, go: 0, fight: 0, tleft: 0, end: 0, ult: 1.7, uc: 0, flung: 1.1, leap: 0.9, fly: 0.8, roll: 0.7 }; /* salir volando: cuando ya cayó al otro lado (pedido del dueño); saltar, volar y rodar: cuando ya lo está haciendo */ // (segundos reales de espera antes de narrar)
 const CO_P = 0.2, CO_F = { hit: 'fhit', ko: 'fko', ult: 'fult', end: 'fend', ot: 'fot', low: 'flow', pgood: 'fpgood', pbad: 'fpbad', pko: 'fpko', pdown: 'fpdown', plow: 'flow' };
 const ANN_REACT = 0.5, ANN_REACT_GAP = 2.5; // reacciones cortas en los golpes: chance y espera mínima entre una y otra (s)
 function annSummary(B) { // comentario final de cómo fue la pelea (pedido del dueño)
