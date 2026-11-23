@@ -3280,11 +3280,10 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   const ball = (x, y, r, dead) => { ctx.fillStyle = dead ? '#6d6670' : hsl(c); ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke(); };
   ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); body.draw(ctx); // se corta en el piso: sólo se ve del torso para arriba
   ctx.restore();
-  for (const h of B.ms) { if (!h.isHand) continue; const sx = h.side < 0 ? V.x0 - L1 * 0.9 : V.x1 + L1 * 0.9, sy = ay, /* los brazos entran por los costados de la arena (pedido del dueño) */ hx = h.gx, hy = h.gy - h.z - h.r * 0.55;
-    let dx = hx - sx, dy = hy - sy, d = Math.hypot(dx, dy) || 1; const dd = Math.min(d, L1 + L2 - 1); // codo: el que dobla hacia afuera y hacia arriba (cinemática inversa de dos huesos)
-    const a = (L1 * L1 - L2 * L2 + dd * dd) / (2 * dd), hh = Math.sqrt(Math.max(0, L1 * L1 - a * a)), ux = dx / d, uy = dy / d, px = sx + ux * a, py = sy + uy * a;
-    let nx = -uy, ny = ux; if (nx * h.side < 0) { nx = -nx; ny = -ny; } /* el codo siempre hacia afuera, aunque quede fuera de la pantalla (pedido del dueño) */ const ex = px + nx * hh, ey = py + ny * hh;
-    const fx = sx + ux * Math.min(d, L1 + L2), fy = sy + uy * Math.min(d, L1 + L2); // (si no alcanza, el antebrazo llega igual a la mano)
+  for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55; // los brazos entran por los costados de la arena (pedido del dueño)
+    // el antebrazo intenta quedar horizontal (pedido del dueño): el codo va al lado de la mano, hacia afuera (aunque quede fuera de la pantalla), apenas más abajo
+    const FL = (V.x1 - V.x0) * 0.42, ex = hx + h.side * FL, ey = hy + FL * 0.08;
+    const sx = h.side < 0 ? Math.min(V.x0, ex) - L1 : Math.max(V.x1, ex) + L1, sy = ey * 0.75 + ay * 0.25; // (el brazo, casi todo fuera de la pantalla, sigue al codo)
     ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
 }
 
