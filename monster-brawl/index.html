@@ -835,6 +835,9 @@ const CAST_LINES_ES = {
   calm: ['Los dos se están estudiando.', '¿Quién hará el próximo movimiento?', '{n} busca una abertura.', '¡El público espera acción!', 'Pasos cautelosos de {n}.'],
   hot: ['¡Qué batalla tan feroz!', '¡El público está enloquecido!', '¡Ninguno da un paso atrás!', '¡Esta batalla es increíble!', '¡Acción sin parar!'],
 };
+const ANN_BUMP = { fight: 0.5, hit: 0.12, ult: 0.45, uc: 0.2, ko: 0.9, ot: 0.45, low: 0.15, draw: 0, end: 0.4, dodge: 0.02, fly: 0.05, leap: 0.04, roll: 0.03, tail: 0.08, boom: 0.15, block: 0.05, first: 0.1, airhit: 0.12, flung: 0.1 };
+const ANN_MINOR = new Set(['hit', 'dodge', 'fly', 'leap', 'roll', 'tail', 'block', 'first', 'airhit', 'flung', 'boom', 'low']);
+let ANN_BASE = 0.2, ANN_DECAY = 0.5, ANN_HOT = 0.55, ANN_FLUNG = 1400; // emoción de reposo, cuánto baja por segundo, desde dónde usa las frases intensas, empujón que cuenta como «sale volando»
 const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
   clip(k, u) { // audios grabados: elige uno de ese evento sin repetir el anterior (y el nombre de la ultimate después)
     if (k === 'uc') { if (!u) return null; const i = BAG.next(`${CAST.lang}_uc_${u}`, VOZ.uc); return [`${CAST.lang}_uc_${u}_${i}`]; } // lo que hace cada ultimate («¡Ahora son dos!»)
@@ -849,7 +852,10 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
   stop() { this.on = false; CAST.stop(); CROWD.stop(); },
   // kind: fight, hit, ult, uc (efecto de la ultimate), ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block, first, airhit, flung. n = quien hace, m = a quien, u = ultimate
   ev(kind, v = 0, n, m, u) { if (!this.on) return; const B = battle;
-    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, uc: 0.3, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4, dodge: 0.08, fly: 0.12, leap: 0.1, roll: 0.08, tail: 0.15, boom: 0.3, block: 0.15, first: 0.2, airhit: 0.3, flung: 0.3 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
+    /* emoción (pedido del dueño: antes los golpes, que son muchos, la tenían casi siempre arriba y sólo sonaban las frases intensas):
+       lo menor sube poco y cada vez menos cuanto más alta está (× (1 − exc)²); lo grande (K.O., ultimate, muerte súbita…) sí la dispara */
+    const bump = ANN_BUMP[kind] != null ? ANN_BUMP[kind] * (kind === 'hit' ? v : 1) : 0, minor = ANN_MINOR.has(kind);
+    this.exc = clamp(this.exc + bump * (minor ? (1 - this.exc) * (1 - this.exc) : 1), 0, 1);
     { const cr = { fight: 'cheer', hit: v > 0.35 ? 'ooh' : null, ult: 'gasp', ko: 'cheer', ot: 'gasp', boom: 'ooh', tail: 'ooh', flung: 'ooh', airhit: 'ooh' }[kind]; if (cr) CROWD.react(cr); if (kind === 'end') { CROWD.react('cheer'); setTimeout(() => CROWD.react('clap'), 900); } CROWD.level(this.exc); } // el público reacciona
     if (kind === 'intro' || kind === 'go') { this.exc = clamp(this.exc + (kind === 'go' ? 0.4 : 0.2), 0, 1); if (kind === 'go') CROWD.react('cheer'); // presentación y «¡A luchar!»
       if (CAST.muted || !SFX.on) return; CAST.stop(); const L = CAST.lang; let ks = null;
@@ -871,10 +877,10 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
     const t = this.line(kind, n, m, u ? (CAST.lang === 'es' ? (ULTS[u] && ULTS[u].name) : ULT_EN[u]) || '' : ''); if (!t && !CAST.el) return;
     this.speak(ck, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u, extra, urgent);
     this.cd = urgent ? 1.6 : 1.1 + Math.random() * 1.2; },
-  step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
+  step(dt) { if (!this.on) return; this.exc += (ANN_BASE - this.exc) * Math.min(1, dt * ANN_DECAY); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
     if (this.cd > 0 || CAST.busy || (battle && battle.over)) return; // (terminada la pelea sólo anuncia al ganador)
     const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
-    const k = this.exc > 0.5 ? 'hot' : 'calm'; this.speak(k, this.line(k, a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
+    const k = this.exc > ANN_HOT ? 'hot' : 'calm'; this.speak(k, this.line(k, a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
 };
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
@@ -3200,7 +3206,7 @@ class Battle {
         if (++t.stunChain >= STUN.chain) { t.stunImmune = STUN.immune + t.stT; t.stunChain = 0; } // aguanta: el próximo golpe no lo frena
       }
     }
-    if (this.kcamOn && !shielded && t.st) { if (!this._annFirst && dmg > 0) { this._annFirst = true; ANN.ev('first', 0, (a.cloneOf || a).name, t.name); } else if (kind === 'melee' && a.z > FLY.airZ && t.z > FLY.airZ) ANN.ev('airhit', 0, a.name, t.name); else if (kb > 300) ANN.ev('flung', 0, a.name, t.name); }
+    if (this.kcamOn && !shielded && t.st) { if (!this._annFirst && dmg > 0) { this._annFirst = true; ANN.ev('first', 0, (a.cloneOf || a).name, t.name); } else if (kind === 'melee' && a.z > FLY.airZ && t.z > FLY.airZ) ANN.ev('airhit', 0, a.name, t.name); else if (kb > ANN_FLUNG) ANN.ev('flung', 0, a.name, t.name); }
     if (kb > 300) t.setEmo('dizzy', 1.0, 4); else t.setEmo('hurt', 0.35, 3); // golpe fuerte = mareado
     for (const n of t.nodes) { n.vx += dir.x * kbA * 0.9 * (0.5 + Math.random()); n.vy += dir.y * DEPTH * kb * 0.5 - kb * 0.3 * Math.random(); }
     const tm = t.nodes[t.ix.mid];
@@ -5223,6 +5229,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
   { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.', 'Los audios del relator ya no se cortan entre sí: lo importante espera a que termine la frase anterior.', 'El público tiene 10 reacciones distintas de cada tipo (ovación, «¡oooh!», sorpresa, aplausos y abucheo) que salen al azar.', 'La voz del relator en español ahora suena tan fuerte como la de inglés.', 'El relator presenta la pelea durante la cuenta regresiva 3, 2, 1, grita «Fight!» o «¡A luchar!» al empezar, y el resultado aparece cuando termina de anunciar el final.', 'Muchas más frases del relator (cerca de 250 por idioma, incluidas intros y cierres) que se van turnando sin repetirse hasta usarlas todas, también de una pelea a otra.'] },
   { v: '1.70', d: '2026-11-23', items: ['En el Menú ⚙️ → «Voz del relator» puedes elegir la voz del relator entre las voces de tu celular, en inglés o en español (con botón para probarlas).'] },
