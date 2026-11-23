@@ -3233,10 +3233,11 @@ const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cu
 const BATTERED_LIVES = 2, ENERGETIC_LIVES = 5; // con 5 corazones se ve energético (ojos brillantes y saltitos)
 const REST_MS = 5 * 60 * 1000;    // descanso al quedarse sin vidas (pedido del dueño; antes 10 min)
 const HEART_MS = 2 * 60 * 1000;   // recupera 1 corazón cada 2 min (si le queda al menos uno; pedido del dueño, antes 5 min)
-const EGG_COST = 60;              // monedas para comprar un huevo en un espacio libre (el primero de una partida nueva viene gratis)
+const EGG_COST = 80;              // monedas para comprar un huevo en un espacio libre (el primero de una partida nueva viene gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
 // [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
-const REWARDS = { '1v1': [[60, 25], [20, 10]], '2v2': [[45, 15], [15, 5]], ffa: [[80, 40], [50, 25], [30, 15], [15, 5]] };
+const REWARDS = { '1v1': [[60, 12], [20, 4]], '2v2': [[45, 8], [15, 2]], ffa: [[80, 20], [50, 12], [30, 6], [15, 2]] }; // [XP, monedas]; monedas a la mitad (pedido del dueño: se ganaban demasiadas), XP igual
+const KO_XP = 10, KO_COINS = 2;
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar', '5.º lugar', '6.º lugar', '7.º lugar', '8.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
 const resting = rec => (rec.restUntil && Date.now() < rec.restUntil) || napping(rec);
@@ -4332,7 +4333,7 @@ $('nameBox').onclick = async () => {
 function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 // ---------- Criadero: cruzar dos Awakened ----------
-const BREED_COST = 150, BREED_NAP_MS = 15 * 60 * 1000, INCUBATE_MS = 60 * 60 * 1000, BREED_MUTATION = 0.1; // (pedido del dueño: antes 30 min de siesta y 3 h de incubación)
+const BREED_COST = 200, BREED_NAP_MS = 15 * 60 * 1000, INCUBATE_MS = 60 * 60 * 1000, BREED_MUTATION = 0.1; // (pedido del dueño: antes 30 min de siesta y 3 h de incubación)
 const INCUBATE_FIGHT_MS = 3 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
 let breedSel = new Set();
 function makeChild(A, B) {
@@ -4809,7 +4810,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -5776,7 +5777,7 @@ function finishBattle() {
   const placeLbl = nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
   { const A = save.stats || (save.stats = { w: 0, l: 0, run: 0, best: 0 }); if (place === 1) { A.w++; A.run++; A.best = Math.max(A.best, A.run); } else { A.l++; A.run = 0; } } // récord de la cuenta (una pelea = una victoria o derrota, aunque pelees con 2)
   const lines = battle.players.map(pm => {
-    const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
+    const rec = pm.rec, xp = bx + pm.kills * KO_XP, coins = bc + pm.kills * KO_COINS;
     if (place === 1) { rec.run = (rec.run || 0) + 1; rec.bestRun = Math.max(rec.bestRun || 0, rec.run); } else rec.run = 0; // racha de victorias seguidas y la más larga
     rec.xp += xp; save.coins += coins;
     place === 1 ? rec.wins++ : rec.losses++;
@@ -5791,7 +5792,7 @@ function finishBattle() {
     if (rec.level >= MAX_LEVEL) { rec.level = MAX_LEVEL; rec.xp = 0; } // nivel máximo: no sigue sumando XP
     // resumen: premio por el puesto + K.O. = total (de dónde viene cada cosa)
     const row = (lbl, x, c, cls = '') => `<span class="${cls}">${lbl}</span><span class="rx ${cls}">+${x} XP</span><span class="rc ${cls}">+${c} 🪙</span>`;
-    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * 10, pm.kills * 5) : ''}${row('Total', xp, coins, 'tot')}</div>`;
+    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * KO_XP, pm.kills * KO_COINS) : ''}${row('Total', xp, coins, 'tot')}</div>`;
   });
   wakeUp();
   const incub = [...save.monsters, ...(save.barn || [])].filter(m => m.readyAt > Date.now()); // (también los del granero)
@@ -5801,7 +5802,7 @@ function finishBattle() {
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
   $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
   $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
-  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * 5, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
+  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * KO_COINS, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
   $('resText').innerHTML = lines.join('');
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
