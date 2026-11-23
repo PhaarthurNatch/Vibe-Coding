@@ -724,42 +724,52 @@ const CAST = { voices: [], unl: false,
     load(); try { speechSynthesis.addEventListener('voiceschanged', load); } catch (e) { } },
   unlock() { if (this.unl || !this.ok()) return; this.unl = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }, // el iPhone sólo deja hablar después de un toque
   say(text, who, E) { if (!SFX.on || !this.ok()) return; try { const u = new SpeechSynthesisUtterance(text), v = this.voices[who]; u.lang = v ? v.lang : 'en-US'; if (v) u.voice = v;
-    u.pitch = who ? 0.8 + 0.25 * E : 0.5 + 0.55 * E; u.rate = who ? 1.0 + 0.15 * E : 1.0 + 0.5 * E; u.volume = 1; speechSynthesis.speak(u); } catch (e) { } },
+    u.pitch = who ? 0.85 : 0.9 + 0.45 * E; u.rate = who ? 1.0 : 1.05 + 0.35 * E; /* relator entusiasta: más agudo y rápido con la emoción */ u.volume = 1; speechSynthesis.speak(u); } catch (e) { } },
   stop() { try { if (this.ok()) speechSynthesis.cancel(); } catch (e) { } },
   get busy() { return this.ok() && (speechSynthesis.speaking || speechSynthesis.pending); },
 };
 CAST.init();
 document.addEventListener('visibilitychange', () => { if (document.hidden) CAST.stop(); });
-const CAST_LINES = { // {n} = nombre del monstruo
-  fight: ['Here we go!', 'And the fight is on!', 'Fighters ready... fight!', "It's showtime!", 'Ding ding ding! Let the battle begin!'],
-  hit: ['What a hit!', "Oh, that's gotta hurt!", 'Huge blow!', 'Right on the target!', 'Boom!', 'Smash!', '{n} lands a big one!', 'Direct hit!', 'Ouch!'],
-  ult: ['Here comes the ultimate!', 'Unbelievable power!', "It's charging up!", 'Look at that energy!', '{n} unleashes the ultimate!', 'This is it!'],
-  ko: ['Knockout!', "{n} is down! {n} is down!", 'Lights out!', 'What a finish!', 'Good night!', "And {n} won't get up!", 'Down goes {n}!'],
-  low: ["{n} is in trouble!", 'Barely standing!', 'Hanging by a thread!', 'One more hit and it is over!'],
-  ot: ['Sudden death!', 'It all comes down to this!', 'Every hit counts now!'],
-  draw: ["It's a draw!", 'Nobody wins tonight!', 'A double knockout! The crowd is not happy.'],
-  end: ['What a match!', "And that's the game!", 'Incredible fight, folks!', 'What a performance!'],
-  calm: ['Both fighters looking sharp.', 'Nice footwork there.', "They're sizing each other up.", 'Interesting strategy.', 'Keep your eyes on this one.', 'Patience is key here.', 'Looking for an opening.'],
-  hot: ["They're going all out!", 'What a pace!', 'Incredible action!', 'The crowd is on its feet!', 'Non-stop action!', 'This is wild!'],
-  reply: ['Absolutely!', 'No doubt about it.', 'You said it!', "Couldn't agree more.", "That's right.", 'Oh, for sure.', 'Unbelievable!', 'I have never seen anything like it!', 'Exactly.'],
+const ULT_EN = { melee: 'Shockwave', ranged: 'Giant Bullet', defense: 'Iron Shield', speed: 'Super Speed', dodge: 'Ghost Reflexes', drain: 'Life Drain', teleport: 'Teleport', clone: 'Clone', mines: 'Bombs' }; // nombres de las ultimates en inglés para el relator
+// Relator al estilo de los locutores de las arenas de batalla de monstruos: narra lo que hace cada uno con su nombre, muy entusiasta (pedido del dueño). {n} = monstruo, {m} = rival, {u} = ultimate
+const CAST_LINES = {
+  fight: ['{n} versus {m}! Let the battle begin!', 'In this corner, {n}! And in that corner, {m}! Begin!', 'The battle is about to start! Go!', 'Trainers, are you ready? Battle start!'],
+  hit: ['{n} lands a powerful blow!', 'What a hit by {n}!', '{n} strikes hard!', 'A critical hit!', '{m} takes a heavy hit!', 'Oh! That one really connected!', '{n} goes on the offensive!', 'Direct hit on {m}!'],
+  ult: ['{n} unleashes {u}!', '{n} is powering up! Here comes {u}!', 'Incredible! {n} uses {u}!', 'Look at that energy! {u}!'],
+  ko: ['{m} is down! {m} can no longer battle!', 'And {m} is knocked out!', '{n} takes down {m}!', 'What a finish! {m} is out!', 'Down goes {m}!'],
+  low: ['{m} is in big trouble!', '{m} is barely holding on!', 'Can {m} hang in there?'],
+  ot: ['Sudden death! Every hit counts now!', "It's sudden death! Who will be left standing?"],
+  draw: ["Both fighters are down! It's a draw!", 'A double knockout! Nobody wins this one!'],
+  end: ['And the winner is {n}!', '{n} wins the battle!', 'Victory goes to {n}! What a performance!', '{n} is the champion of this battle!'],
+  dodge: ['{n} dodges it!', 'Missed! {n} is too quick!', 'What reflexes from {n}!'],
+  fly: ['{n} takes to the skies!', '{n} is flying high!'],
+  leap: ['{n} leaps into the air!', 'What a jump by {n}!'],
+  roll: ['{n} rolls into action!', 'Look at {n} roll!'],
+  tail: ['{n} swings its tail!', 'A tail strike from {n}!'],
+  boom: ['Kaboom!', 'A bomb went off!', 'Boom! Right into the trap!'],
+  block: ['Blocked by the shield!', "{m}'s shield holds strong!", "It's not working against that shield!"],
+  calm: ['Both fighters are sizing each other up.', 'Who will make the next move?', '{n} is looking for an opening.', 'The crowd is waiting for some action!', 'Careful steps from {n}.'],
+  hot: ['What a fierce battle!', 'The crowd is going wild!', 'Neither side is backing down!', 'This is an amazing battle!', 'Non-stop action here!'],
 };
 const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
-  line(k, name) { const L = CAST_LINES[k].filter(x => name || !x.includes('{n}')); let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i; return L[i].replace(/\{n\}/g, name || ''); },
-  start() { this.exc = 0.35; this.cd = 2; this.on = true; },
+  line(k, n, m, u) { const L = CAST_LINES[k].filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
+    let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
+    return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
+  start() { this.exc = 0.4; this.cd = 2.5; this.on = true; },
   stop() { this.on = false; CAST.stop(); },
-  ev(kind, v = 0, name) { if (!this.on) return; // kind: fight, hit, ult, ko, ot, low, draw, end
-    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
+  // kind: fight, hit, ult, ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block. n = quien hace, m = a quien, u = ultimate
+  ev(kind, v = 0, n, m, u) { if (!this.on) return;
+    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4, dodge: 0.08, fly: 0.12, leap: 0.1, roll: 0.08, tail: 0.15, boom: 0.3, block: 0.15 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
     const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end';
-    if (!urgent && (CAST.busy || this.cd > 0 || bump < 0.12)) return;
-    if (urgent) CAST.stop(); // lo importante corta lo que estaban diciendo
-    const nm = name && Math.random() < 0.6 ? name : null;
-    CAST.say(this.line(kind, nm), kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.1 : this.exc);
-    if (kind !== 'fight' && Math.random() < 0.6) CAST.say(this.line('reply'), 1, this.exc * 0.6); // y el otro le responde
-    this.cd = 2 + Math.random() * 2; },
-  step(dt) { if (!this.on) return; this.exc += (0.18 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt; // la emoción baja sola de a poco
-    if (this.cd > 0 || CAST.busy) return;
-    CAST.say(this.line(this.exc > 0.5 ? 'hot' : 'calm'), 0, this.exc); if (Math.random() < 0.55) CAST.say(this.line('reply'), 1, this.exc * 0.6); // conversan de a ratos
-    this.cd = (this.exc > 0.5 ? 3 : 5) + Math.random() * 4; }
+    if (!urgent && (CAST.busy || this.cd > 0)) return; // lo menor sólo se narra si está callado
+    if (urgent) CAST.stop(); // lo importante corta lo que estaba diciendo
+    const t = this.line(kind, n, m, u ? ULT_EN[u] || '' : ''); if (!t) return;
+    CAST.say(t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc));
+    this.cd = urgent ? 1.6 : 1.1 + Math.random() * 1.2; },
+  step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt;
+    if (this.cd > 0 || CAST.busy || (battle && battle.over)) return; // (terminada la pelea sólo anuncia al ganador)
+    const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
+    CAST.say(this.line(this.exc > 0.5 ? 'hot' : 'calm', a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
 };
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
@@ -2083,7 +2093,7 @@ class Monster {
           if (this.stT <= TAIL_SWING * 0.55) { const R = this.r + this.st.reach * 0.85 + TAIL_REACH;
             for (const e of B.ms) { if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
               const ex = e.x - this.x, ey = e.y - this.y, ed = Math.hypot(ex, ey) || 1;
-              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); if (!e.dead && e.state !== 'ultcharge') { const V = TAIL_PUSH / Math.pow(e.st.weight, 0.35); e.vx = ex / ed * V; e.vy = ey / ed * V; e.vz = Math.max(e.vz, 240); } /* y los aleja */ } } }
+              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); if (B.kcamOn) ANN.ev('tail', 0, this.name, e.name); if (!e.dead && e.state !== 'ultcharge') { const V = TAIL_PUSH / Math.pow(e.st.weight, 0.35); e.vx = ex / ed * V; e.vy = ey / ed * V; e.vz = Math.max(e.vz, 240); } /* y los aleja */ } } }
           if (this.stT <= 0) { this.tailPh = null; this.state = 'recover'; this.stT = 0.35; }
         }
         break;
@@ -2146,7 +2156,7 @@ class Monster {
         if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startLeap(T, d, pref + 40) !== false) return; }
       const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
       if (this.canFloat && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
-        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; if (B.kcamOn) SFX.flap(); this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
+        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; if (B.kcamOn) { SFX.flap(); ANN.ev('fly', 0, this.name); } this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
     }
     // Tus monstruos la lanzan cuando aprietas su botón (una vez por pelea); los rivales deciden solos
     const wantUlt = this.isPlayer || this.remoteCtl ? this.ultRequest : ultNow && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8));
@@ -2168,7 +2178,7 @@ class Monster {
   }
 
   startLeap(T, d, goal) {
-    if (typeof battle !== 'undefined' && battle && battle.kcamOn) SFX.boing(); // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) { SFX.boing(); ANN.ev('leap', 0, this.name); } // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
     const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
@@ -2186,7 +2196,7 @@ class Monster {
   }
 
   startRoll(T, d, goal) {
-    if (typeof battle !== 'undefined' && battle && battle.kcamOn) SFX.roll(); // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) { SFX.roll(); ANN.ev('roll', 0, this.name); } // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * ROLL.spd, tR = clamp(dist / Math.max(1, vMax), ROLL.t0, ROLL.t1), v = Math.min(vMax, dist / tR);
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
     if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
@@ -2260,7 +2270,7 @@ class Monster {
     if (Math.random() < 0.25) { px = -px; py = -py; }
     const sp = 330 + this.st.speed * 0.6;
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
-    this.state = 'dodge'; this.stT = 0.28; if (B && B.kcamOn) SFX.dodge();
+    this.state = 'dodge'; this.stT = 0.28; if (B && B.kcamOn) { SFX.dodge(); ANN.ev('dodge', 0, this.name); }
     this.setEmo('surprised', 0.5, 2);
   }
 
@@ -3096,10 +3106,10 @@ class Battle {
     }
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
-    if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3), (a.cloneOf || a).name); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low', 0, t.name); } }
-    if (this.kcamOn) { const uo = a.cloneOf || a; if (shielded) SFX.shieldHit(); else if (a.buffs.all > 0 && uo.ultType) SFX.ultHit(uo.ultType, dmg); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
+    if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3), (a.cloneOf || a).name, t.name); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low', 0, null, t.name); } }
+    if (this.kcamOn) { const uo = a.cloneOf || a; if (shielded) { SFX.shieldHit(); ANN.ev('block', 0, uo.name, t.name); } else if (a.buffs.all > 0 && uo.ultType) SFX.ultHit(uo.ultType, dmg); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko(); ANN.ev('ko', 0, t.name); } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko(); ANN.ev('ko', 0, (a.cloneOf || a).name, t.name); } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
         for (let i = 0; i < 48; i++) { const a2 = Math.random() * TAU, sp = 120 + Math.random() * 420; this.parts.push({ x: kx, y: ky, vx: Math.cos(a2) * sp + dir.x * 160, vy: Math.sin(a2) * sp * 0.8 - 160, life: 0.6 + Math.random() * 0.7, col: cols[i % cols.length], r: 2.5 + Math.random() * 4 }); }
         this.rings.push({ x: t.x, y: t.y, r: 10, max: 130, life: 0.5, col: '#fff3b0' }); this.shake = Math.min(14, this.shake + 6); }
@@ -3111,7 +3121,7 @@ class Battle {
 
   // ---------- Ultimate ----------
   startUlt(m) {
-    if (this.kcamOn) { SFX.ultCharge(m.ultType); ANN.ev('ult', 0, m.name); }
+    if (this.kcamOn) { SFX.ultCharge(m.ultType); ANN.ev('ult', 0, m.name, null, m.ultType); }
     this.cine = { m, t: 0 }; m.state = 'free';
     m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
@@ -3128,7 +3138,7 @@ class Battle {
     b.done = true; const o = b.owner;
     this.rings.push({ x: b.x, y: b.y, r: 8, max: MINE_R, life: 0.4, col: '#ffb347' }); this.shake = Math.max(this.shake, 10);
     const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
-    if (this.kcamOn) SFX.mineBoom();
+    if (this.kcamOn) { SFX.mineBoom(); ANN.ev('boom'); }
     this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
     for (const e of this.ms) {
       if (e.dead || e.team === b.team || floating(e)) continue;
@@ -5106,7 +5116,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Comentaristas en las peleas: un relator y un comentarista que relatan en inglés con la voz del celular («What a hit!», «Knockout!», «Sudden death!»…) y se emocionan más (hablan más rápido y agudo) con los golpes fuertes, las ultimates y los K.O.'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Relator en las peleas: narra en inglés con la voz del celular, al estilo de los locutores de batallas de monstruos, lo que hace cada uno por su nombre («Tito unleashes Shockwave!», «Lora dodges it!», «And the winner is Tito!») y se emociona más con los golpes fuertes, las ultimates y los K.O.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -5846,7 +5856,7 @@ function startBattle(mode, team) { CAST.unlock(); // (viene de un toque: el iPho
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
   let txt, p, big = false;
-  if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.beep(false); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); ANN.start(); ANN.ev('fight'); } // sonido de la cuenta regresiva y del FIGHT!
+  if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.beep(false); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); ANN.start(); { const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('fight', 0, A0 && A0.name, B0 && B0.name); } } // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
   else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
   else return;
@@ -6278,7 +6288,7 @@ function loop(now) {
       while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
-    ANN.step(dt); if (battle.over && ANN.on && !battle._annEnd) { battle._annEnd = true; if (!battle.isDraw) setTimeout(() => ANN.ev('end'), 2600); setTimeout(() => { if (ANN.on) { ANN.on = false; } }, 3000); }
+    ANN.step(dt); if (battle.over && ANN.on && !battle._annEnd) { battle._annEnd = true; if (!battle.isDraw) { const w = battle.ms.find(x => x.team === battle.winTeam && !x.cloneOf); setTimeout(() => ANN.ev('end', 0, w && w.name), 2600); } setTimeout(() => { if (ANN.on) { ANN.on = false; } }, 3000); }
     if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
