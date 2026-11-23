@@ -1874,7 +1874,7 @@ class Monster {
       if (L.spider) { const S = L.sp; foot.tx = (L.role === 'side' ? this.gx + L.hx * s : this.gx) + L.sd * S.out * s + Math.sin(ph) * stride * 0.7; foot.ty = this.gy + S.dy * s - lift; knee.tx = hip.x + L.sd * g.legs.upper * S.kx * s; knee.ty = hip.y + g.legs.upper * S.ky * s - lift * 0.5; } // adelante: el pie más abajo (más cerca); atrás: más arriba (más lejos)
       knee.boost = foot.boost = 1 - 0.72 * airL; // en el aire el resorte de las piernas se suelta: cuelgan y se balancean con la física (pedido del dueño)
       if (airL > 0) { // relajadas: cuelgan bajo la cadera, inclinadas hacia el lado contrario de hacia donde va (más mientras más rápido), meciéndose
-        const th = this.airLean * 0.75 + Math.sin(t * 1.8 + L.ph * 2) * 0.07, sn = Math.sin(th), cs = Math.cos(th);
+        const th = this.airLean * 0.56 + Math.sin(t * 1.8 + L.ph * 2) * 0.07, sn = Math.sin(th), cs = Math.cos(th);
         const len = L.spider ? (g.legs.upper + g.legs.lower) * s * 0.62 : this.legSum * s * 0.9;
         const fx = L.spider ? this.gx + (L.role === 'side' ? L.hx * s : 0) + L.sd * L.sp.out * s * 0.55 + sn * len : hip.x + sn * len, fy = hip.y + cs * len;
         foot.tx += (fx - foot.tx) * airL; foot.ty += (fy - foot.ty) * airL;
