@@ -626,21 +626,11 @@ const SFX = (() => {
   const tone = (f, d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), os = c.createOscillator(), g = c.createGain(); os.type = o.type || 'sine'; os.frequency.setValueAtTime(f, t); if (o.to) os.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + d); env(g, t, o.a || 0.005, d, o.v ?? 0.5); os.connect(g); g.connect(out); os.start(t); os.stop(t + d + 0.05); };
   let nbuf = null; const noiseBuf = c => { if (nbuf) return nbuf; nbuf = c.createBuffer(1, c.sampleRate * 1.5, c.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return nbuf; };
   const noise = (d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = noiseBuf(c); f.type = o.ft || 'lowpass'; f.frequency.setValueAtTime(o.f || 1200, t); if (o.fto) f.frequency.exponentialRampToValueAtTime(o.fto, t + d); f.Q.value = o.q || 0.7; env(g, t, o.a || 0.003, d, o.v ?? 0.5); src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random()); src.stop(t + d + 0.05); };
-  let annOut = null, annNodes = [], annEnd = 0;
-  const annBus = c => { if (annOut) return annOut; const hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), dl = c.createDelay(), fb = c.createGain(), wet = c.createGain(), g = c.createGain(); // voz de altoparlante con eco de estadio
-    hp.type = 'highpass'; hp.frequency.value = 280; lp.type = 'lowpass'; lp.frequency.value = 3600; dl.delayTime.value = 0.13; fb.gain.value = 0.28; wet.gain.value = 0.35; g.gain.value = 0.9;
-    hp.connect(lp); lp.connect(g); g.connect(out); lp.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(out); return (annOut = hp); };
-  const annVowel = (c, bus, t, d, f, f2, F, v, cn, vd = 0.02) => { const os = c.createOscillator(), g = c.createGain(), mix = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(f, t); os.frequency.linearRampToValueAtTime(f2, t + d);
-    const vib = c.createOscillator(), vg = c.createGain(); vib.frequency.value = 5.5; vg.gain.setValueAtTime(f * vd * 0.5, t); vg.gain.linearRampToValueAtTime(f * vd * (d > 0.5 ? 2.2 : 1), t + d); // el vibrato crece en los gritos largos vib.connect(vg); vg.connect(os.frequency);
-    for (const [ff, q, gv] of [[F[0], 6, 1], [F[1], 9, 0.55], [2500, 10, 0.18]]) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(ff * (cn === 'w' || cn === 'r' ? 0.8 : 1), t); bp.frequency.linearRampToValueAtTime(ff, t + Math.min(0.06, d)); bp.Q.value = q; const bg = c.createGain(); bg.gain.value = gv; os.connect(bp); bp.connect(bg); bg.connect(mix); }
-    const a = cn === 'm' || cn === 'n' || cn === 'l' || cn === 'b' || cn === 'd' ? 0.035 : 0.012; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.setValueAtTime(v, t + Math.max(a, d - 0.05)); g.gain.linearRampToValueAtTime(0.0001, t + d + 0.02);
-    mix.connect(g); g.connect(bus); os.start(t); vib.start(t); os.stop(t + d + 0.05); vib.stop(t + d + 0.05); annNodes.push(g); };
-  const annNoise = (c, bus, t, d, f, v) => { const src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain(); src.buffer = noiseBuf(c); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = 2; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.008); g.gain.linearRampToValueAtTime(0.0001, t + d); src.connect(bp); bp.connect(g); g.connect(bus); src.start(t, Math.random()); src.stop(t + d + 0.02); annNodes.push(g); };
   const lastPick = {}; const pick5 = (k, n = 5) => { let i; do i = Math.random() * n | 0; while (i === lastPick[k]); return lastPick[k] = i; };
   const S = {
     get on() { return on; },
-    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
-    unlock() { ctx(); },
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) CAST.stop(); if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    unlock() { ctx(); CAST.unlock(); },
     // pelea
     beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
     fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
@@ -670,34 +660,6 @@ const SFX = (() => {
       clone: () => { noise(0.07, { f: 1400, v: 0.4 * k }); tone(150, 0.1, { to: 60, v: 0.4 * k }); noise(0.06, { f: 1000, v: 0.25 * k, at: 0.07 }); tone(130, 0.1, { to: 55, v: 0.25 * k, at: 0.07 }); }, // golpe con eco
       mines: () => { noise(0.2, { f: 1200, fto: 100, v: 0.55 * k }); tone(90, 0.2, { type: 'sawtooth', to: 40, v: 0.3 * k }); }, // golpe explosivo
     }[type] || (() => this.hit(pow)))(); },
-    // Comentaristas (pedido del dueño): dos voces graves que balbucean en un idioma inventado con la cadencia del relato de fútbol argentino:
-    // sílabas parejas y rápidas, acento en la penúltima, final «cantadito» (sube y cae) y gritos largos tipo «gooool» en los K.O.
-    // who: 0 = relator (más grave y emocional), 1 = comentarista (pausado). exc 0–1 = emoción.
-    say(exc, kind, who = 0) { const c = ctx(); if (!c) return 0; S.annStop(); const bus = annBus(c), now = c.currentTime + 0.02, E = clamp(exc, 0, 1), R = who === 0;
-      const V = { a: [700, 1220], e: [460, 1820], i: [290, 2200], o: [480, 860], u: [320, 760] }, VK = 'aaeeiooou'; // vocales del castellano (la «a» y la «o» más seguido)
-      const CONS = [['t', 3600, 0.018], ['k', 1700, 0.022], ['p', 900, 0.016], ['s', 5000, 0.05], ['ch', 2900, 0.045], ['f', 5500, 0.04], ['', 0, 0], ['l', 0, 0], ['m', 0, 0], ['n', 0, 0], ['r', 0, 0], ['d', 0, 0], ['b', 0, 0], ['g', 0, 0]];
-      const fs = R ? 0.88 : 0.95, sad = kind === 'draw'; // formantes un poco más bajos = voz más grave
-      const f00 = sad ? 72 : R ? 74 + 78 * E : 92 + 22 * E, sp = sad ? 0.15 : R ? 0.115 - 0.045 * E : 0.135, vol = R ? 0.26 + 0.38 * E : 0.24;
-      const pick = a => a[Math.floor(Math.random() * a.length)];
-      const syl = (t, d, f, f2, v, vw, cn) => { if (cn[1]) { annNoise(c, bus, t, cn[2], cn[1], v * 0.45); t += cn[2] * 0.6; } annVowel(c, bus, t, d, f, f2, V[vw].map(x => x * fs), v, cn[0], R && E > 0.6 ? 0.035 : 0.02); return t + d; };
-      let t = now;
-      const phrase = (nw, e) => { // una frase: nw palabras de 2–4 sílabas parejas, acento en la penúltima y final «cantadito»
-        const tot = []; for (let w = 0; w < nw; w++) { const n = 2 + Math.floor(Math.random() * 3); for (let k = 0; k < n; k++) tot.push({ str: k === n - 2, end: k === n - 1, lastW: w === nw - 1 }); }
-        tot.forEach((q, k) => { const prog = k / tot.length, lastS = k === tot.length - 1, pen = k === tot.length - 2;
-          let cont = sad ? 1 - 0.3 * prog : 1 + (e > 0.55 ? 0.22 * prog : 0.06 * Math.sin(prog * 6)); // emocionado: va subiendo
-          if (pen && !sad) cont *= 1.22; if (lastS && !sad) cont *= 0.86; // «cantadito»: sube en la penúltima y cae al final
-          const f = f00 * cont * (q.str ? 1.1 : 1) * (0.96 + Math.random() * 0.08), d = (lastS ? sp * 1.9 : pen ? sp * 1.25 : sp) * (0.92 + Math.random() * 0.16);
-          t = syl(t, d, f, lastS ? f * 0.82 : f, vol * (q.str ? 1 : 0.85), pick(VK), pick(CONS));
-          if (q.end) t += q.lastW ? sp * 1.4 : sp * 0.25; }); };
-      const shout = (len, vw, rise) => { // ¡grito largo! la vocal se sostiene, sube, vibra cada vez más y corta
-        const f = f00 * 1.55; t = syl(t, len, f, f * rise, Math.min(0.85, vol * 1.5), vw, pick(CONS.slice(0, 3))); t += 0.12; };
-      if (kind === 'ko' && R) { phrase(1, E); shout(1.6 + Math.random() * 0.9, 'o', 1.18); for (let k = 0; k < 3; k++) { t = syl(t, 0.16, f00 * 1.45, f00 * 1.3, vol * 1.2, 'o', ['g', 0, 0]); t += 0.05; } } // «¡gooool, gol, gol, gol!»
-      else if (kind === 'ult' && R) { phrase(1 + (Math.random() * 2 | 0), E); shout(0.7 + 0.4 * E, pick('aeu'), 1.12); } // «¡uuuuy!»
-      else if (kind === 'hit' && R && E > 0.5) { shout(0.32, pick('ao'), 1.05); phrase(1, E); }
-      else phrase(sad ? 2 : R ? 2 + Math.floor(Math.random() * (1 + E * 3)) : 1 + (Math.random() * 3 | 0), E);
-      annEnd = t; return t - now; },
-    annStop() { if (!ac) return; const n = ac.currentTime; for (const g of annNodes) try { g.gain.cancelScheduledValues(n); g.gain.setTargetAtTime(0, n, 0.03); } catch (e) { } annNodes = []; annEnd = 0; },
-    get annBusy() { return !!ac && ac.currentTime < annEnd; },
     boo() { const c = ctx(); if (!c) return; for (let i = 0; i < 9; i++) { const f = 140 + Math.random() * 110, at = Math.random() * 0.5; tone(f, 1.6 + Math.random() * 0.6, { type: 'sawtooth', to: f * 0.72, v: 0.05, a: 0.25, at }); tone(f * 1.01, 1.4, { type: 'triangle', to: f * 0.7, v: 0.04, a: 0.3, at: at + 0.05 }); } noise(2, { ft: 'bandpass', f: 500, fto: 300, q: 0.8, v: 0.18, a: 0.4 }); }, // público abucheando (empate; pedido del dueño)
     shieldHit() { if (!gap('shield', 70)) return; tone(1250, 0.35, { type: 'triangle', v: 0.16 }); tone(1870, 0.25, { type: 'sine', v: 0.1 }); tone(620, 0.2, { type: 'square', v: 0.05 }); noise(0.05, { ft: 'highpass', f: 3500, v: 0.18 }); }, // golpe contra el Escudo de hierro: «¡clang!» metálico (pedido del dueño)
     mineBoom() { if (!gap('mboom', 60)) return; noise(0.7, { f: 900, fto: 60, v: 1 }); tone(55, 0.7, { to: 28, v: 0.8 }); tone(140, 0.25, { type: 'sawtooth', to: 50, v: 0.25 }); noise(0.1, { f: 4000, v: 0.3 }); }, // explosión de una bomba (pedido del dueño)
@@ -751,19 +713,53 @@ const SFX = (() => {
   document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend().catch(() => { }); else if (on) ac.resume().catch(() => { }); });
   return S;
 })();
-// Comentarista de la pelea (pedido del dueño): la emoción sube con lo que pasa (golpes fuertes, ultimates, K.O., muerte súbita) y baja con el tiempo; habla de a ratos
-const ANN = { exc: 0.2, cd: 1.5, on: false, turn: 0, reply: false, // dos comentaristas que conversan: relator (0) y comentarista (1)
-  start() { this.exc = 0.35; this.cd = 0.6; this.on = true; this.turn = 0; this.reply = false; },
-  stop() { this.on = false; SFX.annStop(); },
-  ev(kind, v = 0) { if (!this.on) return; // kind: fight, hit, ult, ko, ot, low, draw, end
+// Comentaristas de la pelea (pedido del dueño): dicen frases en inglés con la voz del propio celular (síntesis de voz del sistema, sin archivos).
+// Un relator (voz grave, más rápido y agudo mientras más emoción) y un comentarista que le responde. La emoción sube con lo que pasa y baja con el tiempo.
+const CAST = { voices: [], unl: false,
+  ok() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'; },
+  init() { if (!this.ok()) return; const load = () => { const vs = speechSynthesis.getVoices().filter(v => /^en[-_]/i.test(v.lang) || /^en$/i.test(v.lang)); if (!vs.length) return;
+      const male = /daniel|alex|fred|aaron|arthur|rishi|tom|male|guy|david|mark|james|george|oliver|ralph|reed|gordon|eddy|rocko|grandpa|thomas|matthew|lee|christopher|eric|roger|brian/i;
+      const pool = vs.filter(v => male.test(v.name)), P = pool.length ? pool : vs, a = P.find(v => /en.US/i.test(v.lang)) || P[0], b = P.find(v => v !== a && v.lang !== a.lang) || P.find(v => v !== a) || a;
+      this.voices = [a, b]; };
+    load(); try { speechSynthesis.addEventListener('voiceschanged', load); } catch (e) { } },
+  unlock() { if (this.unl || !this.ok()) return; this.unl = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }, // el iPhone sólo deja hablar después de un toque
+  say(text, who, E) { if (!SFX.on || !this.ok()) return; try { const u = new SpeechSynthesisUtterance(text), v = this.voices[who]; u.lang = v ? v.lang : 'en-US'; if (v) u.voice = v;
+    u.pitch = who ? 0.8 + 0.25 * E : 0.5 + 0.55 * E; u.rate = who ? 1.0 + 0.15 * E : 1.0 + 0.5 * E; u.volume = 1; speechSynthesis.speak(u); } catch (e) { } },
+  stop() { try { if (this.ok()) speechSynthesis.cancel(); } catch (e) { } },
+  get busy() { return this.ok() && (speechSynthesis.speaking || speechSynthesis.pending); },
+};
+CAST.init();
+document.addEventListener('visibilitychange', () => { if (document.hidden) CAST.stop(); });
+const CAST_LINES = { // {n} = nombre del monstruo
+  fight: ['Here we go!', 'And the fight is on!', 'Fighters ready... fight!', "It's showtime!", 'Ding ding ding! Let the battle begin!'],
+  hit: ['What a hit!', "Oh, that's gotta hurt!", 'Huge blow!', 'Right on the target!', 'Boom!', 'Smash!', '{n} lands a big one!', 'Direct hit!', 'Ouch!'],
+  ult: ['Here comes the ultimate!', 'Unbelievable power!', "It's charging up!", 'Look at that energy!', '{n} unleashes the ultimate!', 'This is it!'],
+  ko: ['Knockout!', "{n} is down! {n} is down!", 'Lights out!', 'What a finish!', 'Good night!', "And {n} won't get up!", 'Down goes {n}!'],
+  low: ["{n} is in trouble!", 'Barely standing!', 'Hanging by a thread!', 'One more hit and it is over!'],
+  ot: ['Sudden death!', 'It all comes down to this!', 'Every hit counts now!'],
+  draw: ["It's a draw!", 'Nobody wins tonight!', 'A double knockout! The crowd is not happy.'],
+  end: ['What a match!', "And that's the game!", 'Incredible fight, folks!', 'What a performance!'],
+  calm: ['Both fighters looking sharp.', 'Nice footwork there.', "They're sizing each other up.", 'Interesting strategy.', 'Keep your eyes on this one.', 'Patience is key here.', 'Looking for an opening.'],
+  hot: ["They're going all out!", 'What a pace!', 'Incredible action!', 'The crowd is on its feet!', 'Non-stop action!', 'This is wild!'],
+  reply: ['Absolutely!', 'No doubt about it.', 'You said it!', "Couldn't agree more.", "That's right.", 'Oh, for sure.', 'Unbelievable!', 'I have never seen anything like it!', 'Exactly.'],
+};
+const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
+  line(k, name) { const L = CAST_LINES[k].filter(x => name || !x.includes('{n}')); let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i; return L[i].replace(/\{n\}/g, name || ''); },
+  start() { this.exc = 0.35; this.cd = 2; this.on = true; },
+  stop() { this.on = false; CAST.stop(); },
+  ev(kind, v = 0, name) { if (!this.on) return; // kind: fight, hit, ult, ko, ot, low, draw, end
     const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
-    const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || (kind === 'hit' && v > 0.45);
-    if (urgent || (!SFX.annBusy && this.cd <= 0 && bump > 0.12)) { SFX.say(kind === 'draw' ? 0.1 : this.exc, kind, kind === 'draw' ? 1 : 0); this.turn = 0; this.reply = urgent && kind !== 'fight'; this.cd = 0.35 + Math.random() * 0.4; } }, // el relator grita lo importante y después el otro comenta
+    const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end';
+    if (!urgent && (CAST.busy || this.cd > 0 || bump < 0.12)) return;
+    if (urgent) CAST.stop(); // lo importante corta lo que estaban diciendo
+    const nm = name && Math.random() < 0.6 ? name : null;
+    CAST.say(this.line(kind, nm), kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.1 : this.exc);
+    if (kind !== 'fight' && Math.random() < 0.6) CAST.say(this.line('reply'), 1, this.exc * 0.6); // y el otro le responde
+    this.cd = 2 + Math.random() * 2; },
   step(dt) { if (!this.on) return; this.exc += (0.18 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt; // la emoción baja sola de a poco
-    if (this.cd > 0 || SFX.annBusy) return;
-    const who = this.reply ? 1 : this.exc > 0.55 ? (Math.random() < 0.8 ? 0 : 1) : (this.turn ^= 1); this.reply = false; // se turnan; emocionado, el relator no para
-    SFX.say(who ? this.exc * 0.5 : this.exc * (0.85 + Math.random() * 0.3), null, who);
-    this.cd = who ? 0.25 + Math.random() * 0.5 : (this.exc > 0.5 ? 0.1 + Math.random() * 0.3 : 0.4 + Math.random() * 1.2); } // pausas cortas entre uno y otro: conversan
+    if (this.cd > 0 || CAST.busy) return;
+    CAST.say(this.line(this.exc > 0.5 ? 'hot' : 'calm'), 0, this.exc); if (Math.random() < 0.55) CAST.say(this.line('reply'), 1, this.exc * 0.6); // conversan de a ratos
+    this.cd = (this.exc > 0.5 ? 3 : 5) + Math.random() * 4; }
 };
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
@@ -3100,10 +3096,10 @@ class Battle {
     }
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
-    if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3)); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low'); } }
+    if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3), (a.cloneOf || a).name); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low', 0, t.name); } }
     if (this.kcamOn) { const uo = a.cloneOf || a; if (shielded) SFX.shieldHit(); else if (a.buffs.all > 0 && uo.ultType) SFX.ultHit(uo.ultType, dmg); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko(); ANN.ev('ko'); } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko(); ANN.ev('ko', 0, t.name); } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
         for (let i = 0; i < 48; i++) { const a2 = Math.random() * TAU, sp = 120 + Math.random() * 420; this.parts.push({ x: kx, y: ky, vx: Math.cos(a2) * sp + dir.x * 160, vy: Math.sin(a2) * sp * 0.8 - 160, life: 0.6 + Math.random() * 0.7, col: cols[i % cols.length], r: 2.5 + Math.random() * 4 }); }
         this.rings.push({ x: t.x, y: t.y, r: 10, max: 130, life: 0.5, col: '#fff3b0' }); this.shake = Math.min(14, this.shake + 6); }
@@ -3115,7 +3111,7 @@ class Battle {
 
   // ---------- Ultimate ----------
   startUlt(m) {
-    if (this.kcamOn) { SFX.ultCharge(m.ultType); ANN.ev('ult'); }
+    if (this.kcamOn) { SFX.ultCharge(m.ultType); ANN.ev('ult', 0, m.name); }
     this.cine = { m, t: 0 }; m.state = 'free';
     m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
@@ -5110,7 +5106,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Comentaristas en las peleas: un relator y un comentarista de voz grave que conversan en un idioma inventado, con la cadencia del relato de fútbol y gritos largos en los K.O.; se emocionan más con los golpes fuertes, las ultimates y la muerte súbita.'] },
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Comentaristas en las peleas: un relator y un comentarista que relatan en inglés con la voz del celular («What a hit!», «Knockout!», «Sudden death!»…) y se emocionan más (hablan más rápido y agudo) con los golpes fuertes, las ultimates y los K.O.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -5814,7 +5810,7 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) {
+function startBattle(mode, team) { CAST.unlock(); // (viene de un toque: el iPhone deja que la voz hable)
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
     goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
@@ -6282,7 +6278,7 @@ function loop(now) {
       while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
-    ANN.step(dt); if (battle.over && ANN.on && !battle._annEnd) { battle._annEnd = true; if (!battle.isDraw) setTimeout(() => ANN.ev('end'), 1600); setTimeout(() => ANN.stop(), battle.isDraw ? 2500 : 4200); }
+    ANN.step(dt); if (battle.over && ANN.on && !battle._annEnd) { battle._annEnd = true; if (!battle.isDraw) setTimeout(() => ANN.ev('end'), 2600); setTimeout(() => { if (ANN.on) { ANN.on = false; } }, 3000); }
     if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
