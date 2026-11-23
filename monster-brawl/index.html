@@ -4929,7 +4929,7 @@ function rankView() {
   document.querySelectorAll('#rkTabs [data-rk]').forEach(b => b.classList.toggle('on', b.dataset.rk === rkSort));
   const medal = ['🥇', '🥈', '🥉'];
   $('rkList').innerHTML = rows.map((r, i) => { const v = rkSort === 'pct' ? (pct(r) < 0 ? '—' : Math.round(pct(r) * 100) + '%') : r[rkSort];
-    const sub = rkSort === 'w' ? `${r.l} derrotas` : rkSort === 'best' ? `${r.w} victorias` : `${r.w} V · ${r.l} D`;
+    const sub = rkSort === 'w' ? `${r.w} victorias` : rkSort === 'best' ? `${r.w} victorias` : `${r.w} V · ${r.l} D`;
     return `<button class="btn rkrow${r.me ? ' me' : ''}" ${r.uid ? `data-rku="${r.uid}"` : ''}><span class="pos">${medal[i] || i + 1}</span><span>${r.me ? '<b>Tú</b> · ' : ''}${esc(r.name)}${r.on ? ' <i class="frdot on" style="display:inline-block;vertical-align:middle"></i>' : ''}<br><small>${r.none ? 'sin datos todavía' : sub}</small></span><span class="val">${v}</span></button>`; }).join('');
   $('rkList').querySelectorAll('[data-rku]').forEach(b => b.onclick = () => { FR.sel = b.dataset.rku; setView('friend'); });
 }
