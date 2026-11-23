@@ -122,9 +122,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .shoptabs{position:relative;display:flex;margin:6px 4px 0;touch-action:none}
 .shoptabs button{flex:1;background:none;border:0;color:var(--muted);font:inherit;font-weight:800;font-size:14px;padding:8px 0 9px;cursor:pointer;pointer-events:auto;transition:color .25s}
 .shoptabs button.on{color:var(--text)}
-.shoptabs i{position:absolute;left:0;bottom:0;width:50%;height:3px;border-radius:2px;background:var(--acc);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.shoptabs i{position:absolute;left:0;bottom:0;width:33.333%;height:3px;border-radius:2px;background:var(--acc);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .shopview{flex:1 1 auto;min-height:0;overflow:hidden;margin-top:6px;border-radius:18px}
 .shoptrack{display:flex;height:100%;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.arenagrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.arenac{display:flex;flex-direction:column;gap:4px;background:var(--panel2);border-radius:12px;padding:6px;text-align:center;color:var(--text);font-size:13px}.arenac img{width:100%;aspect-ratio:16/10;border-radius:8px;display:block}.arenac .btn{padding:6px;font-size:13px}.arenac .own{color:var(--muted);font-size:12px;padding:6px 0} /* Tienda: arenas (pedido del dueño) */
 .genegrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.genebtn{font-size:13px;padding:10px 6px}
 .bdlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .bdgo{display:flex;align-items:center;justify-content:center;gap:6px}
@@ -139,12 +140,13 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .topbar .mode{font-weight:800;font-size:15px}
 .roundbtn{width:44px;height:44px;border-radius:50%;background:var(--panel2);font-weight:800}
-.fighters{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
-.fighter{background:rgba(37,29,61,.9);border-radius:12px;padding:7px 9px;font-size:12px;display:flex;flex-direction:column;gap:4px;border:2px solid transparent}
+.fighters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+.fighter{min-width:0;background:rgba(37,29,61,.9);border-radius:12px;padding:7px 9px;font-size:12px;display:flex;flex-direction:column;gap:4px;border:2px solid transparent}
 .fighter.me{border-color:var(--acc)}
 .fighter.dead{opacity:.4}
 .fighter .nm{display:flex;align-items:center;gap:6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fighter .chip{width:10px;height:10px;border-radius:50%;flex:none}
+.fighter .fn{min-width:0;overflow:hidden;text-overflow:ellipsis}.fighter .frow{display:flex;align-items:center;gap:6px}.fighter .frow .bar{flex:1;min-width:0}.fighter .flv{flex:none;font-size:10px;color:var(--muted);font-weight:600;line-height:1} /* el nivel va junto a la barra para dejarle más espacio al nombre */.fighter .ultpill{flex:none} /* el nombre se corta con «…» para que siempre quepa; el nivel y ULT no se achican (pedido del dueño) */
 .fighter .bar{height:6px}
 .modal{position:fixed;inset:0;background:rgba(10,6,20,.6);display:none;align-items:center;justify-content:center;padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom));z-index:5}
 .modal.on{display:flex}
@@ -204,6 +206,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .setview textarea{font:11px/1.35 ui-monospace,Menlo,monospace;height:72px;resize:none;border-radius:10px;border:2px solid var(--panel2);background:var(--bg);color:var(--text);padding:8px;word-break:break-all;user-select:text;-webkit-user-select:text}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
 .frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
+.rktabs{display:flex;gap:6px}.rktabs .btn{flex:1;padding:9px 4px;font-size:13px}.rktabs .btn.on{background:linear-gradient(#ffe08a,#ffb23c);color:#2a1200}.rkrow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;text-align:left;padding:11px 14px}.rkrow .pos{font-size:20px;font-weight:900;text-align:center;color:var(--muted)}.rkrow small{color:var(--muted);font-size:12px}.rkrow .val{font-size:20px;font-weight:900;color:#ffd36b}.rkrow.me{outline:2px solid #ffcf6e}
 .frrec{display:block;margin-top:4px;font-size:13px;color:var(--muted)}.frrec b{color:var(--text)}.frrec.mon{text-align:center;margin:0 0 2px}
 .accstats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:4px}.accstats div:nth-child(-n+3){grid-column:span 2}.accstats div:nth-child(n+4){grid-column:span 3}.accstats div{background:var(--panel2);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}.accstats b{font-size:22px;font-variant-numeric:tabular-nums}.accstats span{font-size:11px;color:var(--muted);font-weight:700;text-align:center}
 .frreq{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;background:var(--panel2);border-radius:14px;padding:8px 10px;border:2px solid var(--acc)}.frreq b{font-size:14px}.frreq small{display:block;color:var(--muted);font-size:11px}.frreq .btn{padding:8px 10px;font-size:13px}
@@ -299,10 +302,11 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="pager"><div class="track" id="track" style="transform:translateY(-33.3333%)">
   <div class="page pgShop">
     <div class="nav"><div class="name"><b>Tienda</b><span id="aSub"></span></div></div>
-    <div class="shoptabs" id="shopTabs"><button data-stab="0" class="on">Ultimates</button><button data-stab="1">Genes</button><i></i></div>
+    <div class="shoptabs" id="shopTabs"><button data-stab="0" class="on">Ultimates</button><button data-stab="1">Genes</button><button data-stab="2">Arenas</button><i></i></div>
     <div class="shopview"><div class="shoptrack" id="shopTrack">
       <div class="panel tpanel shop" id="shopUlts"></div>
       <div class="panel tpanel shop" id="shopGenes"></div>
+      <div class="panel tpanel shop" id="shopArenas"></div>
     </div></div>
     <button class="edgeLbl down" data-go="1">Rancho ▼</button>
   </div>
@@ -315,7 +319,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="hint" id="hint" hidden></div>
   <div class="panel" id="homePanel">
     <div class="stats" id="stats"></div>
-    <div class="rest" id="rest" hidden><span id="restTxt"></span><button class="btn" id="btnHeal">Curar ya</button></div>
+    <div class="rest" id="rest" hidden><span id="restTxt"></span></div>
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
     <div class="row fightrow">
       <button class="btn" id="btnLan">🌐 Online</button>
@@ -395,6 +399,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <h2 style="font-size:22px">Menú</h2>
       <button class="btn setitem" data-go="friends"><span>👥 Amigos</span><small id="frState"></small></button>
       <button class="btn setitem" data-go="account"><span>👤 Mi cuenta</span><small id="accState"></small></button>
+      <button class="btn setitem" id="sndBtn"><span id="sndIco">🔊 Sonido</span><small id="sndState"></small></button>
       <button class="btn" data-close>Cerrar</button>
     </div>
     <div class="setview" data-view="account" hidden>
@@ -408,10 +413,17 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <h2 style="font-size:22px">Amigos</h2>
       <p class="tdesc" id="frInfo"></p>
       <div id="frReqs" class="frlist"></div>
+      <button class="btn primary" id="frRankBtn" hidden>🏆 Ranking</button>
       <div id="frList" class="frlist"></div>
       <div class="row" id="frAddRow"><input class="setin" id="frName" placeholder="Nombre de usuario" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="btn primary" id="frAdd">Enviar solicitud</button></div>
       <p class="tdesc" id="frMsg"></p>
       <button class="btn" data-go="main">‹ Volver</button>
+    </div>
+    <div class="setview" data-view="rank" hidden>
+      <h2 style="font-size:22px">🏆 Ranking</h2>
+      <div class="rktabs" id="rkTabs"><button class="btn" data-rk="w">Victorias</button><button class="btn" data-rk="best">Mejor racha</button><button class="btn" data-rk="pct">% victorias</button></div>
+      <div id="rkList" class="frlist"></div>
+      <button class="btn" data-go="friends">‹ Volver</button>
     </div>
     <div class="setview" data-view="friend" hidden>
       <h2 style="font-size:22px" id="fdName"></h2>
@@ -589,6 +601,7 @@ const ultPow = m => Math.max(m.st.melee, m.st.ranged * 1.3); // las ultimates de
 const SHIELD_MUL = 0; // Escudo de hierro: no recibe daño (igual lo empujan)
 const ULT_STAGES = ['teen', 'adult', 'awakened'], canUlt = st => ULT_STAGES.includes(st); // desde adolescente pueden usar ultimate (pedido del dueño)
 const BREED_STAGES = ['adult', 'awakened'], canBreedStage = st => BREED_STAGES.includes(st); // desde adulto pueden tener crías
+const SLIME_MAX_W = 118, SLIME_MAX_H = 105; // tamaño máximo de la gota de un slime adulto (se escala con la etapa)
 const AWAKE_SIZE = 1.15; // los Awakened son más grandes que los adultos
 const starterUlt = seed => ULT_KEYS[rng((seed ^ 0x1234abcd) >>> 0).i(0, ULT_KEYS.length - 1)]; // la que trae de regalo al despertar
 const ownsUlt = k => (save.ults || []).includes(k);
@@ -602,10 +615,167 @@ function ultTypeOf(g, train) {
   const st = calcStats(g, 1, train);
   return ULT_KEYS.filter(k => k in st).map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
+// ---------- Sonido (pedido del dueño): todo sintetizado con Web Audio (sin archivos); 🔊/🔇 en el Menú, se recuerda en este celular ----------
+const SFX = (() => {
+  let ac = null, out = null, last = {};
+  const KEY = 'monster_brawl_sound', VOL = 0.32;
+  let on = (() => { try { return localStorage.getItem(KEY) !== 'off'; } catch (e) { return true; } })();
+  const ctx = () => { if (!on) return null; if (!ac) { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ac = new A(); out = ac.createGain(); out.gain.value = VOL; out.connect(ac.destination); } catch (e) { return null; } } if (ac.state === 'suspended') ac.resume().catch(() => { }); return ac; };
+  const gap = (k, ms) => { const n = performance.now(); if (last[k] && n - last[k] < ms) return false; last[k] = n; return true; };
+  const env = (g, t, a, d, v) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, v), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
+  const tone = (f, d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), os = c.createOscillator(), g = c.createGain(); os.type = o.type || 'sine'; os.frequency.setValueAtTime(f, t); if (o.to) os.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), t + d); env(g, t, o.a || 0.005, d, o.v ?? 0.5); os.connect(g); g.connect(out); os.start(t); os.stop(t + d + 0.05); };
+  let nbuf = null; const noiseBuf = c => { if (nbuf) return nbuf; nbuf = c.createBuffer(1, c.sampleRate * 1.5, c.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return nbuf; };
+  const noise = (d, o = {}) => { const c = ctx(); if (!c) return; const t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); src.buffer = noiseBuf(c); f.type = o.ft || 'lowpass'; f.frequency.setValueAtTime(o.f || 1200, t); if (o.fto) f.frequency.exponentialRampToValueAtTime(o.fto, t + d); f.Q.value = o.q || 0.7; env(g, t, o.a || 0.003, d, o.v ?? 0.5); src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random()); src.stop(t + d + 0.05); };
+  const lastPick = {}; const pick5 = (k, n = 5) => { let i; do i = Math.random() * n | 0; while (i === lastPick[k]); return lastPick[k] = i; };
+  const S = {
+    get on() { return on; },
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) CAST.stop(); if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    unlock() { ctx(); CAST.unlock(); },
+    // pelea
+    beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
+    fight() { noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
+    hit(pow, heavy) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.3, 1.4); noise(0.09 + 0.05 * k, { f: 900 + 500 * k, fto: 200, v: 0.45 * k }); tone(heavy ? 90 : 150, 0.12, { type: 'sine', to: 50, v: 0.55 * k }); },
+    shot() { if (!gap('shot', 50)) return; tone(900, 0.14, { type: 'triangle', to: 360, v: 0.16 }); },
+    impact() { if (!gap('imp', 40)) return; noise(0.08, { f: 1800, fto: 400, v: 0.3 }); },
+    dodge() { if (!gap('dodge', 80)) return; noise(0.16, { ft: 'bandpass', f: 1800, fto: 600, q: 1.5, v: 0.25 }); },
+    ultCharge(type) { ({ // cada ultimate carga con su propio sonido (1,3 s; pedido del dueño)
+      melee: () => { tone(70, 1.3, { type: 'sawtooth', to: 140, v: 0.22, a: 0.3 }); noise(1.3, { f: 200, fto: 700, v: 0.25, a: 0.8 }); }, // Onda de choque: rugido grave que crece
+      ranged: () => { tone(200, 1.3, { type: 'sine', to: 1400, v: 0.14, a: 0.2 }); noise(1.3, { ft: 'bandpass', f: 600, fto: 3000, q: 4, v: 0.18, a: 0.6 }); }, // Bala gigante: energía que se concentra
+      defense: () => { tone(196, 1.3, { type: 'triangle', v: 0.16, a: 0.3 }); tone(294, 1.1, { type: 'triangle', v: 0.1, a: 0.4, at: 0.2 }); tone(392, 0.9, { type: 'sine', v: 0.08, a: 0.4, at: 0.4 }); }, // Escudo: acorde metálico que se arma
+      speed: () => { for (let i = 0; i < 10; i++) tone(300 + i * 90, 0.1, { type: 'square', v: 0.06, at: i * 0.12 }); }, // Supervelocidad: motor que acelera
+      dodge: () => { tone(800, 1.3, { type: 'sine', to: 1600, v: 0.06, a: 0.4 }); tone(806, 1.3, { type: 'sine', to: 1612, v: 0.06, a: 0.4 }); noise(1.3, { ft: 'highpass', f: 3000, v: 0.05, a: 0.6 }); }, // Reflejos fantasma: vibración etérea
+      drain: () => { for (let i = 0; i < 4; i++) tone(170, 0.2, { type: 'sine', to: 120, v: 0.3, at: i * 0.3 }); tone(110, 1.3, { type: 'triangle', to: 220, v: 0.08, a: 0.5 }); }, // Robo de vida: latidos
+      teleport: () => { for (let i = 0; i < 6; i++) tone(500 + Math.random() * 1500, 0.12, { type: 'square', to: 300, v: 0.05, at: i * 0.2 }); tone(150, 1.3, { type: 'sine', to: 900, v: 0.08, a: 0.5 }); }, // Teletransporte: zumbidos que saltan
+      clone: () => { for (let i = 0; i < 6; i++) { tone(392 * Math.pow(1.12, i), 0.18, { type: 'triangle', v: 0.08, at: i * 0.2 }); tone(392 * Math.pow(1.12, i) * 1.5, 0.18, { type: 'triangle', v: 0.05, at: i * 0.2 + 0.03 }); } }, // Clon: ecos que se duplican
+      mines: () => { for (let i = 0; i < 12; i++) noise(0.05, { ft: 'bandpass', f: 2500 + Math.random() * 1500, q: 5, v: 0.12, at: i * 0.1 }); tone(120, 1.3, { type: 'sawtooth', to: 200, v: 0.06, a: 0.5 }); }, // Bombas: mechas chisporroteando
+    }[type] || (() => { tone(160, 1.3, { type: 'sawtooth', to: 720, v: 0.18, a: 0.15 }); tone(240, 1.3, { type: 'sine', to: 1080, v: 0.12, a: 0.2 }); }))(); },
+    ultHit(type, pow) { if (!gap('hit', 35)) return; const k = clamp(pow / 30, 0.4, 1.4); ({ // golpes con la ultimate activa (potenciado): uno distinto por ultimate (pedido del dueño)
+      melee: () => { noise(0.18, { f: 500, fto: 80, v: 0.6 * k }); tone(70, 0.25, { to: 35, v: 0.6 * k }); }, // retumbo
+      ranged: () => { noise(0.12, { f: 2400, fto: 300, v: 0.5 * k }); tone(260, 0.15, { type: 'sawtooth', to: 70, v: 0.2 * k }); }, // estallido de energía
+      defense: () => { tone(900, 0.2, { type: 'triangle', v: 0.14 * k }); tone(140, 0.15, { to: 60, v: 0.5 * k }); }, // golpe de hierro
+      speed: () => { noise(0.06, { ft: 'highpass', f: 2500, v: 0.4 * k }); tone(400, 0.06, { type: 'square', to: 150, v: 0.12 * k }); noise(0.05, { f: 1500, v: 0.3 * k, at: 0.05 }); }, // golpe veloz doble
+      dodge: () => { noise(0.12, { ft: 'bandpass', f: 2000, fto: 700, q: 3, v: 0.35 * k }); tone(1200, 0.15, { type: 'sine', to: 400, v: 0.1 * k }); }, // corte fantasma
+      drain: () => { tone(200, 0.2, { type: 'triangle', to: 90, v: 0.35 * k }); tone(600, 0.2, { type: 'sine', to: 300, v: 0.1 * k, at: 0.05 }); noise(0.08, { f: 700, v: 0.3 * k }); }, // succión
+      teleport: () => { tone(1800, 0.08, { type: 'square', to: 400, v: 0.08 * k }); noise(0.1, { f: 1200, fto: 300, v: 0.45 * k }); tone(120, 0.12, { to: 50, v: 0.45 * k }); }, // zap
+      clone: () => { noise(0.07, { f: 1400, v: 0.4 * k }); tone(150, 0.1, { to: 60, v: 0.4 * k }); noise(0.06, { f: 1000, v: 0.25 * k, at: 0.07 }); tone(130, 0.1, { to: 55, v: 0.25 * k, at: 0.07 }); }, // golpe con eco
+      mines: () => { noise(0.2, { f: 1200, fto: 100, v: 0.55 * k }); tone(90, 0.2, { type: 'sawtooth', to: 40, v: 0.3 * k }); }, // golpe explosivo
+    }[type] || (() => this.hit(pow)))(); },
+    boo() { const c = ctx(); if (!c) return; for (let i = 0; i < 9; i++) { const f = 140 + Math.random() * 110, at = Math.random() * 0.5; tone(f, 1.6 + Math.random() * 0.6, { type: 'sawtooth', to: f * 0.72, v: 0.05, a: 0.25, at }); tone(f * 1.01, 1.4, { type: 'triangle', to: f * 0.7, v: 0.04, a: 0.3, at: at + 0.05 }); } noise(2, { ft: 'bandpass', f: 500, fto: 300, q: 0.8, v: 0.18, a: 0.4 }); }, // público abucheando (empate; pedido del dueño)
+    shieldHit() { if (!gap('shield', 70)) return; tone(1250, 0.35, { type: 'triangle', v: 0.16 }); tone(1870, 0.25, { type: 'sine', v: 0.1 }); tone(620, 0.2, { type: 'square', v: 0.05 }); noise(0.05, { ft: 'highpass', f: 3500, v: 0.18 }); }, // golpe contra el Escudo de hierro: «¡clang!» metálico (pedido del dueño)
+    mineBoom() { if (!gap('mboom', 60)) return; noise(0.7, { f: 900, fto: 60, v: 1 }); tone(55, 0.7, { to: 28, v: 0.8 }); tone(140, 0.25, { type: 'sawtooth', to: 50, v: 0.25 }); noise(0.1, { f: 4000, v: 0.3 }); }, // explosión de una bomba (pedido del dueño)
+    ult(type) { const c = ctx(); if (!c) return;
+      if (type === 'mines') { for (let i = 0; i < 3; i++) { tone(500 + i * 80, 0.25, { type: 'triangle', to: 1100 + i * 120, v: 0.13, at: i * 0.09 }); noise(0.05, { f: 1500, v: 0.2, at: i * 0.09 }); } } // lanza 3 bombas (fiu-fiu-fiu); la explosión suena aparte (mineBoom)
+      else if (type === 'ranged') { noise(0.35, { f: 1800, fto: 300, v: 0.7 }); tone(120, 0.5, { type: 'sawtooth', to: 60, v: 0.4 }); tone(900, 0.45, { type: 'sine', to: 200, v: 0.15, at: 0.05 }); } // Bala gigante: cañonazo con silbido
+      else if (type === 'teleport') { tone(300, 0.25, { type: 'square', to: 2200, v: 0.18 }); tone(2400, 0.2, { type: 'sine', to: 600, v: 0.15, at: 0.18 }); }
+      else if (type === 'shield') { tone(196, 1.0, { type: 'sine', v: 0.4 }); tone(392, 0.9, { type: 'sine', v: 0.2 }); tone(587, 0.8, { type: 'sine', v: 0.12 }); }
+      else if (type === 'speed') { noise(0.5, { ft: 'bandpass', f: 600, fto: 3000, q: 2, v: 0.35 }); }
+      else if (type === 'drain') { tone(220, 0.6, { type: 'triangle', to: 110, v: 0.3 }); tone(330, 0.6, { type: 'triangle', to: 165, v: 0.2, at: 0.05 }); }
+      else if (type === 'clone') { tone(523, 0.18, { type: 'square', v: 0.15 }); tone(659, 0.18, { type: 'square', v: 0.15, at: 0.1 }); tone(784, 0.25, { type: 'square', v: 0.15, at: 0.2 }); }
+      else if (type === 'dodge') { noise(0.4, { ft: 'bandpass', f: 2500, fto: 800, q: 3, v: 0.3 }); tone(1200, 0.3, { to: 300, v: 0.12 }); }
+      else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); noise(0.6, { ft: 'bandpass', f: 300, fto: 1200, q: 1.5, v: 0.3, at: 0.1 }); } }, // Onda de choque: golpe al suelo y la onda que se expande
+    ko() { noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
+    anvil() { tone(1568, 0.6, { type: 'triangle', v: 0.35 }); tone(2350, 0.45, { type: 'sine', v: 0.2 }); tone(523, 0.3, { type: 'square', v: 0.12 }); noise(0.12, { f: 3000, v: 0.4 }); },
+    win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i === 3 ? 0.45 : 0.16, { type: 'square', v: 0.16, at: i * 0.12 })); },
+    lose() { [392, 349, 311, 262].forEach((f, i) => tone(f, i === 3 ? 0.5 : 0.22, { type: 'triangle', v: 0.22, at: i * 0.2 })); },
+    boing() { if (!gap('boing', 120)) return; tone(220, 0.3, { type: 'sine', to: 520, v: 0.3 }); },
+    roll() { if (!gap('roll', 150)) return; noise(0.45, { ft: 'bandpass', f: 300, fto: 900, q: 1, v: 0.3 }); },
+    flap() { if (!gap('flap', 250)) return; for (let i = 0; i < 3; i++) noise(0.07, { ft: 'bandpass', f: 500, q: 1, v: 0.25, at: i * 0.11 }); },
+    // monstruos y menú
+    voice(size, brave) { if (!gap('voice', 90)) return; const f = clamp(700 / Math.max(0.5, size), 180, 1100); if (brave) tone(f * 0.6, 0.18, { type: 'sawtooth', to: f * 0.45, v: 0.2 }); else { tone(f, 0.08, { type: 'square', to: f * 1.4, v: 0.16 }); tone(f * 1.3, 0.09, { type: 'square', to: f * 1.1, v: 0.12, at: 0.08 }); } },
+    heart() { if (!gap('heart', 120)) return; [ // 5 sonidos de caricia, al azar sin repetir el anterior (pedido del dueño)
+      () => tone(880 + Math.random() * 150, 0.14, { type: 'sine', v: 0.09 }),
+      () => { tone(180, 0.28, { type: 'triangle', to: 150, v: 0.09 }); noise(0.25, { f: 380, v: 0.05 }); }, // ronroneo
+      () => { tone(660, 0.1, { type: 'sine', v: 0.08 }); tone(880, 0.15, { type: 'sine', v: 0.07, at: 0.08 }); }, // dos notitas
+      () => tone(480, 0.13, { type: 'sine', to: 760, v: 0.09 }), // burbuja
+      () => { tone(990, 0.08, { type: 'triangle', v: 0.06 }); tone(740, 0.13, { type: 'sine', v: 0.06, at: 0.06 }); }, // brillo suave
+    ][pick5('heart')](); },
+    poke() { if (!gap('poke', 60)) return; [ // 5 sonidos de golpecito, al azar sin repetir el anterior (pedido del dueño)
+      () => { tone(300, 0.16, { type: 'sine', to: 140, v: 0.3 }); noise(0.04, { f: 2000, v: 0.12 }); }, // boing
+      () => { tone(200, 0.08, { type: 'square', to: 90, v: 0.16 }); noise(0.05, { f: 1500, v: 0.25 }); }, // bonk
+      () => tone(850, 0.1, { type: 'square', to: 1400, v: 0.09 }), // chillido de juguete
+      () => { tone(120, 0.16, { type: 'sine', to: 60, v: 0.45 }); noise(0.06, { f: 600, v: 0.3 }); }, // golpe sordo
+      () => { noise(0.04, { f: 3000, v: 0.28 }); tone(600, 0.07, { type: 'triangle', to: 300, v: 0.2 }); }, // pop
+    ][pick5('poke')](); },
+    tap() { if (!gap('tap', 60)) return; tone(420, 0.06, { type: 'triangle', v: 0.25 }); noise(0.04, { f: 2500, v: 0.15 }); },
+    hatch() { noise(0.25, { f: 2500, fto: 600, v: 0.5 }); [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.2, { type: 'triangle', v: 0.18, at: 0.15 + i * 0.09 })); },
+    grow() { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone(f, 0.5, { type: 'triangle', v: 0.14, at: i * 0.14 })); },
+    click() { if (!gap('click', 40)) return; tone(1100, 0.03, { type: 'square', v: 0.08 }); },
+    thud() { if (!gap('thud', 250)) return; noise(0.25, { ft: 'bandpass', f: 1000, fto: 650, q: 6, v: 0.12, a: 0.03 }); }, // roce de madera (sin el golpe final, pedido del dueño): entrar/salir del granero, abrir la Tienda o Estadísticas, cambiar de pestaña en la Tienda y de monstruo en Estadísticas (pedido del dueño)
+    back() { if (!gap('back', 200)) return; tone(880, 0.07, { type: 'triangle', to: 620, v: 0.2 }); tone(560, 0.1, { type: 'triangle', to: 380, v: 0.18, at: 0.06 }); }, // retroceder / salir de un menú (pedido del dueño)
+    coin() { tone(988, 0.08, { type: 'square', v: 0.14 }); tone(1319, 0.25, { type: 'square', v: 0.14, at: 0.08 }); },
+    bird() { const f = 2400 + Math.random() * 1400; for (let i = 0, n = 2 + (Math.random() * 3 | 0); i < n; i++) tone(f * (0.9 + Math.random() * 0.2), 0.07, { type: 'sine', to: f * 1.25, v: 0.05, at: i * 0.11 }); },
+    cricket() { for (let i = 0; i < 4; i++) tone(4200, 0.03, { type: 'square', v: 0.02, at: i * 0.05 }); },
+    wind() { noise(2.5, { ft: 'bandpass', f: 400, fto: 700, q: 0.6, v: 0.07, a: 0.8 }); },
+  };
+  for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, () => S.unlock(), { passive: true });
+  const isBack = b => b.matches('[data-close],.newsx,#quit') || /^\s*(‹|Cerrar|Volver|Después|Cancelar)/.test(b.textContent);
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (!b || b.disabled || b.classList.contains('edgeLbl') || b.classList.contains('nosnd')) return; if (isBack(b)) S.back(); else S.click(); }, true); // los bordes suenan al cambiar de página
+  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend().catch(() => { }); else if (on) ac.resume().catch(() => { }); });
+  return S;
+})();
+// Comentaristas de la pelea (pedido del dueño): dicen frases en inglés con la voz del propio celular (síntesis de voz del sistema, sin archivos).
+// Un relator (voz grave, más rápido y agudo mientras más emoción) y un comentarista que le responde. La emoción sube con lo que pasa y baja con el tiempo.
+const CAST = { voices: [], unl: false,
+  ok() { return 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'; },
+  init() { if (!this.ok()) return; const load = () => { const vs = speechSynthesis.getVoices().filter(v => /^en[-_]/i.test(v.lang) || /^en$/i.test(v.lang)); if (!vs.length) return;
+      const male = /daniel|alex|fred|aaron|arthur|rishi|tom|male|guy|david|mark|james|george|oliver|ralph|reed|gordon|eddy|rocko|grandpa|thomas|matthew|lee|christopher|eric|roger|brian/i;
+      const pool = vs.filter(v => male.test(v.name)), P = pool.length ? pool : vs, a = P.find(v => /en.US/i.test(v.lang)) || P[0], b = P.find(v => v !== a && v.lang !== a.lang) || P.find(v => v !== a) || a;
+      this.voices = [a, b]; };
+    load(); try { speechSynthesis.addEventListener('voiceschanged', load); } catch (e) { } },
+  unlock() { if (this.unl || !this.ok()) return; this.unl = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) { } }, // el iPhone sólo deja hablar después de un toque
+  say(text, who, E) { if (!SFX.on || !this.ok()) return; try { const u = new SpeechSynthesisUtterance(text), v = this.voices[who]; u.lang = v ? v.lang : 'en-US'; if (v) u.voice = v;
+    u.pitch = who ? 0.85 : 0.9 + 0.45 * E; u.rate = who ? 1.0 : 1.05 + 0.35 * E; /* relator entusiasta: más agudo y rápido con la emoción */ u.volume = 1; speechSynthesis.speak(u); } catch (e) { } },
+  stop() { try { if (this.ok()) speechSynthesis.cancel(); } catch (e) { } },
+  get busy() { return this.ok() && (speechSynthesis.speaking || speechSynthesis.pending); },
+};
+CAST.init();
+document.addEventListener('visibilitychange', () => { if (document.hidden) CAST.stop(); });
+const ULT_EN = { melee: 'Shockwave', ranged: 'Giant Bullet', defense: 'Iron Shield', speed: 'Super Speed', dodge: 'Ghost Reflexes', drain: 'Life Drain', teleport: 'Teleport', clone: 'Clone', mines: 'Bombs' }; // nombres de las ultimates en inglés para el relator
+// Relator al estilo de los locutores de las arenas de batalla de monstruos: narra lo que hace cada uno con su nombre, muy entusiasta (pedido del dueño). {n} = monstruo, {m} = rival, {u} = ultimate
+const CAST_LINES = {
+  fight: ['{n} versus {m}! Let the battle begin!', 'In this corner, {n}! And in that corner, {m}! Begin!', 'The battle is about to start! Go!', 'Trainers, are you ready? Battle start!'],
+  hit: ['{n} lands a powerful blow!', 'What a hit by {n}!', '{n} strikes hard!', 'A critical hit!', '{m} takes a heavy hit!', 'Oh! That one really connected!', '{n} goes on the offensive!', 'Direct hit on {m}!'],
+  ult: ['{n} unleashes {u}!', '{n} is powering up! Here comes {u}!', 'Incredible! {n} uses {u}!', 'Look at that energy! {u}!'],
+  ko: ['{m} is down! {m} can no longer battle!', 'And {m} is knocked out!', '{n} takes down {m}!', 'What a finish! {m} is out!', 'Down goes {m}!'],
+  low: ['{m} is in big trouble!', '{m} is barely holding on!', 'Can {m} hang in there?'],
+  ot: ['Sudden death! Every hit counts now!', "It's sudden death! Who will be left standing?"],
+  draw: ["Both fighters are down! It's a draw!", 'A double knockout! Nobody wins this one!'],
+  end: ['And the winner is {n}!', '{n} wins the battle!', 'Victory goes to {n}! What a performance!', '{n} is the champion of this battle!'],
+  dodge: ['{n} dodges it!', 'Missed! {n} is too quick!', 'What reflexes from {n}!'],
+  fly: ['{n} takes to the skies!', '{n} is flying high!'],
+  leap: ['{n} leaps into the air!', 'What a jump by {n}!'],
+  roll: ['{n} rolls into action!', 'Look at {n} roll!'],
+  tail: ['{n} swings its tail!', 'A tail strike from {n}!'],
+  boom: ['Kaboom!', 'A bomb went off!', 'Boom! Right into the trap!'],
+  block: ['Blocked by the shield!', "{m}'s shield holds strong!", "It's not working against that shield!"],
+  calm: ['Both fighters are sizing each other up.', 'Who will make the next move?', '{n} is looking for an opening.', 'The crowd is waiting for some action!', 'Careful steps from {n}.'],
+  hot: ['What a fierce battle!', 'The crowd is going wild!', 'Neither side is backing down!', 'This is an amazing battle!', 'Non-stop action here!'],
+};
+const ANN = { exc: 0.2, cd: 1.5, on: false, last: {},
+  line(k, n, m, u) { const L = CAST_LINES[k].filter(x => (n || !x.includes('{n}')) && (m || !x.includes('{m}')) && (u || !x.includes('{u}'))); if (!L.length) return '';
+    let i, tries = 0; do i = Math.floor(Math.random() * L.length); while (L.length > 1 && i === this.last[k] && tries++ < 5); this.last[k] = i;
+    return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
+  start() { this.exc = 0.4; this.cd = 2.5; this.on = true; },
+  stop() { this.on = false; CAST.stop(); },
+  // kind: fight, hit, ult, ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block. n = quien hace, m = a quien, u = ultimate
+  ev(kind, v = 0, n, m, u) { if (!this.on) return;
+    const bump = { fight: 0.6, hit: 0.5 * v, ult: 0.55, ko: 1, ot: 0.5, low: 0.25, draw: 0, end: 0.4, dodge: 0.08, fly: 0.12, leap: 0.1, roll: 0.08, tail: 0.15, boom: 0.3, block: 0.15 }[kind] || 0; this.exc = clamp(this.exc + bump, 0, 1);
+    const urgent = kind === 'ko' || kind === 'ult' || kind === 'fight' || kind === 'draw' || kind === 'ot' || kind === 'end';
+    if (!urgent && (CAST.busy || this.cd > 0)) return; // lo menor sólo se narra si está callado
+    if (urgent) CAST.stop(); // lo importante corta lo que estaba diciendo
+    const t = this.line(kind, n, m, u ? ULT_EN[u] || '' : ''); if (!t) return;
+    CAST.say(t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc));
+    this.cd = urgent ? 1.6 : 1.1 + Math.random() * 1.2; },
+  step(dt) { if (!this.on) return; this.exc += (0.2 - this.exc) * Math.min(1, dt * 0.35); this.cd -= dt;
+    if (this.cd > 0 || CAST.busy || (battle && battle.over)) return; // (terminada la pelea sólo anuncia al ganador)
+    const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
+    CAST.say(this.line(this.exc > 0.5 ? 'hot' : 'calm', a && a.name), 0, Math.max(0.5, this.exc)); this.cd = 3 + Math.random() * 3; }
+};
 const KC_T = 1.35, kcamE = t => t < 0.12 ? 1 - Math.pow(1 - t / 0.12, 2) : t < 0.95 ? 1 : 1 - Math.pow(clamp((t - 0.95) / 0.4, 0, 1), 2); // kill cam: acercamiento al noqueado (pedido del dueño)
 const cineE = t => t < 0.45 ? 1 - Math.pow(1 - t / 0.45, 3) : t < 1.35 ? 1 : 1 - Math.pow(clamp((t - 1.35) / 0.4, 0, 1), 2); // zoom de cámara
 // Peleas largas: desde OT_START s de juego empieza la muerte súbita (el daño sube poco a poco) para que siempre termine con un K.O.
 const OT_START = 45, OT_RAMP = 12, HARD_LIMIT = 300;
+const DRAW_WIN = 0.35; // si los últimos caen con menos de esto de diferencia (s de juego), es empate («DRAW»; pedido del dueño)
 const SCARED_HP = 0.3;        // con menos de 30% de vida se ven asustados
 // Elección de objetivo: cada enemigo recibe un puntaje con factores de 0 a 1 (ver Monster.scoreTarget)
 // Cadenas de golpes: si te interrumpen el golpe no pierdes toda la espera; tras varios aturdimientos seguidos aguantas un rato;
@@ -949,6 +1119,7 @@ function genome5(seed, stage, v6 = false) {
   if (v6 >= 9) applyAnatomy9(g, seed, v6); if (g.plan === 'octopus') g.neck.len = 0; // gen 9: proporciones nuevas (antes de achicar según la etapa, así se mantienen al crecer)
   g.stage = stage; g.v3 = true; g.v5 = true;
   const L = STAGE_LIM[stage]; scaleGenome(g, L.size);
+  if (g.plan === 'slime') { const f = Math.min(1, SLIME_MAX_W * L.size / g.head.w, SLIME_MAX_H * L.size / g.head.h); g.head.w *= f; g.head.h *= f; } // slime: la gota no pasa de un tamaño (con «cabezón» y otras salía enorme; pedido del dueño)
   if (L.blob || g.plan === 'slime') { g.blob = true; g.spots = []; g.head.none = false; g.neck.len = 0; /* el bebé es una sola pieza: sin cuello (la anatomía «cuello largo» le dibujaba un palo grueso hacia arriba) */ g.torso = { upper: { w: g.head.w, h: g.head.h }, mid: null, lower: null, shape: 'oval', belly: false }; }
   else if (!c.head || g.plan === 'crab') { if (g.plan === 'crab') { const U = g.torso.upper; U.h = Math.max(U.h, U.w * 0.36); U.w = Math.min(U.w, U.h * 2.8); } g.head.none = true; fitHeadless(g); } // cangrejo: caparazón ancho, pero no una tira // sin cabeza sorteada: la cara va en el torso
   return g;
@@ -1247,7 +1418,7 @@ function bodyFromTraining(g, pts) {
   const agiL = 1 + Math.min(0.25, P('agi') * 0.014), agiS = 1 - Math.min(0.12, P('agi') * 0.007), tec = 1 + Math.min(0.22, P('tec') * 0.012);
   c.arms.thick *= pow; c.legs.thick *= 1 + (pow - 1) * 0.5; if (c.shoulders.size > 0) c.shoulders.size *= pow;   // Poder: brazos y hombros
   for (const sg of [c.torso.upper, c.torso.mid, c.torso.lower]) if (sg) sg.w *= end * agiS;                       // Aguante: más ancho / Agilidad: más fino
-  if (c.blob) { c.head.w *= end * agiS; c.torso.upper.w = c.head.w; }
+  if (c.blob) { c.head.w *= end * agiS; if (c.plan === 'slime') c.head.w = Math.min(c.head.w, SLIME_MAX_W * 1.12 * (STAGE_LIM[c.stage] ? STAGE_LIM[c.stage].size : 1) * (c.awake ? AWAKE_SIZE : 1)); c.torso.upper.w = c.head.w; }
   c.legs.upper *= agiL; c.legs.lower *= agiL;                                                                    // Agilidad: piernas largas
   c.eyes.size *= tec;                                                                                             // Técnica: ojos atentos
   return c;
@@ -1716,6 +1887,7 @@ class Monster {
     for (const tl of I.tails) tl.chain.forEach((ni, k) => { if (!k) return; const n = N[ni]; n.ax = Math.sin(t * 3 + k * 0.7) * k * 0.6 * (tl.sd || 1); n.ay = Math.cos(t * 2.6 + k * 0.7) * k * 0.4; });
     // Piernas: los pies buscan el suelo (o cuelgan si está en el aire)
     const airL = this.held ? 0 : clamp(((this.z || 0) - 6) / 18, 0, 1); // volando (flotando, saltando o volando en el rancho): las piernas cuelgan relajadas, sin caminar (pedido del dueño)
+    this.airLean = (this.airLean || 0) + (-lean - (this.airLean || 0)) * Math.min(1, dt * 4); // hacia dónde se inclinan las piernas en el aire (con algo de retraso)
     for (const L of I.legs) {
       const hip = N[L.hip], knee = N[L.knee], foot = N[L.foot];
       const ph = this.walkPh + L.ph;
@@ -1726,12 +1898,13 @@ class Monster {
       foot.ty = Math.min(groundY - lift, hip.y + this.legSum * s * 0.98);
       knee.tx = (hip.x + foot.x) / 2 + L.sd * 4 * s; knee.ty = (hip.y + foot.y) / 2;
       if (L.spider) { const S = L.sp; foot.tx = (L.role === 'side' ? this.gx + L.hx * s : this.gx) + L.sd * S.out * s + Math.sin(ph) * stride * 0.7; foot.ty = this.gy + S.dy * s - lift; knee.tx = hip.x + L.sd * g.legs.upper * S.kx * s; knee.ty = hip.y + g.legs.upper * S.ky * s - lift * 0.5; } // adelante: el pie más abajo (más cerca); atrás: más arriba (más lejos)
-      if (airL > 0) { // relajadas: cuelgan bajo la cadera, un poco hacia atrás de hacia donde va, meciéndose apenas
-        const sway = Math.sin(t * 1.8 + L.ph * 2) * 2.5 * s, back = -lean * 7 * s;
+      knee.boost = foot.boost = 1 - 0.72 * airL; // en el aire el resorte de las piernas se suelta: cuelgan y se balancean con la física (pedido del dueño)
+      if (airL > 0) { // relajadas: cuelgan bajo la cadera, inclinadas hacia el lado contrario de hacia donde va (más mientras más rápido), meciéndose
+        const th = this.airLean * 0.24 + Math.sin(t * 1.8 + L.ph * 2) * 0.07, sn = Math.sin(th), cs = Math.cos(th);
         const len = L.spider ? (g.legs.upper + g.legs.lower) * s * 0.62 : this.legSum * s * 0.9;
-        const fx = (L.spider ? this.gx + (L.role === 'side' ? L.hx * s : 0) + L.sd * L.sp.out * s * 0.55 : this.gx + L.hx * s * 1.05) + back + sway, fy = hip.y + len;
+        const fx = L.spider ? this.gx + (L.role === 'side' ? L.hx * s : 0) + L.sd * L.sp.out * s * 0.55 + sn * len : hip.x + sn * len, fy = hip.y + cs * len;
         foot.tx += (fx - foot.tx) * airL; foot.ty += (fy - foot.ty) * airL;
-        knee.tx += ((hip.x + fx) / 2 + L.sd * 3 * s + back * 0.4 - knee.tx) * airL; knee.ty += ((hip.y + fy) / 2 - 2 * s - knee.ty) * airL; }
+        knee.tx += ((hip.x + fx) / 2 + L.sd * 3 * s - knee.tx) * airL; knee.ty += ((hip.y + fy) / 2 - 2 * s - knee.ty) * airL; }
       if (this.sitK > 0.001) { const k = this.sitK; // sentado: piernas estiradas hacia los lados sobre el suelo, rodillas un poco arriba
         foot.tx += (this.gx + L.sd * (Math.abs(L.hx) + this.legSum * 0.75) * s - foot.tx) * k; foot.ty += (groundY - foot.ty) * k;
         knee.tx += ((hip.x + foot.tx) / 2 - knee.tx) * k; knee.ty += (Math.min(hip.y, foot.ty) - 5 * s - knee.ty) * k; }
@@ -1841,6 +2014,7 @@ class Monster {
   hop(dt) { const snk = this.g.plan === 'snake'; if (snk && this.z === 0 && this.vz > 0 && this.vz <= 300 && !this.held && !this.flung) this.vz *= 0.15; /* serpiente: los saltitos son apenas un levantón (pedido del dueño) */ if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 && !snk ? -this.vz * 0.25 : 0; } } // (la serpiente no rebota al caer)
 
   poke(px, py) {
+    SFX.poke(); { const tp = this.tp || {}; SFX.voice(this.s || 1, (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0); } // su vocecita: más aguda si es chico; un gruñido si es valiente
     this.vz = 220 + Math.random() * 80; this.mouthOpen = 1; this.hurtT = 0.08;
     { const tp = this.tp || {}, angry = (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0; if (!this.sleep) this.setEmo(angry ? 'angry' : 'scared', 5, 3); treat(this.rec, 'poke'); } // golpearlo: enojado (valiente/agresivo) o asustado (prudente/cauto) por 5 s, luego neutro
     for (const n of this.nodes) { n.vx += (Math.random() - 0.5) * 500; n.vy -= Math.random() * 350; }
@@ -1919,7 +2093,7 @@ class Monster {
           if (this.stT <= TAIL_SWING * 0.55) { const R = this.r + this.st.reach * 0.85 + TAIL_REACH;
             for (const e of B.ms) { if (e.dead || e.team === this.team || this.hitSet.has(e.id) || e.z > FLY.airZ) continue;
               const ex = e.x - this.x, ey = e.y - this.y, ed = Math.hypot(ex, ey) || 1;
-              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); if (!e.dead && e.state !== 'ultcharge') { const V = TAIL_PUSH / Math.pow(e.st.weight, 0.35); e.vx = ex / ed * V; e.vy = ey / ed * V; e.vz = Math.max(e.vz, 240); } /* y los aleja */ } } }
+              if (ed < R + e.r) { /* barre alrededor: le pega a todos los que alcance (pedido del dueño) */ this.hitSet.add(e.id); B.hit(this, e, this.st.melee * TAIL_POW, { x: ex / ed, y: ey / ed }, 'melee'); B.text(e, '¡coletazo!', '#ffb36b'); if (B.kcamOn) ANN.ev('tail', 0, this.name, e.name); if (!e.dead && e.state !== 'ultcharge') { const V = TAIL_PUSH / Math.pow(e.st.weight, 0.35); e.vx = ex / ed * V; e.vy = ey / ed * V; e.vz = Math.max(e.vz, 240); } /* y los aleja */ } } }
           if (this.stT <= 0) { this.tailPh = null; this.state = 'recover'; this.stT = 0.35; }
         }
         break;
@@ -1982,7 +2156,7 @@ class Monster {
         if (this.kiter && d < Math.min(pref - FLY.leapGap * 0.5, reachD + 70) && this.startLeap(T, d, pref + 40) !== false) return; }
       const burst = this.hitTimes.filter(q => B.time - q < FLY.burstS).length;
       if (this.canFloat && burst >= FLY.burstN) { // le llueven golpes: despega y vuela hacia atrás para alejarse (pedido del dueño)
-        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
+        this.floatT = FLY.floatS + Math.random() * FLY.floatR; this.floatBack = FLY.backS * (1 - 0.5 * clamp(this.tp.agr, -1, 1)); this.vz = 300; if (B.kcamOn) { SFX.flap(); ANN.ev('fly', 0, this.name); } this.hitTimes = []; this.flyCd = this.floatT + FLY.cd + Math.random() * FLY.cdR; this.setEmo('scared', 0.8, 2); }
     }
     // Tus monstruos la lanzan cuando aprietas su botón (una vez por pelea); los rivales deciden solos
     const wantUlt = this.isPlayer || this.remoteCtl ? this.ultRequest : ultNow && (this.ultType !== 'melee' || enemies.some(e => Math.hypot(e.x - this.x, e.y - this.y) < ULT_RADIUS * 0.8));
@@ -2003,7 +2177,8 @@ class Monster {
     else if (this.st.ranged > 0 && !this.onlyMelee && this.rangedCd <= 0 && (d > reachD + (this.noAtkT > 1.5 ? 6 : 30) || air || this.onlyRanged) && d < this.st.range) { this.noAtkT = 0; this.shoot(T, B); }
   }
 
-  startLeap(T, d, goal) { // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
+  startLeap(T, d, goal) {
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) { SFX.boing(); ANN.ev('leap', 0, this.name); } // salta hasta quedar a «goal» de su objetivo: hacia él si está más lejos, hacia atrás si está más cerca
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * FLY.leapSpd; // la velocidad del salto es proporcional a su velocidad en tierra (pedido del dueño)
     const tAir = clamp(dist / Math.max(1, vMax), FLY.leapT0, FLY.leapT1), v = Math.min(vMax, dist / tAir); // (si está lejos, el salto dura más y queda algo corto; si está cerca, salta más bajo)
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
@@ -2020,7 +2195,8 @@ class Monster {
     return null;
   }
 
-  startRoll(T, d, goal) { // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
+  startRoll(T, d, goal) {
+    if (typeof battle !== 'undefined' && battle && battle.kcamOn) { SFX.roll(); ANN.ev('roll', 0, this.name); } // rueda por el suelo hasta quedar a «goal» de su objetivo (hacia él o hacia atrás), a una velocidad proporcional a la suya
     const away = goal > d, dist = Math.abs(d - goal), vMax = this.st.speed * ROLL.spd, tR = clamp(dist / Math.max(1, vMax), ROLL.t0, ROLL.t1), v = Math.min(vMax, dist / tR);
     let ux = (T.x - this.x) / d * (away ? -1 : 1), uy = (T.y - this.y) / d * (away ? -1 : 1);
     if (away) { const e = this.escapeDir(ux, uy, v * tR); if (!e) return false; ux = e[0]; uy = e[1]; }
@@ -2052,6 +2228,7 @@ class Monster {
   }
 
   shoot(T, B) {
+    if (B.kcamOn) SFX.shot();
     const cover = !this.kiter ? 1 : B.mode === 'ffa' ? KITE.ffaFire * (this.onlyRanged ? 0.7 : 1) /* (el que sólo dispara, menos castigado) */ : B.ms.some(m => m !== this && !m.dead && m.team === this.team) ? KITE.teamCover : 1; // cobertura en equipo / cuidarse de todos
     this.rangedCd = this.st.rangedCd * this.fireMul * (0.85 + Math.random() * 0.3) * (this.buffs.speed > 0 ? 0.5 : 1) * cover * (this.floatT > 0 ? FLY.airFire : 1); // en el aire dispara algo más seguido
     const ps = 340, d = Math.hypot(T.x - this.x, T.y - this.y), tl = d / ps;
@@ -2093,7 +2270,7 @@ class Monster {
     if (Math.random() < 0.25) { px = -px; py = -py; }
     const sp = 330 + this.st.speed * 0.6;
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
-    this.state = 'dodge'; this.stT = 0.28;
+    this.state = 'dodge'; this.stT = 0.28; if (B && B.kcamOn) { SFX.dodge(); ANN.ev('dodge', 0, this.name); }
     this.setEmo('surprised', 0.5, 2);
   }
 
@@ -2929,8 +3106,10 @@ class Battle {
     }
     if (!shielded) this.texts.push({ x: t.gx + (Math.random() - 0.5) * 20, y: t.nodes[t.ix.head].y - t.g.head.h * t.s * 0.7, str: Math.round(dmg) + '', col: kind === 'melee' ? '#ffffff' : '#ffd88a', life: 0.8, big: dmg > 15 });
     this.shake = Math.min(12, this.shake + kb / 45);
+    if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3), (a.cloneOf || a).name, t.name); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low', 0, null, t.name); } }
+    if (this.kcamOn) { const uo = a.cloneOf || a; if (shielded) { SFX.shieldHit(); ANN.ev('block', 0, uo.name, t.name); } else if (a.buffs.all > 0 && uo.ultType) SFX.ultHit(uo.ultType, dmg); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko(); ANN.ev('ko', 0, (a.cloneOf || a).name, t.name); } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
         for (let i = 0; i < 48; i++) { const a2 = Math.random() * TAU, sp = 120 + Math.random() * 420; this.parts.push({ x: kx, y: ky, vx: Math.cos(a2) * sp + dir.x * 160, vy: Math.sin(a2) * sp * 0.8 - 160, life: 0.6 + Math.random() * 0.7, col: cols[i % cols.length], r: 2.5 + Math.random() * 4 }); }
         this.rings.push({ x: t.x, y: t.y, r: 10, max: 130, life: 0.5, col: '#fff3b0' }); this.shake = Math.min(14, this.shake + 6); }
@@ -2942,6 +3121,7 @@ class Battle {
 
   // ---------- Ultimate ----------
   startUlt(m) {
+    if (this.kcamOn) { SFX.ultCharge(m.ultType); ANN.ev('ult', 0, m.name, null, m.ultType); }
     this.cine = { m, t: 0 }; m.state = 'free';
     m.desired = { x: 0, y: 0 }; m.vx = m.vy = 0; m.auraBoost = 2.2; m.ulting = true; m.setEmo('angry', 2.2, 5); m.mouthOpen = 1;
   }
@@ -2958,6 +3138,7 @@ class Battle {
     b.done = true; const o = b.owner;
     this.rings.push({ x: b.x, y: b.y, r: 8, max: MINE_R, life: 0.4, col: '#ffb347' }); this.shake = Math.max(this.shake, 10);
     const gy = TOP + b.y * DEPTH; for (let i = 0; i < 22; i++) { const a = Math.random() * TAU, sp = 90 + Math.random() * 220; this.parts.push({ x: b.x, y: gy - 10, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6 - 120, life: 0.4 + Math.random() * 0.3, col: i % 3 ? '#ffb347' : '#5a4a4a', r: 3 + Math.random() * 3 }); }
+    if (this.kcamOn) { SFX.mineBoom(); ANN.ev('boom'); }
     this.texts.push({ x: b.x, y: gy - 40, str: '¡BUM!', col: '#ffb347', life: 0.9, vy: -40, big: true });
     for (const e of this.ms) {
       if (e.dead || e.team === b.team || floating(e)) continue;
@@ -2969,6 +3150,7 @@ class Battle {
     }
   }
   execUlt(m) {
+    if (this.kcamOn) SFX.ult(m.ultType === 'defense' ? 'shield' : m.ultType);
     m.ultReady = false; m.ultRequest = false; m.ultCd = ULT_RECHARGE_S * BATTLE_SPEED; m.ulting = false; /* un toque de más mientras cargaba no queda guardado */ // se recarga en 20 s // el aura sigue mientras dure el potenciado
     this.text(m, ULTS[m.ultType].name, '#ffe08a', true);
     m.buffs.all = ULT_ALL_S; setTimeout(() => { if (battle === this && !m.dead) this.text(m, '¡Potenciado!', '#ffcf6e'); }, 450);
@@ -3113,15 +3295,18 @@ class Battle {
     for (const m of this.ms) { this.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
     // fin
     if (!this.over) {
-      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; }
+      if (this.time > OT_START && !this.otShown) { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) ANN.ev('ot'); }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
-      if (alive.size <= 1 || this.time > HARD_LIMIT) {
-        this.over = true; this.timedOut = alive.size > 1; if (!this.timedOut && this.kcamOn) this.koBig = { t: 0 }; // última muerte: «K.O.» martillado
+      if (alive.size === 1 && this.ms.length > 1) this.lastT = this.lastT ?? this.time; // queda uno: se espera un instante por si el otro cae «al mismo tiempo» (un disparo o bomba ya lanzados)
+      if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT) {
+        this.over = true; this.timedOut = alive.size > 1; this.isDraw = alive.size === 0 || this.timedOut; // empate: los últimos caen al mismo tiempo (pedido del dueño; antes eran 15 s de muerte súbita sin K.O.)
+        if (this.isDraw && this.kcamOn) { this.drawBig = { t: -(alive.size === 0 ? KO_DELAY : 0) }; setTimeout(() => { if (battle === this) { SFX.boo(); ANN.ev('draw'); } }, alive.size === 0 ? KO_DELAY * 1000 : 0); } else if (this.kcamOn) this.koBig = { t: -KO_DELAY }; // última muerte: «K.O.» martillado (aparece 1 s después; pedido del dueño)
         // posiciones: los que siguen vivos (por % de vida) y luego los eliminados, del último al primero
         const hpf = tm => this.ms.filter(m => m.team === tm).reduce((a, m) => a + m.hp / m.st.hp, 0);
         this.ranking = [...alive].sort((a, b) => hpf(b) - hpf(a)).concat([...this.elim].reverse());
+        for (const tm of new Set(this.ms.map(m => m.team))) if (!this.ranking.includes(tm)) this.ranking.push(tm); // (por si alguno no quedó anotado como eliminado)
         this.winTeam = this.ranking[0];
-        for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam ? 'happy' : 'sad'; m.emoT = 0; if (m.state !== 'leap') { m.state = 'free'; m.stT = 0; } m.atkArm = null; m.strikeExt = 0; m.ulting = false; } // al terminar nadie queda a medio golpe
+        for (const m of this.ms) if (!m.dead) { m.winEmo = m.team === this.winTeam && !this.isDraw ? 'happy' : 'sad'; m.emoT = 0; if (m.state !== 'leap') { m.state = 'free'; m.stT = 0; } m.atkArm = null; m.strikeExt = 0; m.ulting = false; } // al terminar nadie queda a medio golpe
       }
     } else {
       this.endT += dt;
@@ -3141,7 +3326,7 @@ class Battle {
       const fx = m.gx, fy = m.nodes[m.ix.mid].y - 10, z = 1 + 1.1 * e;
       ctx.translate(cx, cy); ctx.scale(z, z); ctx.translate(-lerp(cx, fx, e), -lerp(cy, fy, e));
     }
-    drawArena(ctx);
+    drawArena(ctx, this.arena);
     // sombras
     for (const m of this.ms) {
       if (m.alpha <= 0) continue;
@@ -3172,7 +3357,8 @@ class Battle {
     ctx.textAlign = 'center';
     for (const t of this.texts) {
       ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.big ? 24 : 17}px system-ui`;
-      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y);
+      let x = t.x, y = t.y; const V = this.view; if (V) { const hw = ctx.measureText(t.str).width / 2 + 4; x = x - hw < V.x0 ? V.x0 + hw : x + hw > V.x1 ? V.x1 - hw : x; y = Math.max(y, V.y0 + 20); } // los textos (nombre de la ultimate, daño, avisos) siempre caben en la pantalla (pedido del dueño)
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, x, y); ctx.fillStyle = t.col; ctx.fillText(t.str, x, y);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -3206,22 +3392,112 @@ function spawnRing(ms) {
   });
 }
 
-function drawArena(ctx) {
-  const g0 = TOP, g1 = TOP + ARENA_D * DEPTH;
+// Arenas: cada pelea sale en una al azar (pedido del dueño). w = muro (degradado de arriba a abajo), wp = dibujo del muro, f = suelo (degradado), fp = dibujo del suelo,
+// ln = color de las líneas, ring = círculo del centro, edge = borde de adelante, deco = adornos del fondo
+const ARENAS = [
+  { n: 'Coliseo', w: ['#2a2046', '#4d3c76'], wp: 'bricks', f: ['#b8925e', '#e0bd80'], fp: 'grid', ln: 'rgba(90,50,20,.12)', ring: 'rgba(255,255,255,.25)', edge: '#7a5a38' },
+  { n: 'Bosque', w: ['#10291a', '#245c34'], wp: 'none', f: ['#4f8a3a', '#78b252'], fp: 'grass', ln: 'rgba(20,60,10,.35)', ring: 'rgba(255,255,220,.25)', edge: '#3b2a17', deco: 'trees' },
+  { n: 'Volcán', w: ['#1a0606', '#4a1208'], wp: 'stones', f: ['#2a1410', '#3d1d14'], fp: 'cracks', ln: 'rgba(255,110,30,.8)', ring: 'rgba(255,150,60,.35)', edge: '#140804', deco: 'embers' },
+  { n: 'Glaciar', w: ['#9fd3ef', '#dff4ff'], wp: 'tiles', f: ['#bfe6f7', '#eefaff'], fp: 'ice', ln: 'rgba(80,140,190,.25)', ring: 'rgba(60,120,180,.35)', edge: '#7fb4d4', deco: 'snow' },
+  { n: 'Playa', w: ['#5fb7ff', '#bfe8ff'], wp: 'sky', f: ['#e8cf8f', '#f7e4b0'], fp: 'dots', ln: 'rgba(150,110,40,.35)', ring: 'rgba(255,255,255,.4)', edge: '#c8a764', deco: 'sun' },
+  { n: 'Noche estrellada', w: ['#05061a', '#1b1f4a'], wp: 'sky', f: ['#1d3324', '#2c4a33'], fp: 'grass', ln: 'rgba(0,0,0,.3)', ring: 'rgba(200,220,255,.25)', edge: '#111c14', deco: 'stars' },
+  { n: 'Desierto', w: ['#f2a65a', '#ffd89a'], wp: 'sky', f: ['#d9a35c', '#f0c27e'], fp: 'waves', ln: 'rgba(150,90,30,.3)', ring: 'rgba(255,240,200,.35)', edge: '#a8763a', deco: 'sun' },
+  { n: 'Dojo', w: ['#5a3a20', '#8a5a32'], wp: 'planks', f: ['#c9b27a', '#ddc894'], fp: 'tatami', ln: 'rgba(80,60,20,.35)', ring: 'rgba(160,30,30,.45)', edge: '#4a2e18', deco: 'banners' },
+  { n: 'Castillo', w: ['#2c2c36', '#55556a'], wp: 'bricks', f: ['#6e6e7a', '#8e8e99'], fp: 'tiles', ln: 'rgba(30,30,40,.35)', ring: 'rgba(255,220,120,.3)', edge: '#3a3a44', deco: 'torches' },
+  { n: 'Templo dorado', w: ['#6b4a12', '#b8862a'], wp: 'columns', f: ['#e8dcc0', '#f6efdc'], fp: 'checker', ln: 'rgba(160,130,60,.25)', ring: 'rgba(200,150,40,.5)', edge: '#8a6a2a' },
+  { n: 'Cueva de cristales', w: ['#140a26', '#2e1a4e'], wp: 'stones', f: ['#2a2040', '#3a2c58'], fp: 'dots', ln: 'rgba(180,140,255,.35)', ring: 'rgba(160,220,255,.35)', edge: '#120a20', deco: 'crystals' },
+  { n: 'Pantano', w: ['#1a2a14', '#34482a'], wp: 'waves', f: ['#4a4a2a', '#60603a'], fp: 'mud', ln: 'rgba(30,30,10,.35)', ring: 'rgba(200,220,120,.25)', edge: '#2a2a14', deco: 'bubbles' },
+  { n: 'Neón', w: ['#05020d', '#14082a'], wp: 'neon', f: ['#0a0618', '#120a26'], fp: 'glowgrid', ln: 'rgba(0,240,255,.55)', ring: 'rgba(255,60,200,.7)', edge: '#ff3cc8' },
+  { n: 'Caramelo', w: ['#ff9ccf', '#ffd0e8'], wp: 'stripes', f: ['#fff', '#ffe6f2'], fp: 'checker', ln: 'rgba(255,90,160,.25)', ring: 'rgba(255,90,160,.5)', edge: '#ff6fb0', c2: '#ff7ab8' },
+  { n: 'Fondo del mar', w: ['#03304f', '#0a6a8f'], wp: 'waves', f: ['#c9b07a', '#dcc592'], fp: 'dots', ln: 'rgba(120,90,40,.3)', ring: 'rgba(180,240,255,.35)', edge: '#8a7448', deco: 'bubbles' },
+  { n: 'Entre nubes', w: ['#7cc4ff', '#d8efff'], wp: 'sky', f: ['#f2f6ff', '#ffffff'], fp: 'clouds', ln: 'rgba(120,150,200,.25)', ring: 'rgba(255,210,90,.5)', edge: '#c8d6ee', deco: 'clouds' },
+  { n: 'Otoño', w: ['#6a2c10', '#b0561e'], wp: 'none', f: ['#8a5a2a', '#a8723a'], fp: 'leaves', ln: 'rgba(60,30,10,.3)', ring: 'rgba(255,200,120,.35)', edge: '#4a2a12', deco: 'leaves' },
+  { n: 'Granja', w: ['#7a1e18', '#a83228'], wp: 'planks', f: ['#d9b85a', '#ecd27a'], fp: 'hay', ln: 'rgba(140,100,30,.35)', ring: 'rgba(255,255,255,.35)', edge: '#6a4a1a' },
+  { n: 'Cementerio', w: ['#0c0c1a', '#2a2a40'], wp: 'sky', f: ['#3a3a3a', '#4c4a46'], fp: 'dots', ln: 'rgba(0,0,0,.35)', ring: 'rgba(160,255,160,.2)', edge: '#1e1e1e', deco: 'graves' },
+  { n: 'Espacio', w: ['#000005', '#0a0a24'], wp: 'sky', f: ['#3a3e4a', '#545a68'], fp: 'plates', ln: 'rgba(20,20,30,.5)', ring: 'rgba(120,200,255,.45)', edge: '#22252e', deco: 'planet' },
+  { n: 'Laboratorio', w: ['#c8d4dc', '#eef3f6'], wp: 'tiles', f: ['#d8dde2', '#eceff2'], fp: 'checker', ln: 'rgba(80,100,120,.2)', ring: 'rgba(60,200,120,.5)', edge: '#8a98a4', c2: '#c4cbd2' },
+  { n: 'Selva', w: ['#06200e', '#0f4220'], wp: 'none', f: ['#2f6a24', '#468a34'], fp: 'grass', ln: 'rgba(10,40,5,.4)', ring: 'rgba(255,240,150,.25)', edge: '#2a1c0c', deco: 'vines' },
+  { n: 'Ruinas', w: ['#8a7a5a', '#b8a67e'], wp: 'stones', f: ['#a89a78', '#c2b490'], fp: 'tiles', ln: 'rgba(80,70,40,.35)', ring: 'rgba(255,255,255,.25)', edge: '#6a5c3e', deco: 'columns' },
+  { n: 'Atardecer', w: ['#3a1a5a', '#ff8a4a'], wp: 'sky', f: ['#9a8a3a', '#c2a84a'], fp: 'grass', ln: 'rgba(80,60,10,.3)', ring: 'rgba(255,220,160,.35)', edge: '#5a4a1a', deco: 'sunset' },
+  { n: 'Montaña nevada', w: ['#8fb8e0', '#e4f0fb'], wp: 'sky', f: ['#f4f8ff', '#ffffff'], fp: 'snowfloor', ln: 'rgba(120,150,190,.25)', ring: 'rgba(120,170,230,.4)', edge: '#b8c8de', deco: 'peaks' },
+  { n: 'Mina', w: ['#2a1a0e', '#4a3018'], wp: 'planks', f: ['#5a4430', '#6e5640'], fp: 'dots', ln: 'rgba(30,20,10,.4)', ring: 'rgba(255,200,90,.3)', edge: '#2a1a0c', deco: 'lanterns' },
+  { n: 'Jardín zen', w: ['#f2c6d4', '#ffe8ef'], wp: 'none', f: ['#e6dcc8', '#f2eadb'], fp: 'zen', ln: 'rgba(150,130,100,.4)', ring: 'rgba(150,130,100,.0)', edge: '#a89676', deco: 'sakura' },
+  { n: 'Circo', w: ['#b81e2a', '#e83a3a'], wp: 'stripes', f: ['#f2d27a', '#f8e2a0'], fp: 'rings', ln: 'rgba(200,40,40,.35)', ring: 'rgba(200,40,40,.6)', edge: '#8a1418', c2: '#ffd34a', deco: 'banners' },
+  { n: 'Fábrica', w: ['#2e3238', '#4a5058'], wp: 'tiles', f: ['#5a5e64', '#6e7278'], fp: 'hazard', ln: 'rgba(20,20,20,.4)', ring: 'rgba(255,200,0,.6)', edge: '#2a2c30', deco: 'gears' },
+  { n: 'Pradera de flores', w: ['#6cc0ff', '#cdeeff'], wp: 'sky', f: ['#6db84a', '#8fd06a'], fp: 'flowers', ln: 'rgba(30,80,20,.35)', ring: 'rgba(255,255,255,.35)', edge: '#3e6a24', deco: 'clouds' },
+  { n: 'Arcoíris', w: ['#ff9aa2', '#ffd1a8'], wp: 'rainbow', f: ['#f6f0ff', '#fff8f0'], fp: 'pastel', ln: 'rgba(160,140,200,.25)', ring: 'rgba(255,140,200,.5)', edge: '#c8b0e8' },
+];
+const arnd = i => { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; // azar fijo (siempre el mismo dibujo para la misma arena)
+function drawArena(ctx, ai) {
+  const A = ARENAS[ai | 0] || ARENAS[0], T = performance.now() / 1000;
+  const g0 = TOP, g1 = TOP + ARENA_D * DEPTH, X0 = -40, XW = ARENA_W + 80;
   // muro del fondo: ocupa todo el espacio sobre el suelo (ahí se ven los cuerpos de los que están atrás)
   const wh = Math.ceil(TOP / 20) * 20, wy = g0 - wh;
-  const wg = ctx.createLinearGradient(0, wy, 0, g0); wg.addColorStop(0, '#2a2046'); wg.addColorStop(1, '#4d3c76');
-  ctx.fillStyle = wg; ctx.fillRect(-40, wy, ARENA_W + 80, wh);
+  const wg = ctx.createLinearGradient(0, wy, 0, g0); wg.addColorStop(0, A.w[0]); wg.addColorStop(1, A.w[1]);
+  ctx.fillStyle = wg; ctx.fillRect(X0, wy, XW, wh);
+  ctx.save(); ctx.beginPath(); ctx.rect(X0, wy, XW, wh); ctx.clip();
+  const line = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+  let SG = []; const seg = (x1, y1, x2, y2) => SG.push(x1, y1, x2, y2), flush = () => { if (!SG.length) return; ctx.beginPath(); for (let q = 0; q < SG.length; q += 4) { ctx.moveTo(SG[q], SG[q + 1]); ctx.lineTo(SG[q + 2], SG[q + 3]); } ctx.stroke(); SG = []; }; // líneas juntas en un solo trazo (mucho más rápido en el celular)
   ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 2;
-  for (let r = 0; r < wh / 20; r++) { const y = wy + r * 20; ctx.beginPath(); ctx.moveTo(-40, y); ctx.lineTo(ARENA_W + 40, y); ctx.stroke(); for (let x = -40 + (r % 2) * 25; x < ARENA_W + 40; x += 50) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 20); ctx.stroke(); } }
-  const gg = ctx.createLinearGradient(0, g0, 0, g1); gg.addColorStop(0, '#b8925e'); gg.addColorStop(1, '#e0bd80');
-  ctx.fillStyle = gg; ctx.fillRect(-40, g0, ARENA_W + 80, g1 - g0);
-  ctx.strokeStyle = 'rgba(90,50,20,.12)'; ctx.lineWidth = 1.5;
-  for (let y = 0; y <= ARENA_D; y += 56) { ctx.beginPath(); ctx.moveTo(-40, g0 + y * DEPTH); ctx.lineTo(ARENA_W + 40, g0 + y * DEPTH); ctx.stroke(); }
-  for (let x = 0; x <= ARENA_W; x += 60) { ctx.beginPath(); ctx.moveTo(x, g0); ctx.lineTo(x, g1); ctx.stroke(); }
-  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(ARENA_W / 2, g0 + ARENA_D * DEPTH / 2, 90, 90 * DEPTH, 0, 0, TAU); ctx.stroke();
-  ctx.fillStyle = '#7a5a38'; ctx.fillRect(-40, g1, ARENA_W + 80, 16);
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(-40, g0, ARENA_W + 80, 6);
+  if (A.wp === 'bricks') { for (let r = 0; r < wh / 20; r++) { const y = wy + r * 20; seg(X0, y, ARENA_W + 40, y); for (let x = X0 + (r % 2) * 25; x < ARENA_W + 40; x += 50) seg(x, y, x, y + 20); } flush(); }
+  else if (A.wp === 'planks') { for (let x = X0; x < ARENA_W + 40; x += 34) seg(x, wy, x, g0); flush(); ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); for (let x = X0; x < ARENA_W + 40; x += 34) for (let k = 0; k < 3; k++) { const yy = wy + arnd(x + k) * wh; ctx.moveTo(x + 19, yy); ctx.arc(x + 17, yy, 2, 0, TAU); } ctx.fill(); }
+  else if (A.wp === 'stones') { ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.beginPath(); for (let r = 0; r < wh / 28 + 1; r++) for (let x = X0 + (r % 2) * 22; x < ARENA_W + 40; x += 44) ctx.roundRect(x, wy + r * 28, 36 + arnd(x * 3 + r) * 8, 22, 7); ctx.fill(); ctx.stroke(); }
+  else if (A.wp === 'tiles') { ctx.strokeStyle = 'rgba(0,0,0,.1)'; for (let y = wy; y < g0; y += 30) seg(X0, y, ARENA_W + 40, y); for (let x = X0; x < ARENA_W + 40; x += 30) seg(x, wy, x, g0); flush(); }
+  else if (A.wp === 'stripes' || A.wp === 'rainbow') { const cols = A.wp === 'rainbow' ? ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa'] : [A.c2 || '#fff', 'rgba(255,255,255,0)']; const sw = A.wp === 'rainbow' ? wh / cols.length : 40;
+    if (A.wp === 'rainbow') cols.forEach((c, k) => { ctx.fillStyle = c; ctx.globalAlpha = 0.55; ctx.fillRect(X0, wy + k * sw, XW, sw + 1); }); else for (let x = X0, k = 0; x < ARENA_W + 40; x += sw, k++) { ctx.fillStyle = cols[k % 2]; ctx.globalAlpha = 0.5; ctx.fillRect(x, wy, sw, wh); }
+    ctx.globalAlpha = 1; }
+  else if (A.wp === 'waves') { ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 3; for (let y = wy + 10; y < g0; y += 22) { ctx.beginPath(); for (let x = X0; x <= ARENA_W + 40; x += 10) { const yy = y + Math.sin(x * 0.04 + T * 1.2 + y) * 4; x === X0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy); } ctx.stroke(); } }
+  else if (A.wp === 'neon') { ctx.save(); ctx.shadowBlur = 12; for (let k = 0; k < 3; k++) { ctx.shadowColor = ctx.strokeStyle = ['#00f0ff', '#ff3cc8', '#9d4bff'][k]; ctx.lineWidth = 3; const y = wy + wh * (0.3 + k * 0.22); line(X0, y, ARENA_W + 40, y); } ctx.restore(); }
+  else if (A.wp === 'columns') { for (let x = 20; x < ARENA_W; x += 110) { ctx.fillStyle = 'rgba(255,240,200,.25)'; ctx.fillRect(x, wy, 34, wh); ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x + 26, wy, 8, wh); ctx.fillStyle = 'rgba(255,240,200,.35)'; ctx.fillRect(x - 6, g0 - 14, 46, 14); } }
+  // adornos del fondo
+  const D = A.deco, H = wh;
+  if (D === 'stars' || D === 'planet' || D === 'graves') { for (let k = 0; k < 60; k++) { const a = 0.4 + 0.6 * Math.abs(Math.sin(T * (0.8 + arnd(k) * 2) + k)); ctx.fillStyle = `rgba(255,255,240,${a})`; ctx.fillRect(X0 + arnd(k * 3) * XW, wy + arnd(k * 5 + 1) * H * 0.85, 2, 2); } }
+  if (D === 'stars' || D === 'graves') { ctx.fillStyle = '#fff6d0'; ctx.beginPath(); ctx.arc(ARENA_W * 0.8, wy + H * 0.3, 22, 0, TAU); ctx.fill(); ctx.fillStyle = A.w[0]; ctx.beginPath(); ctx.arc(ARENA_W * 0.8 + 9, wy + H * 0.3 - 5, 19, 0, TAU); ctx.fill(); }
+  if (D === 'planet') { ctx.fillStyle = '#c86a3a'; ctx.beginPath(); ctx.arc(ARENA_W * 0.25, wy + H * 0.4, 38, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(255,220,180,.7)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(ARENA_W * 0.25, wy + H * 0.4, 62, 14, -0.3, 0, TAU); ctx.stroke(); }
+  if (D === 'graves') for (let x = 30; x < ARENA_W; x += 90) { const h = 30 + arnd(x) * 16; ctx.fillStyle = '#5a5a66'; ctx.beginPath(); ctx.roundRect(x, g0 - h, 30, h, [14, 14, 0, 0]); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 13, g0 - h + 8, 4, 14); ctx.fillRect(x + 8, g0 - h + 12, 14, 4); }
+  if (D === 'sun' || D === 'sunset') { const sy = D === 'sunset' ? g0 - 8 : wy + H * 0.3, sx = ARENA_W * (D === 'sunset' ? 0.5 : 0.78); const rg = ctx.createRadialGradient(sx, sy, 5, sx, sy, 90); rg.addColorStop(0, 'rgba(255,240,180,.9)'); rg.addColorStop(1, 'rgba(255,200,120,0)'); ctx.fillStyle = rg; ctx.fillRect(sx - 90, sy - 90, 180, 180); ctx.fillStyle = D === 'sunset' ? '#ffcf70' : '#fff3b0'; ctx.beginPath(); ctx.arc(sx, sy, 26, 0, TAU); ctx.fill(); }
+  if (D === 'clouds' || D === 'sun') for (let k = 0; k < 5; k++) { const x = ((arnd(k) * XW + T * (6 + k * 2)) % (XW + 120)) - 100, y = wy + H * (0.15 + arnd(k + 9) * 0.5); ctx.fillStyle = 'rgba(255,255,255,.75)'; for (const [dx, dy, r] of [[0, 0, 16], [18, -8, 20], [38, 0, 15], [20, 5, 16]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, TAU); ctx.fill(); } }
+  if (D === 'peaks') { ctx.fillStyle = '#9ab4d4'; ctx.beginPath(); ctx.moveTo(X0, g0); for (let x = X0; x <= ARENA_W + 40; x += 80) ctx.lineTo(x + 40, g0 - 40 - arnd(x) * 50), ctx.lineTo(x + 80, g0); ctx.fill(); ctx.fillStyle = '#fff'; for (let x = X0; x <= ARENA_W + 40; x += 80) { const py = g0 - 40 - arnd(x) * 50; ctx.beginPath(); ctx.moveTo(x + 40, py); ctx.lineTo(x + 52, py + 14); ctx.lineTo(x + 28, py + 14); ctx.fill(); } }
+  if (D === 'trees' || D === 'vines') for (let x = X0; x < ARENA_W + 40; x += 46) { const h = H * (0.5 + arnd(x) * 0.4); if (D === 'trees') { ctx.fillStyle = 'rgba(8,30,14,.7)'; ctx.beginPath(); ctx.moveTo(x, g0); ctx.lineTo(x + 23, g0 - h); ctx.lineTo(x + 46, g0); ctx.fill(); } else { ctx.strokeStyle = 'rgba(60,140,50,.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 10, wy); for (let y = wy; y < wy + h; y += 8) ctx.lineTo(x + 10 + Math.sin(y * 0.15 + T + x) * 5, y); ctx.stroke(); ctx.fillStyle = 'rgba(80,170,60,.8)'; for (let y = wy + 12; y < wy + h; y += 18) { ctx.beginPath(); ctx.ellipse(x + 15 + Math.sin(y * 0.15 + T + x) * 5, y, 6, 3, 0.5, 0, TAU); ctx.fill(); } } }
+  if (D === 'torches' || D === 'lanterns') for (let x = 70; x < ARENA_W; x += 160) { const y = wy + H * 0.45, fl = 1 + Math.sin(T * 14 + x) * 0.12 + Math.sin(T * 9 + x * 2) * 0.08; const rg = ctx.createRadialGradient(x, y, 2, x, y, 60 * fl); rg.addColorStop(0, 'rgba(255,200,90,.55)'); rg.addColorStop(1, 'rgba(255,150,40,0)'); ctx.fillStyle = rg; ctx.fillRect(x - 60, y - 60, 120, 120);
+    if (D === 'torches') { ctx.fillStyle = '#4a3020'; ctx.fillRect(x - 3, y, 6, 22); ctx.fillStyle = '#ffb030'; ctx.beginPath(); ctx.ellipse(x, y - 4, 6 * fl, 11 * fl, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff2a0'; ctx.beginPath(); ctx.ellipse(x, y - 1, 3, 6 * fl, 0, 0, TAU); ctx.fill(); }
+    else { ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5; line(x, wy, x, y - 10); ctx.fillStyle = '#ffd070'; ctx.beginPath(); ctx.roundRect(x - 7, y - 10, 14, 18, 4); ctx.fill(); ctx.strokeRect(x - 7, y - 10, 14, 18); } }
+  if (D === 'banners') for (let x = 40; x < ARENA_W; x += 120) { ctx.fillStyle = arnd(x) < 0.5 ? '#c8282a' : '#e8b030'; const sw = Math.sin(T * 1.5 + x) * 3; ctx.beginPath(); ctx.moveTo(x, wy + 6); ctx.lineTo(x + 36, wy + 6); ctx.lineTo(x + 36 + sw, wy + H * 0.55); ctx.lineTo(x + 18 + sw, wy + H * 0.45); ctx.lineTo(x + sw, wy + H * 0.55); ctx.fill(); }
+  if (D === 'crystals') for (let x = X0; x < ARENA_W + 40; x += 40) { const h = 20 + arnd(x) * 50, c = ['#9d7bff', '#6fd8ff', '#ff8be8'][Math.floor(arnd(x + 3) * 3)], gl = 0.6 + 0.4 * Math.sin(T * 2 + x); ctx.globalAlpha = gl; ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x + 6, g0); ctx.lineTo(x + 14, g0 - h); ctx.lineTo(x + 22, g0); ctx.fill(); ctx.globalAlpha = 1; }
+  if (D === 'columns') for (let x = 40; x < ARENA_W; x += 150) { const h = H * (0.4 + arnd(x) * 0.5); ctx.fillStyle = 'rgba(220,205,170,.8)'; ctx.fillRect(x, g0 - h, 28, h); ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.fillRect(x + 20, g0 - h, 8, h); }
+  if (D === 'gears') for (let k = 0; k < 4; k++) { const x = 60 + k * (ARENA_W / 4), y = wy + H * (0.35 + (k % 2) * 0.2), r = 22 + (k % 2) * 10, a = T * (k % 2 ? -0.6 : 0.8); ctx.fillStyle = 'rgba(140,145,155,.6)'; ctx.beginPath(); for (let t = 0; t < 16; t++) { const rr = t % 2 ? r : r + 7, aa = a + t * Math.PI / 8; ctx.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr); } ctx.fill(); ctx.fillStyle = A.w[1]; ctx.beginPath(); ctx.arc(x, y, r * 0.35, 0, TAU); ctx.fill(); }
+  if (D === 'sakura') { ctx.fillStyle = 'rgba(90,50,40,.8)'; ctx.fillRect(ARENA_W * 0.15, g0 - H * 0.6, 10, H * 0.6); ctx.fillStyle = 'rgba(255,170,200,.8)'; for (let k = 0; k < 9; k++) { ctx.beginPath(); ctx.arc(ARENA_W * 0.15 + (arnd(k) - 0.5) * 120, g0 - H * 0.6 + (arnd(k + 4) - 0.5) * 50, 22, 0, TAU); ctx.fill(); } }
+  ctx.restore();
+  // suelo
+  const gg = ctx.createLinearGradient(0, g0, 0, g1); gg.addColorStop(0, A.f[0]); gg.addColorStop(1, A.f[1]);
+  ctx.fillStyle = gg; ctx.fillRect(X0, g0, XW, g1 - g0);
+  ctx.save(); ctx.beginPath(); ctx.rect(X0, g0, XW, g1 - g0); ctx.clip();
+  const F = A.fp, fh = g1 - g0; ctx.strokeStyle = A.ln; ctx.lineWidth = 1.5;
+  if (F === 'grid' || F === 'glowgrid') { if (F === 'glowgrid') { ctx.shadowBlur = 8; ctx.shadowColor = A.ln; } for (let y = 0; y <= ARENA_D; y += 56) seg(X0, g0 + y * DEPTH, ARENA_W + 40, g0 + y * DEPTH); for (let x = 0; x <= ARENA_W; x += 60) seg(x, g0, x, g1); flush(); ctx.shadowBlur = 0; }
+  else if (F === 'tiles' || F === 'plates') { for (let y = 0; y <= ARENA_D; y += 70) seg(X0, g0 + y * DEPTH, ARENA_W + 40, g0 + y * DEPTH); for (let r = 0; r * 70 <= ARENA_D; r++) for (let x = (r % 2) * 40; x <= ARENA_W + 40; x += 80) seg(x, g0 + r * 70 * DEPTH, x, g0 + (r + 1) * 70 * DEPTH); flush(); if (F === 'plates') { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let r = 0; r * 70 <= ARENA_D; r++) for (let x = (r % 2) * 40; x <= ARENA_W; x += 80) { ctx.beginPath(); ctx.arc(x + 6, g0 + r * 70 * DEPTH + 5, 1.8, 0, TAU); ctx.fill(); } } }
+  else if (F === 'checker' || F === 'pastel') { const cs = 60, pc = ['#ffc8dd', '#bde0fe', '#caffbf', '#fdffb6', '#e0c3fc']; for (let r = 0; r * cs < ARENA_D; r++) for (let c = -1; c * cs < ARENA_W + 40; c++) { if (F === 'pastel') { ctx.fillStyle = pc[((r + c) % 5 + 5) % 5]; ctx.globalAlpha = 0.6; } else { if ((r + c) % 2) continue; ctx.fillStyle = A.c2 || 'rgba(0,0,0,.08)'; ctx.globalAlpha = A.c2 ? 0.45 : 1; } ctx.fillRect(c * cs, g0 + r * cs * DEPTH, cs, cs * DEPTH + 0.5); } ctx.globalAlpha = 1; }
+  else if (F === 'grass') { for (let k = 0; k < 160; k++) { const x = X0 + arnd(k) * XW, y = g0 + arnd(k + 400) * fh, h = 4 + arnd(k + 800) * 5, sw = Math.sin(T * 1.6 + k) * 1.5; seg(x, y, x - 2 + sw, y - h); seg(x, y, x + 2 + sw, y - h); } ctx.strokeStyle = A.ln; flush(); }
+  else if (F === 'dots' || F === 'mud' || F === 'leaves' || F === 'snowfloor') { const n = F === 'leaves' ? 90 : 140; for (let k = 0; k < n; k++) { const x = X0 + arnd(k * 7) * XW, y = g0 + arnd(k * 11 + 3) * fh; if (F === 'leaves') { ctx.fillStyle = ['#d9622a', '#e8a030', '#b8401e', '#c88a2a'][k % 4]; ctx.fillRect(x - 4, y - 2, 8, 4); } else if (F === 'snowfloor') { ctx.fillStyle = 'rgba(160,190,230,.35)'; ctx.beginPath(); ctx.ellipse(x, y, 6, 2, 0, 0, TAU); ctx.fill(); } else { ctx.fillStyle = F === 'mud' ? 'rgba(30,30,10,.3)' : A.ln; ctx.beginPath(); ctx.ellipse(x, y, F === 'mud' ? 9 : 1.6, F === 'mud' ? 3 : 1.6, 0, 0, TAU); ctx.fill(); } } }
+  else if (F === 'cracks') { ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = '#ff6a1a'; ctx.lineWidth = 2.5; const gl = 0.6 + 0.4 * Math.sin(T * 2); ctx.globalAlpha = gl; for (let k = 0; k < 14; k++) { let x = arnd(k) * ARENA_W, y = g0 + arnd(k + 50) * fh; ctx.beginPath(); ctx.moveTo(x, y); for (let s2 = 0; s2 < 5; s2++) { x += (arnd(k * 9 + s2) - 0.5) * 50; y += (arnd(k * 13 + s2) - 0.5) * 18; ctx.lineTo(x, y); } ctx.stroke(); } ctx.restore(); }
+  else if (F === 'ice') { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; for (let k = 0; k < 10; k++) { const x = arnd(k) * ARENA_W, y = g0 + arnd(k + 20) * fh; line(x, y, x + 30, y - 6); } for (let y = 0; y <= ARENA_D; y += 90) { ctx.strokeStyle = A.ln; line(X0, g0 + y * DEPTH, ARENA_W + 40, g0 + y * DEPTH); } }
+  else if (F === 'waves' || F === 'zen') { const sp = F === 'zen' ? 14 : 26; ctx.lineWidth = F === 'zen' ? 1.5 : 2; for (let y = g0 + 6; y < g1; y += sp * DEPTH * 1.6) { ctx.beginPath(); for (let x = X0; x <= ARENA_W + 40; x += 12) { const yy = y + Math.sin(x * (F === 'zen' ? 0.02 : 0.03) + y * 0.1) * (F === 'zen' ? 2 : 4); x === X0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy); } ctx.stroke(); }
+    if (F === 'zen') for (const [cx, cy, r] of [[ARENA_W * 0.22, 0.3, 26], [ARENA_W * 0.8, 0.7, 20]]) { const y = g0 + cy * fh; ctx.fillStyle = A.f[0]; ctx.beginPath(); ctx.ellipse(cx, y, r + 18, (r + 18) * DEPTH, 0, 0, TAU); ctx.fill(); for (let k = 3; k >= 1; k--) { ctx.beginPath(); ctx.ellipse(cx, y, r + k * 6, (r + k * 6) * DEPTH, 0, 0, TAU); ctx.stroke(); } ctx.fillStyle = '#7a7268'; ctx.beginPath(); ctx.ellipse(cx, y - 6, r, r * 0.6, 0, 0, TAU); ctx.fill(); } }
+  else if (F === 'tatami') { ctx.lineWidth = 3; for (let y = 0; y <= ARENA_D; y += 120) seg(X0, g0 + y * DEPTH, ARENA_W + 40, g0 + y * DEPTH); for (let r = 0; r * 120 <= ARENA_D; r++) for (let x = (r % 2) * 60; x <= ARENA_W + 40; x += 120) seg(x, g0 + r * 120 * DEPTH, x, g0 + (r + 1) * 120 * DEPTH); flush(); }
+  else if (F === 'flowers') { for (let k = 0; k < 110; k++) { const x = X0 + arnd(k) * XW, y = g0 + arnd(k + 400) * fh, sw = Math.sin(T * 1.6 + k) * 1.2; ctx.strokeStyle = A.ln; line(x, y, x + sw, y - 6); if (k % 2) { ctx.fillStyle = ['#ff6b9a', '#ffd43b', '#fff', '#b98cff'][k % 4]; ctx.beginPath(); ctx.arc(x + sw, y - 7, 2.6, 0, TAU); ctx.fill(); } } }
+  else if (F === 'hay') { ctx.strokeStyle = 'rgba(160,120,30,.5)'; for (let k = 0; k < 200; k++) { const x = X0 + arnd(k) * XW, y = g0 + arnd(k + 300) * fh, a = arnd(k + 600) * 3; seg(x, y, x + Math.cos(a) * 8, y + Math.sin(a) * 3); } flush(); }
+  else if (F === 'clouds') { ctx.fillStyle = 'rgba(200,215,240,.35)'; for (let k = 0; k < 20; k++) { const x = X0 + arnd(k) * XW, y = g0 + arnd(k + 70) * fh; ctx.beginPath(); ctx.ellipse(x, y, 30, 8, 0, 0, TAU); ctx.fill(); } }
+  else if (F === 'rings') { ctx.lineWidth = 3; for (let k = 1; k <= 4; k++) { ctx.beginPath(); ctx.ellipse(ARENA_W / 2, g0 + fh / 2, 90 * k, 90 * k * DEPTH, 0, 0, TAU); ctx.stroke(); } }
+  else if (F === 'hazard') { for (const y of [g0 + 4, g1 - 14]) for (let x = X0; x < ARENA_W + 40; x += 24) { ctx.fillStyle = '#f2c200'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 12, y); ctx.lineTo(x + 22, y + 10); ctx.lineTo(x + 10, y + 10); ctx.fill(); } for (let y = 0; y <= ARENA_D; y += 80) line(X0, g0 + y * DEPTH, ARENA_W + 40, g0 + y * DEPTH); }
+  ctx.restore();
+  if (D === 'embers' || D === 'snow' || D === 'bubbles' || D === 'leaves' || D === 'sakura') { // partículas que caen o suben por toda la arena
+    for (let k = 0; k < 40; k++) { const sp = 20 + arnd(k) * 40, up = D === 'embers' || D === 'bubbles', span = g1 - wy + 40; let y = (arnd(k + 1) * span + T * sp) % span; y = up ? g1 - y : wy - 20 + y; const x = X0 + ((arnd(k + 2) * XW + Math.sin(T + k) * 12) % XW);
+      if (D === 'embers') { ctx.fillStyle = `rgba(255,${120 + k % 80},40,${0.5 + 0.5 * Math.sin(T * 5 + k)})`; ctx.fillRect(x, y, 2.5, 2.5); }
+      else if (D === 'snow') { ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(x, y, 1.5 + arnd(k) * 1.5, 0, TAU); ctx.fill(); }
+      else if (D === 'bubbles') { ctx.strokeStyle = 'rgba(200,240,255,.5)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 2 + arnd(k) * 4, 0, TAU); ctx.stroke(); }
+      else { ctx.fillStyle = D === 'sakura' ? 'rgba(255,170,200,.85)' : ['#d9622a', '#e8a030', '#b8401e'][k % 3]; ctx.beginPath(); ctx.ellipse(x, y, 4, 2, T * 2 + k, 0, TAU); ctx.fill(); } } }
+  if (A.ring) { ctx.strokeStyle = A.ring; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(ARENA_W / 2, g0 + ARENA_D * DEPTH / 2, 90, 90 * DEPTH, 0, 0, TAU); ctx.stroke(); }
+  ctx.fillStyle = A.edge; ctx.fillRect(X0, g1, XW, 16);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(X0, g0, XW, 6);
 }
 
 // ============================================================================
@@ -3231,14 +3507,13 @@ const STAGE_NAME = { egg: 'Huevo', baby: 'Bebé', child: 'Niño', teen: 'Adolesc
 const STAGE_ORDER = ['egg', 'baby', 'child', 'teen', 'adult', 'awakened'];
 const MAX_LIVES = 5; // eran 3 (pedido del dueño: 5); BATTERED_LIVES = desde cuántos para abajo se ve machacado
 const BATTERED_LIVES = 2, ENERGETIC_LIVES = 5; // con 5 corazones se ve energético (ojos brillantes y saltitos)
-const REST_MS = 10 * 60 * 1000;   // descanso al quedarse sin vidas
-const HEART_MS = 5 * 60 * 1000;   // recupera 1 corazón cada 5 min (si le queda al menos uno)
-const HEAL_COST = { baby: 20, child: 30, teen: 40, adult: 50, awakened: 60 }; // monedas para curar al instante (sube con la etapa)
-const healCost = rec => HEAL_COST[rec.stage] || 30;
-const EGG_COST = 60;              // monedas para comprar un huevo en un espacio libre (el primero de una partida nueva viene gratis)
+const REST_MS = 5 * 60 * 1000;    // descanso al quedarse sin vidas (pedido del dueño; antes 10 min)
+const HEART_MS = 2 * 60 * 1000;   // recupera 1 corazón cada 2 min (si le queda al menos uno; pedido del dueño, antes 5 min)
+const EGG_COST = 80;              // monedas para comprar un huevo en un espacio libre (el primero de una partida nueva viene gratis)
 // [XP, monedas] por posición, según cuántos equipos pelean. Cada K.O. suma +10 XP y +5 monedas.
 // [XP, monedas] por puesto en cada modo (en 2 vs 2 cada monstruo tuyo recibe el suyo, por eso paga menos)
-const REWARDS = { '1v1': [[60, 25], [20, 10]], '2v2': [[45, 15], [15, 5]], ffa: [[80, 40], [50, 25], [30, 15], [15, 5]] };
+const REWARDS = { '1v1': [[60, 12], [20, 4]], '2v2': [[45, 8], [15, 2]], ffa: [[80, 20], [50, 12], [30, 6], [15, 2]] }; // [XP, monedas]; monedas a la mitad (pedido del dueño: se ganaban demasiadas), XP igual
+const KO_XP = 10, KO_COINS = 2;
 const PLACE_NAME = ['1.er lugar', '2.º lugar', '3.er lugar', '4.º lugar', '5.º lugar', '6.º lugar', '7.º lugar', '8.º lugar'];
 const hearts = n => `<span class="hearts">${'♥'.repeat(n)}${'♡'.repeat(MAX_LIVES - n)}</span>`;
 const resting = rec => (rec.restUntil && Date.now() < rec.restUntil) || napping(rec);
@@ -3260,7 +3535,8 @@ function wakeUp() {
 }
 const hmm = ms => { const t = Math.ceil(ms / 60000); return t >= 60 ? `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min` : mmss(ms); }; // 2 h 05 min / 4:32
 const mmss = ms => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que crece a cada etapa
+const STAGE_LV = { child: 5, teen: 10, adult: 15, awakened: 30 }; // nivel en que crece a cada etapa (pedido del dueño; antes 3 / 5 / 8 / 12)
+const MAX_LEVEL = 30; // nivel máximo (= Awakened)
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
@@ -3282,6 +3558,13 @@ function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY)
         if (m.genes && m.genes.ears && !m.genes.antennae) m.genes.antennae = m.genes.ears;
         if (m.geneLock && m.geneLock.ears && !m.geneLock.antennae) m.geneLock.antennae = true;
       });
+      if (!s.breed1h) { const now = Date.now(); [...(s.monsters || []), ...(s.barn || [])].forEach(m => { if (m && m.readyAt > now + 3600e3) m.readyAt = now + 3600e3; if (m && m.napUntil > now + 15 * 60e3) m.napUntil = now + 15 * 60e3; }); s.breed1h = true; } // incubación 1 h y siesta 15 min: los que esperaban más, se acortan
+      if (!s.lv30) { // etapas nuevas (pedido del dueño): niño 5, adolescente 10, adulto 15, Awakened 30 (= nivel máximo); cada uno pasa al nivel equivalente de su etapa, sin cambiar de etapa
+        const OLD = { baby: [1, 3], child: [3, 5], teen: [5, 8], adult: [8, 12] }, NEW = { baby: [1, 5], child: [5, 10], teen: [10, 15], adult: [15, 30] };
+        [...(s.monsters || []), ...(s.barn || [])].forEach(m => { if (!m || m.stage === 'egg' || !(m.level >= 1)) return;
+          if (m.stage === 'awakened') m.level = 30; else if (OLD[m.stage]) { const [a, b] = OLD[m.stage], [c, d] = NEW[m.stage]; m.level = Math.min(d - 1, c + Math.floor((Math.min(m.level, b - 1) - a) * (d - c) / (b - a))); }
+          if (m.level >= 30) { m.level = 30; m.xp = 0; } else m.xp = Math.min(m.xp || 0, 60 + m.level * 40 - 1); });
+        s.lv30 = true; }
       if (!s.lives5) { s.monsters.forEach(m => { if (!m.restUntil) m.lives = Math.min(MAX_LIVES, (m.lives ?? 3) + 2); }); s.lives5 = true; } // de 3 a 5 corazones: +2 a cada uno
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = Math.max(5, m.gen || 0); delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true, v6: m.genes[k].v6 || false }; }); // (los gen 6 siguen siendo gen 6)
@@ -3393,7 +3676,7 @@ function drawFxParts(ctx) {
     ctx.restore();
   }
 }
-function heartFx(x, y) { fx.parts.push({ heart: true, x, y, vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 30, rot: 0, vr: 0, life: 1.3, col: '#ff7aa2', r: 5 + Math.random() * 3, ph: Math.random() * TAU }); }
+function heartFx(x, y) { SFX.heart(); fx.parts.push({ heart: true, x, y, vx: (Math.random() - 0.5) * 30, vy: -50 - Math.random() * 30, rot: 0, vr: 0, life: 1.3, col: '#ff7aa2', r: 5 + Math.random() * 3, ph: Math.random() * TAU }); }
 function fxStep(dt) {
   for (const q of fx.parts) if (q.heart) { q.x += (q.vx + Math.sin(q.life * 6 + q.ph) * 25) * dt; q.y += q.vy * dt; q.life -= dt; }
   for (const q of fx.parts) { if (q.heart) continue; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 700 * dt; q.rot += q.vr * dt; q.life -= dt; if (q.y > 0) { q.y = 0; q.vy *= -0.3; q.vx *= 0.7; } }
@@ -3901,7 +4184,7 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 function ranchTap(x, y, act) {
   const a = act !== undefined ? act : ranchHit(x, y), B = RANCH.barnHit;
   if (B && x > B.x0 && x < B.x1 && y > B.y0 && y < B.y1 && (!a || a.hit.depth < B.depth)) { enterBarn(); return; } // el granero (si no hay un monstruo delante)
-  if (a) ranchZoomTo(a);
+  if (a) { SFX.click(); ranchZoomTo(a); }
 }
 // Caricia en el rancho: frotar sobre el monstruo
 // Al pedir cariño: los mismos corazones de la caricia repartidos por la cabeza y el efecto de acariciado (cara de amor y la cabeza se mece como bajo la mano)
@@ -3948,7 +4231,7 @@ function ranchPet(a, x, y, dist) {
     for (const n of m.nodes) { const dd = Math.hypot(n.x - B.x, n.y - B.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } }
   }
   RANCH.petAcc = (RANCH.petAcc || 0) + dist;
-  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
+  if (RANCH.petAcc > 40) { RANCH.petAcc = 0; SFX.heart(); RANCH.parts.push(S ? { a, x: x - S.X, y: y - 10 - S.Y, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' } : { x, y: y - 10, vx: (Math.random() - 0.5) * 30, vy: -70, life: 1.1, k: 'heart' }); }
   const rec = a.rec, fresh = !(rec.happyUntil > Date.now() + PET_HAPPY_MS - 3000); treat(rec, 'pet');
   rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy'; if (fresh) persist(); // queda feliz un rato
 }
@@ -4039,9 +4322,9 @@ function renderHome() {
     show.baseEmo = baseEmoFor(rec); show.battered = isBattered(rec);
     if (homePage === 2) setTimeout(renderTrain);
     edgeLabels(ptsTotal(rec.level) - ptsUsed(rec.pts));
-    $('rest').hidden = !resting(rec) || (napping(rec) && !(rec.restUntil > Date.now())); updateRest();
+    $('rest').hidden = true;
     $('hint').hidden = true; $('mName').textContent = rec.name; updateSub(); $('stats').innerHTML = '';
-    $('homePanel').style.visibility = $('rest').hidden ? 'hidden' : ''; // sin botones de pelea: el panel sólo aparece si hay que curarlo
+    $('homePanel').style.visibility = 'hidden'; // sin botones de pelea en el granero
     return;
   }
   $('home').classList.remove('barnctx'); $('homePanel').style.visibility = '';
@@ -4066,7 +4349,7 @@ function renderHome() {
   document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : !canFight(rec));
   $('coins').textContent = save.coins;
   { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); edgeLabels(free); }
-  $('rest').hidden = !resting(rec) || (napping(rec) && !(rec.restUntil > Date.now())); // durmiendo: la cuenta va arriba del monstruo
+  $('rest').hidden = true; // durmiendo: la cuenta va abajo a la derecha (ya no hay botón para curarlo con monedas, pedido del dueño)
   updateRest();
   $('hint').textContent = 'toca el huevo para que nazca'; $('hint').hidden = !isEgg; // sólo se muestra con el huevo
   if (isEgg) {
@@ -4094,21 +4377,7 @@ function updateSub() {
   $('cTime').innerHTML = zz ? `💤 ${mmss(zz - Date.now())}` : '';
   $('cIdx').textContent = barnCtx ? `${barnCtx.i + 1}/${BARN_MAX}` : `${save.sel + 1}/${Math.max(slotCap(), save.monsters.length)}`;
 }
-function updateRest() {
-  const rec = cur();
-  if (!resting(rec)) return;
-  const nap = napping(rec) && !(rec.restUntil > Date.now());
-  if (nap) return; // la cuenta regresiva se dibuja en grande arriba de él (sólo queda el botón de curar cuando descansa sin vidas)
-  $('rest').classList.add('only'); $('restTxt').textContent = '';
-  $('btnHeal').textContent = `Curar ya · ${healCost(rec)}`;
-  $('btnHeal').disabled = save.coins < healCost(rec);
-}
-$('btnHeal').onclick = () => {
-  const rec = cur();
-  if (save.coins < healCost(rec) || !(rec.restUntil > Date.now())) return;
-  save.coins -= healCost(rec); delete rec.restUntil; rec.lives = MAX_LIVES; persist();
-  renderHome(); show.vz = 260; celebrate('¡Vidas recuperadas!', '#ff8a96');
-};
+function updateRest() { } // (ya no se puede curar con monedas: sin vidas sólo le queda esperar; pedido del dueño)
 // Páginas del menú: 0 = Tienda (huevos y ultimates), 1 = Home (el monstruo), 2 = Estadísticas. Criar se hace desde un espacio libre del Home
 let homePage = 1;
 // Criar se desbloquea (para siempre) cuando tienes 2 monstruos Awakened
@@ -4135,18 +4404,21 @@ const firstEgg = () => save.monsters.length > 0 && save.monsters.every(m => m.st
 function nudgeEgg() { if (egg) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 4; egg.sq = 0.1; } fx.label = '¡Primero ábreme!'; fx.labelT = 1.4; }
 // Orden en pantalla: Tienda / Rancho / Estadísticas (en el rancho no se baja a Estadísticas; de cerca, subir vuelve al rancho)
 const visPage = n => n; // mismo orden siempre: Tienda / Rancho o monstruo de cerca / Estadísticas (de cerca, arriba se vuelve al rancho)
-let shopTab = 0; // Tienda: 0 = Ultimates, 1 = Genes (se desliza a los lados, pedido del dueño)
+let shopTab = 0; // Tienda: 0 = Ultimates, 1 = Genes, 2 = Arenas (se desliza a los lados, pedido del dueño)
 function setShopTab(n) {
-  shopTab = Math.max(0, Math.min(1, n)); $('shopTrack').style.transform = `translateX(${-100 * shopTab}%)`;
+  if (Math.max(0, Math.min(2, n)) !== shopTab) SFX.thud(); // cambiar de pestaña (también deslizando): el golpe de madera del granero (pedido del dueño)
+  shopTab = Math.max(0, Math.min(2, n)); $('shopTrack').style.transform = `translateX(${-100 * shopTab}%)`;
   $('shopTabs').querySelector('i').style.transform = `translateX(${100 * shopTab}%)`;
   $('shopTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.stab === shopTab));
 }
+document.querySelectorAll('#shopTabs button').forEach(b => b.classList.add('nosnd'));
 document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => setShopTab(+b.dataset.stab));
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
   if (n === 2 && homeEmpty != null) return; // los espacios libres no aparecen en Estadísticas
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
+  if (n !== homePage) SFX.thud(); // entrar y salir de la Tienda y Estadísticas: el sonido del granero (pedido del dueño) // Tienda y Estadísticas: el golpe de madera del granero (pedido del dueño)
   homePage = n; $('track').style.transform = `translateY(${-100 / 3 * visPage(n)}%)`;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', +b.dataset.page === n));
   if (n === 2) renderTrain();
@@ -4158,7 +4430,7 @@ function edgeLabels(free) {
   t.textContent = ranchMode ? '▲ Tienda' : barnCtx ? '▲ Granero' : '▲ Rancho';
   b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else toRanch(); };
+$('lblTop').onclick = () => { if (ranchMode) setPage(0); else { SFX.thud(); toRanch(); } }; // deseleccionar: el sonido del granero (pedido del dueño)
 $('lblBot').onclick = () => setPage(2);
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
@@ -4180,7 +4452,7 @@ function swipeEnd(x, y) {
     const v = visPage(homePage) + (dy < 0 ? 1 : -1); // posición en pantalla a la que se va (dedo arriba = la de abajo)
     if (v < 0 || v > 2 || (dy < 0 && !sw.bot) || (dy > 0 && !sw.top)) return;
     swipedAt = performance.now();
-    if (!ranchMode && homePage === 1 && v === 0) toRanch(); // de cerca, deslizar el dedo hacia abajo vuelve al rancho (arriba)
+    if (!ranchMode && homePage === 1 && v === 0) { SFX.thud(); toRanch(); } // de cerca, deslizar el dedo hacia abajo vuelve al rancho (arriba)
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if (homePage === 0 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { // Tienda: a los lados cambia de pestaña
     swipedAt = performance.now(); setShopTab(shopTab + (dx < 0 ? 1 : -1));
@@ -4208,6 +4480,7 @@ function switchMonster(d, nb) { // de cerca recorre también los espacios libres
   const pf = RANCH.actors[homeEmpty ?? save.sel], prevFocus = pf ? { a: pf, x: pf.x, z: pf.z } : null;
   const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
+  SFX.thud(); // cambiar de monstruo (de cerca o en Estadísticas): el sonido del granero (pedido del dueño)
   fx.parts = []; // corazones y chispas del anterior no pasan al siguiente
   fightMenu(false); persist(); renderHome(); checkGrowth();
   if (scene !== 'home' || growAnim) return;
@@ -4229,7 +4502,7 @@ function renderTrain() {
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const mon = show && show.rec === rec ? show : new Monster(rec), free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = mon.st;
-  let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div></div>`
+  let h = rec.level >= MAX_LEVEL ? `<div class="tsec"><div class="xp"><span>Nivel máximo</span><div class="bar"><i style="width:100%"></i></div></div>` : `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '')
     + `</div>`; // (la moral se ve arriba al seleccionar al monstruo, pedido del dueño)
@@ -4237,7 +4510,7 @@ function renderTrain() {
   h += PTS.map((t, i) => { const n = rec.pts[t.k] || 0, [, fn, mx] = MAIN_DEF[i], v = fn(st); return `<div class="trow">
       <div class="tl">${t.name}${statPerfect(mon.g, t.k) ? '<i class="pstar" title="Stat perfecto">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${n}/${PTS_MAX} puntos</small></div>
       <button class="btn tbtn" data-pt="${t.k}" ${!free || n >= PTS_MAX ? 'disabled' : ''}>+1</button>
-      <div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div>
+      <div class="bar"><i style="width:${Math.max(3, n / PTS_MAX * 100)}%"></i></div>
       <div class="tdesc">${t.desc}</div></div>`; }).join('');
   h += `<button class="btn respec" id="respec" ${ptsUsed(rec.pts) && save.coins >= RESPEC_COST ? '' : 'disabled'}>Reiniciar puntos · ${RESPEC_COST}</button></div>`;
   if (canUlt(rec.stage)) { // sin textos explicativos (pedido del dueño); antes de Adolescente no se muestra la sección
@@ -4259,7 +4532,7 @@ function renderTrain() {
   $('respec').onclick = async () => {
     if (!await ask(`¿Reiniciar los puntos de ${rec.name}? Cuesta ${RESPEC_COST} monedas y podrás repartirlos de nuevo.`, { ok: 'Reiniciar' })) return;
     if (save.coins < RESPEC_COST) return;
-    save.coins -= RESPEC_COST; rec.pts = {}; persist(); renderHome(); renderTrain();
+    save.coins -= RESPEC_COST; SFX.coin(); rec.pts = {}; persist(); renderHome(); renderTrain();
   };
 }
 // Medidor de táctica: se toca o arrastra y queda en el número más cercano; al soltar se guarda
@@ -4307,13 +4580,13 @@ function updateEggSub() {
 function tapEgg() {
   const rec = cur();
   if (rec.readyAt > Date.now()) { egg.vt += (Math.random() < 0.5 ? -1 : 1) * 3; egg.sq = 0.08; fx.label = `Incubando · ${hmm(rec.readyAt - Date.now())}`; fx.labelT = 1.4; return; } // todavía incubando
-  rec.taps = (rec.taps || 0) + 1;
+  rec.taps = (rec.taps || 0) + 1; SFX.tap();
   egg.vt += (Math.random() < 0.5 ? -1 : 1) * (5 + rec.taps * 0.8); egg.sq = 0.12;
   burst((Math.random() - 0.5) * 30, -egg.h * (0.4 + Math.random() * 0.4), 3, hsl(egg.pal.body, 24), 160, [2, 3.5]);
   if (rec.taps < (rec.need || 6)) { persist(); updateEggSub(); return; }
   // ¡nace!
   const shell = hsl(egg.pal.body, 24), spot = hsl(egg.pal.accent);
-  rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
+  SFX.hatch(); rec.stage = 'baby'; delete rec.taps; delete rec.need; delete rec.readyAt; delete rec.foeOf; persist();
   burst(0, -35, 14, shell, 300, [4, 8]); burst(0, -35, 6, spot, 260, [3, 6]);
   if (barnCtx) { const nit = BARN.ms[barnCtx.i] = barnItem(rec); nit.m.sleep = false; nit.m.sitting = false; nit.settle = true; } // en el granero: nace en su cama
   renderHome();
@@ -4337,11 +4610,11 @@ function nameNewborn(rec) {
 $('nameBox').onclick = async () => {
   if (homeEmpty != null || cur().stage === 'egg') return; const n = await ask('Nombre del monstruo', { input: cur().name, ok: 'Guardar' }); if (n && n.trim()) { cur().name = n.trim().slice(0, 16); persist(); renderHome(); } };
 // Tienda: sólo ultimates (los huevos se compran en un espacio libre del Home)
-function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); } // las monedas ya se ven arriba
+function renderAdopt() { $('aSub').textContent = ''; renderShopUlts(false); renderShopGenes(); renderShopArenas(); } // las monedas ya se ven arriba
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 // ---------- Criadero: cruzar dos Awakened ----------
-const BREED_COST = 150, BREED_NAP_MS = 30 * 60 * 1000, INCUBATE_MS = 3 * 60 * 60 * 1000, BREED_MUTATION = 0.1;
-const INCUBATE_FIGHT_MS = 2 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
+const BREED_COST = 200, BREED_NAP_MS = 15 * 60 * 1000, INCUBATE_MS = 60 * 60 * 1000, BREED_MUTATION = 0.1; // (pedido del dueño: antes 30 min de siesta y 3 h de incubación)
+const INCUBATE_FIGHT_MS = 3 * 60 * 1000; // cada pelea ganada adelanta la incubación del huevo del Criadero
 let breedSel = new Set();
 function makeChild(A, B) {
   const rec = newRec('egg'), origin = (P, grp) => (P.genes && P.genes[grp]) || { seed: P.seed, legacy: !!P.legacy, v3: (P.gen || 0) >= 3, v4: (P.gen || 0) >= 4, v5: (P.gen || 0) >= 5, v6: (P.gen || 0) >= 6 ? P.gen : 0 };
@@ -4384,7 +4657,7 @@ function openBreedPick() {
     const n = breedSel.size; go.disabled = n < 2 || save.coins < BREED_COST;
     go.innerHTML = n < 2 ? `Elige ${2 - n} más` : save.coins < BREED_COST ? `Te faltan ${BREED_COST - save.coins} monedas` : `Criar · <span class="ci"></span>${BREED_COST}`;
   };
-  $('bpInfo').innerHTML = `El hijo hereda partes, colores, stats y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000} horas en este espacio.`;
+  $('bpInfo').innerHTML = `El hijo hereda partes, colores, stats y personalidad de sus padres y al llegar a adolescente trae la ultimate de uno de ellos. Pueden tener crías <b>las veces que quieras</b>, pero después descansan. Los padres duermen ${BREED_NAP_MS / 60000} min y el huevo incuba ${INCUBATE_MS / 3600000 === 1 ? '1 hora' : INCUBATE_MS / 3600000 + ' horas'} en este espacio.`;
   go.onclick = () => { const [A, B] = [...breedSel].map(i => pool[i]); doBreed(A, B); };
   $('bpNo').onclick = () => $('breedPick').classList.remove('on');
   refresh(); $('breedPick').classList.add('on');
@@ -4392,7 +4665,7 @@ function openBreedPick() {
 function doBreed(A, B) {
   const bed = BARN.bedTarget; if (!A || !B || A === B || resting(A) || resting(B) || save.coins < BREED_COST || bed == null || BARN.ms[bed]) return;
   $('breedPick').classList.remove('on');
-  save.coins -= BREED_COST;
+  save.coins -= BREED_COST; SFX.coin();
   const rec = makeChild(A, B); rec.readyAt = Date.now() + INCUBATE_MS; // incuba en este espacio
   A.napUntil = B.napUntil = Date.now() + BREED_NAP_MS; A.bred = (A.bred || 0) + 1; B.bred = (B.bred || 0) + 1; // pueden volver a criar tras descansar (bred = cuántas crías tuvo)
   breedSel.clear(); putInBed(rec, bed); // incuba en esa cama del granero
@@ -4442,8 +4715,8 @@ function barnItem(r) {
 // al entrar, el rancho se acerca al granero, se desenfoca y se pone vidrioso, y el granero aparece acercándose y enfocándose; al salir, al revés
 // (el rancho se aleja desde el granero y se enfoca). Sin silueta de tarjeta (el dueño la quitó: parecía abrir una app); antes fue un zoom caricaturesco con un círculo.
 // Entrar y salir del granero: directo, sin transición (pedido del dueño; se probaron varias animaciones y se quitaron)
-function enterBarn() { openBarnView(); }
-function leaveBarn() { closeBarnView(); }
+function enterBarn() { SFX.thud(); openBarnView(); }
+function leaveBarn() { SFX.thud(); closeBarnView(); }
 function openBarnView() {
   fightMenu(false); RANCH.drag = null; scene = 'barn';
   $('home').classList.remove('on'); $('barnUI').classList.add('on');
@@ -4586,7 +4859,7 @@ function drawBarn(c, cam) {
 }
 function barnEnter(i) { // tocar un monstruo del granero: la vista de cerca del rancho, tal cual (literal), con el granero de fondo
   const it = BARN.ms[i]; if (!it || !(it.m || it.egg) || barnLeaving(it) || it.arrive) return;
-  barnSelect(i); BARN.goto = null; BARN.vx = 0; BARN.x = i;
+  barnSelect(i); BARN.goto = null; BARN.vx = 0; BARN.x = i; SFX.click(); // elegir: el mismo clic que en el rancho (pedido del dueño)
   barnCtx = { i }; if (it.m) it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
   scene = 'home'; ranchMode = false; homeEmpty = null; $('barnUI').classList.remove('on'); $('home').classList.add('on', 'barnctx');
   if (homePage !== 1) setPage(1);
@@ -4610,6 +4883,7 @@ function barnCtxSwitch(d) { // de cerca: el siguiente del granero (como el vecin
   let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } } // también los huevos (pedido del dueño)
   if (j == null || j === barnCtx.i) return;
   const old = BARN.ms[barnCtx.i]; if (old) old.settle = true;
+  SFX.thud();
   barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
 }
 function barnZoomTo(i) { if (!BARN.ms[i] || barnLeaving(BARN.ms[i])) return; barnSelect(i); BARN.focus = i; barnUI(true); }
@@ -4623,7 +4897,7 @@ function barnPet(it, a, b) { // la misma caricia que de cerca en el rancho
   const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d < 0.3) return;
   for (const n of m.nodes) { const dd = Math.hypot(n.x - b.x, n.y - b.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } } // las partes bajo el dedo se dejan llevar
   if (m.sleep) { m.sleep = false; } m.setEmo('love', 0.9, 2); m.petBowT = 0.3; m.lookAt = null; // baja la cabeza mientras lo acaricias
-  it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
+  it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; SFX.heart(); const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
   const rec = it.rec; treat(rec, 'pet'); rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy';
 }
 function barnGrab(it, G) { // mantener presionado = tomarlo, igual que de cerca
@@ -4683,7 +4957,7 @@ async function buyBedEgg(bed) {
   $('barnModal').classList.remove('on');
   if (!await ask(`¿Comprar un huevo misterioso por ${EGG_COST} monedas?`, { ok: 'Comprar' })) return;
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
-  save.coins -= EGG_COST; putInBed(newRec(), bed);
+  save.coins -= EGG_COST; SFX.coin(); putInBed(newRec(), bed);
 }
 function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, camina hasta la cama y se sienta
   const R = save.monsters, r = R[i]; save.barn = save.barn || [];
@@ -4732,7 +5006,32 @@ function buyFoeEgg(i) {
   const f = (save.foes || [])[i];
   const bed = BARN.bedTarget; if (!f || f.bought || bed == null || BARN.ms[bed] || save.coins < FOE_EGG_COST) return;
   const rec = newRec('egg'); rec.seed = f.seed; rec.gen = f.gen || rec.gen; rec.name = rollGenome(f.seed).name; rec.temper = randomTemper(f.seed); rec.foeOf = f.name; // (su semilla ya trae la misma chance de stat perfecto que un huevo comprado, 1% por stat: si además se sorteaba otro 1%, quedaba en 2%)
-  save.coins -= FOE_EGG_COST; f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
+  save.coins -= FOE_EGG_COST; SFX.coin(); f.bought = true; $('foePick').classList.remove('on'); putInBed(rec, bed); // en esa cama del granero
+}
+// Arenas: el Coliseo viene con el juego; las demás se compran aquí y recién ahí pueden salir al azar en las peleas (pedido del dueño)
+const ARENA_COST = 100;
+const ownsArena = i => i === 0 || (save.arenas || []).includes(i);
+const pickArena = () => { const own = ARENAS.map((_, i) => i).filter(ownsArena); return own[Math.floor(Math.random() * own.length)]; };
+const ARENA_IMG = {}; // miniaturas ya dibujadas (una sola vez, como imagen: antes se creaban 31 lienzos nuevos en cada renderHome y en el iPhone se acababa la memoria y la página se cerraba)
+function arenaThumb(i) {
+  if (ARENA_IMG[i]) return ARENA_IMG[i];
+  const cv = arenaThumb.cv || (arenaThumb.cv = document.createElement('canvas')); cv.width = 240; cv.height = 150;
+  const c = cv.getContext('2d'), w0 = ARENA_W, d0 = ARENA_D; ARENA_W = 600; ARENA_D = 420;
+  const k = cv.width / (ARENA_W + 40); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(k, 0, 0, k, 20 * k, -(TOP - 60) * k); drawArena(c, i); c.setTransform(1, 0, 0, 1, 0, 0);
+  ARENA_W = w0; ARENA_D = d0;
+  return (ARENA_IMG[i] = cv.toDataURL('image/jpeg', 0.8));
+}
+function renderShopArenas() {
+  const el = $('shopArenas'), n = ARENAS.filter((_, i) => ownsArena(i)).length, key = (save.arenas || []).join(',') + '|' + (save.coins >= ARENA_COST);
+  if (el.dataset.k === key) return; el.dataset.k = key; // sólo se rearma si cambió algo (renderHome la llama muy seguido)
+  el.innerHTML = `<div class="tsec"><div class="thead">Arenas · ${n}/${ARENAS.length}</div><p class="tdesc">Las arenas que tengas salen al azar en tus peleas.</p><div class="arenagrid">${ARENAS.map((A, i) =>
+    `<div class="arenac"><img alt="" src="${arenaThumb(i)}"><b>${A.n}</b>${ownsArena(i) ? '<span class="own">✓ Tuya</span>' : `<button class="btn" data-arenabuy="${i}" ${save.coins < ARENA_COST ? 'disabled' : ''}><span class="ci"></span>${ARENA_COST}</button>`}</div>`).join('')}</div></div>`;
+  el.querySelectorAll('[data-arenabuy]').forEach(b => b.onclick = async () => {
+    const i = +b.dataset.arenabuy, A = ARENAS[i];
+    if (save.coins < ARENA_COST || !await ask(`¿Comprar la arena ${A.n} por ${ARENA_COST} monedas? Desde ahora puede salir en tus peleas.`, { ok: 'Comprar' })) return;
+    if (save.coins < ARENA_COST || ownsArena(i)) return;
+    save.coins -= ARENA_COST; SFX.coin(); save.arenas = [...(save.arenas || []), i]; persist(); renderHome(); renderShopArenas(); fx.label = `¡Arena ${A.n}!`; fx.labelT = 2;
+  });
 }
 function renderShopGenes() {
   const el = $('shopGenes'), btn = k => `<button class="btn genebtn" data-genebuy="${k}" ${save.coins < GENE_COST ? 'disabled' : ''}>🧬 ${GENE_NAMES[k]}</button>`;
@@ -4760,7 +5059,7 @@ function openGenePick(grp) {
   };
   go.onclick = () => {
     const r = save.monsters[sel]; if (!r || save.coins < GENE_COST || (r.geneLock && r.geneLock[grp])) return;
-    save.coins -= GENE_COST; r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
+    save.coins -= GENE_COST; SFX.coin(); r.geneLock = { ...(r.geneLock || {}), [grp]: true }; persist();
     $('genePick').classList.remove('on'); renderHome(); fx.label = `🧬 ${GENE_NAMES[grp]}`; fx.labelT = 2;
   };
   $('gpNo').onclick = () => $('genePick').classList.remove('on');
@@ -4777,7 +5076,7 @@ function renderShopUlts(hide) {
     const k = b.dataset.ultbuy;
     if (save.coins < ULT_COST || !await ask(`¿Desbloquear ${ULTS[k].name} por ${ULT_COST} monedas? Quedará disponible para todos tus monstruos.`, { ok: 'Desbloquear' })) return;
     if (save.coins < ULT_COST || ownsUlt(k)) return;
-    save.coins -= ULT_COST; grantUlt(k); [...save.monsters, ...(save.barn || [])].forEach(m => { if (canUlt(m.stage) && !(m.ult && ULTS[m.ult])) m.ult = k; }); /* se equipa sola a los que no tenían */ persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
+    save.coins -= ULT_COST; SFX.coin(); grantUlt(k); [...save.monsters, ...(save.barn || [])].forEach(m => { if (canUlt(m.stage) && !(m.ult && ULTS[m.ult])) m.ult = k; }); /* se equipa sola a los que no tenían */ persist(); renderHome(); fx.label = `¡${ULTS[k].name}!`; fx.labelT = 2;
   });
 }
 $('btnFree').onclick = async () => {
@@ -4817,6 +5116,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.', 'Ya no se puede curar con monedas a un monstruo que se quedó sin corazones: tiene que esperar a que descanse.', 'Sin corazones ahora descansa 5 minutos (antes 10) y recupera 1 corazón cada 2 minutos (antes cada 5).', 'Los huevos criados incuban 1 hora (antes 3) y cada victoria los adelanta 3 minutos (antes 2). Los padres duermen 15 minutos después de criar (antes 30).', 'Monedas: las peleas dan la mitad de monedas que antes (la experiencia no cambia), el huevo cuesta 80 (antes 60) y criar 200 (antes 150).', 'Nuevo: 🏆 Ranking en Amigos. Te compara con tus amigos por victorias, mejor racha o porcentaje de victorias, con medallas para los 3 primeros.', 'Nuevo: sonido. Cuenta regresiva, golpes, disparos, esquivas, ultimates, K.O. con martillazos, música al ganar o perder, vocecitas de los monstruos, caricias, huevos al abrirse, crecer de etapa, compras y el ambiente del rancho (pájaros de día, grillos de noche y viento en invierno). Se apaga y prende en Menú → 🔊 Sonido.', 'Arreglado: la barrita de cada stat en Estadísticas ahora muestra los puntos que le pusiste y se llena completa al llegar a 20.', 'Nuevo sonido al retroceder o salir de un menú: al cerrar ventanas, tocar «Volver», volver al rancho o salir del granero.', 'Nuevo sonido de madera al entrar y salir del granero, al entrar y salir de la Tienda y de Estadísticas, al cambiar de pestaña en la Tienda, al pasar de un monstruo a otro (de cerca o en Estadísticas), al dejar de verlo de cerca y al lanzar un monstruo. Al elegir un monstruo (en el rancho o en el granero) o una cama suena un clic.', 'Arreglado: al deslizar sobre un monstruo de cerca para pasar a otro ya no lo acaricias sin querer. La caricia cuenta al frotar (ir y volver) o al pasar el dedo despacio.', 'Acariciar y golpear a un monstruo ahora tienen 5 sonidos cada uno que salen al azar.', 'Cada ultimate tiene su propio sonido al cargar y al lanzarse (la Bala gigante y la Onda de choque ahora suenan distinto), los golpes con la ultimate activa suenan distinto según cuál sea, las bombas suenan al explotar y golpear a alguien con el Escudo de hierro suena «¡clang!».', 'Al volar, las piernas cuelgan sueltas y se inclinan hacia el lado contrario de hacia donde van, balanceándose con el movimiento en vez de quedar tiesas.', 'El «K.O.» del final aparece 1 segundo después del último golpe, y recién después sale el resultado.', 'Arreglado: en la pelea los nombres de arriba siempre caben en la pantalla (si son largos se cortan con «…») y el aviso ULT ya no mueve las casillas al aparecer. Los textos que salen sobre los monstruos (nombre de la ultimate, daño) tampoco se salen de la pantalla.', 'Arreglado: algunos rivales slime (de una sola gota) salían enormes. Ahora la gota tiene un tamaño máximo.', '30 arenas nuevas para comprar en la Tienda (pestaña Arenas, 100 monedas cada una); las que tengas salen al azar en tus peleas: bosque, volcán, glaciar, playa, noche estrellada, desierto, dojo, castillo, templo, cueva de cristales, pantano, neón, caramelo, fondo del mar, nubes, otoño, granja, cementerio, espacio, laboratorio, selva, ruinas, atardecer, montaña nevada, mina, jardín zen, circo, fábrica, pradera de flores y arcoíris, además del coliseo de siempre. Arriba se ve el nombre de la arena.', 'Empate: si los últimos monstruos caen K.O. al mismo tiempo, la pelea termina en empate, aparece «DRAW» en pantalla y el público abuchea.', 'Arreglado: el juego podía cerrarse al ir a pelear (las miniaturas de la tienda de arenas se volvían a dibujar sin parar y en el celular se acababa la memoria).', 'Relator en las peleas: narra en inglés con la voz del celular, al estilo de los locutores de batallas de monstruos, lo que hace cada uno por su nombre («Tito unleashes Shockwave!», «Lora dodges it!», «And the winner is Tito!») y se emociona más con los golpes fuertes, las ultimates y los K.O.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -4905,15 +5205,35 @@ newsBadge();
 function renderNews(count) {
   $('newsList').innerHTML = CHANGELOG.slice(0, count).map((c, i) => { const [y, mo, da] = c.d.split('-'); return `<div class="newsv"><h3>Versión ${c.v}${i ? '' : ' · actual'}<small>${+da}/${+mo}/${y}</small></h3><ul>${c.items.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div>`; }).join('');
 }
+function sndUI() { $('sndIco').textContent = SFX.on ? '🔊 Sonido' : '🔇 Sonido'; $('sndState').textContent = SFX.on ? 'activado' : 'apagado'; }
 function setView(v) {
   document.querySelectorAll('#settings .setview').forEach(el => el.hidden = el.dataset.view !== v);
   if (v === 'main' || v === 'cloud' || v === 'account') cloudUI();
   if (v === 'account') accountView();
+  if (v === 'main') sndUI();
   if (v === 'main') $('accState').textContent = save.user || (cloud ? cloud.email : 'sin cuenta'); // (exportar e importar se quitaron: sólo la Nube, pedido del dueño)
   if (v === 'cloud') gisButton();
   if (v === 'friends') { FR.newOn.clear(); menuBadge(); $('frMsg').textContent = ''; friendsView(); friendsTimer(true); }
   if (v === 'friend') friendView();
+  if (v === 'rank') { rankView(); friendsRefresh().then(() => { if (!$('settings').querySelector('[data-view="rank"]').hidden) rankView(); }).catch(() => { }); }
 }
+// Ranking entre amigos (pedido del dueño): tú y tus amigos ordenados por victorias, mejor racha o % de victorias (los datos vienen de tu partida y de sus perfiles públicos)
+let rkSort = 'w';
+$('frRankBtn').onclick = () => setView('rank');
+document.querySelectorAll('#rkTabs [data-rk]').forEach(b => b.onclick = () => { rkSort = b.dataset.rk; rankView(); });
+function rankView() {
+  const A = save.stats || {}, rows = [{ me: true, name: save.user || 'Tú', w: A.w || 0, l: A.l || 0, best: A.best || 0 }];
+  for (const f of save.friends || []) { const p = FR.profs[f.uid]; rows.push({ uid: f.uid, name: (p && p.name) || f.name, w: p ? p.w : 0, l: p ? p.l : 0, best: p ? p.best : 0, on: isOnline(p), none: !p }); }
+  const pct = r => r.w + r.l ? r.w / (r.w + r.l) : -1, key = r => rkSort === 'pct' ? pct(r) : r[rkSort];
+  rows.sort((a, b) => key(b) - key(a) || b.w - a.w || a.name.localeCompare(b.name));
+  document.querySelectorAll('#rkTabs [data-rk]').forEach(b => b.classList.toggle('on', b.dataset.rk === rkSort));
+  const medal = ['🥇', '🥈', '🥉'];
+  $('rkList').innerHTML = rows.map((r, i) => { const v = rkSort === 'pct' ? (pct(r) < 0 ? '—' : Math.round(pct(r) * 100) + '%') : r[rkSort];
+    const sub = rkSort === 'w' ? `${r.l} derrotas` : rkSort === 'best' ? `${r.w} victorias` : `${r.w} V · ${r.l} D`;
+    return `<button class="btn rkrow${r.me ? ' me' : ''}" ${r.uid ? `data-rku="${r.uid}"` : ''}><span class="pos">${medal[i] || i + 1}</span><span>${r.me ? '<b>Tú</b> · ' : ''}${esc(r.name)}${r.on ? ' <i class="frdot on" style="display:inline-block;vertical-align:middle"></i>' : ''}<br><small>${r.none ? 'sin datos todavía' : sub}</small></span><span class="val">${v}</span></button>`; }).join('');
+  $('rkList').querySelectorAll('[data-rku]').forEach(b => b.onclick = () => { FR.sel = b.dataset.rku; setView('friend'); });
+}
+$('sndBtn').onclick = () => { SFX.set(!SFX.on); sndUI(); if (SFX.on) SFX.coin(); };
 $('accUser').onclick = async () => { // cambiar el nombre de usuario directo desde Mi cuenta (pedido del dueño)
   if (!cloud) { $('settings').classList.remove('on'); await ask('Para tener nombre de usuario primero entra a tu cuenta en la Nube.', { ok: 'Entendido', cancel: null }); $('settings').classList.add('on'); setView('cloud'); return; }
   await pickUser(!!save.user); accountView();
@@ -5157,7 +5477,7 @@ function menuBadge() { const n = FR.newOn.size + FREQ.inc.length; $('btnSettings
 setInterval(() => { if (cloud && save.user && !document.hidden && scene !== 'battle' && cloudReady && !FR.timer) friendsRefresh(); }, 30000); // revisa cada 30 s quién se conectó
 setTimeout(() => { if (cloud && save.user) friendsRefresh(); }, 5000); // y una vez al abrir la app
 function friendsView() { // lista de amigos con su puntito
-  const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok;
+  const ok = !!(cloud && save.user), L = $('frList'); $('frAddRow').hidden = !ok; $('frRankBtn').hidden = !ok || !(save.friends || []).length;
   $('frInfo').textContent = !cloud ? 'Para tener amigos entra a tu cuenta en Menú → Mi cuenta → Nube.' : !save.user ? 'Primero crea tu nombre de usuario (Menú → Mi cuenta → Nube).' : (save.friends || []).length || FREQ.inc.length || (save.friendOut || []).length ? '' : 'Mándale una solicitud a tus amigos con su nombre de usuario.';
   const R = $('frReqs'); R.innerHTML = ok ? FREQ.inc.map(r => `<div class="frreq"><span><b>${esc(r.name)}</b><small>quiere ser tu amigo</small></span><button class="btn primary" data-fra="${r.uid}">Aceptar</button><button class="btn" data-frr="${r.uid}">Rechazar</button></div>`).join('') : '';
   R.querySelectorAll('[data-fra]').forEach(b => b.onclick = () => freqAccept(FREQ.inc.find(r => r.uid === b.dataset.fra)));
@@ -5194,7 +5514,7 @@ function friendMon(r) { // estadísticas de un monstruo de un amigo
   let m; try { m = new Monster(r); } catch (e) { return; }
   $('fsName').textContent = r.name; $('fsSub').textContent = `Nv. ${r.level} · ${STAGE_NAME[r.stage] || ''}`;
   drawThumb($('fsCv'), r); $('fsCombat').innerHTML = combatBox(r);
-  $('fsList').innerHTML = PTS.map((t, i) => { const [, fn, mx] = MAIN_DEF[i], v = fn(m.st); return `<div class="trow"><div class="tl">${t.name}${statPerfect(m.g, t.k) ? '<i class="pstar">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${(r.pts || {})[t.k] || 0}/${PTS_MAX} puntos</small></div><div class="bar"><i style="width:${clamp(v / mx, 0.03, 1) * 100}%"></i></div></div>`; }).join('')
+  $('fsList').innerHTML = PTS.map((t, i) => { const [, fn, mx] = MAIN_DEF[i], v = fn(m.st); const pn = (r.pts || {})[t.k] || 0; return `<div class="trow"><div class="tl">${t.name}${statPerfect(m.g, t.k) ? '<i class="pstar">★</i>' : ''} <span class="tv"><b>${Math.round(v)}</b></span><small>${pn}/${PTS_MAX} puntos</small></div><div class="bar"><i style="width:${Math.max(3, pn / PTS_MAX * 100)}%"></i></div></div>`; }).join('')
     + `<div class="mood"><span>Moral</span><div class="bar"><i style="width:${Math.round(r.mood ?? 50)}%"></i></div><b>${Math.round(r.mood ?? 50)}</b></div>`
     + (r.ult && ULTS[r.ult] ? `<div class="fsult">${ultIcon(r.ult)}<span>${ULTS[r.ult].name}</span></div>` : '');
   $('frStats').classList.add('on');
@@ -5263,7 +5583,7 @@ function specSendStart(v) {
 function specTick() { // cada pocos cuadros, el estado de la pelea a los que miran
   const open = SPEC.viewers.filter(v => v.open); if (!open.length || !battle || battle.spec) return;
   if ((SPEC.sendT = (SPEC.sendT + 1) % 3) === 0) { const s = JSON.stringify(lanSnapshot()); for (const v of open) try { v.dc.send(s); } catch (e) { } }
-  if (battle.over && !SPEC.endSent) { SPEC.endSent = true; const m = JSON.stringify({ t: 'vend', win: battle.winTeam, rank: battle.ranking }); for (const v of open) try { v.dc.send(m); } catch (e) { } setTimeout(specCloseViewers, 4000); }
+  if (battle.over && !SPEC.endSent) { SPEC.endSent = true; const m = JSON.stringify({ t: 'vend', win: battle.winTeam, rank: battle.ranking, dr: !!battle.isDraw }); for (const v of open) try { v.dc.send(m); } catch (e) { } setTimeout(specCloseViewers, 4000); }
 }
 function specCloseViewers() { for (const v of SPEC.viewers) { try { v.dc.close(); v.pc.close(); } catch (e) { } } SPEC.viewers = []; SPEC.endSent = false; }
 setInterval(() => { if (scene === 'battle' && battle && !battle.spec && cloud && save.user && !document.hidden) specServe(); else if (SPEC.viewers.length && scene !== 'battle') specCloseViewers(); }, 3000);
@@ -5300,12 +5620,12 @@ function specMsg(m, W) {
     $('modeLbl').textContent = rivals.length ? `${battle.spec.who} vs ${rivals.join(', ')}` : `Espectando a ${battle.spec.who}`; // pelea Online entre jugadores: se ve quién contra quién
     $('fighters').querySelectorAll('.fighter').forEach((el, i) => el.classList.toggle('me', !!m.me[i])); // los monstruos de tu amigo, marcados
   } else if (m.t === 's' && battle && battle.spec) LAN.snap = m;
-  else if (m.t === 'vend' && battle && battle.spec) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; setTimeout(() => specFinish(m), 1500); }
+  else if (m.t === 'vend' && battle && battle.spec) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; setTimeout(() => specFinish(m), battle.koBig ? 1500 + KO_DELAY * 1000 : m.dr ? 3000 + KO_DELAY * 1000 : 1500); }
 }
 function specFinish(m) {
   const B = battle; if (!B || B.reported) return; B.reported = true; updateFighters();
   const won = m && B.ms.some((x, i) => B.spec.me[i] && x.team === m.win);
-  $('resTitle').textContent = !m ? 'Se cortó la conexión' : won ? `¡${B.spec.who} ganó!` : `${B.spec.who} perdió`; $('resTitle').className = !m ? '' : won ? 'win' : 'lose';
+  $('resTitle').textContent = !m ? 'Se cortó la conexión' : m.dr ? 'Empate' : won ? `¡${B.spec.who} ganó!` : `${B.spec.who} perdió`; $('resTitle').className = !m ? '' : won ? 'win' : 'lose';
   $('resText').innerHTML = ''; $('resAgain').hidden = true; $('resRoom').hidden = true; $('result').classList.add('on');
   specStop();
 }
@@ -5381,7 +5701,7 @@ cv.addEventListener('pointerdown', e => {
   if (!show) return;
   const sz = show.estSize();
   if (!(Math.abs(p.x - show.gx) < sz.w * 0.6 && p.y + show.z < 20 && p.y + show.z > -sz.h * 1.1)) return;
-  touch = { sx: e.clientX, sy: e.clientY, last: p, pet: false, grab: false, id: e.pointerId, hist: [[p.x, p.y, performance.now()]] };
+  touch = { sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, t0: performance.now(), last: p, pet: false, petOk: false, grab: false, id: e.pointerId, hist: [[p.x, p.y, performance.now()]] };
   touch.timer = setTimeout(() => { if (touch && !touch.pet) grab(touch); }, GRAB_HOLD_MS); // mantener presionado = tomarlo
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }
 });
@@ -5420,8 +5740,11 @@ cv.addEventListener('pointermove', e => {
     const h = touch.hist, a = h[0], b = h[h.length - 1], sp = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000);
     if (sp > 1400 && !show.sleep) show.setEmo('dizzy', 0.8, 4); // lo sacudes mucho = se marea
   } else {
-    if (!touch.pet && Math.hypot(e.clientX - touch.sx, e.clientY - touch.sy) > 10) { touch.pet = true; clearTimeout(touch.timer); }
-    if (touch.pet) pet(touch.last, p);
+    if (!touch.pet && Math.hypot(e.clientX - touch.sx, e.clientY - touch.sy) > 10) { touch.pet = true; clearTimeout(touch.timer); const d = Math.hypot(e.clientX - touch.sx, e.clientY - touch.sy); touch.dx = (e.clientX - touch.sx) / d; touch.dy = (e.clientY - touch.sy) / d; }
+    // un trazo de una pasada (deslizar para cambiar de monstruo o volver al rancho) no es caricia: cuenta recién al ir y volver o tras 0,8 s (pedido del dueño)
+    if (touch.pet && !touch.petOk && ((e.clientX - touch.lx) * touch.dx + (e.clientY - touch.ly) * touch.dy < -1.5 || performance.now() - touch.t0 > 800)) touch.petOk = true;
+    if (touch.petOk) pet(touch.last, p);
+    touch.lx = e.clientX; touch.ly = e.clientY;
   }
   touch.last = p;
 });
@@ -5439,8 +5762,8 @@ cv.addEventListener('pointerup', e => {
     const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
     const onBed = (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.06 && e.clientY < bedY + H * 0.14; })(); // la cama (paja y madera) también cuenta
     if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) barnEnter(i); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
-    else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { BARN.goto = i; openBarn(i); } // tocar una cama libre: elegir a quién traer
-    else if (i !== Math.round(BARN.x)) BARN.goto = i;
+    else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { BARN.goto = i; SFX.click(); openBarn(i); } // tocar una cama libre: elegir a quién traer
+    else if (i !== Math.round(BARN.x)) { BARN.goto = i; SFX.click(); } // elegir una cama: el clic de elegir un monstruo (pedido del dueño)
     return; }
   const G = RANCH.drag;
   if (G && e.pointerId === G.id) { RANCH.drag = null; if (!G.mode) ranchTap(G.x0, G.y0, G.act); else if (G.mode === 'h') RANCH.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; }
@@ -5468,6 +5791,7 @@ function release(t) {
   const h = t.hist, b = h[h.length - 1], a = h.find(q => b[2] - q[2] <= 100) || h[0], dt = Math.max(0.016, (b[2] - a[2]) / 1000);
   if (performance.now() - b[2] > 120) { O.vx = 0; O.vz = 0; } // estaba quieto: sólo lo sueltas
   else { O.vx = clamp((b[0] - a[0]) / dt, -900, 900); O.vz = clamp(-(b[1] - a[1]) / dt, -600, 900); } // lo lanzas
+  if (Math.hypot(O.vx, O.vz) > 250) SFX.thud(); // lanzarlo (rancho o granero): el sonido del granero (pedido del dueño)
   O.flung = Math.abs(O.vx) > 500 || O.vz > 550; // lanzado fuerte: si sale de la pantalla, la cámara vuelve al rancho
   if (!show.sleep && show.emoP < 4) show.setEmo('surprised', 0.3, 2, ['happy', 1.2]);
 }
@@ -5488,7 +5812,7 @@ function pet(a, b) {
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
 function makeFoe(ref) {
   const r = newRec(ref.stage); // los rivales siempre son de la versión más nueva
-  r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
+  r.level = clamp(ref.level + Math.floor(Math.random() * 3) - 1, 1, MAX_LEVEL);
   r.pts = randomPts(r.level);
   r.temper = Object.fromEntries(TEMPER.map(t => [t.k, snapT(Math.random() * 1.6 - 0.8)])); // rivales: tácticas al azar
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
@@ -5496,7 +5820,7 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) {
+function startBattle(mode, team) { CAST.unlock(); // (viene de un toque: el iPhone deja que la voz hable)
   team = team || (mode === '2v2' && lastTeam) || [cur()];
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
     goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
@@ -5516,14 +5840,14 @@ function startBattle(mode, team) {
   else for (let i = 0; i < 3; i++) { const e = foe(me); e.team = i + 1; list.push(e); }
   $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
   $('modeLbl').textContent = { '1v1': '1 vs 1', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
   setupUltBar(list);
   // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores (y sobre el botón ULTIMATE)
   if (H / W > 1.25) {
     const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8;
     ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
   } else ARENA_D = 560 * zoom;
-  battle = new Battle(list, mode); battle.kcamOn = true; // (las simulaciones no tienen kill cam)
+  battle = new Battle(list, mode); battle.kcamOn = true; battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
   battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
   scene = 'battle';
   keepAwake(true);
@@ -5532,6 +5856,7 @@ function startBattle(mode, team) {
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
   let txt, p, big = false;
+  if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.beep(false); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); ANN.start(); { const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('fight', 0, A0 && A0.name, B0 && B0.name); } } // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
   else if (b.fightT != null && b.fightT < FIGHT_S) { txt = 'FIGHT!'; p = b.fightT / FIGHT_S; big = true; }
   else return;
@@ -5552,7 +5877,23 @@ function drawIntro(b) {
   ctx.restore(); ctx.globalAlpha = 1;
 }
 // «K.O.» al final (pedido del dueño): misma letra que el 3, 2, 1, FIGHT!; primero cae la K y después la O, como martilladas en un yunque
-const KO_HIT = [0.12, 0.62], KO_FALL = 0.14;
+const KO_HIT = [0.12, 0.62], KO_FALL = 0.14, KO_DELAY = 1; // KO_DELAY: el «K.O.» empieza 1 s después del último noqueo y el resultado sale después (pedido del dueño)
+function drawDraw(k) { // empate: «DRAW» que cae y rebota, y el público abuchea (pedido del dueño)
+  if (k.t < 0) return; const t = k.t, fs = Math.min(W * 0.2, H * 0.2), y0 = H * 0.42;
+  ctx.fillStyle = `rgba(10,5,20,${0.35 * clamp(t / 0.3, 0, 1)})`; ctx.fillRect(0, 0, W, H);
+  const p = clamp(t / 0.35, 0, 1), oy = -(1 - p * p) * H * 0.3, after = t - 0.35, q = clamp(after / 0.2, 0, 1), sq = after > 0 ? Math.sin(q * Math.PI) * (1 - q) : 0;
+  ctx.save(); ctx.translate(W / 2, y0 + oy + fs * 0.45); ctx.scale(1 + 0.18 * sq, 1 - 0.22 * sq); ctx.translate(0, -fs * 0.45);
+  ctx.font = `900 ${fs}px Impact, "Arial Black", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.globalAlpha = clamp(p * 3, 0, 1);
+  ctx.lineWidth = fs * 0.16; ctx.strokeStyle = 'rgba(15,5,10,.95)'; ctx.strokeText('DRAW', 0, fs * 0.04);
+  const g = ctx.createLinearGradient(0, -fs * 0.5, 0, fs * 0.5); ['#f2f2ff', '#b9c2d8', '#7d869e', '#3f4458'].forEach((c, j) => g.addColorStop(j / 3, c));
+  ctx.fillStyle = g; ctx.fillText('DRAW', 0, 0); ctx.lineWidth = Math.max(1.5, fs * 0.025); ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.strokeText('DRAW', 0, 0);
+  ctx.restore();
+  if (t > 0.2) { ctx.save(); ctx.textAlign = 'center'; ctx.font = `900 ${Math.round(fs * 0.24)}px system-ui`; ctx.lineJoin = 'round'; // «¡BUUU!» del público por los bordes
+    for (let i = 0; i < 10; i++) { const st = 0.25 + i * 0.22, lt = t - st; if (lt < 0) continue; const a = clamp(1 - (lt % 1.6) / 1.6, 0, 1), side = i % 2 ? 1 : -1;
+      const x = W / 2 + side * W * (0.22 + 0.2 * arnd(i)), y = H * (0.62 + 0.25 * arnd(i + 7)) - (lt % 1.6) * 30; ctx.globalAlpha = a; ctx.save(); ctx.translate(x, y); ctx.rotate(side * 0.18 * arnd(i + 3));
+      ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(20,10,30,.9)'; ctx.strokeText(i % 3 ? '¡BUUU!' : '¡FUERA!', 0, 0); ctx.fillStyle = i % 3 ? '#ff8a8a' : '#ffd36b'; ctx.fillText(i % 3 ? '¡BUUU!' : '¡FUERA!', 0, 0); ctx.restore(); }
+    ctx.restore(); }
+}
 function drawKO(k) {
   const t = k.t, fs = Math.min(W * 0.24, H * 0.26), y0 = H * 0.42;
   ctx.fillStyle = `rgba(10,5,20,${0.3 * clamp(t / 0.2, 0, 1)})`; ctx.fillRect(0, 0, W, H);
@@ -5562,7 +5903,7 @@ function drawKO(k) {
     const hitT = KO_HIT[i], cx = x + ws[i] / 2; x += ws[i] + gap;
     const p = (t - (hitT - KO_FALL)) / KO_FALL; if (p < 0) return; // todavía no cae
     const after = t - hitT;
-    if (after >= 0 && !k['h' + i]) { k['h' + i] = true; if (battle) battle.shake = Math.max(battle.shake, 13); k['f' + i] = 0; } // ¡golpe!
+    if (after >= 0 && !k['h' + i]) { k['h' + i] = true; SFX.anvil(); if (battle) battle.shake = Math.max(battle.shake, 13); k['f' + i] = 0; } // ¡golpe!
     let sy = 1, sx = 1, oy = 0, sc = 1, a = 1;
     if (after < 0) { const e = clamp(p, 0, 1), ein = e * e; oy = -(1 - ein) * H * 0.35; sc = 1.7 - 0.7 * ein; a = clamp(e * 3, 0, 1); } // baja acelerando, como un martillo
     else { const q = clamp(after / 0.16, 0, 1), sq = Math.sin(q * Math.PI) * (1 - q); sy = 1 - 0.28 * sq - 0.22 * (1 - q) * (after < 0.04 ? 1 : 0); sx = 1 + 0.22 * sq; } // aplastada al golpear y rebota a su forma
@@ -5631,7 +5972,7 @@ function updateUltBar() {
 }
 function updateFighters() {
   if (!battle) return;
-  battle.ms.forEach((m, i) => { const el = $('f' + i); if (!el) return; el.querySelector('i').style.width = (m.hp / m.st.hp * 100) + '%'; el.classList.toggle('dead', m.dead); const u = $('u' + i); if (u) u.hidden = !m.ultReady; });
+  battle.ms.forEach((m, i) => { const el = $('f' + i); if (!el) return; el.querySelector('i').style.width = (m.hp / m.st.hp * 100) + '%'; el.classList.toggle('dead', m.dead); const u = $('u' + i); if (u && m.canUlt) u.style.visibility = m.ultReady ? '' : 'hidden'; /* reserva su lugar: al aparecer no mueve las casillas */ });
 }
 
 // ---------- Pantalla encendida durante los combates (Wake Lock) ----------
@@ -5645,7 +5986,7 @@ async function keepAwake(on) {
 // al volver a la app en medio de una pelea, el navegador lo suelta: se pide de nuevo
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && scene === 'battle') keepAwake(true); });
 
-function goHome() { $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
+function goHome() { ANN.stop(); $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
 
 // ---------- Crecimiento: ocurre al volver al menú, con animación a pantalla completa ----------
 function newParts(o, n) { // partes que tiene la etapa nueva y no tenía la anterior, en el orden en que aparecen
@@ -5687,7 +6028,7 @@ function checkGrowth() {
   for (let i = 1; i < chain.length; i++) chain[i].hidden = new Set(newParts(chain[i - 1].g, chain[i].g));
   chain.forEach(m => m.resetRig());
   const fe = chain[chain.length - 1].estSize(); // encuadre según el tamaño final
-  growAnim = { rec, chain, t: 0, k: Math.min(H * 0.48 / fe.h, W * 0.78 / fe.w, 3.5) };
+  SFX.grow(); growAnim = { rec, chain, t: 0, k: Math.min(H * 0.48 / fe.h, W * 0.78 / fe.w, 3.5) };
   setGrowStep(0);
   fx.parts = []; fx.label = null;
   scene = 'grow'; touch = null;
@@ -5778,26 +6119,26 @@ $('resAgain').onclick = () => {
 
 function finishBattle() {
   recordFoes(battle); // historial de combate de la Tienda
-  const rank = battle.ranking, nTeams = rank.length, place = rank.indexOf(0) + 1;
+  const dr = !!battle.isDraw, rank = battle.ranking, nTeams = rank.length, place = dr ? nTeams : rank.indexOf(0) + 1; // empate: nadie gana (cobra lo del último puesto)
   const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
-  const placeLbl = nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
-  { const A = save.stats || (save.stats = { w: 0, l: 0, run: 0, best: 0 }); if (place === 1) { A.w++; A.run++; A.best = Math.max(A.best, A.run); } else { A.l++; A.run = 0; } } // récord de la cuenta (una pelea = una victoria o derrota, aunque pelees con 2)
+  const placeLbl = dr ? 'Empate' : nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
+  if (!dr) { const A = save.stats || (save.stats = { w: 0, l: 0, run: 0, best: 0 }); if (place === 1) { A.w++; A.run++; A.best = Math.max(A.best, A.run); } else { A.l++; A.run = 0; } } // (el empate no cuenta como victoria ni derrota) // récord de la cuenta (una pelea = una victoria o derrota, aunque pelees con 2)
   const lines = battle.players.map(pm => {
-    const rec = pm.rec, xp = bx + pm.kills * 10, coins = bc + pm.kills * 5;
-    if (place === 1) { rec.run = (rec.run || 0) + 1; rec.bestRun = Math.max(rec.bestRun || 0, rec.run); } else rec.run = 0; // racha de victorias seguidas y la más larga
+    const rec = pm.rec, xp = bx + pm.kills * KO_XP, coins = bc + pm.kills * KO_COINS;
+    if (dr) { } else if (place === 1) { rec.run = (rec.run || 0) + 1; rec.bestRun = Math.max(rec.bestRun || 0, rec.run); } else rec.run = 0; // racha de victorias seguidas y la más larga
     rec.xp += xp; save.coins += coins;
-    place === 1 ? rec.wins++ : rec.losses++;
-    moodAdd(rec, place === 1 ? MOOD_WIN : MOOD_LOSE); // ganar le sube el ánimo y perder se lo baja (pedido del dueño)
+    if (!dr) { place === 1 ? rec.wins++ : rec.losses++; moodAdd(rec, place === 1 ? MOOD_WIN : MOOD_LOSE); } // ganar le sube el ánimo y perder se lo baja (pedido del dueño)
     // vidas: sólo se pierde una si lo noquearon (el resultado sólo muestra XP y monedas, pedido del dueño)
     if (pm.dead) {
       rec.lives = Math.max(0, rec.lives - 1);
       rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
       if (rec.lives === 0) rec.restUntil = Date.now() + REST_MS;
     }
-    while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
+    while (rec.level < MAX_LEVEL && rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
+    if (rec.level >= MAX_LEVEL) { rec.level = MAX_LEVEL; rec.xp = 0; } // nivel máximo: no sigue sumando XP
     // resumen: premio por el puesto + K.O. = total (de dónde viene cada cosa)
     const row = (lbl, x, c, cls = '') => `<span class="${cls}">${lbl}</span><span class="rx ${cls}">+${x} XP</span><span class="rc ${cls}">+${c} 🪙</span>`;
-    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * 10, pm.kills * 5) : ''}${row('Total', xp, coins, 'tot')}</div>`;
+    return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * KO_XP, pm.kills * KO_COINS) : ''}${row('Total', xp, coins, 'tot')}</div>`;
   });
   wakeUp();
   const incub = [...save.monsters, ...(save.barn || [])].filter(m => m.readyAt > Date.now()); // (también los del granero)
@@ -5805,9 +6146,10 @@ function finishBattle() {
     for (const m of incub) m.readyAt = Math.max(Date.now(), m.readyAt - INCUBATE_FIGHT_MS);
   }
   persist(); // si ya puede crecer, crece recién al volver al menú (ver checkGrowth)
-  $('resTitle').textContent = battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
-  $('resTitle').className = place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
-  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * 5, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
+  if (!dr) (place === 1 ? SFX.win : SFX.lose)();
+  $('resTitle').textContent = dr ? 'Empate' : battle.timedOut ? '¡Se acabó el tiempo!' : nTeams === 2 ? (place === 1 ? '¡Victoria!' : 'Derrota') : (place === 1 ? '¡1.er lugar!' : PLACE_NAME[place - 1]);
+  $('resTitle').className = dr ? 'mid' : place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
+  if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * KO_COINS, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
   $('resText').innerHTML = lines.join('');
   $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
   $('result').classList.add('on');
@@ -5946,6 +6288,7 @@ function loop(now) {
       while (acc >= STEP && n++ < 12) { acc -= STEP; battle.step(STEP); }
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
+    ANN.step(dt); if (battle.over && ANN.on && !battle._annEnd) { battle._annEnd = true; if (!battle.isDraw) { const w = battle.ms.find(x => x.team === battle.winTeam && !x.cloneOf); setTimeout(() => ANN.ev('end', 0, w && w.name), 2600); } setTimeout(() => { if (ANN.on) { ANN.on = false; } }, 3000); }
     if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
@@ -5959,13 +6302,15 @@ function loop(now) {
     if (battle.banner) drawBanner(battle.banner);
     drawIntro(battle);
     if (battle.koBig) { battle.koBig.t += dt; drawKO(battle.koBig); }
+    if (battle.drawBig) { battle.drawBig.t += dt; drawDraw(battle.drawBig); }
     if (++frame % 6 === 0) { updateFighters(); updateUltBar(); }
-    if (battle.over && battle.endT > 1.8 && !battle.reported) { if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
+    if (battle.over && battle.endT > (battle.koBig ? 1.8 + KO_DELAY : battle.drawBig ? (battle.timedOut ? 3.2 : 3.2 + KO_DELAY) : 1.8) && !battle.reported) { if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
   if (scene === 'home' && homePage === 1 && homeEmpty != null && frame % 120 === 0) renderSlotBtns(); // cuenta hasta el próximo huevo
   if (scene === 'home' && frame % 60 === 59 && !ranchMode && save.monsters.length && cur() && cur().stage !== 'egg') moralRefresh(cur()); // (la moral baja con el tiempo)
   if (scene === 'home' && ++frame % 20 === 0 && save.monsters.length && (cur().restUntil || cur().napUntil || cur().heartAt || cur().readyAt || (cur().lives < MAX_LIVES && cur().stage !== 'egg'))) { if (wakeUp()) renderHome(); else if (cur().stage === 'egg') updateEggSub(); else { updateRest(); updateSub(); } }
+  if (!document.hidden && ((scene === 'home' && ranchMode) || scene === 'barn')) { const night = dayInfo().dark > 0.2, wint = seasonInfo() === 'invierno'; if (!wint && Math.random() < dt * (night ? 0.9 : 0.22)) (night ? SFX.cricket : SFX.bird)(); if (wint && Math.random() < dt * 0.12) SFX.wind(); } // ambiente del rancho: pajaritos de día, grillos de noche, viento en invierno
   requestAnimationFrame(loop);
 }
 // ============================================================================
@@ -6236,7 +6581,7 @@ function lanMsg(m, peer) {
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
   else if (m.t === 's' && battle && battle.puppet) LAN.snap = m;
   else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[peer.idx]; if (g && g.ultReady && !ultBusy(g) && !g.dead) g.ultRequest = true; }
-  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; lanFinish(); }
+  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; battle.isDraw = !!m.dr; lanFinish(); }
   else if (m.t === 'again' && LAN.role === 'host' && (!battle || battle.over)) lanStartHost(); // un invitado pide revancha
 }
 // Después de una pelea: todos vuelven a la sala (para cambiar colores); el anfitrión avisa a los demás
@@ -6251,12 +6596,12 @@ function lanSetupBattle(list, aw, ad, mode) {
   $('lan').classList.remove('on'); $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('result').classList.remove('on');
   $('modeLbl').textContent = 'Online · ' + lanModeName(list.map(m => m.team));
   ARENA_W = aw;
-  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span>${m.isPlayer ? '★ ' : ''}${esc(m.name)} <span style="color:var(--muted);font-weight:600">Nv.${m.level}</span><span class="ultpill" id="u${i}" ${m.ultReady ? '' : 'hidden'}>ULT</span></div><div class="bar"><i style="width:100%;background:${teamColor(m, 'lan')}"></i></div></div>`).join('');
+  $('fighters').innerHTML = list.map((m, i) => `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, 'lan')}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('');
   setupUltBar(list);
   if (ad) ARENA_D = ad;
   else if (H / W > 1.25) { const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8; ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420, 1400); }
   else ARENA_D = 560;
-  battle = new Battle(list, mode); battle.lan = true; battle.kcamOn = true;
+  battle = new Battle(list, mode); battle.lan = true; battle.kcamOn = true; battle.arena = pickArena(); // (el invitado y el espectador la reciben en el estado, ar)
   scene = 'battle'; keepAwake(true);
 }
 function lanStartHost() {
@@ -6283,7 +6628,7 @@ const R1 = v => Math.round(v * 10) / 10;
 function lanSnapshot() {
   const B = battle;
   return { t: 's', tm: R1(B.time), it: R1(B.introT || 0), ft: B.fightT == null ? null : R1(B.fightT), sh: R1(B.shake), ov: B.over,
-    ban: B.banner, cine: B.cine ? [B.ms.indexOf(B.cine.m), R1(B.cine.t * 100) / 100] : null, kc: B.kcam ? [B.ms.indexOf(B.kcam.m), R1(B.kcam.t * 100) / 100] : null, ko: B.koBig ? 1 : 0,
+    ban: B.banner, cine: B.cine ? [B.ms.indexOf(B.cine.m), R1(B.cine.t * 100) / 100] : null, kc: B.kcam ? [B.ms.indexOf(B.kcam.m), R1(B.kcam.t * 100) / 100] : null, ko: B.koBig ? 1 : 0, dw: B.drawBig && B.drawBig.t >= 0 ? 1 : 0, ar: B.arena | 0,
     ms: B.ms.map(m => [R1(m.x), R1(m.y), R1(m.z), R1(m.vx), R1(m.vy), Math.round(m.hp), m.dead ? 1 : 0, m.state, R1(m.strikeExt || 0), [R1(m.atkDir.x * 100) / 100, R1(m.atkDir.y * 100) / 100],
       m.atkArm ? m.ix.arms.indexOf(m.atkArm) : -1, B.ms.indexOf(m.target), m.emo, R1(m.emoT), m.emoP, R1(m.hurtT), R1(m.mouthOpen),
       [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
@@ -6296,11 +6641,12 @@ function lanSnapshot() {
 function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima las partes localmente
   const B = battle, s = LAN.snap;
   if (s) {
-    B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: 0 };
+    if (s.ar != null) B.arena = s.ar; B.time = s.tm; B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0 }; SFX.boo(); ANN.ev('draw'); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
     B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
+    { const seen = B._sndTx || (B._sndTx = new Map()), now = performance.now(); for (const t of B.texts) { const key = t.str + '|' + Math.round(t.x / 8); if (t.life < 0.6 || seen.has(key) && now - seen.get(key) < 900) continue; seen.set(key, now); if (t.str === 'K.O.') { SFX.ko(); ANN.ev('ko'); } else if (t.str === '¡BUM!') SFX.mineBoom(); else if (/^\d+$/.test(t.str)) { SFX.hit(+t.str, false); if (+t.str > 12) ANN.ev('hit', Math.min(1, +t.str / 45)); } } } // títere (Online / espectar): suena con los números de daño que llegan
     B.parts = s.pa.map(q => ({ x: q[0], y: q[1], vx: q[2], vy: q[3], life: q[4], col: q[5], r: q[6] }));
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
       const m = B.ms[i]; if (!m) return;
@@ -6321,11 +6667,10 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
 }
 function lanFinish() {
   const B = battle; if (!B || B.reported) return; B.reported = true;
-  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut });
+  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut, dr: !!B.isDraw });
   updateFighters();
   const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
-  $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste';
-  $('resTitle').className = place === 1 ? 'win' : 'lose';
+  if (B.isDraw) { $('resTitle').textContent = 'Empate'; $('resTitle').className = 'mid'; } else { $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste'; (place === 1 ? SFX.win : SFX.lose)(); $('resTitle').className = place === 1 ? 'win' : 'lose'; }
   $('resText').innerHTML = '';
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha'; $('resRoom').hidden = false;
   $('result').classList.add('on');
