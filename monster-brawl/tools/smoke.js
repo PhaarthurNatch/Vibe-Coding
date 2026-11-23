@@ -7,7 +7,7 @@ const { chromium, devices } = require('playwright');
   const p = await (await b.newContext({ ...devices['iPhone 13'] })).newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('file://' + path.resolve(__dirname, '..', 'index.html'));
-  await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(400);
+  await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForSelector('#boot', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(200); // (espera que se vaya la pantalla de carga)
   // partida nueva: empieza en el Home con su primer huevo (gratis); se abre tocándolo
   for (let i = 0; i < 12 && await p.evaluate(() => !!egg); i++) {
     const e = await p.evaluate(() => ({ x: homeView.cx + egg.gx * homeView.k, y: homeView.gy - (egg.z + egg.h * 0.45) * homeView.k }));
@@ -18,7 +18,7 @@ const { chromium, devices } = require('playwright');
   // el Home tiene que quedar centrado (también al volver a abrir el juego)
   const offCenter = () => p.evaluate(() => Math.abs(document.getElementById('pgHome').getBoundingClientRect().top - document.querySelector('.pager').getBoundingClientRect().top)); // el Rancho (página del medio) a la vista
   if (await offCenter() > 5) errs.push('el Home no está centrado tras nacer');
-  await p.reload(); await p.waitForTimeout(400);
+  await p.reload(); await p.waitForSelector('#boot', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(200); // (espera que se vaya la pantalla de carga)
   if (await offCenter() > 5) errs.push('el Home no está centrado al abrir el juego');
   if (errs.length) { console.log(errs.join('; ')); await b.close(); process.exit(1); }
   // al abrir se ve el rancho: se toca al monstruo para verlo de cerca
@@ -31,7 +31,7 @@ const { chromium, devices } = require('playwright');
   await p.mouse.click(a.x, a.y); await p.waitForTimeout(700); // tocar = verlo de cerca
   if (await p.evaluate(() => ranchMode)) { errs.push('tocar al monstruo en el rancho no lo acercó'); console.log(errs.join('; ')); await b.close(); process.exit(1); }
   await p.click('#btnFight'); await p.waitForTimeout(200); // "Luchar" abre los modos
-  await p.click('[data-mode="1v1"]'); await p.waitForTimeout(500);
+  await p.click('[data-mode="boss"]'); await p.waitForTimeout(500);
   await p.evaluate(() => battle.ms.filter(m => m.team !== 0).forEach(m => m.hp = 1)); // acelera: el rival casi sin vida
   await p.waitForSelector('#result.on', { timeout: 60000 });
   console.log('resultado:', await p.textContent('#resTitle'), '|', (await p.innerText('#resText')).replace(/\n/g, ' | '));

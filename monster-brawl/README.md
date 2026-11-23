@@ -35,7 +35,7 @@ Todo está en `index.html` (HTML5 canvas, sin dependencias). Ábrelo en el naveg
 - **IA**: elige objetivo mirando a la vez qué tan cerca está, quién le está pegando ahora, quién le ha pegado en toda la pelea, quién lo está atacando, quién está débil o distraído, a quién ataca su compañero (2 vs 2), si ya hay varios encima de uno (todos contra todos), si tiene escudo y qué tan peligroso es. La personalidad decide cuánto pesa cada cosa ("¡grr!" cuando cambia por rabia, "¡ahora!" por oportunidad). No cambia a cada rato: sólo si el nuevo es claramente mejor. Al fijarlo se mueve sobre un eje de lock-in que gira lento.
 - **Combate físico**: el golpe solo cuenta si la mano/cabeza toca al enemigo (con impulso hacia adelante); disparar empuja hacia atrás;
   esquivar es un salto lateral real, así que el ataque falla físicamente.
-- Modos 1v1, 2v2 y todos contra todos (velocidad fija x1.5). En 2v2 eliges 2 de tus monstruos para pelear en equipo
+- Modos Jefe y pelea de a 4 (velocidad fija x1.5). Contra el **jefe** (todavía bloqueado en la web app), un monstruo gigante al fondo de la arena golpea el suelo con sus manos y hay que destruirlas antes de que se acabe el tiempo. En la pelea de a 4 eliges 1 monstruo (todos contra todos) o 2 (2 vs 2)
   (o un aliado al azar si sólo tienes uno listo); cada uno gana su XP, monedas y pierde sus vidas. XP, monedas y niveles guardados en el dispositivo.
 - **Vidas**: 5 por monstruo (con 2 o menos se ve machacado); si lo noquean pierde una y recupera 1 cada 5 min. Sin vidas descansa 10 min (o se cura al instante con 30 monedas).
 - **Interacción en la vitrina**: toque corto = sacudirlo; deslizar el dedo = acariciarlo (cierra los ojos, se sonroja, salen corazones);
