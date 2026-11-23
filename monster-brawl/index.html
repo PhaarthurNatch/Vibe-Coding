@@ -3285,7 +3285,8 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
     // el antebrazo intenta quedar horizontal (pedido del dueño): el codo va al lado de la mano, hacia afuera (aunque quede fuera de la pantalla), apenas más abajo
     const FL = (V.x1 - V.x0) * 0.42, ex = hx + h.side * FL, ey = hy + FL * 0.08;
     const sx = h.side < 0 ? Math.min(V.x0, ex) - L1 : Math.max(V.x1, ex) + L1, sy = ey * 0.75 + ay * 0.25; // (el brazo, casi todo fuera de la pantalla, sigue al codo)
-    ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
+    const bl = Math.hypot(sx - ex, sy - ey) || 1, k = Math.min(1, w1 * 1.3 / bl); // del brazo sólo se ve un poquito: del codo en adelante (pedido del dueño)
+    ctx.save(); seg(ex + (sx - ex) * k, ey + (sy - ey) * k, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
 }
 
 class Battle {
