@@ -3224,7 +3224,7 @@ class Monster {
 // las mecánicas de siempre (objetivo, golpes, disparos, ultimates). Si destruyes las dos manos, ganas; si se acaba el tiempo, gana el jefe.
 // ============================================================================
 const bossScale = b => ((ARENA_W + 60) / 2 * BOSS.reach) / (b.g.torso.upper.w * 0.5); // tan grande que sus hombros casi tocan los bordes de la pantalla (pedido del dueño)
-const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: 0.06, top: 430 };
+const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.06, top: 430 };
 const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
 function bossRec(i = 0) { const b = BOSS_LIST[i]; const r = newRec('adult'); r.seed = b.seed || r.seed; r.name = b.name; r.level = 20; r.noArms = true; r.broad = 4; r.temper = { agr: 1, terco: 0, valor: 1 }; return r; }
 class BossHand extends Monster {
@@ -3261,7 +3261,7 @@ class BossHand extends Monster {
     this.x = clamp(this.x, this.side < 0 ? this.r : ARENA_W * 0.38, this.side < 0 ? ARENA_W * 0.62 : ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); // cada mano se queda casi en su mitad (así los brazos no se cruzan)
   }
   draw(ctx) { // un puño enorme
-    const x = this.gx, y = this.gy - this.z - this.r * 0.55, r = this.r * 1.05, c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
+    const r = Math.max(this.r * 1.05, ((typeof battle !== 'undefined' && battle && battle.armW2) || 0) * 0.72), x = this.gx, y = this.gy - this.z - r * 0.55, /* el puño también va en proporción */ c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
     if (A && !dead) { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
     ctx.save(); if (dead) ctx.globalAlpha = 0.75; const fill = dead ? '#6d6670' : this.hurtT > 0 ? '#ffffff' : hsl(c), dk = dead ? '#3c373f' : hsl(c, -22);
     ctx.lineWidth = 4; ctx.strokeStyle = dk; ctx.fillStyle = fill;
@@ -3275,7 +3275,7 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   const body = B.bossBody; if (!body) return; const sc = B.bossSc || bossScale(body);
   body.x = body.gx = ARENA_W / 2; body.s = sc;
   const up = body.nodes[body.ix.upper], U = body.g.torso.upper, sw = U.w * sc * 0.5, c = body.g.pal.body;
-  const V = B.view || { x0: -30, x1: ARENA_W + 30 }, ay = TOP + ARENA_D * DEPTH * 0.25, L1 = (V.x1 - V.x0) * 0.32, L2 = Math.hypot((V.x1 - V.x0) * 0.75, ARENA_D * DEPTH * 0.8), /* brazo corto (casi todo fuera de la pantalla) y antebrazo largo: se ve sobre todo el antebrazo (pedido del dueño) */ w1 = Math.max(22, sw * 0.13), w2 = w1 * 0.8;
+  const V = B.view || { x0: -30, x1: ARENA_W + 30 }, ay = TOP + ARENA_D * DEPTH * 0.25, L1 = (V.x1 - V.x0) * 0.32, L2 = Math.hypot((V.x1 - V.x0) * 0.75, ARENA_D * DEPTH * 0.8), /* brazo corto (casi todo fuera de la pantalla) y antebrazo largo: se ve sobre todo el antebrazo (pedido del dueño) */ w1 = Math.max(30, sw * 0.24), w2 = w1 * 0.85; B.armW2 = w2; /* proporcionales al cuerpo (pedido del dueño) */
   const seg = (ax, ay, bx, by, w, dead) => { ctx.lineCap = 'round'; ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = w + 8; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.strokeStyle = dead ? '#6d6670' : hsl(c); ctx.lineWidth = w; ctx.stroke(); };
   const ball = (x, y, r, dead) => { ctx.fillStyle = dead ? '#6d6670' : hsl(c); ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke(); };
   ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); body.draw(ctx); // se corta en el piso: sólo se ve del torso para arriba
@@ -3283,8 +3283,8 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   ctx.restore();
   for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55; // los brazos entran por los costados de la arena (pedido del dueño)
     // el antebrazo intenta quedar horizontal (pedido del dueño): el codo va al lado de la mano, hacia afuera (aunque quede fuera de la pantalla), apenas más abajo
-    const FL = (V.x1 - V.x0) * 0.42, ex = h.side < 0 ? V.x0 - w1 * 0.2 : V.x1 + w1 * 0.2, ey = hy + Math.abs(hx - ex) * 0.08; // el codo en el borde de la pantalla: el brazo existe, pero queda fuera; en pantalla se mueve el resto (pedido del dueño)
-    const sx = h.side < 0 ? Math.min(V.x0, ex) - L1 : Math.max(V.x1, ex) + L1, sy = ey * 0.75 + ay * 0.25; // (el brazo, casi todo fuera de la pantalla, sigue al codo)
+    const FL = (V.x1 - V.x0) * 0.42, ex = h.side < 0 ? V.x0 - w1 * 0.55 : V.x1 + w1 * 0.55, ey = hy + Math.abs(hx - ex) * 0.08; // el codo en el borde de la pantalla: el brazo existe, pero queda fuera; en pantalla se mueve el resto (pedido del dueño)
+    const sx = up.x + h.side * sw, sy = up.y - U.h * sc * 0.3; // el brazo sale del hombro del monstruo y baja por el borde hasta el codo (casi todo fuera de la pantalla)
     ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); ctx.restore(); }
 }
 
