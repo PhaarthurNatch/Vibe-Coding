@@ -80,7 +80,7 @@ Para dibujar galerías en el canvas, primero desactivar el loop: `window.request
 
 ## Reglas y decisiones de diseño vigentes (no revertir sin que el dueño lo pida)
 
-- **Etapas:** Huevo → Bebé (Nv 1–2) → Niño (3–4) → Adolescente (5–7) → Adulto (8–11) → Awakened (12+) (`STAGE_LV`). **Awakened = mismo cuerpo del adulto pero ×1,15 de tamaño** (`AWAKE_SIZE`, en `genGenome`).
+- **Etapas:** Huevo → Bebé (Nv 1–4) → Niño (5–9) → Adolescente (10–14) → Adulto (15–29) → Awakened (30) (`STAGE_LV`; pedido del dueño, antes 3 / 5 / 8 / 12). **Nivel máximo 30** (`MAX_LEVEL`: al llegar deja de sumar XP y Estadísticas dice «Nivel máximo»; los rivales tampoco pasan de 30). Migración `save.lv30` en `loadSave`: cada nacido (rancho y granero) pasa al nivel equivalente dentro de su misma etapa (proporcional; los Awakened a 30), así no cambia de etapa y gana los puntos de esos niveles. Llegar a 30 pide ~19 000 XP (~270 victorias 1v1), antes ~3 300 para Awakened. **Awakened = mismo cuerpo del adulto pero ×1,15 de tamaño** (`AWAKE_SIZE`, en `genGenome`).
   Al crecer conserva todas sus partes (agrandadas) y se sortean partes nuevas; las cantidades sólo suben.
   **Crece recién al volver al menú**, con animación a pantalla completa; si debe crecer varias etapas, todas van en la misma animación.
   "Otra pelea" sigue usando la etapa actual.

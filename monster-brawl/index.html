@@ -3260,7 +3260,8 @@ function wakeUp() {
 }
 const hmm = ms => { const t = Math.ceil(ms / 60000); return t >= 60 ? `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min` : mmss(ms); }; // 2 h 05 min / 4:32
 const mmss = ms => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
-const STAGE_LV = { child: 3, teen: 5, adult: 8, awakened: 12 }; // nivel en que crece a cada etapa
+const STAGE_LV = { child: 5, teen: 10, adult: 15, awakened: 30 }; // nivel en que crece a cada etapa (pedido del dueño; antes 3 / 5 / 8 / 12)
+const MAX_LEVEL = 30; // nivel máximo (= Awakened)
 const stageForLevel = l => l >= STAGE_LV.awakened ? 'awakened' : l >= STAGE_LV.adult ? 'adult' : l >= STAGE_LV.teen ? 'teen' : l >= STAGE_LV.child ? 'child' : 'baby';
 function newRec(stage = 'egg') {
   const seed = (Math.random() * 4294967296) >>> 0;
@@ -3282,6 +3283,12 @@ function loadSave() { let raw = null; try { raw = localStorage.getItem(SAVE_KEY)
         if (m.genes && m.genes.ears && !m.genes.antennae) m.genes.antennae = m.genes.ears;
         if (m.geneLock && m.geneLock.ears && !m.geneLock.antennae) m.geneLock.antennae = true;
       });
+      if (!s.lv30) { // etapas nuevas (pedido del dueño): niño 5, adolescente 10, adulto 15, Awakened 30 (= nivel máximo); cada uno pasa al nivel equivalente de su etapa, sin cambiar de etapa
+        const OLD = { baby: [1, 3], child: [3, 5], teen: [5, 8], adult: [8, 12] }, NEW = { baby: [1, 5], child: [5, 10], teen: [10, 15], adult: [15, 30] };
+        [...(s.monsters || []), ...(s.barn || [])].forEach(m => { if (!m || m.stage === 'egg' || !(m.level >= 1)) return;
+          if (m.stage === 'awakened') m.level = 30; else if (OLD[m.stage]) { const [a, b] = OLD[m.stage], [c, d] = NEW[m.stage]; m.level = Math.min(d - 1, c + Math.floor((Math.min(m.level, b - 1) - a) * (d - c) / (b - a))); }
+          if (m.level >= 30) { m.level = 30; m.xp = 0; } else m.xp = Math.min(m.xp || 0, 60 + m.level * 40 - 1); });
+        s.lv30 = true; }
       if (!s.lives5) { s.monsters.forEach(m => { if (!m.restUntil) m.lives = Math.min(MAX_LIVES, (m.lives ?? 3) + 2); }); s.lives5 = true; } // de 3 a 5 corazones: +2 a cada uno
       if (!s.gen5) { // el dueño pidió pasar todos sus monstruos a las reglas nuevas (gen 5): cambian de aspecto y de stats; también sus ancestros (cría)
         s.monsters.forEach(m => { m.gen = Math.max(5, m.gen || 0); delete m.legacy; if (m.genes) for (const k in m.genes) m.genes[k] = { seed: m.genes[k].seed, legacy: false, v3: true, v4: true, v5: true, v6: m.genes[k].v6 || false }; }); // (los gen 6 siguen siendo gen 6)
@@ -4229,7 +4236,7 @@ function renderTrain() {
   rec.pts = rec.pts || {}; if (!rec.temper) rec.temper = randomTemper(rec.seed);
   $('tSub').innerHTML = `Nv. ${rec.level} · ${STAGE_NAME[rec.stage]} · ${hearts(rec.lives)}`;
   const mon = show && show.rec === rec ? show : new Monster(rec), free = ptsTotal(rec.level) - ptsUsed(rec.pts), st = mon.st;
-  let h = `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div></div>`
+  let h = rec.level >= MAX_LEVEL ? `<div class="tsec"><div class="xp"><span>Nivel máximo</span><div class="bar"><i style="width:100%"></i></div></div>` : `<div class="tsec"><div class="xp"><span>XP ${rec.xp}/${xpNeed(rec.level)}</span><div class="bar"><i style="width:${rec.xp / xpNeed(rec.level) * 100}%"></i></div></div>`
     + (rec.geneLock && Object.keys(rec.geneLock).length ? `<p class="tdesc">🧬 Su próxima cría heredará sí o sí: <b>${Object.keys(rec.geneLock).map(k => GENE_NAMES[k]).join(', ')}</b></p>` : '')
     + (rec.parents ? `<p class="tdesc">Hijo de <b>${esc(rec.parents[0])}</b> y <b>${esc(rec.parents[1])}</b> · Gen. ${rec.lineage || 2}</p>` : '')
     + `</div>`; // (la moral se ve arriba al seleccionar al monstruo, pedido del dueño)
@@ -4817,6 +4824,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.69', d: '2026-11-23', items: ['Nuevas etapas: niño en el nivel 5, adolescente en el 10, adulto en el 15 y Awakened en el 30, que ahora es el nivel máximo. Tus monstruos pasan al nivel equivalente de su etapa (los Awakened quedan en el 30) y ganan los puntos de entrenamiento de esos niveles.'] },
   { v: '1.68', d: '2026-11-23', items: ['Las serpientes llevan la cola siempre detrás: al cambiar de dirección, la cola se pasa al otro lado.'] },
   { v: '1.67', d: '2026-11-23', items: ['Cuando los monstruos vuelan (flotando, saltando o volando en el rancho), sus piernas cuelgan relajadas en vez de seguir caminando.', 'Cámara de K.O.: cuando noquean a un monstruo, la cámara se acerca a él en el momento del golpe, se congela un instante y lo muestra salir volando en cámara lenta.', 'Los K.O. ahora estallan en muchas partículas con los colores del monstruo, con una onda en el suelo.', 'Al noquear al último rival aparece un gran «K.O.» con la misma letra del 3, 2, 1, FIGHT!: primero cae la K y después la O, como martilladas en un yunque, con chispas.'] },
   { v: '1.66', d: '2026-11-22', items: ['Serpientes: el coletazo ahora lo usan cuando les llueven golpes (como al flotar) y además de pegar, empuja lejos a los que tienen cerca.', 'El coletazo ya no tiene preparación: es un barrido ancho al tiro (un poco menos fuerte para compensar).', 'Los de una sola pieza ruedan más rápido y siempre dan al menos una vuelta completa.', 'Equilibrio: los bebés y niños que sólo disparan ganaban demasiado; ahora su bono es menor y el de los que sólo golpean, algo mayor.', 'El Teletransporte ahora sí alcanza a los que están flotando: aparece a su altura y le pega. Si el que lo usó tiene alas sigue peleando en el aire (persigue y golpea al que flota) y baja cuando su rival baja; si no tiene alas, cae al suelo.'] },
@@ -5488,7 +5496,7 @@ function pet(a, b) {
 // ---------- Rivales: misma etapa que tu monstruo, nivel parecido, puntos y personalidad al azar ----------
 function makeFoe(ref) {
   const r = newRec(ref.stage); // los rivales siempre son de la versión más nueva
-  r.level = Math.max(1, ref.level + Math.floor(Math.random() * 3) - 1);
+  r.level = clamp(ref.level + Math.floor(Math.random() * 3) - 1, 1, MAX_LEVEL);
   r.pts = randomPts(r.level);
   r.temper = Object.fromEntries(TEMPER.map(t => [t.k, snapT(Math.random() * 1.6 - 0.8)])); // rivales: tácticas al azar
   r.ultMode = ['ready', 'finisher', 'save'][Math.floor(Math.random() * 3)];
@@ -5794,7 +5802,8 @@ function finishBattle() {
       rec.sadUntil = Date.now() + LOSS_SAD_MS; delete rec.happyUntil; // perder un corazón lo deja triste un rato (aunque su equipo gane)
       if (rec.lives === 0) rec.restUntil = Date.now() + REST_MS;
     }
-    while (rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
+    while (rec.level < MAX_LEVEL && rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; }
+    if (rec.level >= MAX_LEVEL) { rec.level = MAX_LEVEL; rec.xp = 0; } // nivel máximo: no sigue sumando XP
     // resumen: premio por el puesto + K.O. = total (de dónde viene cada cosa)
     const row = (lbl, x, c, cls = '') => `<span class="${cls}">${lbl}</span><span class="rx ${cls}">+${x} XP</span><span class="rc ${cls}">+${c} 🪙</span>`;
     return `<div class="rwd"><b class="nm">${esc(rec.name)}</b>${row(placeLbl, bx, bc)}${pm.kills ? row(pm.kills > 1 ? `${pm.kills} K.O.` : 'K.O.', pm.kills * 10, pm.kills * 5) : ''}${row('Total', xp, coins, 'tot')}</div>`;
