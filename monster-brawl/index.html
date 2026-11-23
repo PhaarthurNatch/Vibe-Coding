@@ -236,6 +236,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .mid{color:var(--acc)}
 .growTitle{font-weight:900;font-size:26px;text-align:center;margin-top:28px;text-wrap:balance;text-shadow:0 2px 0 rgba(0,0,0,.4)}
 #growOk{align-self:center;min-width:220px;margin-bottom:16px;font-size:17px;padding:14px}
+.tpriv{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;font-weight:700}.tpriv>div{display:flex;gap:6px}.tpriv .btn{min-width:46px;padding:8px 0}
 .tplist{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:52vh;overflow-y:auto;touch-action:pan-y}
 .tpc{background:var(--panel2);border-radius:14px;padding:6px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:1px;border:2px solid transparent;font-size:12px;color:var(--muted)}
 .tpc b{color:var(--text);font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -338,7 +339,6 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     </div>
     <div class="row fightrow">
       <button class="btn primary" data-mode="boss">👑 Jefe</button>
-      <button class="btn primary" data-mode="2v2">2 vs 2</button>
       <button class="btn primary" data-mode="ffa">Todos vs todos</button>
     </div>
   </div>
@@ -537,9 +537,10 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 </div>
 <div class="modal" id="teamPick">
   <div class="card">
-    <h2 style="font-size:22px">Elige tu equipo</h2>
+    <h2 style="font-size:22px">Todos vs todos</h2>
     <p id="tpInfo"></p>
     <div class="tplist" id="tpList"></div>
+    <div class="tpriv"><span>Rivales</span><div id="tpRiv"><button class="btn nosnd" data-n="1">1</button><button class="btn nosnd" data-n="2">2</button><button class="btn nosnd" data-n="3">3</button></div></div>
     <div class="row">
       <button class="btn" id="tpNo">Cancelar</button>
       <button class="btn primary" id="tpGo">Pelear</button>
@@ -3365,7 +3366,7 @@ class Battle {
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
     const P0 = mode === 'boss' ? [[0.5, 0.72], [0.27, 0.3], [0.73, 0.3]] : mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
-    const P = ms.length <= P0.length && mode !== 'teams' ? P0 : spawnRing(ms); // pelea local por colores o más de 4: equipos repartidos en un óvalo
+    const P = ms.length <= P0.length && mode !== 'teams' && this.players.length < 2 ? P0 : spawnRing(ms); // pelea local por colores o más de 4: equipos repartidos en un óvalo
     ms.forEach((m, i) => {
       m.x = P[i][0] * ARENA_W; m.y = P[i][1] * ARENA_D;
       const dx = ARENA_W / 2 - m.x, dy = ARENA_D / 2 - m.y, d = Math.hypot(dx, dy) || 1; m.lockAx = { x: dx / d, y: dy / d };
@@ -4665,7 +4666,7 @@ function renderHome() {
   setTimeout(() => { $('btnFight').disabled = [...document.querySelectorAll('#homePanel .fightrow .btn')].every(b => b.disabled); });
   $('home').classList.toggle('first', firstEgg()); // partida nueva: sin botones hasta que nazca el primer huevo
   const rec = cur(), isEgg = rec.stage === 'egg';
-  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === '2v2' ? !(canFight(rec) || save.monsters.filter(canFight).length >= 2) : b.dataset.mode === 'boss' && !BOSS_OPEN ? true : !canFight(rec));
+  document.querySelectorAll('[data-mode]').forEach(b => b.disabled = b.dataset.mode === 'ffa' ? !save.monsters.some(canFight) : b.dataset.mode === 'boss' && !BOSS_OPEN ? true : !canFight(rec));
   $('coins').textContent = save.coins;
   { const free = rec.stage === 'egg' ? 0 : ptsTotal(rec.level) - ptsUsed(rec.pts); edgeLabels(free); }
   $('rest').hidden = true; // durmiendo: la cuenta va abajo a la derecha (ya no hay botón para curarlo con monedas, pedido del dueño)
@@ -5418,7 +5419,7 @@ $('btnFree').onclick = async () => {
   save.monsters.splice(save.sel, 1); save.sel = Math.min(save.sel, save.monsters.length - 1); persist(); renderHome();
 };
 if (!BOSS_OPEN) document.querySelector('[data-mode="boss"]').textContent = '🔒 Jefe · pronto';
-document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === '2v2' ? openTeamPick() : startBattle(b.dataset.mode, [cur()]));
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => b.dataset.mode === 'ffa' ? openTeamPick() : startBattle(b.dataset.mode, [cur()]));
 // "Luchar" abre los modos de pelea (y la pelea local); ✕ los cierra. Se cierran solos al cambiar de monstruo o volver al rancho.
 const fightMenu = open => $('homePanel').classList.toggle('fightOpen', !!open);
 $('btnFight').onclick = () => fightMenu(true);
@@ -5436,7 +5437,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.74', d: '2026-11-23', items: ['Se viene el modo Jefe (todavía bloqueado; reemplaza al 1 vs 1): un monstruo gigante al fondo de la arena golpea el suelo con sus manos; destrúyelas antes de que se acabe el tiempo. Primer jefe: Titán.', 'Pantalla de carga al abrir el juego.', 'Interruptor para apagar a los comentaristas arriba a la derecha en la arena.', 'Siempre narra el relator; la comentarista aparece en 4 de cada 10 peleas de todos contra todos y de 2 vs 2.', 'Con la moral alta los monstruos se ven contentos sólo a ratos; el resto del tiempo tienen su cara normal.', 'El jefe ahora es gigante (sus hombros enormes quedan mitad fuera de la pantalla), sus brazos entran por los costados de la arena y se ve sobre todo el antebrazo (sólo se le puede pegar a las manos) y su vida se ve en una sola barra grande arriba. Brazos y manos proporcionales a su cuerpo, y se inclina hacia el lado contrario cuando sube un brazo. Sus puños se ven desde el dorso y siguen al antebrazo sin doblarse hacia abajo, el codo nunca queda más alto que el hombro o la mano, y tiene mucho más detalle: músculos, cicatriz, arrugas y venas.', 'Arreglado: los comentaristas ya no se cortan entre ellos con un audio nuevo.', 'En 2 vs 2 y todos contra todos el resultado aparece 1 segundo antes.', 'Arreglado: si la música de la muerte súbita no alcanzaba a cargar, el juego se congelaba.', 'Arreglado: a veces al abrir el juego preguntaba si usar la partida de la nube o la del celular aunque fueran la misma.'] },
+  { v: '1.74', d: '2026-11-23', items: ['Se viene el modo Jefe (todavía bloqueado; reemplaza al 1 vs 1): un monstruo gigante al fondo de la arena golpea el suelo con sus manos; destrúyelas antes de que se acabe el tiempo. Primer jefe: Titán.', 'Se quitó el 2 vs 2: ahora en Todos vs todos eliges pelear con 1 o 2 de tus monstruos (juntos) y contra 1, 2 o 3 rivales.', 'Pantalla de carga al abrir el juego.', 'Interruptor para apagar a los comentaristas arriba a la derecha en la arena.', 'Siempre narra el relator; la comentarista aparece en 4 de cada 10 peleas de todos contra todos y de 2 vs 2.', 'Con la moral alta los monstruos se ven contentos sólo a ratos; el resto del tiempo tienen su cara normal.', 'El jefe ahora es gigante (sus hombros enormes quedan mitad fuera de la pantalla), sus brazos entran por los costados de la arena y se ve sobre todo el antebrazo (sólo se le puede pegar a las manos) y su vida se ve en una sola barra grande arriba. Brazos y manos proporcionales a su cuerpo, y se inclina hacia el lado contrario cuando sube un brazo. Sus puños se ven desde el dorso y siguen al antebrazo sin doblarse hacia abajo, el codo nunca queda más alto que el hombro o la mano, y tiene mucho más detalle: músculos, cicatriz, arrugas y venas.', 'Arreglado: los comentaristas ya no se cortan entre ellos con un audio nuevo.', 'En 2 vs 2 y todos contra todos el resultado aparece 1 segundo antes.', 'Arreglado: si la música de la muerte súbita no alcanzaba a cargar, el juego se congelaba.', 'Arreglado: a veces al abrir el juego preguntaba si usar la partida de la nube o la del celular aunque fueran la misma.'] },
   { v: '1.73', d: '2026-11-23', items: ['El relator ahora usa más las frases normales: los golpes de siempre ya no lo emocionan tanto, y las frases intensas quedan para los momentos grandes (K.O., ultimates, muerte súbita). También dice «¡salió volando!» sólo con los empujones realmente fuertes.', 'Cada vez que cae un monstruo suena un «¡taaan!», cada vez más agudo a medida que van cayendo.', 'Nuevo sonido de martillazo de herrero en las letras del «K.O.» final.', 'La cuenta regresiva 3, 2, 1 y el FIGHT! tienen sonidos nuevos, más potentes.', 'Los golpes y el «¡taaan!» suenan más fuerte.', 'El relator viene ahora en español (El Faraón). Guy en inglés sigue en Menú ⚙️ → Voz del relator.', 'A veces el relator viene acompañado por una comentarista (Angélica), que dice la mitad de los comentarios y conversa mucho más con el relator (16 conversaciones nuevas)', 'Los comentaristas ahora son sólo en español (se quitaron los de inglés).', 'El doble de frases para los comentaristas: más de 350 nuevas, incluidas 30 conversaciones nuevas entre ellos.', 'La comentarista ahora es Diana (voz mexicana), un poco más bajita.', 'Los comentaristas ahora hablan de tu monstruo: cuando pega fuerte, cuando lo castigan, si noquea o cae, si viene en racha o está por crecer, y te dicen si ganaste o perdiste.', 'Reacciones cortas en los golpes («¡Uy!», «¡Pum!») para que suene más en vivo.', 'Al terminar comentan cómo fue la pelea (varios nocauts, casi sin recibir golpes, muy rápida o muy larga).', 'Los comentaristas siempre se escuchan: mientras hablan, el público, la música y los golpes bajan.', 'En todos contra todos siempre están los dos comentaristas; en 2 vs 2 sólo él.', 'Se regrabaron 7 frases del relator que balbuceaban o decían palabras de más (como «¡Batalla terminada! ¡Bravo!»).', 'Se regrabó la frase «¡Lanzado al otro lado de la arena!», que sonaba rara: son viejos amigos, conversan entre ellos y ella también comenta lo que pasa.', 'Las bombas y la onda de choque ahora también lanzan a los cuerpos de los noqueados que alcanzan.', 'Arreglado: a veces un monstruo ya noqueado salía volando al caer el último. Ahora, una vez tendido, se queda quieto.', 'El relator habla menos (cerca de 40% menos) y reparte sus frases entre varias peleas, sin repetirlas hasta haberlas dicho todas. Con la comentarista, ella habla más seguido y conversan entre ellos.', 'El relator usa mucho más variado sus frases: ahora narra también golpes, esquivas, vuelos, saltos, bombas y más, ya no repite tanto los comentarios de relleno, y se oyen todas sus presentaciones (el «¡A luchar!» espera a que termine).', 'Al empezar la muerte súbita suena una música de «se acaba el tiempo».', 'La muerte súbita ahora dura 20 segundos y en los últimos 10 aparece un reloj: si llega a 0 sin ganador, los monstruos dejan de pelear y es empate. Si se golpearon mucho el público aplaude; si no, abuchea. El relator lo comenta.', 'El «K.O.» del final sale centrado y más grande, y las letras grandes (K.O., FIGHT!, DRAW) se ven más limpias.'] },
   { v: '1.72', d: '2026-11-23', items: ['Arreglado: a veces la intro del relator salía con otra voz (la del celular). Ahora sólo hablan Guy y El Faraón, y sus audios se empiezan a cargar apenas abres el juego.'] },
   { v: '1.71', d: '2026-11-23', items: ['Relator con voces de locutor grabadas: Guy en inglés y El Faraón en español (elígelos en Menú ⚙️ → Voz del relator; Guy viene puesto). No dicen los nombres de los monstruos, pero sí todo lo demás.', 'Interruptor «Relator» arriba en Menú ⚙️ → Voz del relator para silenciarlo o volver a activarlo.', 'Arreglado: la web app instalada no se actualizaba bien ni funcionaba sin internet por un error en su archivo de caché.', 'El relator ahora sólo tiene las voces grabadas (Guy en inglés y El Faraón en español) y comenta más cosas: el inicio de todos contra todos y por equipos, el primer golpe, golpes en el aire, monstruos que salen volando, remontadas, cuando quedan dos, lo que hace cada ultimate y si la victoria fue perfecta o muy pareja.', 'Volvió el público, ahora con sonidos grabados de estadio: murmullo que sube con la emoción, «¡oooh!», sorpresa, ovación, aplausos y abucheo en el empate. Se puede apagar en Menú ⚙️ → Relator y público.', 'Los audios del relator ya no se cortan entre sí: lo importante espera a que termine la frase anterior.', 'El público tiene 10 reacciones distintas de cada tipo (ovación, «¡oooh!», sorpresa, aplausos y abucheo) que salen al azar.', 'La voz del relator en español ahora suena tan fuerte como la de inglés.', 'El relator presenta la pelea durante la cuenta regresiva 3, 2, 1, grita «Fight!» o «¡A luchar!» al empezar, y el resultado aparece cuando termina de anunciar el final.', 'Muchas más frases del relator (cerca de 250 por idioma, incluidas intros y cierres) que se van turnando sin repetirse hasta usarlas todas, también de una pelea a otra.'] },
@@ -5988,15 +5989,15 @@ async function invitePoll() { // ¿algún amigo me invitó a pelear?
 }
 
 // ---------- Selector de equipo (2 vs 2) ----------
-let lastTeam = null;
+let lastTeam = null, lastRivals = 3;
 function drawThumb(c2, rec) {
   const c = c2.getContext('2d'), m = new Monster(rec); m.resetRig();
   for (let i = 0; i < 20; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
   const sz = m.estSize(), k = Math.min(112 / Math.max(sz.h, 70), 120 / Math.max(sz.w, 70));
   c.clearRect(0, 0, 144, 144); c.save(); c.translate(72, 136); c.scale(k, k); m.draw(c); c.restore();
 }
-function openTeamPick() {
-  const sel = new Set(), list = $('tpList'), ready = save.monsters.filter(canFight).length;
+function openTeamPick() { // Todos vs todos (pedido del dueño: reemplazó al 2 vs 2): eliges 1 o 2 de tus monstruos (van juntos, como compañeros) y de 1 a 3 rivales
+  const sel = new Set(), list = $('tpList');
   if (canFight(cur())) sel.add(save.sel);
   list.innerHTML = '';
   save.monsters.forEach((r, i) => {
@@ -6007,19 +6008,15 @@ function openTeamPick() {
     b.onclick = () => { if (sel.has(i)) sel.delete(i); else { if (sel.size >= 2) sel.delete([...sel][0]); sel.add(i); } refresh(); };
     list.appendChild(b);
   });
-  const go = $('tpGo');
+  const go = $('tpGo'), rv = [...$('tpRiv').children];
+  rv.forEach(b => b.onclick = () => { lastRivals = +b.dataset.n; SFX.click(); refresh(); });
   const refresh = () => {
     list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel.has(+c.dataset.i)));
-    if (ready >= 2) { go.disabled = sel.size !== 2; go.textContent = sel.size === 2 ? 'Pelear' : `Elige ${2 - sel.size} más`; }
+    rv.forEach(b => b.classList.toggle('primary', +b.dataset.n === lastRivals));
+    go.disabled = !sel.size; go.textContent = sel.size ? 'Pelear' : 'Elige un monstruo';
   };
-  if (ready >= 2) {
-    $('tpInfo').textContent = 'Elige 2 de tus monstruos para pelear juntos.';
-    go.onclick = () => { $('teamPick').classList.remove('on'); startBattle('2v2', [...sel].map(i => save.monsters[i])); };
-  } else {
-    $('tpInfo').textContent = 'Necesitas 2 monstruos nacidos y con vidas para elegir equipo. Puedes pelear con un aliado al azar.';
-    go.disabled = !canFight(cur()); go.textContent = 'Con aliado al azar';
-    go.onclick = () => { $('teamPick').classList.remove('on'); startBattle('2v2', [cur()]); };
-  }
+  $('tpInfo').textContent = 'Elige 1 o 2 de tus monstruos (pelean juntos) y cuántos rivales.';
+  go.onclick = () => { $('teamPick').classList.remove('on'); startBattle('ffa', [...sel].map(i => save.monsters[i]), lastRivals); };
   $('tpNo').onclick = () => $('teamPick').classList.remove('on');
   refresh();
   $('teamPick').classList.add('on');
@@ -6162,16 +6159,16 @@ function makeFoe(ref) {
   return new Monster(r);
 }
 
-function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); // (viene de un toque: el iPhone deja que la voz hable)
-  team = team || (mode === '2v2' && lastTeam) || [cur()];
+function startBattle(mode, team, rivals) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); // (viene de un toque: el iPhone deja que la voz hable)
+  team = team || (mode === 'ffa' && lastTeam) || [cur()]; rivals = rivals || lastRivals;
   if (!team.every(canFight)) { // alguien del equipo ya no puede pelear
-    goHome(); if (mode === '2v2' && scene === 'home') openTeamPick(); return;
+    goHome(); if (mode === 'ffa' && scene === 'home') openTeamPick(); return;
   }
-  lastMode = mode; lastTeam = mode === '2v2' ? team : null;
+  lastMode = mode; lastTeam = mode === 'ffa' ? team : null;
   const me = team[0];
   TOP = mode === 'boss' ? BOSS.top : 170; // con el jefe, más espacio arriba para su cuerpo
   const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1, awakened: 1 }[r.stage] || 1)));
-  ARENA_W = 600 * zoom;
+  ARENA_W = 600 * zoom * (mode === 'ffa' ? Math.sqrt(Math.max(1, (team.length + rivals) / 4)) : 1); // 5 en la arena: un poco más grande
   const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
   const foe = ref => makeFoe(ref);
   const list = [...players];
@@ -6181,7 +6178,7 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
     if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
     for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
   }
-  else for (let i = 0; i < 3; i++) { const e = foe(me); e.team = i + 1; list.push(e); }
+  else for (let i = 0; i < rivals; i++) { const e = foe(team[i % team.length]); e.team = i + 1; list.push(e); } // todos contra todos: cada rival solo; tus 1 o 2 monstruos juntos
   $('home').classList.remove('on'); $('battleUI').classList.add('on'); $('arCastSw').checked = !CAST.muted; $('result').classList.remove('on');
   $('modeLbl').textContent = { '1v1': '1 vs 1', boss: 'Jefe', '2v2': '2 vs 2', ffa: 'Todos vs todos' }[mode];
   $('fighters').innerHTML = list.map((m, i) => m.isHand ? '' : `<div class="fighter${m.isPlayer ? ' me' : ''}" id="f${i}"><div class="nm"><span class="chip" style="background:${hsl(m.g.pal.body)}"></span><span class="fn">${m.isPlayer ? '★ ' : m.isHand ? '👑 ' : ''}${esc(m.name)}</span><span class="ultpill" id="u${i}" style="${m.canUlt ? (m.ultReady ? '' : 'visibility:hidden') : 'display:none'}">ULT</span></div><div class="frow"><div class="bar"><i style="width:100%;background:${teamColor(m, mode)}"></i></div><span class="flv">Nv.${m.level}</span></div></div>`).join('') + (list.some(m => m.isHand) ? `<div class="bossbar" id="fboss"><div class="nm">👑 ${esc((list.bossRec || {}).name || 'Jefe')}</div><div class="bar"><i style="width:100%"></i></div></div>` : ''); // la vida del jefe: una sola barra grande (pedido del dueño)
@@ -6483,7 +6480,8 @@ $('resAgain').onclick = () => {
 function finishBattle() {
   recordFoes(battle); // historial de combate de la Tienda
   const dr = !!battle.isDraw, rank = battle.ranking, nTeams = rank.length, place = dr ? nTeams : rank.indexOf(0) + 1; // empate: nadie gana (cobra lo del último puesto)
-  const [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
+  let [bx, bc] = (REWARDS[battle.mode] || REWARDS['1v1'])[place - 1];
+  if (battle.mode === 'ffa') { const R = REWARDS.ffa, nr = battle.ms.filter(m => !m.isPlayer && !m.cloneOf).length, k = (1 + nr) / 4 * (battle.players.length > 1 ? 0.6 : 1); [bx, bc] = R[place === nTeams && !(place === 1) ? R.length - 1 : place - 1].map(v => Math.round(v * k)); } // todos contra todos: el último cobra lo del último; menos rivales o con 2 monstruos, premio menor
   const placeLbl = dr ? 'Empate' : nTeams === 2 ? (place === 1 ? 'Victoria' : 'Derrota') : PLACE_NAME[place - 1];
   if (!dr) { const A = save.stats || (save.stats = { w: 0, l: 0, run: 0, best: 0 }); if (place === 1) { A.w++; A.run++; A.best = Math.max(A.best, A.run); } else { A.l++; A.run = 0; } } // (el empate no cuenta como victoria ni derrota) // récord de la cuenta (una pelea = una victoria o derrota, aunque pelees con 2)
   const lines = battle.players.map(pm => {
@@ -6514,7 +6512,7 @@ function finishBattle() {
   $('resTitle').className = dr ? 'mid' : place === 1 ? 'win' : place === nTeams ? 'lose' : 'mid';
   if (lines.length > 1) { const tc = battle.players.reduce((t, pm) => t + bc + pm.kills * KO_COINS, 0); lines.push(`<div><b style="color:var(--text)">Monedas en total: <span style="color:#ffd36b">+${tc} 🪙</span></b></div>`); } // 2 vs 2: las monedas de los dos van a la misma bolsa
   $('resText').innerHTML = lines.join('');
-  $('resAgain').disabled = battle.mode === '2v2' ? !(save.monsters.filter(canFight).length >= 2 || canFight(cur())) : !canFight(cur());
+  $('resAgain').disabled = battle.mode === 'ffa' ? !(lastTeam || []).every(canFight) : !canFight(cur());
   $('result').classList.add('on');
 }
 
