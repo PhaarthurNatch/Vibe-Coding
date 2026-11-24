@@ -7,6 +7,6 @@ Por ahora:
 - Eliges tu elemento (cada uno con su túnica de color).
 - Arena vista desde arriba como en Monster Brawl, con la misma física de resortes en los personajes (humanoides chicos, sin rostro, brazos, torso y piernas rectangulares).
 - Caminas **inclinando el teléfono** (hacia los lados y hacia adelante o atrás). "⟲ Centrar" toma la posición actual del teléfono como quieto.
-- Si el teléfono no entrega la inclinación: arrastrar el dedo (o las flechas del teclado).
+- En la web app se camina sólo inclinando. En el link de prueba (donde el teléfono no entrega la inclinación) se arrastra el dedo; en computador, flechas o mouse.
 
 Web app: https://phaarthurnatch.github.io/Vibe-Coding/duelo-elemental/

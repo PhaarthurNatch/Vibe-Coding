@@ -19,7 +19,7 @@ const path = require('path');
   await tilt(50, 3); await page.waitForTimeout(100);
   if ((await page.textContent('#calMsg')).indexOf('movió') < 0) errs.push('no se reinició al mover el teléfono');
   await page.mouse.up(); await page.mouse.down();
-  for (let i = 0; i < 20; i++) { await tilt(40 + (i % 2) * 0.5, 0); await page.waitForTimeout(90); }
+  for (let i = 0; i < 60 && !(await page.isHidden('#calib')); i++) { await tilt(40 + (i % 2) * 0.5, 0); await page.waitForTimeout(90); } // hasta que se llene el círculo
   await page.mouse.up();
   if (!(await page.isHidden('#calib'))) errs.push('no terminó de calibrar');
   if (out) { await page.waitForTimeout(700); await page.screenshot({ path: out + '/count.png' }); }

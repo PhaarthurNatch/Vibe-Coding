@@ -329,10 +329,12 @@ function tiltVec() {
   return { x: vx, y: vy };
 }
 const TOUCH = { id: null, x0: 0, y0: 0, x: 0, y: 0 };
+const IN_FRAME = (() => { try { return window.top !== window; } catch (e) { return true; } })();
+const TOUCH_WALK = IN_FRAME; // caminar con el dedo sólo en el link de prueba (ahí no llega la inclinación); en la web app se camina sólo inclinando (pedido del dueño)
 const KEYS = new Set();
 addEventListener('keydown', e => KEYS.add(e.key.toLowerCase())); addEventListener('keyup', e => KEYS.delete(e.key.toLowerCase()));
 const cv = $('cv');
-cv.addEventListener('pointerdown', e => { if (TOUCH.id != null) return; TOUCH.id = e.pointerId; TOUCH.x0 = TOUCH.x = e.clientX; TOUCH.y0 = TOUCH.y = e.clientY; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointerdown', e => { if (TOUCH.id != null || (e.pointerType === 'touch' && !TOUCH_WALK)) return; TOUCH.id = e.pointerId; TOUCH.x0 = TOUCH.x = e.clientX; TOUCH.y0 = TOUCH.y = e.clientY; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', e => { if (e.pointerId === TOUCH.id) { TOUCH.x = e.clientX; TOUCH.y = e.clientY; } });
 const endTouch = e => { if (e.pointerId === TOUCH.id) TOUCH.id = null; };
 cv.addEventListener('pointerup', endTouch); cv.addEventListener('pointercancel', endTouch);
@@ -386,7 +388,8 @@ function calStep(dt) {
 function fightStart() {
   G.phase = 'fight'; $('btnCal').hidden = false;
   if (TILT.seen) showTip('Inclina el teléfono para caminar', 3000);
-  else showTip(matchMedia('(pointer: coarse)').matches ? 'Arrastra el dedo para caminar' : 'Usa las flechas o arrastra el mouse', 4000);
+  else if (!matchMedia('(pointer: coarse)').matches) showTip('Usa las flechas o arrastra el mouse', 4000);
+  else showTip(TOUCH_WALK ? 'Arrastra el dedo para caminar' : 'No llega la inclinación: permite el acceso al movimiento', 5000);
 }
 function duelStep(dt) {
   const { me, foe } = G;
