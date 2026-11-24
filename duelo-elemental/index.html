@@ -205,12 +205,15 @@ class Fighter {
     const fr = this.fk >= 0, drawArms = () => { // brazos (mangas de la túnica) y manos
       for (const a of I.arms) {
         const sh = P(a.sh), el = P(a.el), hn = P(a.ha);
-        limb(ctx, [[sh, el, B.armW * s], [el, hn, B.armW * 0.95 * s]], fr ? E.robe : E.dark, lw);
-        const ang = Math.atan2(hn.y - el.y, hn.x - el.x), hw = B.armW * 1.05 * s;
-        ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(ang);
-        ctx.strokeStyle = E.trim; ctx.lineWidth = 2 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-hw * 0.55, -B.armW * 0.48 * s); ctx.lineTo(-hw * 0.55, B.armW * 0.48 * s); ctx.stroke(); // puño de la manga
-        ctx.beginPath(); ctx.rect(-hw * 0.2, -hw / 2, hw, hw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
-        ctx.restore();
+        const upper = () => limb(ctx, [[sh, el, B.armW * s]], E.robe, lw);
+        const fore = () => { // antebrazo y mano
+          limb(ctx, [[el, hn, B.armW * 0.95 * s]], fr ? E.robe : E.dark, lw);
+          const ang = Math.atan2(hn.y - el.y, hn.x - el.x), hw = B.armW * 1.05 * s;
+          ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(ang);
+          ctx.strokeStyle = E.trim; ctx.lineWidth = 2 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-hw * 0.55, -B.armW * 0.48 * s); ctx.lineTo(-hw * 0.55, B.armW * 0.48 * s); ctx.stroke(); // puño de la manga
+          ctx.beginPath(); ctx.rect(-hw * 0.2, -hw / 2, hw, hw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
+          ctx.restore(); };
+        if (fr) { upper(); fore(); } else { fore(); upper(); } // el antebrazo siempre va delante del brazo: de espaldas queda detrás (pedido del dueño)
       } };
     // piernas (pantalón) y pies
     for (const L of I.legs) {
