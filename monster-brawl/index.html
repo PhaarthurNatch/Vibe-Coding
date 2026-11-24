@@ -5907,7 +5907,7 @@ function friendView() { // su equipo del rancho; tocar uno muestra sus estadíst
   const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f) { setView('friends'); return; }
   const p = FR.profs[f.uid], on = isOnline(p);
   $('fdName').innerHTML = `<i class="frdot ${on ? 'on' : ''}" style="display:inline-block;margin-right:8px;vertical-align:middle"></i>${esc((p && p.name) || f.name)}`;
-  $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}<span class="frrec">🌐 Online 1 vs 1 · ${vsLine((p && p.name) || f.name, f.name)}</span>`;
+  $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}<span class="frrec">🌐 Online 1 vs 1 · ${vsLine(f.uid, (p && p.name) || f.name, f.name)}</span>`;
   const T = $('fdTeam'), team = (p && p.team) || []; T.innerHTML = team.length ? '' : '<p class="tdesc">No tiene monstruos en su rancho.</p>';
   team.forEach(r => { const d = document.createElement('button'); d.className = 'lanp'; d.style.setProperty('--tc', 'var(--panel2)'); d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span>`; try { drawThumb(d.querySelector('canvas'), r); } catch (e) { } d.onclick = () => friendMon(r); T.appendChild(d); });
   const fighting = on && p.st === 'battle'; $('fdFight').disabled = !on;
@@ -5980,7 +5980,7 @@ async function specServe() { // el que pelea: atiende a los que quieren mirar
 }
 function specSendStart(v) {
   const B = battle; if (!B || !v.open) return;
-  const recs = B.ms.map(m => ({ ...lanRec(m.rec), user: m.isPlayer ? save.user : m.rec.user })); // en Online, cada monstruo con el nombre de su jugador
+  const recs = B.ms.map(m => ({ ...lanRec(m.rec), user: m.isPlayer ? save.user : m.rec.user, uid: m.isPlayer ? (cloud && cloud.uid) || undefined : m.rec.uid })); // en Online, cada monstruo con el nombre de su jugador
   try { v.dc.send(JSON.stringify({ t: 'vstart', aw: ARENA_W, ad: ARENA_D, mode: B.mode, teams: B.ms.map(m => m.team), recs, me: B.ms.map(m => !!m.isPlayer), clone: B.ms.map(m => m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1), who: save.user, lan: !!B.lan })); } catch (e) { }
 }
 function specTick() { // cada pocos cuadros, el estado de la pelea a los que miran
@@ -6817,7 +6817,7 @@ function lanBindDC(peer, dc) {
   dc.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (err) { return; } lanMsg(m, peer); };
 }
 const lanMine = () => { const ok = r => r && save.monsters.includes(r) && r.stage !== 'egg'; return ok(LAN.mine) ? LAN.mine : ok(cur()) ? cur() : save.monsters.find(ok) || cur(); }; // tu monstruo en Online (se puede cambiar por otro del rancho en la sala, pedido del dueño)
-const lanRec = r => r && ({ user: save.user || undefined, name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
+const lanRec = r => r && ({ user: save.user || undefined, uid: (cloud && cloud.uid) || undefined, /* (el récord Online se guarda por cuenta: sigue igual si cambia de nombre de usuario) */ name: r.name, seed: r.seed, stage: r.stage, level: r.level, pts: r.pts, temper: r.temper, ult: r.ult, gen: r.gen, legacy: r.legacy, genes: r.genes, statGenes: r.statGenes, mood: moodOf(r) });
 function lanDrop(peer) { if (!peer) return; try { if (peer.dc) { peer.dc.onclose = null; peer.dc.close(); } } catch (e) { } try { peer.pc.onconnectionstatechange = null; peer.pc.close(); } catch (e) { } }
 function lanClose() {
   LAN.invited = null; LAN.mine = null;
@@ -7020,7 +7020,7 @@ function lanUI(st, data) {
     info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
   } else if (st === 'mpick') { // elegir con qué monstruo del rancho pelear (pedido del dueño)
     info.innerHTML = '¿Con quién peleas?'; const mine = lanMine();
-    { const ps = host ? lanPlayers() : LAN.lobby || [], meI = host ? 0 : LAN.lobbyMe, o = ps.length === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && o.color !== (ps[meI] || {}).color) info.innerHTML += `<br><small class="vsrec">🌐 ${vsLine(u)}</small>`; } // en 1 vs 1: tu récord contra ese jugador (pedido del dueño)
+    { const ps = host ? lanPlayers() : LAN.lobby || [], meI = host ? 0 : LAN.lobbyMe, o = ps.length === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && o.color !== (ps[meI] || {}).color) info.innerHTML += `<br><small class="vsrec">🌐 ${vsLine(o.rec.uid, u)}</small>`; } // en 1 vs 1: tu récord contra ese jugador (pedido del dueño)
     for (const r of save.monsters.filter(r => r.stage !== 'egg')) {
       const d = document.createElement('button'); d.className = 'lanp me'; d.style.setProperty('--tc', r === mine ? 'var(--acc)' : 'var(--panel2)');
       d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}${r === mine ? ' ✓' : ''}</span>`; drawThumb(d.querySelector('canvas'), r);
@@ -7138,14 +7138,15 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
   for (const q of B.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt; }
   for (const t of B.texts) { t.y -= 45 * dt; t.life -= dt; }
 }
-// Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por nombre de usuario en minúsculas)
-const vsRec = (...us) => { for (const u of us) { const r = u && save.vs && save.vs[String(u).toLowerCase()]; if (r) return r; } return { w: 0, l: 0 }; };
+// Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por su cuenta (uid); si no viene, por nombre de usuario en minúsculas)
+const vsRec = (uid, ...us) => { const V = save.vs || {}; if (uid && V[uid]) return V[uid]; for (const u of us) { const r = u && V[String(u).toLowerCase()]; if (r) return r; } return { w: 0, l: 0 }; };
 const wlText = r => `<b>${r.w}</b> ${r.w === 1 ? 'victoria' : 'victorias'} · <b>${r.l}</b> ${r.l === 1 ? 'derrota' : 'derrotas'}`;
-const vsLine = (u, ...more) => { const r = vsRec(u, ...more); return `Contra <b>${esc(r.n || u)}</b>: ${wlText(r)}`; };
+const vsLine = (uid, u, ...more) => { const r = vsRec(uid, u, ...more); return `Contra <b>${esc(u || r.n)}</b>: ${wlText(r)}`; };
 function lanCount(B, me, won) { // se cuenta una vez por pelea (lanFinish tiene B.reported); los empates no cuentan
   const O = save.online || (save.online = { w: 0, l: 0 }); O[won ? 'w' : 'l']++;
   const all = B.ms.filter(m => !m.cloneOf), foe = all.find(m => m.team !== me.team), u = foe && foe.rec && foe.rec.user;
-  if (all.length === 2 && u && (!save.user || u.toLowerCase() !== save.user.toLowerCase())) { const V = save.vs || (save.vs = {}), k = u.toLowerCase(), r = V[k] || (V[k] = { n: u, w: 0, l: 0 }); r.n = u; r[won ? 'w' : 'l']++; }
+  const uid = foe && foe.rec && foe.rec.uid;
+  if (all.length === 2 && u && !(cloud && uid === cloud.uid)) { const V = save.vs || (save.vs = {}), nk = u.toLowerCase(), k = uid || nk; if (uid && !V[uid] && V[nk]) { V[uid] = V[nk]; delete V[nk]; } /* (lo contado por nombre pasa a su cuenta) */ const r = V[k] || (V[k] = { n: u, w: 0, l: 0 }); r.n = u; /* nombre actual, para mostrarlo */ r[won ? 'w' : 'l']++; }
   persist(); }
 function lanFinish() {
   const B = battle; if (!B || B.reported) return; B.reported = true;
