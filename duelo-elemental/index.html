@@ -196,7 +196,7 @@ class Fighter {
       ha.ax = h.x - lean * 2; ha.ay = h.y;
       ha.useT = el.useT = false; ha.boost = el.boost = 1; ha.stretch = el.stretch = 0;
       if (a.ctl) { // brazo controlado con el dedo: la mano sigue al dedo (se estira si hace falta) y el codo se dobla hacia afuera
-        const sh = N[a.sh], L = (BODY.armU + BODY.armF) * s; let dx = a.ctl.rx + a.ctl.dx, dy = a.ctl.ry + a.ctl.dy; const d = Math.hypot(dx, dy) || 1e-3, mxR = L * ARM_MAX; if (d > mxR) { dx *= mxR / d; dy *= mxR / d; }
+        const sh = N[a.sh], L = (BODY.armU + BODY.armF) * s; let dx = a.ctl.abs ? a.ctl.x - sh.x : a.ctl.rx + a.ctl.dx, dy = a.ctl.abs ? a.ctl.y - sh.y : a.ctl.ry + a.ctl.dy; const d = Math.hypot(dx, dy) || 1e-3, mxR = L * ARM_MAX; if (d > mxR) { dx *= mxR / d; dy *= mxR / d; } // abs: la mano apunta a tu dedo (al tocar un pozo o una llama)
         ha.useT = true; ha.tx = sh.x + dx; ha.ty = sh.y + dy; ha.boost = 3; ha.stretch = el.stretch = ARM_MAX * 1.15;
         const dd = Math.min(d, mxR), bend = Math.sqrt(Math.max(0, (L / 2) ** 2 - (dd / 2) ** 2)); let px = -dy / d, py = dx / d; const out = Math.sign(sh.x - N[I.upper].x) || a.sd; if (px * out + py * 0.4 < 0) { px = -px; py = -py; }
         el.useT = true; el.tx = sh.x + dx / 2 + px * bend; el.ty = sh.y + dy / 2 + py * bend; el.boost = 2;
@@ -429,31 +429,46 @@ const TOUCH_WALK = IN_FRAME; // caminar con el dedo sólo en el link de prueba (
 const KEYS = new Set();
 addEventListener('keydown', e => KEYS.add(e.key.toLowerCase())); addEventListener('keyup', e => KEYS.delete(e.key.toLowerCase()));
 const cv = $('cv');
-// Toques en la pelea (pedido del dueño): cada mitad de la pantalla controla un brazo (el que se ve a ese lado) arrastrando el dedo; tocar sin arrastrar = saltar (más largo, más fuerte)
+// Toques en la pelea (pedido del dueño): el brazo que se usa depende de dónde está tu dedo respecto del personaje (el que se ve de ese lado; si está ocupado, el otro).
+// Arrastrar el dedo mueve ese brazo; tocar un pozo o una llama estira ese brazo hacia allá y la mano sigue al dedo; tocar sin arrastrar = saltar (más largo, más fuerte)
 const PTRS = new Map();
 const joyCenter = () => ({ x: W / 2, y: H - JOY_R - 18 - SAB }); // abajo al centro (en las esquinas están el fuego y el pozo)
+const toWorld = (sx, sy) => { const v = view(); return { x: (sx - v.ox) / v.k, y: (sy - v.oy) / v.k }; }; // de la pantalla al dibujo de la arena
+function propAt(sx, sy) { // ¿el dedo tocó un pozo o una llama? (zona generosa, para el dedo)
+  const w = toWorld(sx, sy), ay = (w.y - TOP) / DEPTH, M = 16;
+  return arenaProps().findIndex(p => p.k === 'water' ? Math.hypot(w.x - p.x, ay - p.y) < p.r + 7 + M
+    : Math.abs(w.x - p.x) < p.r + M && w.y > TOP + p.y * DEPTH - FIRE_H - p.r * 2.6 - M && w.y < TOP + p.y * DEPTH + p.r * DEPTH + M);
+}
+function pickArm(sx) { // el brazo del lado donde está el dedo; si está ocupado, el otro
+  const me = G.me, N = me.nodes, arms = [...me.ix.arms].sort((a, b) => N[a.sh].x - N[b.sh].x), w = toWorld(sx, 0);
+  const pref = w.x < me.gx ? arms[0] : arms[1], other = pref === arms[0] ? arms[1] : arms[0];
+  return !pref.ctl ? pref : !other.ctl ? other : null;
+}
 cv.addEventListener('pointerdown', e => {
   if (scene !== 'duel' || !G || G.phase !== 'fight') return;
   try { cv.setPointerCapture(e.pointerId); } catch (_) { }
   const j = joyCenter();
   if (TOUCH_WALK && TOUCH.id == null && Math.hypot(e.clientX - j.x, e.clientY - j.y) < JOY_R * 1.4) { TOUCH.id = e.pointerId; TOUCH.x0 = j.x; TOUCH.y0 = j.y; TOUCH.x = e.clientX; TOUCH.y = e.clientY; return; } // palanca para caminar (link de prueba)
-  const side = e.clientX < W / 2 ? -1 : 1; if ([...PTRS.values()].some(p => p.side === side)) return; // un dedo por lado
-  PTRS.set(e.pointerId, { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), side, moved: false, arm: null });
+  if (PTRS.size >= 2) return;
+  const p = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), moved: false, arm: null, prop: -1 };
+  const pi = propAt(e.clientX, e.clientY);
+  if (pi >= 0) { const a = pickArm(e.clientX); if (a) { const w = toWorld(e.clientX, e.clientY); p.moved = true; p.arm = a; p.prop = pi; a.ctl = { abs: true, x: w.x, y: w.y }; } } // tocar un pozo o una llama: ese brazo se estira hacia allá
+  PTRS.set(e.pointerId, p);
 });
 cv.addEventListener('pointermove', e => {
   if (e.pointerId === TOUCH.id) { TOUCH.x = e.clientX; TOUCH.y = e.clientY; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
-  if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE && G) { // empieza a mover el brazo de ese lado (el que se ve a ese lado de la pantalla)
-    const me = G.me, N = me.nodes, arms = [...me.ix.arms].sort((a, b) => N[a.sh].x - N[b.sh].x), a = arms[p.side < 0 ? 0 : 1];
-    if (!a.ctl) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
+  if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE && G) { // empieza a mover el brazo del lado donde está el dedo
+    const me = G.me, N = me.nodes, a = pickArm(p.x0);
+    if (a) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
   }
-  if (p.arm) { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; }
+  if (p.arm && p.arm.ctl) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
 });
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; PTRS.delete(e.pointerId);
   if (p.arm) p.arm.ctl = null; // al soltar, el brazo vuelve a su posición
-  else if (up && G && G.phase === 'fight') { const d = (performance.now() - p.t0) / 1000; G.me.jump(lerp(JUMP.min, JUMP.max, clamp((d - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1))); }
+  else if (up && !p.moved && G && G.phase === 'fight') { const d = (performance.now() - p.t0) / 1000; G.me.jump(lerp(JUMP.min, JUMP.max, clamp((d - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1))); }
   if (G) G.me.charge = 0;
 };
 cv.addEventListener('pointerup', e => endPtr(e, true)); cv.addEventListener('pointercancel', e => endPtr(e, false));
@@ -547,6 +562,7 @@ function drawDuel(ctx, V) {
   const T = performance.now() / 1000, props = arenaProps();
   ctx.save(); ctx.beginPath(); ctx.rect(V.x0 - 20, TOP, V.x1 - V.x0 + 40, ARENA_D * DEPTH); ctx.clip(); // sólo sobre el suelo
   for (const p of props) if (p.k === 'water') drawPool(ctx, p, T); else drawFireGlow(ctx, p, T);
+  for (const t of PTRS.values()) if (t.prop >= 0 && t.arm) { const p = props[t.prop], y = TOP + p.y * DEPTH - (p.k === 'water' ? 6 : FIRE_H), rr = p.r + 8 + 2 * Math.sin(T * 8); ctx.strokeStyle = p.k === 'water' ? 'rgba(190,235,255,.85)' : 'rgba(255,220,120,.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(p.x, y, rr, rr * DEPTH, 0, 0, TAU); ctx.stroke(); } // el pozo o la llama que tocas brilla
   ctx.restore();
   for (const m of G.ms) { const k = clamp(1 - m.z / 160, 0.45, 1); ctx.fillStyle = `rgba(30,20,10,${0.28 * k})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.15 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill(); } // sombras (más chicas mientras más alto salta)
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
