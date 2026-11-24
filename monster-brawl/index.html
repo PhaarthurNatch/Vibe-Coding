@@ -1074,6 +1074,7 @@ function recGenome(rec, stage) {
     const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5, src.v6));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
   }
+  planFix(g); if (g.blob) g.neck.len = 0; // la cría no recibe partes que su cuerpo no permite (p. ej. cola en una serpiente)
   fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
   // los ojos heredados tienen que caber en la cabeza heredada
   const n = g.eyes.count, maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
@@ -1137,6 +1138,9 @@ function bodyPlan(seed, gen = 11) { const r = rng((seed ^ 0xa4093822) >>> 0), u 
   if (gen >= 16) P.plan = [null, 'quad', 'spider', 'jelly', 'snake'][Math.floor(u * 5)]; // gen 16: todos los cuerpos igual de probables (humanoide incluido)
   if (gen >= 17) P.plan = BODY_PLANS17[Math.min(9, Math.floor(u * 10))]; // gen 17: 5 cuerpos más, todos igual de probables (pedido del dueño)
   return P; }
+// lo que cada cuerpo no puede tener (también para las crías, que heredan partes de padres con otro cuerpo)
+const PLAN_NO = { snake: ['legs', 'tail'], jelly: ['legs'], quad: ['arms', 'neck'], slime: ['arms', 'legs', 'wings', 'tail', 'neck'], crab: ['wings', 'tail', 'neck'], octopus: ['legs', 'arms', 'neck'], bird: ['arms'] };
+function planFix(g) { for (const k of PLAN_NO[g.plan] || []) { if (k === 'neck') g.neck.len = 0; else if (k === 'tail') g.tail.count = 0; else if (k === 'arms') { g.arms.pairs = 0; g.shoulders.size = 0; } else g[k].pairs = 0; } }
 function applyPlan(g, seed, gen) {
   const P = bodyPlan(seed, gen); if (!P.plan) return; g.plan = P.plan;
   if (P.plan === 'quad') { // cuatro patas, sin brazos, cuerpo ancho y la cabeza baja, por delante
@@ -1144,7 +1148,7 @@ function applyPlan(g, seed, gen) {
     g.torso.upper.w *= 1.35; g.torso.upper.h *= 0.9; g.torso.mid = g.torso.lower = null;
   } else if (P.plan === 'spider') { g.legs.pairs = P.u2 < 0.5 ? 3 : 4; g.legs.thick *= 0.55; g.legs.upper *= 1.7; g.legs.lower *= 1.3; g.feet.size *= 0.55; } // patas de araña
   else if (P.plan === 'jelly') { g.legs.pairs = 0; g.tents = { n: P.n, len: P.len, thick: P.th }; } // medusa: flota con tentáculos
-  else if (P.plan === 'snake') { g.legs.pairs = 0; g.coil = { thick: Math.max(12, (g.torso.lower || g.torso.mid || g.torso.upper).w * 0.48) }; } // serpiente: cola gruesa enrollada en el suelo
+  else if (P.plan === 'snake') { g.legs.pairs = 0; g.tail.count = 0; /* su cuerpo ya es la cola (pedido del dueño) */ g.coil = { thick: Math.max(12, (g.torso.lower || g.torso.mid || g.torso.upper).w * 0.48) }; } // serpiente: cola gruesa enrollada en el suelo
   else if (P.plan === 'centaur') { // centauro: cuerpo ancho de cuatro patas abajo y torso con brazos arriba
     g.arms.pairs = Math.max(1, g.arms.pairs); g.legs.pairs = 2; g.legs.spread = 0.85; const U = g.torso.upper; g.torso.mid = null; g.torso.lower = { w: U.w * 1.6, h: U.h * 0.8 };
   } else if (P.plan === 'slime') { // slime: una sola gota grande (como el bebé) sin brazos, piernas, alas ni cola
@@ -1167,7 +1171,7 @@ function applyAnatomy9(g, seed, gen = 9) {
   const sc = (o, ks, k) => { if (o) for (const q of ks) if (typeof o[q] === 'number') o[q] *= k; };
   for (const a of list) {
     if (a === 'cabezon') { sc(g.head, ['w', 'h'], 1.5); for (const t of ['upper', 'mid', 'lower']) sc(g.torso[t], ['w', 'h'], 0.86); sc(g.arms, ['upper', 'fore'], 0.85); sc(g.legs, ['upper', 'lower'], 0.85); }
-    else if (a === 'cuellilargo') { g.neck.len = r.f(40, 56); }
+    else if (a === 'cuellilargo') { const nl = r.f(40, 56); if (g.neck.len > 0) g.neck.len = nl; } // sólo alarga un cuello que ya tiene (antes se lo ponía también a niños, cuadrúpedos, etc.; pedido del dueño)
     else if (a === 'zancudo') { sc(g.legs, ['upper', 'lower'], 1.7); sc(g.legs, ['thick'], 0.75); }
     else if (a === 'brazilargo') { sc(g.arms, ['upper', 'fore'], 1.6); sc(g.arms, ['thick'], 0.85); }
     else if (a === 'rechoncho') { for (const t of ['upper', 'mid', 'lower']) { sc(g.torso[t], ['w'], 1.5); sc(g.torso[t], ['h'], 0.9); } sc(g.legs, ['upper', 'lower'], 0.65); sc(g.legs, ['thick'], 1.2); g.neck.len *= 0.5; }
@@ -5489,7 +5493,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
