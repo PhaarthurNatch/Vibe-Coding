@@ -32,6 +32,8 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .fcard.me{outline:2px solid var(--acc)}
 .fcard .nm{display:flex;align-items:center;gap:6px;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fcard .el{font-size:12px;color:var(--muted);font-weight:700}
+.hpb{height:7px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:4px}.hpb i{display:block;height:100%;width:100%;background:#5ee08a;border-radius:4px;transition:width .2s}
+.shb{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:3px}.shb i{display:block;height:100%;width:0;border-radius:2px}
 .chip{flex:none;width:12px;height:12px;border-radius:3px;border:2px solid rgba(0,0,0,.45)}
 /* aviso abajo */
 #tip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 122px);transform:translateX(-50%);background:rgba(15,20,28,.85);padding:10px 16px;border-radius:14px;font-weight:700;font-size:15px;width:max-content;max-width:calc(100vw - 32px);text-align:center;transition:opacity .5s;pointer-events:none;opacity:0}
@@ -115,6 +117,12 @@ const TURN = 5;
 // Tomar el elemento (pedido del dueño): tocar un pozo o una llama y arrastrar saca una esfera de agua o una bola de fuego, sólo si eres de ese elemento
 const ORB = { r: 11, k: 170, z: 0.6, fall: 520, fade: 0.55 }; // tamaño, resorte que la lleva hacia tu dedo, gravedad del agua al soltarla, cuánto tarda en deshacerse
 const PROP_EL = { water: 'agua', fire: 'fuego' };
+// Escudo (pedido del dueño): mantener presionado tu pozo o tu llama trae una corriente que te rodea como una esfera; el daño que recibes baja según cuánto elemento tienes alrededor
+const STREAM = { hold: 0.35, rate: 38, t: 0.75, per: 0.014, decay: 0.035 }; // espera antes de que empiece, gotas/llamas por segundo, segundos que tardan en llegar, escudo que suma cada una, cuánto se gasta solo por segundo
+const SHIELD = { r: 34, block: 0.75, wear: 0.03 }; // radio, cuánto daño quita con el escudo lleno (75%), cuánto se gasta por cada punto de daño
+// Lanzar la esfera: si la sueltas moviéndola rápido sale disparada y daña al que golpea
+const THROW = { min: 260, max: 1000, dmg0: 8, dmgK: 0.012, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño = dmg0 + velocidad·dmgK, segundos que vuela, empujón
+const HP_MAX = 100, KO_S = 2.6;
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
 const REACH_BEND = 0.8; // al apuntar a un pozo, una llama o el elemento, la mano llega a este largo del brazo: el codo queda flectado (hacia atrás)
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
@@ -131,7 +139,7 @@ class Fighter {
     this.el = el; this.E = ELEM[el]; this.skin = skin; this.name = name;
     this.x = ARENA_W / 2; this.y = ARENA_D / 2; this.vx = 0; this.vy = 0; this.z = 0; this.r = 15;
     this.t = Math.random() * 10; this.walkPh = 0; this.s = 1; this.gx = 0; this.gy = 0;
-    this.vz = 0; this.charge = 0; this.landK = 0;
+    this.vz = 0; this.charge = 0; this.landK = 0; this.hp = HP_MAX; this.shield = 0; this.downK = 0;
     this.ph = 0; this.phT = 0; this.guard = 0; this.guardK = 0; // ph = hacia dónde mira (0 de frente, π/2 a la derecha, π de espaldas, −π/2 a la izquierda); guard = posición de combate
     this.buildRig();
   }
@@ -172,7 +180,7 @@ class Fighter {
       else if (n.sil) { n.ox = n.sil * (BODY.torW * c + BODY.torW * TOR_D * sn) * 0.54; n.len = Math.hypot(n.ox, n.oy); }
     }
   }
-  rootTarget() { return { x: this.gx, y: this.gy - this.legSum * (0.93 - STANCE.crouch * (this.guardK || 0) - 0.14 * (this.charge || 0) - 0.16 * (this.landK || 0)) * this.s - this.z }; } // en guardia, levemente agachado; más al cargar el salto y al caer
+  rootTarget() { return { x: this.gx, y: this.gy - this.legSum * (0.93 - STANCE.crouch * (this.guardK || 0) - 0.14 * (this.charge || 0) - 0.16 * (this.landK || 0) - 0.42 * (this.downK || 0)) * this.s - this.z }; } // en guardia, levemente agachado; más al cargar el salto y al caer
   resetRig() {
     this.orient();
     const N = this.nodes, rt = this.rootTarget(); N[0].x = rt.x; N[0].y = rt.y;
@@ -470,7 +478,7 @@ cv.addEventListener('pointermove', e => {
     const me = G.me, N = me.nodes, a = pickArm(p.x0);
     if (a) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
   }
-  if (p.prop >= 0 && p.arm && !p.orb && G && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE) { // arrastrar desde el pozo o la llama: si es tu elemento, lo tomas
+  if (p.prop >= 0 && p.arm && !p.orb && !p.stream && G && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE) { // arrastrar desde el pozo o la llama: si es tu elemento, lo tomas
     const pr = arenaProps()[p.prop];
     if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
   }
@@ -479,7 +487,7 @@ cv.addEventListener('pointermove', e => {
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; PTRS.delete(e.pointerId);
-  if (p.orb) p.orb.held = false; // al soltarlo, el agua cae y salpica; el fuego se apaga
+  if (p.orb) { const o = p.orb, sp = Math.hypot(o.vx, o.vy); o.held = false; if (sp > THROW.min && G) { const k = Math.min(1, THROW.max / sp); o.vx *= k; o.vy *= k; o.thrown = true; o.owner = G.me; o.life = 1; } } // soltarla moviéndola rápido = lanzarla; despacio: el agua cae y salpica, el fuego se apaga
   if (p.arm) p.arm.ctl = null; // al soltar, el brazo vuelve a su posición
   else if (up && !p.moved && G && G.phase === 'fight') { const d = (performance.now() - p.t0) / 1000; G.me.jump(lerp(JUMP.min, JUMP.max, clamp((d - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1))); }
   if (G) G.me.charge = 0;
@@ -506,8 +514,8 @@ function startDuel(el) {
   const foe = new Fighter(fel, SKINS[Math.floor(Math.random() * SKINS.length)], 'Rival');
   me.isMe = true; me.x = ARENA_W * 0.5; me.y = ARENA_D * 0.75; foe.x = ARENA_W * 0.5; foe.y = ARENA_D * 0.25;
   foe.home = { x: foe.x, y: foe.y }; foe.wait = 1.5; foe.goal = null;
-  G = { ms: [me, foe], me, foe, dust: [], orbs: [], fx: [], inp: { x: 0, y: 0 }, t: 0 };
-  $('fighters').innerHTML = G.ms.map(m => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div></div>`).join('');
+  G = { ms: [me, foe], me, foe, dust: [], orbs: [], fx: [], flow: [], texts: [], inp: { x: 0, y: 0 }, t: 0 };
+  $('fighters').innerHTML = G.ms.map((m, i) => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div><div class="hpb"><i id="hp${i}"></i></div><div class="shb"><i id="sh${i}" style="background:${m.E.trim}"></i></div></div>`).join('');
   $('pick').hidden = true; $('hud').hidden = false; $('btnCal').hidden = true; scene = 'duel';
   me.ph = me.phT = Math.atan2(foe.x - me.x, foe.y - me.y); foe.ph = foe.phT = Math.atan2(me.x - foe.x, me.y - foe.y); me.guard = me.guardK = foe.guard = foe.guardK = 1;
   layout(); for (const m of G.ms) { place(m); m.resetRig(); for (let i = 0; i < 30; i++) m.step(1 / 60); }
@@ -537,7 +545,7 @@ function calStep(dt) {
 function fightStart() {
   G.phase = 'fight'; $('btnCal').hidden = false;
   const walk = TILT.seen ? 'Inclina para caminar' : !matchMedia('(pointer: coarse)').matches ? 'Flechas para caminar' : TOUCH_WALK ? 'Círculo para caminar' : 'No llega la inclinación: permite el acceso al movimiento';
-  showTip(walk, 2600); setTimeout(() => { if (G && G.phase === 'fight') showTip('Toca para saltar · arrastra para los brazos', 3200); }, 2900);
+  showTip(walk, 2600); setTimeout(() => { if (G && G.phase === 'fight') showTip('Toca: saltar · Arrastra: brazos · Mantén tu pozo o llama: escudo', 3600); }, 2900);
 }
 function duelStep(dt) {
   const { me, foe } = G;
@@ -569,7 +577,11 @@ function duelStep(dt) {
   for (const m of G.ms) { place(m); m.step(dt); }
   for (const q of G.dust) { q.life -= dt; q.x += q.vx * dt; q.z += 12 * dt; q.r += 6 * dt; }
   G.dust = G.dust.filter(q => q.life > 0);
-  orbStep(dt);
+  orbStep(dt); flowStep(dt);
+  for (const m of G.ms) { m.shield = Math.max(0, m.shield - STREAM.decay * dt); m.downK += ((G.phase === 'ko' && m.hp <= 0 ? 1 : 0) - m.downK) * Math.min(1, dt * 6); }
+  for (const t of G.texts) { t.life -= dt; t.y -= 28 * dt; } G.texts = G.texts.filter(t => t.life > 0);
+  if (G.phase === 'fight' && G.ms.some(m => m.hp <= 0)) { G.phase = 'ko'; G.koT = KO_S; clearTouches(); }
+  if (G.phase === 'ko' && (G.koT -= dt) <= 0) newRound();
 }
 const wrapA = a => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 function touchTurn(m, base) { // si un brazo que controlas tendría que ir muy hacia atrás o cruzar por delante, el cuerpo gira lo justo (pedido del dueño)
@@ -585,6 +597,67 @@ function touchTurn(m, base) { // si un brazo que controlas tendría que ir muy h
   if (!ds.length) return 0; if (ds.length === 1) return ds[0];
   return Math.sign(ds[0]) === Math.sign(ds[1]) ? (Math.abs(ds[0]) > Math.abs(ds[1]) ? ds[0] : ds[1]) : (ds[0] + ds[1]) / 2;
 }
+function propTop(pr) { return { x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r * 0.8) }; }
+function flowStep(dt) { // mantener presionado tu pozo o tu llama: sale una corriente que va hacia ti y forma el escudo
+  const now = performance.now();
+  for (const p of PTRS.values()) {
+    if (p.prop < 0 || !p.arm || p.orb || G.phase !== 'fight') continue;
+    const pr = arenaProps()[p.prop];
+    if (!p.stream && PROP_EL[pr.k] === G.me.el && (now - p.t0) / 1000 > STREAM.hold && Math.hypot(p.x - p.x0, p.y - p.y0) <= TAP_MOVE) p.stream = { k: pr.k, acc: 0, w: Math.random() * 2 - 1, ph: Math.random() * TAU };
+    if (!p.stream) continue;
+    p.stream.acc += dt * STREAM.rate;
+    while (p.stream.acc > 1) { p.stream.acc--; const st = propTop(pr); p.stream.w += (Math.random() - 0.5) * 0.08; p.stream.w = clamp(p.stream.w, -1, 1); G.flow.push({ k: pr.k, sx: st.x + (Math.random() - 0.5) * 4, sy: st.y, m: G.me, t: 0, w: p.stream.w + (Math.random() - 0.5) * 0.12, ph: p.stream.ph + now / 1000 * 2.5 + Math.random() * 0.5 }); } // todas siguen casi el mismo camino: un chorro continuo
+  }
+  for (const q of G.flow) { q.t += dt / STREAM.t; if (q.t >= 1) q.m.shield = Math.min(1, q.m.shield + STREAM.per); }
+  G.flow = G.flow.filter(q => q.t < 1);
+}
+function flowPos(q, t) { // camino curvo desde el pozo o la llama hasta la esfera alrededor del personaje
+  const m = q.m, c = m.nodes[m.ix.upper], R = SHIELD.r * m.s * 0.85, ex = c.x + Math.cos(q.ph + t * 2) * R, ey = c.y + 6 * m.s + Math.sin(q.ph + t * 2) * R * 0.8;
+  const mx = (q.sx + ex) / 2 + q.w * 30, my = Math.min(q.sy, ey) - 50 - Math.abs(q.w) * 20, u = 1 - t;
+  const wig = Math.sin(t * Math.PI * 3 + q.ph) * 5 * u;
+  return { x: u * u * q.sx + 2 * u * t * mx + t * t * ex + wig, y: u * u * q.sy + 2 * u * t * my + t * t * ey };
+}
+function drawFlow(ctx) {
+  ctx.lineCap = 'round';
+  for (const q of G.flow) {
+    const a = flowPos(q, q.t), b = flowPos(q, Math.max(0, q.t - 0.1)), fire = q.k === 'fire';
+    ctx.strokeStyle = fire ? 'rgba(255,120,30,.75)' : 'rgba(70,160,230,.8)'; ctx.lineWidth = (fire ? 7 : 8) * (1 - 0.35 * q.t); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.stroke();
+    ctx.strokeStyle = fire ? 'rgba(255,230,120,.9)' : 'rgba(220,245,255,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y); ctx.stroke();
+  }
+}
+function drawShield(ctx, m, T) { // esfera de agua o fuego alrededor del personaje: más gruesa mientras más elemento tiene
+  const a = m.shield; if (a < 0.02) return;
+  const c = m.nodes[m.ix.upper], x = c.x, y = c.y + 6 * m.s, R = SHIELD.r * m.s * (0.8 + 0.2 * a), Ry = R * 0.92;
+  ctx.save();
+  if (m.el === 'fuego') {
+    ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, R * 0.4, x, y, R * 1.3); g.addColorStop(0, 'rgba(255,120,30,0)'); g.addColorStop(0.75, `rgba(255,130,40,${0.12 + 0.2 * a})`); g.addColorStop(1, 'rgba(255,90,20,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, R * 1.3, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+    const n = 12; for (let i = 0; i < n; i++) { const an = T * 2.2 + i * TAU / n, px = x + Math.cos(an) * R, py = y + Math.sin(an) * Ry, h = (5 + 9 * a) * m.s * (1 + 0.25 * Math.sin(T * 11 + i * 1.7)), w = (2.5 + 2.5 * a) * m.s;
+      for (const [col, k] of [['#e2401c', 1], ['#ff9a2a', 0.7], ['#ffe07a', 0.4]]) { ctx.fillStyle = col; ctx.globalAlpha = 0.55 + 0.45 * a; ctx.beginPath(); ctx.moveTo(px - w * k, py); ctx.quadraticCurveTo(px - w * k, py - h * k * 0.6, px + Math.sin(T * 6 + i) * 2, py - h * k); ctx.quadraticCurveTo(px + w * k, py - h * k * 0.6, px + w * k, py); ctx.closePath(); ctx.fill(); } }
+  } else {
+    const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.2, x, y, R); g.addColorStop(0, `rgba(190,235,255,${0.06 + 0.1 * a})`); g.addColorStop(1, `rgba(50,140,225,${0.22 + 0.3 * a})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, R, Ry, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(210,240,255,${0.45 + 0.45 * a})`; ctx.lineWidth = 1.2 + 2 * a; ctx.stroke();
+    ctx.lineCap = 'round'; for (let k = 0; k < 3; k++) { const st = T * (1.6 + k * 0.4) + k * 2.1; ctx.strokeStyle = `rgba(235,250,255,${0.5 + 0.4 * a})`; ctx.lineWidth = (1.2 + 2.2 * a) * m.s; ctx.beginPath(); ctx.ellipse(x, y, R * (0.92 - k * 0.12), Ry * (0.6 + k * 0.15), k * 0.6, st, st + 1 + a); ctx.stroke(); } // corrientes que giran
+    ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(x - R * 0.4, y - Ry * 0.5, R * 0.18, Ry * 0.08, -0.6, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+function hitFighter(m, o) { // la esfera lanzada golpea: el daño baja según el escudo, que se gasta
+  const sp = Math.hypot(o.vx, o.vy), raw = THROW.dmg0 + sp * THROW.dmgK, red = SHIELD.block * m.shield, dmg = raw * (1 - red);
+  m.shield = Math.max(0, m.shield - raw * SHIELD.wear); m.hp = Math.max(0, m.hp - dmg);
+  const dx = o.vx / (sp || 1), dy = o.vy / DEPTH / (sp || 1), L = Math.hypot(dx, dy) || 1, kb = THROW.kb * (1 - 0.6 * red);
+  m.vx += dx / L * kb; m.vy += dy / L * kb;
+  for (const n of m.nodes) { n.vx += o.vx / (sp || 1) * 160 * (1 - red); n.vy += o.vy / (sp || 1) * 100 * (1 - red) - 40; } // el golpe lo sacude
+  const hd = m.nodes[m.ix.head]; G.texts.push({ x: hd.x, y: hd.y - 16, str: '-' + Math.max(1, Math.round(dmg)), col: red > 0.05 ? '#bfe6ff' : '#ffe07a', life: 1 });
+  if (red > 0.05) G.texts.push({ x: hd.x, y: hd.y - 32, str: 'escudo −' + Math.round(red * 100) + '%', col: '#e8f6ff', life: 1, small: true });
+  orbFx(o, 18);
+}
+function newRound() { // otra ronda después del K.O.
+  const { me, foe } = G; clearTouches();
+  for (const m of G.ms) { m.hp = HP_MAX; m.shield = 0; m.vx = m.vy = 0; m.z = m.vz = 0; }
+  me.x = ARENA_W * 0.5; me.y = ARENA_D * 0.75; foe.x = ARENA_W * 0.5; foe.y = ARENA_D * 0.25; foe.home = { x: foe.x, y: foe.y }; foe.goal = null; foe.wait = 1.5;
+  G.orbs = []; G.flow = []; G.phase = 'count'; G.cd = COUNT_S + GO_S;
+}
 function orbFx(o, n) { // gotitas o chispas que suelta la esfera
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 20 + Math.random() * 70;
     G.fx.push(o.k === 'water' ? { k: 'drop', x: o.x + Math.cos(a) * ORB.r * 0.6, y: o.y + Math.sin(a) * ORB.r * 0.6, vx: Math.cos(a) * sp - o.vx * 0.1, vy: Math.sin(a) * sp - 40 - o.vy * 0.1, g: 420, life: 0.5 + Math.random() * 0.3, r: 1.6 + Math.random() * 1.8 }
@@ -598,11 +671,18 @@ function orbStep(dt) {
       const w = toWorld(p.x, p.y), c = 2 * ORB.z * Math.sqrt(ORB.k);
       o.vx += ((w.x - o.x) * ORB.k - o.vx * c) * dt; o.vy += ((w.y - o.y) * ORB.k - o.vy * c) * dt;
       if (p.arm && p.arm.ctl) { p.arm.ctl.x = o.x; p.arm.ctl.y = o.y; } // la mano apunta a la esfera
+    } else if (o.thrown) { // lanzada: vuela y daña al que golpea (con o sin escudo)
+      o.life -= dt / THROW.life; if (o.k === 'water') o.vy += 60 * dt;
+      for (const m of G.ms) { if (m === o.owner || o.life <= 0) continue;
+        const c = m.nodes[m.ix.upper], top = m.nodes[m.ix.head].y - BODY.head * 0.6 * m.s, inBody = Math.abs(o.x - m.gx) < BODY.torW * 0.6 * m.s + ORB.r * 0.6 && o.y > top && o.y < m.gy + 2;
+        const inShield = m.shield > 0.05 && Math.hypot(o.x - c.x, (o.y - c.y - 6 * m.s) / 0.92) < SHIELD.r * m.s + ORB.r * 0.5;
+        if (inBody || inShield) { hitFighter(m, o); o.life = 0; } }
     } else { // suelta: el agua cae y salpica; el fuego sube un poco y se apaga
       o.held = false; o.life -= dt / ORB.fade;
       if (o.k === 'water') o.vy += ORB.fall * dt; else { o.vy -= 60 * dt; o.vx *= Math.exp(-dt * 3); }
       if (o.life <= 0) orbFx(o, o.k === 'water' ? 16 : 12);
     }
+    if (o.thrown && o.life <= 0 && !o.fxDone) { o.fxDone = true; orbFx(o, 10); }
     o.x += o.vx * dt; o.y += o.vy * dt;
     const sp = Math.hypot(o.vx, o.vy); o.acc = (o.acc || 0) + dt * (o.k === 'fire' ? 18 : 2) + dt * sp / (o.k === 'water' ? 60 : 30); while (o.acc > 1) { o.acc--; orbFx(o, 1); }
   }
@@ -641,8 +721,15 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) { const k = clamp(1 - m.z / 160, 0.45, 1); ctx.fillStyle = `rgba(30,20,10,${0.28 * k})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.15 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill(); } // sombras (más chicas mientras más alto salta)
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
-  for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? it.m.draw(ctx) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
-  drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
+  for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? (it.m.draw(ctx), drawShield(ctx, it.m, T)) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
+  drawFlow(ctx); drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
+  ctx.textAlign = 'center'; for (const t of G.texts) { ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.small ? 11 : 18}px system-ui, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y); } ctx.globalAlpha = 1;
+}
+function drawBig(ctx, txt, f) { // letras grandes (K.O.)
+  const sc = 1 + 0.6 * Math.pow(1 - Math.min(1, f * 5), 2), fs = Math.min(W * 0.24, H * 0.2) * sc;
+  ctx.save(); ctx.translate(W / 2, H * 0.46); ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = fs * 0.14; ctx.strokeStyle = '#141019'; ctx.strokeText(txt, 0, 0);
+  const g = ctx.createLinearGradient(0, -fs / 2, 0, fs / 2); g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#ffc861'); g.addColorStop(1, '#ff7a3a'); ctx.fillStyle = g; ctx.fillText(txt, 0, 0); ctx.restore();
 }
 function drawCount(ctx) { // 3, 2, 1, ¡PELEA! (cada número aparece grande y se achica)
   const left = G.cd - GO_S, txt = left > 0 ? String(Math.ceil(left)) : '¡PELEA!', f = left > 0 ? 1 - (left % 1 || 1) : 1 - G.cd / GO_S;
@@ -690,6 +777,8 @@ function frame() {
     ctx.save(); ctx.translate(ox, oy); ctx.scale(k, k); drawDuel(ctx, V); ctx.restore();
     drawLevel(ctx, W, H);
     if (G.phase === 'count') drawCount(ctx);
+    if (G.phase === 'ko') drawBig(ctx, '¡K.O.!', 1 - G.koT / KO_S);
+    G.ms.forEach((m, i) => { const h = $('hp' + i), sh = $('sh' + i), hv = Math.round(m.hp / HP_MAX * 100), sv = Math.round(m.shield * 100); if (h && h.dataset.v != hv) { h.dataset.v = hv; h.style.width = hv + '%'; h.style.background = hv > 50 ? '#5ee08a' : hv > 25 ? '#ffc861' : '#ff5d6c'; } if (sh && sh.dataset.v != sv) { sh.dataset.v = sv; sh.style.width = sv + '%'; } }); // vida y escudo arriba
   }
 }
 function loop() { requestAnimationFrame(loop); try { frame(); } catch (e) { console.error(e); } } // el bucle nunca se detiene por un error
