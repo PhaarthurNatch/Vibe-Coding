@@ -123,6 +123,8 @@ const SHIELD = { r: 34, block: 0.75, wear: 0.03 }; // radio, cuánto daño quita
 // Lanzar la esfera: si la sueltas moviéndola rápido sale disparada y daña al que golpea
 const THROW = { min: 260, max: 1000, dmg0: 8, dmgK: 0.012, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño = dmg0 + velocidad·dmgK, segundos que vuela, empujón
 const HP_MAX = 100, KO_S = 2.6;
+// Guardar la esfera (pedido del dueño): llevarla a tu personaje y dejarla ahí un momento hace que quede flotando cerca de él; un deslizamiento rápido hacia adelante la dispara al rival
+const DOCK = { r: 30, s: 0.45, max: 2, fire: 760, fwd: Math.PI / 3 }; // radio donde cuenta como "en tu personaje", segundos que hay que dejarla, cuántas puede guardar, velocidad del disparo, cuánto puede desviarse el deslizamiento de "hacia el rival" (60°)
 // Salpicadura (pedido del dueño): deslizar rápido desde tu pozo o tu llama lanza una salpicadura del elemento en esa dirección (no se controla después); también daña
 const SPLASH = { decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg0: 7, dmgK: 7 }; // px que se mueve el dedo antes de decidir, rapidez (px/s) desde la que es salpicadura y no esfera, gotas/llamas, abertura, velocidad, duración, daño = dmg0 + dmgK·(rapidez/2000, hasta 1)
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
@@ -482,12 +484,25 @@ cv.addEventListener('pointermove', e => {
     if (a) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
   }
   const pdist = Math.hypot(p.x - p.x0, p.y - p.y0);
+  if (p.prop < 0 && !p.fired && G && G.phase === 'fight' && pdist > SPLASH.decide && p.hist.length >= 3) { // con una esfera guardada: deslizar rápido hacia adelante (hacia el rival) la dispara
+    const h0 = p.hist[p.hist.length - 2], v = Math.hypot(p.x - h0.x, p.y - h0.y) / Math.max(0.008, (nowT - h0.t) / 1000), me = G.me, foe = G.foe;
+    const st = G.orbs.filter(o => o.docked && o.owner === me);
+    if (st.length && v > SPLASH.v) {
+      const c0 = me.nodes[me.ix.upper], c1 = foe.nodes[foe.ix.upper], fa = Math.atan2(c1.y - c0.y, c1.x - c0.x), sa = Math.atan2(p.y - p.y0, p.x - p.x0);
+      if (Math.abs(wrapA(sa - fa)) < DOCK.fwd) {
+        const o = st[0], dx = c1.x - o.x, dy = c1.y + 4 * foe.s - o.y, d = Math.hypot(dx, dy) || 1;
+        o.docked = false; o.thrown = true; o.life = 1; o.vx = dx / d * DOCK.fire; o.vy = dy / d * DOCK.fire; p.fired = true;
+        const a = p.arm || pickArm(p.x); if (a) { p.arm = a; p.moved = true; a.ctl = { abs: true, x: c0.x + dx / d * 60, y: c0.y + dy / d * 60 }; } // el brazo hace el gesto del golpe
+        for (let i = 0; i < 6; i++) orbFx(o, 1);
+      }
+    }
+  }
   if (p.prop >= 0 && p.arm && !p.orb && !p.stream && !p.splashed && G && pdist > SPLASH.decide && p.hist.length >= 3) { // arrastrar desde el pozo o la llama: si es tu elemento, rápido = salpicadura, más despacio = la esfera
     const pr = arenaProps()[p.prop], h0 = p.hist[p.hist.length - 2], v = Math.hypot(p.x - h0.x, p.y - h0.y) / Math.max(0.008, (nowT - h0.t) / 1000); // rapidez del dedo en el último tramo entre dos movimientos (si lo dejaste quieto antes de deslizar, no cuenta)
     if (PROP_EL[pr.k] === G.me.el && v > SPLASH.v) { spawnSplash(pr, (p.x - p.x0) / pdist, (p.y - p.y0) / pdist, v, G.me); p.splashed = true; }
     else if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
   }
-  if (p.arm && p.arm.ctl && !p.splashed) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
+  if (p.arm && p.arm.ctl && !p.splashed && !p.fired && !p.docked) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
 });
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
@@ -709,6 +724,13 @@ function orbStep(dt) {
       const w = toWorld(p.x, p.y), c = 2 * ORB.z * Math.sqrt(ORB.k);
       o.vx += ((w.x - o.x) * ORB.k - o.vx * c) * dt; o.vy += ((w.y - o.y) * ORB.k - o.vy * c) * dt;
       if (p.arm && p.arm.ctl) { p.arm.ctl.x = o.x; p.arm.ctl.y = o.y; } // la mano apunta a la esfera
+      const me = G.me, ch = me.nodes[me.ix.upper], near = Math.hypot(o.x - ch.x, o.y - ch.y - 4 * me.s) < DOCK.r * me.s, full = G.orbs.filter(q => q.docked && q.owner === me).length >= DOCK.max;
+      o.dockT = near && !full ? (o.dockT || 0) + dt : Math.max(0, (o.dockT || 0) - dt * 2); // dejarla un momento en tu personaje (no es inmediato)
+      if (o.dockT >= DOCK.s) { o.held = false; o.docked = true; o.owner = me; o.dockT = 0; p.orb = null; p.docked = true; if (p.arm) { p.arm.ctl = null; p.arm = null; } for (let i = 0; i < 10; i++) orbFx(o, 1); }
+    } else if (o.docked) { // guardada: flota cerca de tu personaje, girando despacio a la altura del pecho
+      const m = o.owner, c = m.nodes[m.ix.upper], idx = G.orbs.filter(q => q.docked && q.owner === m).indexOf(o), an = performance.now() / 1000 * 1.4 + idx * Math.PI; // con dos, una a cada lado
+      const tx = c.x + Math.cos(an) * 24 * m.s, ty = c.y - 2 * m.s + Math.sin(an) * 7 * m.s + Math.sin(o.t * 3 + idx) * 2, k = 90, cc = 2 * 0.7 * Math.sqrt(k);
+      o.vx += ((tx - o.x) * k - o.vx * cc) * dt; o.vy += ((ty - o.y) * k - o.vy * cc) * dt; o.life = 1;
     } else if (o.thrown) { // lanzada: vuela y daña al que golpea (con o sin escudo)
       o.life -= dt / THROW.life; if (o.k === 'water') o.vy += 60 * dt;
       for (const m of G.ms) { if (m === o.owner || o.life <= 0) continue;
@@ -760,6 +782,7 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
   for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? (it.m.draw(ctx), drawShield(ctx, it.m, T)) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
+  for (const o of G.orbs) if (o.held && o.dockT > 0.02) { const m = G.me, c = m.nodes[m.ix.upper], f = Math.min(1, o.dockT / DOCK.s); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(c.x, c.y + 4 * m.s, DOCK.r * m.s, 0, TAU); ctx.stroke(); ctx.strokeStyle = o.k === 'water' ? '#8fd3ff' : '#ffc861'; ctx.beginPath(); ctx.arc(c.x, c.y + 4 * m.s, DOCK.r * m.s, -Math.PI / 2, -Math.PI / 2 + f * TAU); ctx.stroke(); } // anillo que se llena mientras la dejas en tu personaje
   drawFlow(ctx); drawSplash(ctx); drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
   ctx.textAlign = 'center'; for (const t of G.texts) { ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.small ? 11 : 18}px system-ui, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y); } ctx.globalAlpha = 1;
 }
