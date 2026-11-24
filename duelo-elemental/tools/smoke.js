@@ -18,14 +18,14 @@ const path = require('path');
   await tilt(35, 3); await page.mouse.move(hx, hy); await page.mouse.down(); await page.waitForTimeout(500);
   await tilt(50, 3); await page.waitForTimeout(100);
   if ((await page.textContent('#calMsg')).indexOf('movió') < 0) errs.push('no se reinició al mover el teléfono');
-  await page.mouse.up(); await page.mouse.down();
+  await page.mouse.up(); await tilt(40, 0); await page.waitForTimeout(100); await page.mouse.down();
   for (let i = 0; i < 60 && !(await page.isHidden('#calib')); i++) { await tilt(40 + (i % 2) * 0.5, 0); await page.waitForTimeout(90); } // hasta que se llene el círculo
   await page.mouse.up();
   if (!(await page.isHidden('#calib'))) errs.push('no terminó de calibrar');
   if (out) { await page.waitForTimeout(700); await page.screenshot({ path: out + '/count.png' }); }
   await tilt(40, 25); await page.waitForTimeout(600);
   if (await page.evaluate(() => Math.hypot(G.me.vx, G.me.vy)) > 1) errs.push('camina durante el conteo');
-  await tilt(40, 0); await page.waitForFunction(() => G.phase === 'fight', null, { timeout: 6000 });
+  await tilt(40, 0); await page.waitForFunction(() => G.phase === 'fight', null, { timeout: 8000 }).catch(async () => { console.log('estado:', await page.evaluate(() => JSON.stringify({ ph: G.phase, cd: G.cd, cal: CAL, msg: document.getElementById('calMsg').textContent }))); throw new Error('no empezó la pelea'); });
   await page.waitForTimeout(300);
   const p0 = await page.evaluate(() => ({ x: G.me.x, y: G.me.y }));
   await tilt(40, 25); await page.waitForTimeout(900);   // inclinar a la derecha

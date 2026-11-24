@@ -117,6 +117,7 @@ class Fighter {
     this.el = el; this.E = ELEM[el]; this.skin = skin; this.name = name;
     this.x = ARENA_W / 2; this.y = ARENA_D / 2; this.vx = 0; this.vy = 0; this.z = 0; this.r = 15;
     this.t = Math.random() * 10; this.walkPh = 0; this.s = 1; this.gx = 0; this.gy = 0;
+    this.face = 1; this.fk = 1; this.guard = 0; this.guardK = 0; // face 1 = mira hacia abajo (de frente), -1 = hacia arriba (de espaldas); guard = brazos en guardia
     this.buildRig();
   }
   // Esqueleto de nodos con resortes (como Monster Brawl): cada nodo sigue a su padre con un resorte amortiguado
@@ -157,10 +158,12 @@ class Fighter {
     root.x = rt.x; root.y = rt.y - bob * s;
     N[I.lower].ax = -lean * 1.8; N[I.upper].ax = this.leanU * 4.5; N[I.upper].ay = Math.sin(t * 2) * 0.6 + Math.abs(this.leanU) * 0.8;
     const head = N[I.head]; head.ax = this.leanU * 2.2; head.ay = 0;
-    for (const a of I.arms) { // brazos: se balancean al caminar
-      const el = N[a.el], ha = N[a.ha], sw = Math.sin(this.walkPh + (a.sd > 0 ? 0 : Math.PI)) * moving;
-      el.ax = a.sd * Math.sin(t * 1.6) * 1 - lean * 2; el.ay = sw * 3;
-      ha.ax = a.sd * Math.sin(t * 1.6 + 0.5) * 1.5 - lean * 2; ha.ay = sw * 5;
+    this.fk += (this.face - this.fk) * Math.min(1, dt * 9); this.guardK += (this.guard - this.guardK) * Math.min(1, dt * 5); // se da vuelta y sube la guardia poco a poco
+    const gk = this.guardK, fr = this.fk >= 0;
+    for (const a of I.arms) { // brazos: se balancean al caminar; en guardia, los antebrazos van hacia donde mira: de frente, las manos por delante del cuerpo (más abajo); de espaldas, por detrás (más arriba, tapadas por el torso)
+      const el = N[a.el], ha = N[a.ha], sw = Math.sin(this.walkPh + (a.sd > 0 ? 0 : Math.PI)) * moving * (1 - 0.6 * gk);
+      el.ax = a.sd * Math.sin(t * 1.6) * 1 - lean * 2 + a.sd * 3.5 * gk; el.ay = sw * 3 - 2 * gk;
+      ha.ax = a.sd * Math.sin(t * 1.6 + 0.5) * 1.5 - lean * 2 - a.sd * 9 * gk; ha.ay = sw * 5 + (fr ? -6 : -12) * gk + Math.sin(t * 2.3 + a.sd) * 0.6 * gk;
     }
     I.hem.forEach((h, i) => { const n = N[h]; n.ax = -lean * 4 + Math.sin(t * 2.4 + i * 1.7) * 0.6 * (1 + moving); n.ay = -moving * 1.5; }); // la túnica queda atrás
     // Piernas: los pies buscan el suelo y dan pasos hacia donde camina
@@ -199,13 +202,24 @@ class Fighter {
     const N = this.nodes, I = this.ix, s = this.s, E = this.E, B = BODY, lw = 1.7 * s;
     const P = i => N[i];
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const fr = this.fk >= 0, drawArms = () => { // brazos (mangas de la túnica) y manos
+      for (const a of I.arms) {
+        const sh = P(a.sh), el = P(a.el), hn = P(a.ha);
+        limb(ctx, [[sh, el, B.armW * s], [el, hn, B.armW * 0.95 * s]], fr ? E.robe : E.dark, lw);
+        const ang = Math.atan2(hn.y - el.y, hn.x - el.x), hw = B.armW * 1.05 * s;
+        ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(ang);
+        ctx.strokeStyle = E.trim; ctx.lineWidth = 2 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-hw * 0.55, -B.armW * 0.48 * s); ctx.lineTo(-hw * 0.55, B.armW * 0.48 * s); ctx.stroke(); // puño de la manga
+        ctx.beginPath(); ctx.rect(-hw * 0.2, -hw / 2, hw, hw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
+        ctx.restore();
+      } };
     // piernas (pantalón) y pies
     for (const L of I.legs) {
       const h = P(L.hip), k = P(L.knee), f = P(L.foot);
       limb(ctx, [[h, k, B.legW * s], [k, f, B.legW * 0.92 * s]], E.pants, lw);
-      const fw = B.legW * 1.45 * s, fh = B.legW * 0.7 * s, fx = f.x + L.sd * 1.2 * s;
-      rectPath(ctx, fx - fw / 2, f.y - fh * 0.6, fw, fh); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = '#3a2a1e'; ctx.fill();
+      const fw = B.legW * 1.45 * s, fh = B.legW * (fr ? 0.8 : 0.55) * s, fx = f.x + L.sd * 1.2 * s; // de frente la punta del pie asoma hacia ti
+      rectPath(ctx, fx - fw / 2, f.y - fh * (fr ? 0.45 : 0.75), fw, fh); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = '#3a2a1e'; ctx.fill();
     }
+    if (!fr) drawArms(); // de espaldas: los brazos quedan detrás del torso
     // túnica: torso + falda (un solo contorno). El torso tiene un quiebre a media altura (nodo lower): abajo casi derecho, arriba se inclina
     const r = P(I.root), lo = P(I.lower), up = P(I.upper), tw = B.torW * 0.5 * s;
     const nrm = (x, y) => { const L = Math.hypot(x, y) || 1; return { x: x / L, y: y / L }; };
@@ -222,7 +236,9 @@ class Fighter {
     ctx.fillStyle = E.robe; torsoP(); ctx.fill();
     // ribete al centro, cinturón y sombra de un lado
     const mid = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
-    ctx.strokeStyle = E.trim; ctx.lineWidth = 2.4 * s; { const a = mid(tl, tr, 0.5), m = mid(ml, mr, 0.5), b = mid(bl, br, 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(m.x, m.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    ctx.strokeStyle = E.trim; ctx.lineWidth = 2.4 * s;
+    if (fr) { const a = mid(tl, tr, 0.5), m = mid(ml, mr, 0.5), b = mid(bl, br, 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(m.x, m.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } // de frente: ribete al centro
+    else { const a = mid(tl, ml, 0.12), b = mid(tr, mr, 0.12); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } // de espaldas: sólo el cuello de la túnica
     { const a = mid(bl, ml, 0.62), b = mid(br, mr, 0.62); ctx.strokeStyle = E.dark; ctx.lineWidth = 4 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.lineCap = 'round'; }
     ctx.fillStyle = 'rgba(0,0,0,.14)'; poly([tr, mid(tr, tl, 0.28), mid(mr, ml, 0.28), mid(br, bl, 0.28), br, mr]); ctx.fill();
     // cabeza: cuadrada, sin rostro
@@ -230,18 +246,9 @@ class Fighter {
     ctx.save(); ctx.translate(hd.x, hd.y); ctx.rotate(ha);
     ctx.beginPath(); ctx.roundRect(-hs / 2, -hs / 2, hs, hs, hs * 0.22); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,.13)'; ctx.beginPath(); ctx.roundRect(hs * 0.18, -hs / 2, hs * 0.32, hs, [0, hs * 0.22, hs * 0.22, 0]); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(-hs * 0.36, -hs * 0.38, hs * 0.22, hs * 0.14);
+    if (fr) { ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(-hs * 0.36, -hs * 0.38, hs * 0.22, hs * 0.14); } else { ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(-hs / 2, -hs / 2, hs, hs); } // de espaldas la nuca algo más oscura
     ctx.restore();
-    // brazos (mangas de la túnica) y manos
-    for (const a of I.arms) {
-      const sh = P(a.sh), el = P(a.el), hn = P(a.ha);
-      limb(ctx, [[sh, el, B.armW * s], [el, hn, B.armW * 0.95 * s]], E.robe, lw);
-      const ang = Math.atan2(hn.y - el.y, hn.x - el.x), hw = B.armW * 1.05 * s;
-      ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(ang);
-      ctx.strokeStyle = E.trim; ctx.lineWidth = 2 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-hw * 0.55, -B.armW * 0.48 * s); ctx.lineTo(-hw * 0.55, B.armW * 0.48 * s); ctx.stroke(); // puño de la manga
-      ctx.beginPath(); ctx.rect(-hw * 0.2, -hw / 2, hw, hw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
-      ctx.restore();
-    }
+    if (fr) drawArms(); // de frente: por delante del cuerpo
   }
 }
 // Rectángulo rotado de a hasta b (con un poco de largo extra para tapar la unión)
@@ -361,6 +368,7 @@ function startDuel(el) {
   G = { ms: [me, foe], me, foe, dust: [], inp: { x: 0, y: 0 }, t: 0 };
   $('fighters').innerHTML = G.ms.map(m => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div></div>`).join('');
   $('pick').hidden = true; $('hud').hidden = false; $('btnCal').hidden = true; scene = 'duel';
+  me.face = me.fk = -1; foe.face = foe.fk = 1; me.guard = me.guardK = foe.guard = foe.guardK = 1;
   layout(); for (const m of G.ms) { place(m); m.resetRig(); for (let i = 0; i < 30; i++) m.step(1 / 60); }
   G.phase = 'calib'; TILT.ref = null; calReset(''); $('calib').hidden = false; // antes del conteo hay que calibrar el sensor (pedido del dueño)
 }
@@ -414,6 +422,7 @@ function duelStep(dt) {
     if (sp > 90 && m.dustT < 0) { m.dustT = 0.5; G.dust.push({ x: m.x + (Math.random() - 0.5) * 8, y: m.y, z: 2, vx: -m.vx * 0.15, life: 0.6, r: 3 + Math.random() * 2 }); } // polvito al caminar rápido
   }
   { const dx = foe.x - me.x, dy = foe.y - me.y, d = Math.hypot(dx, dy) || 1e-3, mn = me.r + foe.r; if (d < mn) { const p = (mn - d) / 2, ux = dx / d, uy = dy / d; me.x -= ux * p; me.y -= uy * p; foe.x += ux * p; foe.y += uy * p; } } // no se atraviesan
+  for (const m of G.ms) { const o = m === me ? foe : me, d = o.y - m.y; if (Math.abs(d) > 12) m.face = d > 0 ? 1 : -1; m.guard = 1; } // se miran: el de arriba mira hacia abajo y el de abajo hacia arriba (pedido del dueño)
   for (const m of G.ms) { place(m); m.step(dt); }
   for (const q of G.dust) { q.life -= dt; q.x += q.vx * dt; q.z += 12 * dt; q.r += 6 * dt; }
   G.dust = G.dust.filter(q => q.life > 0);
