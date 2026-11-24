@@ -1,7 +1,7 @@
 // Service worker de Monster Brawl: deja el juego disponible sin internet.
 // La página se pide primero a la red (para recibir actualizaciones) y si no hay conexión se usa la copia guardada.
 // Al cambiar archivos, subir el número de CACHE para que los celulares descarten la copia vieja.
-const CACHE = 'monster-brawl-v3';
+const CACHE = 'monster-brawl-v4';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -18,5 +18,8 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match('./index.html')));
     return;
   }
-  e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return r; })));
+  // lo demás (audios, íconos): también red primero (preguntando si cambió; si no cambió el servidor responde corto) y la copia guardada sólo sin internet.
+  // Antes era copia guardada primero: al actualizar los paquetes de audio el celular seguía usando los viejos y no calzaban con el juego nuevo.
+  e.respondWith(fetch(req, { cache: 'no-cache' }).then(r => { if (r.ok && r.status === 200) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return r; })
+    .catch(() => caches.match(req, { ignoreSearch: true })));
 });
