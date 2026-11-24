@@ -121,12 +121,12 @@ const PROP_EL = { water: 'agua', fire: 'fuego' };
 const STREAM = { hold: 0.35, rate: 38, t: 0.75, per: 0.014, decay: 0.035 }; // espera antes de que empiece, gotas/llamas por segundo, segundos que tardan en llegar, escudo que suma cada una, cuánto se gasta solo por segundo
 const SHIELD = { r: 34, block: 0.75, wear: 0.03 }; // radio, cuánto daño quita con el escudo lleno (75%), cuánto se gasta por cada punto de daño
 // Lanzar la esfera: si la sueltas moviéndola rápido sale disparada y daña al que golpea
-const THROW = { min: 260, max: 1000, dmg0: 8, dmgK: 0.012, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño = dmg0 + velocidad·dmgK, segundos que vuela, empujón
+const THROW = { min: 260, max: 1000, dmg: 14, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño (la rapidez no lo cambia, pedido del dueño), segundos que vuela, empujón
 const HP_MAX = 100, KO_S = 2.6;
 // Guardar la esfera (pedido del dueño): llevarla a tu personaje y dejarla ahí un momento hace que quede flotando cerca de él; un deslizamiento rápido hacia adelante la dispara al rival
 const DOCK = { r: 30, s: 0.45, max: 2, fire: 760, fwd: Math.PI / 3 }; // radio donde cuenta como "en tu personaje", segundos que hay que dejarla, cuántas puede guardar, velocidad del disparo, cuánto puede desviarse el deslizamiento de "hacia el rival" (60°)
 // Salpicadura (pedido del dueño): arrastrar desde tu pozo o tu llama y soltar pronto (antes de `quick` s) lanza una salpicadura del elemento en esa dirección (no se controla después); también daña. Si sigues arrastrando, sale la esfera
-const SPLASH = { quick: 0.3, decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg0: 7, dmgK: 7 }; // px que se mueve el dedo antes de decidir, rapidez (px/s) desde la que es salpicadura y no esfera, gotas/llamas, abertura, velocidad, duración, daño = dmg0 + dmgK·(rapidez/2000, hasta 1)
+const SPLASH = { quick: 0.3, decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg: 12 }; // px que hay que arrastrar, rapidez (px/s) del deslizamiento que dispara la esfera guardada, gotas/llamas, abertura, velocidad, duración, daño (la rapidez no cambia el daño, pedido del dueño)
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
 const REACH_BEND = 0.8; // al apuntar a un pozo, una llama o el elemento, la mano llega a este largo del brazo: el codo queda flectado (hacia atrás)
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
@@ -668,7 +668,7 @@ function drawShield(ctx, m, T) { // esfera de agua o fuego alrededor del persona
   ctx.restore();
 }
 function hitFighter(m, o) { // la esfera lanzada golpea
-  const sp = Math.hypot(o.vx, o.vy); dealDamage(m, THROW.dmg0 + sp * THROW.dmgK, o.vx, o.vy); orbFx(o, 18);
+  const sp = Math.hypot(o.vx, o.vy); dealDamage(m, THROW.dmg, o.vx, o.vy); orbFx(o, 18);
 }
 function dealDamage(m, raw, vx, vy, kbK = 1) { // daño con o sin escudo: baja según cuánto elemento tiene alrededor, y el escudo se gasta
   const o = { vx, vy }, sp = Math.hypot(vx, vy), red = SHIELD.block * m.shield, dmg = raw * (1 - red);
@@ -684,7 +684,7 @@ function spawnSplash(pr, ux, uy, v, owner) { // salpicadura: un abanico de gotas
   for (let i = 0; i < SPLASH.n; i++) { const a = a0 + (Math.random() + Math.random() - 1) * SPLASH.spread, s2 = sp * (0.7 + Math.random() * 0.45);
     parts.push({ x: st.x + (Math.random() - 0.5) * 8, y: st.y + (Math.random() - 0.5) * 6, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2, life: SPLASH.life * (0.75 + Math.random() * 0.5), r: pr.k === 'water' ? 3 + Math.random() * 3.5 : 3.5 + Math.random() * 3, max: 0 }); }
   for (const q of parts) q.max = q.life;
-  G.splashes.push({ k: pr.k, owner, hit: new Set(), dmg: SPLASH.dmg0 + SPLASH.dmgK * Math.min(1, v / 2000), parts });
+  G.splashes.push({ k: pr.k, owner, hit: new Set(), dmg: SPLASH.dmg, parts });
   const a = owner.ix.arms.find(x => x.ctl && x.ctl.abs); if (a) { a.ctl.x = st.x + ux * 70; a.ctl.y = st.y + uy * 70; } // el brazo acompaña el gesto
 }
 function splashStep(dt) {
