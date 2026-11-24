@@ -1,6 +1,7 @@
 # Vibe-Coding
 
 Repositorio personal de juegos/prototipos. El proyecto activo es **Monster Brawl** (`monster-brawl/`).
+Hay un segundo juego, **Duelo Elemental** (`duelo-elemental/`, ver su sección al final): es independiente y **no debe chocar con Monster Brawl** (pedido del dueño): carpeta, guardado (`duelo_elemental_*` en localStorage), caché del service worker (prefijo `duelo-elemental-`) y web app propios. Cada service worker borra sólo sus propias cachés (Monster Brawl sólo las `monster-brawl-*`).
 Los archivos `monster-game (3).jsx` y `monster-game (4).jsx` de la raíz son intentos anteriores del dueño: **no tocarlos**.
 
 **Idioma:** el dueño escribe en español (a veces con errores de tipeo). Responder siempre en español, y toda la UI del juego va en español.
@@ -231,3 +232,16 @@ entrenamiento anterior (`train`) con un aviso único (`save.notice`); asigna la 
 - Más ultimates (la biblioteca ya está pensada para crecer: agregar a `ULTS` + `ULT_KEYS` + su efecto en `execUlt`).
 - Sonido.
 - Si se quiere que la ultimate pese más: subir `ULT_ALL_MUL` o el daño de las ultimates de daño.
+
+---
+
+## Duelo Elemental (`duelo-elemental/`)
+
+Juego de duelos 1 vs 1 que **controlas tú**, inspirado en *La leyenda de Aang* (control de agua, tierra, fuego y aire) pero **original**: personajes, nombres y símbolos propios, sin copiar los de la serie.
+- Un solo archivo `duelo-elemental/index.html` (canvas, sin dependencias), `manifest.webmanifest`, `sw.js` (red primero, `CACHE` `duelo-elemental-v1`), `icons/` (dibujados con el propio juego). Web app: https://phaarthurnatch.github.io/Vibe-Coding/duelo-elemental/
+- Prueba: `node duelo-elemental/tools/smoke.js [carpeta-capturas]` (iPhone 13, elige Fuego, simula inclinar el teléfono con `DeviceOrientationEvent`; debe terminar con `no errors`). Artifact: `python3 duelo-elemental/tools/build_artifact.py <salida>.html`.
+- **Vista igual que la arena de Monster Brawl** (`ARENA_W` 520, `ARENA_D` según el alto, `DEPTH` 0,7, `TOP` 130; `place`: `s` = 0,82 + 0,28·y/`ARENA_D`, `gy` = `TOP` + y·`DEPTH`); arena propia `drawArena`: muro de piedra con 4 estandartes (símbolos propios `emblem`), suelo de losas, círculo central con los 4 colores.
+- **Personajes** (`class Fighter`): **misma física de resortes que Monster Brawl** (`buildRig`/`animate`/`rigStep`, `RIG_STIFF`/`RIG_DAMP`), humanoides **más chicos** (`BODY`), **sin rostro**, **brazos, torso y piernas rectangulares** (`segPath`/`limb`: contorno de toda la extremidad y luego relleno), cabeza cuadrada, **túnica del color de su elemento** (`ELEM`: agua azul, tierra verde, fuego rojo, aire amarillo) con falda cuyo borde son dos nodos blandos (`I.hem`) que se mecen.
+- **Caminar inclinando el teléfono** (`TILT`, `tiltVec`): como una bolita, a la derecha/izquierda y hacia adelante/atrás, relativo a la posición al empezar (o al tocar «⟲ Centrar»); zona muerta `TILT_DEAD` 2,5° y velocidad máxima a `TILT_FULL` 20°; en iPhone se pide permiso al tocar el elemento. Respaldo: arrastrar el dedo (`TOUCH`) o teclado. Nivel de burbuja abajo a la izquierda (`drawLevel`).
+- Por ahora el rival sólo pasea cerca de su lugar (sin ataques todavía); no se atraviesan.
+
