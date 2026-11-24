@@ -2232,6 +2232,7 @@ class Monster {
     if (this.dead) { // el cuerpo ya no se desvanece (pedido del dueño): queda tirado donde cayó y sirve de obstáculo
       this.deadT += dt; this.alpha = 1;
       let sx = 0; for (const n of this.nodes) sx += n.x; this.x = this.gx = clamp(sx / this.nodes.length, 0, ARENA_W); return; }
+    if (this.state === 'grabbed' || this.state === 'thrown') { this.desired = { x: 0, y: 0 }; return; } // en la mano del Titán o volando hacia la pared (lo mueven ellos)
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt; if (this.g.blob) this.rollCd = (this.rollCd ?? ROLL.cd * 0.5 + Math.random() * ROLL.cdR) - dt;
     if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
@@ -2482,6 +2483,13 @@ class Monster {
 
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
+    if (this.state === 'grabbed') { this.vx = this.vy = this.vz = 0; return; } // lo lleva la mano del Titán
+    if (this.state === 'thrown') { // lanzado contra la pared: al chocarla le duele (pedido del dueño)
+      this.x += this.vx * dt; this.y += this.vy * dt; this.hop(dt); this.thrownT = (this.thrownT || 0) + dt; const m = this.r, B = typeof battle !== 'undefined' ? battle : null;
+      const wall = this.x <= m ? -1 : this.x >= ARENA_W - m ? 1 : 0;
+      if (wall || this.thrownT > 1.6) { this.x = clamp(this.x, m, ARENA_W - m); const by = this.thrownBy; this.state = 'free'; this.thrownT = 0; this.thrownBy = null;
+        if (wall && B && by) { this.vx = -wall * 220; B.hit(by, this, by.st.melee * BOSS.throwDmg, { x: -wall, y: 0 }, 'melee'); B.shake = Math.max(B.shake, 18); B.rings.push({ x: this.x, y: this.y, r: 6, max: 110 * (by.k || 1), life: 0.5, col: '#ffd9a0' }); B.text(this, '¡PUM!', '#ffb36b', true); if (B.kcamOn) { SFX.hit(40, true); SFX.mineBoom(); } } }
+      return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
     else if (this.state !== 'leap' && this.state !== 'roll') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
@@ -3267,7 +3275,7 @@ class Monster {
 // ============================================================================
 const bossScale = b => ((ARENA_W + 60) / 2 * BOSS.reach) / (b.g.torso.upper.w * 0.5); // tan grande que sus hombros casi tocan los bordes de la pantalla (pedido del dueño)
 const BOSS_PRE = 7.2, BOSS_ROAR = 3.7, BOSS_PRE_SLAMS = [[3.7, 4.8], [5.15, 6.15]]; /* rugido más largo (pedido del dueño) */ // entrada del jefe (s de juego = ×1,5 los reales): rugido y dos golpes a la arena con ambas manos (subida → caída)
-const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 6.2, /* (era 2,2: el dueño pidió casi el triple de vida) */ both: 0.3, big: 1.4, /* con el jefe la arena es ×1,4 más grande: tus monstruos se ven más chicos al lado del Titán (pedido del dueño) */ /* chance de golpear con las dos manos a la vez */ slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
+const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 6.2, /* (era 2,2: el dueño pidió casi el triple de vida) */ both: 0.3, big: 1.4, rage: 0.6, /* con un brazo destruido ataca más rápido (sus tiempos ×0,6) */ grab: 0.45, /* y con la mano sana, a veces intenta agarrar y lanzar (chance) */ throwV: 1700, throwDmg: 1.3, /* lanzado a la pared: velocidad y daño (× su golpe al suelo) */ /* con el jefe la arena es ×1,4 más grande: tus monstruos se ven más chicos al lado del Titán (pedido del dueño) */ /* chance de golpear con las dos manos a la vez */ slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
 // el modo Jefe aún no está desbloqueado en la web app: sólo se puede probar en el link de prueba (dentro de claude.ai) o abriendo el archivo (pedido del dueño)
 const BOSS_OPEN = (() => { try { return window.self !== window.top; } catch (e) { return true; } })() || location.protocol === 'file:';
 const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
@@ -3284,31 +3292,53 @@ class BossHand extends Monster {
   animate(dt) { this.t = (this.t || 0) + dt; if (this.hurtT > 0) this.hurtT -= dt; }
   rigStep() { }
   sync() { for (const n of this.nodes) { n.x = this.gx; n.y = this.gy - this.z - this.r; n.vx = n.vy = 0; } } // (los textos y partículas salen de sus «nodos»)
-  die() { this.dead = true; this.state = 'dead'; this.target = null; this.z = 0; this.vz = 0; this.phase = 'dead'; for (const k in this.buffs) this.buffs[k] = 0; }
+  die() { this.dead = true; this.state = 'dead'; this.target = null; this.z = 0; this.vz = 0; this.phase = 'dead'; for (const k in this.buffs) this.buffs[k] = 0; this.drop();
+    const B = typeof battle !== 'undefined' ? battle : null, o = B && B.ms.find(h => h.isHand && h !== this && !h.dead);
+    if (o && !B.bossRage) { // le destruyeron un brazo: vuelve a rugir, se enoja y ataca más rápido (pedido del dueño)
+      B.bossRage = true; B.roarT = 0; B.shake = Math.max(B.shake, 10); if (B.kcamOn) SFX.roar(); if (B.bossBody) B.bossBody.setEmo('angry', 9999, 5);
+      for (const m of B.ms) if (!m.isHand && !m.dead) m.setEmo('scared', BOSS_ROAR, 3);
+      o.drop(); o.rage = true; o.phase = 'rest'; o.ph = BOSS_ROAR + 0.4; } }
+  drop() { const e = this.held; this.held = null; if (e && e.state === 'grabbed') { e.state = 'free'; e.vz = 0; } } // suelta al que tenía agarrado
   think(dt, B) {
     if (this.dead) { this.deadT = (this.deadT || 0) + dt; this.z = Math.max(0, this.z - 600 * dt); B.place(this); this.sync(); return; }
     this.state = 'free'; this.stT = 0; this.ph -= dt;
     const foes = B.ms.filter(m => !m.dead && m.team !== this.team);
     if (this.phase === 'rest') { this.z = 0; if (this.ph <= 0 && foes.length && !B.over) {
-        // cada golpe con su propia altura y ritmo (pedido del dueño); a veces golpea con las dos manos a la vez
-        const atk = { z: 0.6 + Math.random() * 0.8, lift: 0.55 + Math.random() * 0.8, aim: 0.3 + Math.random() * 0.6, g: 3000 + Math.random() * 2600 };
-        const o = B.ms.find(h => h.isHand && h !== this && !h.dead && h.phase === 'rest'), go = h => { const mine = foes.filter(f => (f.x < ARENA_W / 2) === (h.side < 0)), L = mine.length ? mine : foes; /* cada mano ataca en su mitad de la arena (pedido del dueño) */ h.atk = atk; h.target = L[Math.floor(Math.random() * L.length)]; h.phase = 'lift'; h.ph = atk.lift; };
+        const gf = foes.filter(f => f.z < FLY.airZ && f.state !== 'ultcharge');
+        if (this.rage && gf.length && Math.random() < BOSS.grab) { this.target = gf[Math.floor(Math.random() * gf.length)]; this.phase = 'reach'; this.ph = 1.3; return this.finish(B); } // con la mano sana: intenta agarrar a uno y lanzarlo a la pared (pedido del dueño)
+        // cada golpe con su propia altura y ritmo (pedido del dueño); a veces golpea con las dos manos a la vez; sin un brazo, más rápido
+        const rf = this.rage ? BOSS.rage : 1, atk = { z: 0.6 + Math.random() * 0.8, lift: (0.55 + Math.random() * 0.8) * rf, aim: (0.3 + Math.random() * 0.6) * rf, g: (3000 + Math.random() * 2600) / rf };
+        const o = B.ms.find(h => h.isHand && h !== this && !h.dead && h.phase === 'rest'), go = h => { const mine = h.rage ? foes : foes.filter(f => (f.x < ARENA_W / 2) === (h.side < 0)), L = mine.length ? mine : foes; /* cada mano ataca en su mitad de la arena (pedido del dueño) */ h.atk = atk; h.target = L[Math.floor(Math.random() * L.length)]; h.phase = 'lift'; h.ph = atk.lift; };
         go(this); if (o && Math.random() < BOSS.both) go(o); } }
     else if (this.phase === 'lift' || this.phase === 'aim') { // sube y se pone encima de su objetivo (se ve su sombra)
       const T = this.target && !this.target.dead ? this.target : foes[0]; if (!T) { this.phase = 'rest'; this.ph = 1; }
       else { const f = Math.min(1, dt * (this.phase === 'lift' ? 3.2 : 1.6)); this.x += (clamp(T.x, this.r, ARENA_W - this.r) - this.x) * f; this.y += (clamp(T.y, this.r, ARENA_D - this.r) - this.y) * f; }
       const A = this.atk || { z: 1, aim: BOSS.aim, g: 4200 }; this.z += (BOSS.liftZ * A.z * this.k - this.z) * Math.min(1, dt * 5);
       if (this.ph <= 0) { if (this.phase === 'lift') { this.phase = 'aim'; this.ph = A.aim; } else { this.phase = 'slam'; this.vz = -200; } }
+    } else if (this.phase === 'reach') { // va a ras del suelo hacia su objetivo para agarrarlo
+      const T = this.target; this.z += (22 * this.k - this.z) * Math.min(1, dt * 6);
+      if (!T || T.dead || T.z > FLY.airZ || T.state === 'ultcharge' || this.ph <= 0) { this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * 0.6; }
+      else { const f = Math.min(1, dt * 3.2); this.x += (T.x - this.x) * f; this.y += (T.y - this.y) * f;
+        if (Math.hypot(T.x - this.x, T.y - this.y) < this.r + T.r + 14 * this.k) { /* (la separación entre cuerpos no deja que se acerque más que la suma de los radios) */ this.held = T; T.state = 'grabbed'; T.ulting = false; T.ultRequest = false; T.setEmo('scared', 2, 4); B.text(T, '¡atrapado!', '#ff8a7a'); this.phase = 'carry'; this.ph = 0.75; if (B.kcamOn) SFX.hit(20, false); } }
+    } else if (this.phase === 'carry') { // lo levanta y toma impulso hacia su lado
+      const T = this.held; if (!T || T.dead) { this.drop(); this.phase = 'rest'; this.ph = 1; }
+      else { this.z += (BOSS.liftZ * 0.85 * this.k - this.z) * Math.min(1, dt * 5); this.x += ((this.side < 0 ? ARENA_W * 0.12 : ARENA_W * 0.88) - this.x) * Math.min(1, dt * 2.5);
+        T.x = this.x; T.y = this.y + 2; T.z = Math.max(0, this.z - this.r * 0.4);
+        if (this.ph <= 0) { // ¡lo lanza a la pared contraria!
+          this.held = null; T.state = 'thrown'; T.thrownBy = this; T.thrownT = 0; T.vx = -this.side * BOSS.throwV * Math.max(0.7, this.k); T.vy = (Math.random() - 0.5) * 120; T.vz = 120; B.shake = Math.max(B.shake, 8); if (B.kcamOn) SFX.ult('ranged');
+          this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * (0.55 + Math.random() * 0.9); } }
     } else if (this.phase === 'slam') { // ¡golpe al suelo!
       this.vz -= ((this.atk && this.atk.g) || 4200) * dt; this.z += this.vz * dt;
-      if (this.z <= 0) { this.z = 0; this.vz = 0; this.phase = 'rest'; this.ph = BOSS.rest * (0.55 + Math.random() * 0.9) + Math.random() * 0.8; this.slamAt = this.t;
+      if (this.z <= 0) { this.z = 0; this.vz = 0; this.phase = 'rest'; this.ph = (BOSS.rest * (0.55 + Math.random() * 0.9) + Math.random() * 0.8) * (this.rage ? BOSS.rage : 1); this.slamAt = this.t;
         const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 20); B.rings.push({ x: this.x, y: this.y, r: 10, max: R * 2.4, life: 0.8, col: '#ffd9a0' }, { x: this.x, y: this.y, r: 4, max: R * 1.3, life: 0.5, col: '#fff3d6' }); /* sacudida y ondas de choque como en la entrada (pedido del dueño) */
         if (B.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); }
         for (const e of foes) { if (e.z > FLY.airZ || e.state === 'ultcharge') continue; let dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy); if (d > R + e.r) continue; if (d < 1) { dx = 1; dy = 0; d = 1; }
           B.hit(this, e, this.st.melee * (d < R * 0.5 ? 1 : 0.6), { x: dx / d, y: dy / d }, 'melee'); if (!e.dead) { e.vx += dx / d * 260; e.vy += dy / d * 260; e.vz = 260; } } }
     }
-    this.x = clamp(this.x, this.side < 0 ? this.r : ARENA_W * 0.5, this.side < 0 ? ARENA_W * 0.5 : ARENA_W - this.r); /* cada mano cubre su mitad: los brazos no se cruzan (pedido del dueño) */ this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); // cada mano se queda casi en su mitad (así los brazos no se cruzan)
+    this.finish(B);
   }
+  finish(B) { // cada mano cubre su mitad: los brazos no se cruzan (pedido del dueño); sin el otro brazo, la mano sana alcanza toda la arena (para agarrar)
+    const solo = this.rage; this.x = clamp(this.x, this.side < 0 || solo ? this.r : ARENA_W * 0.5, this.side < 0 && !solo ? ARENA_W * 0.5 : ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); }
   draw(ctx) { // un puño enorme
     const r = Math.max(this.r * 1.05, ((typeof battle !== 'undefined' && battle && battle.armW2) || 0) * 1.2), x = this.gx, y = this.gy - this.z - r * 0.55, /* el puño también va en proporción */ c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
     if (A && !dead) { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
@@ -3350,7 +3380,7 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   { let tg = 0; for (const h of B.ms) if (h.isHand && !h.dead) tg += -h.side * clamp(h.z / BOSS.liftZ, 0, 1); tg = clamp(tg, -1, 1) * BOSS.lean; /* el brazo que sube (su mano levantada) inclina hacia el otro lado; en reposo queda derecho (antes se usaba la altura de los codos y quedaba inclinado siempre) */ const nw = performance.now(), dtl = Math.min(0.1, (nw - (B._leanT || nw)) / 1000); B._leanT = nw; B.bossLean = (B.bossLean || 0) + (tg - (B.bossLean || 0)) * Math.min(1, dtl * 4); }
   const la = B.bossLean || 0, pvx = body.gx, pvy = TOP, rot = (x, y) => { const cx = x - pvx, cy = y - pvy, co = Math.cos(la), si = Math.sin(la); return [pvx + cx * co - cy * si, pvy + cx * si + cy * co]; };
   ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); ctx.translate(pvx, pvy); ctx.rotate(la); ctx.translate(-pvx, -pvy); body.draw(ctx); // se corta en el piso: sólo se ve del torso para arriba
-  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); drawBossDetail(ctx, body, up, sc, rs, B); } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
+  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); drawBossDetail(ctx, body, up, sc, rs, B); if (B.bossRage) { const hd = body.nodes[body.ix.head], g = body.g; ctx.save(); shapePath(ctx, g.head.shape, hd.x, hd.y, g.head.w * sc, g.head.h * sc); ctx.clip(); ctx.fillStyle = `rgba(255,30,10,${0.16 + 0.08 * Math.sin(performance.now() / 160)})`; ctx.fillRect(hd.x - g.head.w * sc, hd.y - g.head.h * sc, g.head.w * sc * 2, g.head.h * sc * 2); ctx.restore(); } /* furioso: la cara se pone roja (pedido del dueño) */ } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
   ctx.restore();
   for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55;
     // brazo de verdad (pedido del dueño): sale del hombro (más afuera que el torso) con largos fijos; de las dos posiciones posibles del codo se elige la que deja
@@ -3617,6 +3647,7 @@ class Battle {
       this._bossOff += ((ch.y - b.gy) - this._bossOff) * Math.min(1, dt * 0.3); b.gy = TOP + BOSS.low * TOP - this.bossRise - (this.bossEy || 0) - Math.sin(this.time * 1.7) * 5 - this._bossOff; /* sin rebote (pedido del dueño): la base va directo donde debe quedar el pecho, en vez de corregirse persiguiéndolo */ /* (low: fracción de TOP; negativo = más arriba) */ this._bossFit = true; } } // el jefe respira y se mueve al fondo
     if (this.kcam) { const k = this.kcam; k.t += dt; if (k.t >= KC_T) this.kcam = null; else dt *= k.t < 0.2 ? 0.03 : k.t < 0.95 ? 0.3 : 0.3 + 0.7 * (k.t - 0.95) / 0.4; } // kill cam: se congela un instante en el golpe y sigue en cámara lenta
     if (this.preT > 0) { this.bossPre(dt); return; } // jefe: antes del conteo ruge y golpea la arena (pedido del dueño)
+    if (this.roarT != null) { this.roarT += dt; if (this.roarT < BOSS_ROAR) { this.shake = Math.max(this.shake, 4 + 3 * Math.sin(this.roarT * 30)); if (this.bossBody) this.bossBody.mouthOpen = 1; } else this.roarT = null; } // rugido de rabia (le destruyeron un brazo)
     if (this.introT > 0) { // cuenta regresiva: se mueven en el lugar, todavía no pelean
       const n0 = Math.ceil(this.introT / INTRO_STEP);
       this.introT -= dt;
@@ -3639,7 +3670,7 @@ class Battle {
     }
     if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
     // separación entre cuerpos
-    const al = this.ms.filter(m => !m.dead);
+    const al = this.ms.filter(m => !m.dead && m.state !== 'grabbed' && !m.held); // (el agarrado y la mano que lo lleva no se empujan)
     for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
       const a = al[i], b = al[j]; if (Math.abs(a.z - b.z) > FLY.airZ) continue;
       const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
@@ -5523,7 +5554,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia, ataca más rápido y con la mano sana intenta agarrar a tus monstruos para lanzarlos contra la pared.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
@@ -6298,7 +6329,7 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
     const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8;
     ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom * bz, 1400 * zoom * bz);
   } else ARENA_D = 560 * zoom * bz;
-  battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('angry', 9999, 1); battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
+  battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('focus', 9999, 1); /* enojado de verdad cuando le destruyen un brazo */ battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
   battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
   if (mode === 'boss') { battle.preT = BOSS_PRE; battle.shake = 0; } // el Titán ruge y golpea la arena antes del conteo (pedido del dueño)
   scene = 'battle';
