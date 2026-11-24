@@ -105,13 +105,14 @@ const SKINS = ['#f2d0b0', '#e4b48c', '#c98d62', '#a56b43', '#7a4a2c'];
 const BODY = { legU: 14, legL: 14, legW: 7.5, hipX: 5.5, torW: 23, torH: 27, head: 18, armU: 12.5, armF: 12, armW: 6.5 };
 const OL = '#141019'; // contorno
 // Posición de combate (pedido del dueño): levemente agachado, piernas abiertas y flectadas, codos levemente abiertos y puños hacia adelante con el brazo doblado
-const STANCE = { crouch: 0.17, feet: 7, knee: 4.5, kneeFwd: 3, stagger: 4, elbowX: 4.5, elbowY: -1.5, fistIn: 6.5, fistFwd: 6, fistUpF: -14.7, fistUpB: -8.8, fistF: 1.3, fistB: 0.85 };
+const STANCE = { crouch: 0.17, feet: 7, knee: 4.5, kneeFwd: 3, stagger: 4, elbowX: 4.5, elbowY: -1.5, fistIn: 4.5, fistFwd: 6, fistUpF: -14.7, fistUpB: -8.8, fistF: 1.3, fistB: 0.85 };
 const TOR_D = 0.6;  // grosor del torso respecto de su ancho (de perfil se ve así de angosto)
 const ARM_GAIN = 0.45, ARM_MAX = 2.0; // brazos con el dedo: cuánto se mueve la mano por cada punto que mueves el dedo y hasta cuántas veces el largo del brazo se estira
 const TAP_MOVE = 14;  // px: si el dedo se mueve menos que esto es un toque (salta); si se mueve más, mueve el brazo
 const JUMP = { min: 230, max: 520, t0: 0.06, t1: 0.45, g: 1100 }; // salto: toque rápido = salto corto, un poco más largo = más fuerte (hasta t1 s)
 const JOY_R = 44;     // palanca para caminar (sólo en el link de prueba, donde no llega la inclinación)
-const TURN = 5;     // qué tan rápido gira para mirar al otro (transición gradual)
+const TURN = 5;
+const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
 
 const load = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; } };
 const save = d => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); } catch (e) { } };
@@ -151,6 +152,9 @@ class Fighter {
     });
     I.hem = [-1, 1].map(sd => { const i = add(I.root, sd * B.torW * 0.54, B.legU * 0.85, 70, 0.18); N[i].sil = sd; return i; }); // borde de la túnica: blando, se mece al caminar
     for (const i of [I.lower, I.upper, I.head]) N[i].ff = true; // torso y cabeza no se quedan atrás al caminar (si no, la cadera iba adelante y se veía inclinada la parte de abajo)
+    for (const a of I.arms) for (const i of [a.el, a.ha]) N[i].limb = true;
+    for (const L of I.legs) for (const i of [L.knee, L.foot]) N[i].limb = true;
+    for (const n of N) if (n.limb) { const z = Math.max(LIMB.z, n.c / (2 * Math.sqrt(n.k))); n.k *= LIMB.k; n.c = 2 * z * Math.sqrt(n.k); }
     this.legSum = B.legU + B.legL;
     this.orient();
   }
@@ -222,7 +226,7 @@ class Fighter {
       n.vx += (k * (tx + fx - n.x) - c * n.vx) * dt; n.vy += (k * (ty + fy - n.y) - c * n.vy) * dt;
       n.x += n.vx * dt; n.y += n.vy * dt;
       if (n.len > 0.5) {
-        const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s, mn = L * 0.55, mx = L * (n.stretch || 1.3); // stretch: el brazo que sigue tu dedo puede estirarse
+        const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s, mn = L * (n.limb && !n.stretch ? LIMB.mn : 0.55), mx = L * (n.stretch || (n.limb ? LIMB.mx : 1.3)); // stretch: el brazo que sigue tu dedo puede estirarse
         if (d > mx || d < mn) {
           let tt = (d > mx ? mx : mn) / d, nx = P.x + dx * tt, ny = P.y + dy * tt;
           if (d < mn) { const ux = (n.ox + n.ax) * s, uy = (n.oy + n.ay) * s, ul = Math.hypot(ux, uy); if (ul > 1e-3 && dx * ux + dy * uy < 0) { nx = P.x + ux / ul * mn; ny = P.y + uy / ul * mn; } }
