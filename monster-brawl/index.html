@@ -3267,7 +3267,7 @@ class Monster {
 // ============================================================================
 const bossScale = b => ((ARENA_W + 60) / 2 * BOSS.reach) / (b.g.torso.upper.w * 0.5); // tan grande que sus hombros casi tocan los bordes de la pantalla (pedido del dueño)
 const BOSS_PRE = 5.9, BOSS_ROAR = 2.4, BOSS_PRE_SLAMS = [[2.4, 3.5], [3.85, 4.85]]; // entrada del jefe (s de juego = ×1,5 los reales): rugido y dos golpes a la arena con ambas manos (subida → caída)
-const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 6.2, /* (era 2,2: el dueño pidió casi el triple de vida) */ both: 0.3, /* chance de golpear con las dos manos a la vez */ slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
+const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 6.2, /* (era 2,2: el dueño pidió casi el triple de vida) */ both: 0.3, big: 1.4, /* con el jefe la arena es ×1,4 más grande: tus monstruos se ven más chicos al lado del Titán (pedido del dueño) */ /* chance de golpear con las dos manos a la vez */ slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
 // el modo Jefe aún no está desbloqueado en la web app: sólo se puede probar en el link de prueba (dentro de claude.ai) o abriendo el archivo (pedido del dueño)
 const BOSS_OPEN = (() => { try { return window.self !== window.top; } catch (e) { return true; } })() || location.protocol === 'file:';
 const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
@@ -3302,7 +3302,7 @@ class BossHand extends Monster {
     } else if (this.phase === 'slam') { // ¡golpe al suelo!
       this.vz -= ((this.atk && this.atk.g) || 4200) * dt; this.z += this.vz * dt;
       if (this.z <= 0) { this.z = 0; this.vz = 0; this.phase = 'rest'; this.ph = BOSS.rest * (0.55 + Math.random() * 0.9) + Math.random() * 0.8; this.slamAt = this.t;
-        const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 12); B.rings.push({ x: this.x, y: this.y, r: 10, max: R, life: 0.45, col: '#ffd9a0' });
+        const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 20); B.rings.push({ x: this.x, y: this.y, r: 10, max: R * 2.4, life: 0.8, col: '#ffd9a0' }, { x: this.x, y: this.y, r: 4, max: R * 1.3, life: 0.5, col: '#fff3d6' }); /* sacudida y ondas de choque como en la entrada (pedido del dueño) */
         if (B.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); }
         for (const e of foes) { if (e.z > FLY.airZ || e.state === 'ultcharge') continue; let dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy); if (d > R + e.r) continue; if (d < 1) { dx = 1; dy = 0; d = 1; }
           B.hit(this, e, this.st.melee * (d < R * 0.5 ? 1 : 0.6), { x: dx / d, y: dy / d }, 'melee'); if (!e.dead) { e.vx += dx / d * 260; e.vy += dy / d * 260; e.vz = 260; } } }
@@ -5522,7 +5522,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
@@ -6275,14 +6275,14 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
   }
   lastMode = mode; lastTeam = pick ? team : null;
   const me = team[0];
-  TOP = mode === 'boss' ? BOSS.top : 170; // con el jefe, más espacio arriba para su cuerpo
+  TOP = mode === 'boss' ? BOSS.top * BOSS.big : 170; // con el jefe, más espacio arriba para su cuerpo
   const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1, awakened: 1 }[r.stage] || 1)));
-  ARENA_W = 600 * zoom;
+  const bz = mode === 'boss' ? BOSS.big : 1; ARENA_W = 600 * zoom * bz;
   const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
   const foe = ref => makeFoe(ref);
   const list = [...players];
   if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
-  else if (mode === 'boss') { const brec = bossRec(); for (const sd of [-1, 1]) { const h = new BossHand(brec, sd, players[0], zoom); h.team = 1; list.push(h); } list.bossRec = brec; } // el jefe: sus dos manos pelean en la arena
+  else if (mode === 'boss') { const brec = bossRec(); for (const sd of [-1, 1]) { const h = new BossHand(brec, sd, players[0], zoom * bz); h.team = 1; list.push(h); } list.bossRec = brec; } // el jefe: sus dos manos pelean en la arena
   else if (mode === '2v2') {
     if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
     for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
@@ -6295,8 +6295,8 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
   // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores (y sobre el botón ULTIMATE)
   if (H / W > 1.25) {
     const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8;
-    ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
-  } else ARENA_D = 560 * zoom;
+    ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom * bz, 1400 * zoom * bz);
+  } else ARENA_D = 560 * zoom * bz;
   battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('angry', 9999, 1); battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
   battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
   if (mode === 'boss') { battle.preT = BOSS_PRE; battle.shake = 0; } // el Titán ruge y golpea la arena antes del conteo (pedido del dueño)
