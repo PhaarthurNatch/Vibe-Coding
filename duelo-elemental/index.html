@@ -34,7 +34,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .fcard .el{font-size:12px;color:var(--muted);font-weight:700}
 .chip{flex:none;width:12px;height:12px;border-radius:3px;border:2px solid rgba(0,0,0,.45)}
 /* aviso abajo */
-#tip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);transform:translateX(-50%);background:rgba(15,20,28,.85);padding:10px 16px;border-radius:14px;font-weight:700;font-size:15px;width:max-content;max-width:calc(100vw - 32px);text-align:center;transition:opacity .5s;pointer-events:none;opacity:0}
+#tip{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 122px);transform:translateX(-50%);background:rgba(15,20,28,.85);padding:10px 16px;border-radius:14px;font-weight:700;font-size:15px;width:max-content;max-width:calc(100vw - 32px);text-align:center;transition:opacity .5s;pointer-events:none;opacity:0}
 #tip.on{opacity:1}
 /* elegir elemento */
 #pick{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:radial-gradient(circle at 50% 35%,#24344a,var(--bg) 72%)}
@@ -371,6 +371,38 @@ function drawArena(ctx, V) {
   ctx.fillStyle = '#5b4a33'; ctx.fillRect(X0, g1 + 16, XW, Math.max(0, V.y1 - g1));
 }
 
+// ----- Elementos en las esquinas (pedido del dueño): fuego arriba a la izquierda y abajo a la derecha, pozo de agua abajo a la izquierda y arriba a la derecha -----
+const FIRE_R = 22, FIRE_H = 13, POOL_R = 40, PROP_M = 62;
+function arenaProps() { const m = PROP_M, W = ARENA_W, D = ARENA_D; return [{ k: 'fire', x: m, y: m * 0.9, r: FIRE_R }, { k: 'water', x: m + 8, y: D - m - 10, r: POOL_R }, { k: 'fire', x: W - m, y: D - m * 0.9, r: FIRE_R }, { k: 'water', x: W - m - 8, y: m + 10, r: POOL_R }]; }
+function drawPool(ctx, p, T) { // pozo de agua: borde de piedra y agua con ondas y brillos
+  const x = p.x, y = TOP + p.y * DEPTH, R = p.r, RY = R * DEPTH, rim = 7, h = 6;
+  ctx.fillStyle = '#5e5850'; ctx.beginPath(); ctx.ellipse(x, y, R + rim, (R + rim) * DEPTH, 0, 0, Math.PI); ctx.lineTo(x - R - rim, y - h); ctx.ellipse(x, y - h, R + rim, (R + rim) * DEPTH, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill(); // costado del borde
+  ctx.fillStyle = '#8d867a'; ctx.beginPath(); ctx.ellipse(x, y - h, R + rim, (R + rim) * DEPTH, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(40,30,20,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let k = 0; k < 14; k++) { const a = k / 14 * TAU, c = Math.cos(a), sn = Math.sin(a); ctx.moveTo(x + c * R, y - h + sn * RY); ctx.lineTo(x + c * (R + rim), y - h + sn * (R + rim) * DEPTH); } ctx.stroke(); // piedras del borde
+  ctx.save(); ctx.beginPath(); ctx.ellipse(x, y - h + 1, R, RY, 0, 0, TAU); ctx.clip();
+  const g = ctx.createLinearGradient(0, y - h - RY, 0, y - h + RY); g.addColorStop(0, '#1d5d9c'); g.addColorStop(1, '#3aa0e0'); ctx.fillStyle = g; ctx.fillRect(x - R, y - h - RY, R * 2, RY * 2 + 2);
+  ctx.fillStyle = 'rgba(10,30,60,.35)'; ctx.fillRect(x - R, y - h - RY, R * 2, RY * 0.5); // sombra del borde de atrás
+  for (let k = 0; k < 3; k++) { const f = (T * 0.35 + k / 3) % 1; ctx.strokeStyle = `rgba(220,245,255,${0.45 * (1 - f)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x + Math.sin(k * 2.1) * R * 0.25, y - h + Math.cos(k * 1.7) * RY * 0.2, R * 0.9 * f, RY * 0.9 * f, 0, 0, TAU); ctx.stroke(); } // ondas
+  ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); for (let k = 0; k < 4; k++) { const bx = x + Math.sin(T * 0.6 + k * 1.9) * R * 0.55, by = y - h + Math.cos(T * 0.5 + k * 2.3) * RY * 0.5; ctx.moveTo(bx - 5, by); ctx.lineTo(bx + 5, by); } ctx.stroke(); // brillos
+  ctx.restore();
+}
+function drawFire(ctx, p, T) { // brasero de piedra con una llama viva
+  const x = p.x, y = TOP + p.y * DEPTH, R = p.r, RY = R * DEPTH, h = FIRE_H, top = y - h;
+  ctx.fillStyle = '#4a433c'; ctx.beginPath(); ctx.ellipse(x, y, R, RY, 0, 0, Math.PI); ctx.lineTo(x - R, top); ctx.ellipse(x, top, R, RY, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill(); // costado
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (const u of [-0.5, 0, 0.5]) { ctx.moveTo(x + u * R, top + Math.sqrt(1 - u * u) * RY); ctx.lineTo(x + u * R, y + Math.sqrt(1 - u * u) * RY); } ctx.stroke();
+  ctx.fillStyle = '#857c70'; ctx.beginPath(); ctx.ellipse(x, top, R, RY, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#2a1a14'; ctx.beginPath(); ctx.ellipse(x, top, R * 0.78, RY * 0.78, 0, 0, TAU); ctx.fill(); // brasas
+  for (let k = 0; k < 7; k++) { const a = k * 2.4, rr = 0.2 + arnd(k + p.x) * 0.5; ctx.fillStyle = `rgba(255,${120 + 60 * Math.sin(T * 5 + k) | 0},40,${0.6 + 0.4 * Math.sin(T * 4 + k * 1.3)})`; ctx.beginPath(); ctx.arc(x + Math.cos(a) * R * rr, top + Math.sin(a) * RY * rr, 2.2, 0, TAU); ctx.fill(); }
+  const tongue = (cx, w, hh, sway, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx - w, top); ctx.quadraticCurveTo(cx - w * 1.15, top - hh * 0.5, cx + sway, top - hh); ctx.quadraticCurveTo(cx + w * 1.15, top - hh * 0.5, cx + w, top); ctx.closePath(); ctx.fill(); };
+  const layers = [['#e2401c', 1, 1], ['#ff8a1f', 0.72, 0.78], ['#ffd25a', 0.45, 0.52], ['#fff4c0', 0.22, 0.28]];
+  for (const [col, wk, hk] of layers) for (let k = -1; k <= 1; k++) { const fl = 1 + 0.18 * Math.sin(T * 9 + k * 2 + p.x) + 0.1 * Math.sin(T * 15.7 + k), sway = Math.sin(T * 3.1 + k * 1.7 + p.y) * 6; tongue(x + k * R * 0.36, R * 0.42 * wk, R * (k ? 1.6 : 2.4) * hk * fl, sway * hk, col); } // la llama: lenguas en capas que titilan
+  for (let k = 0; k < 6; k++) { const f = (T * 0.8 + k / 6) % 1; ctx.fillStyle = `rgba(255,${200 - 120 * f | 0},60,${1 - f})`; ctx.beginPath(); ctx.arc(x + Math.sin(k * 3.7 + T * 2) * R * 0.5 * (0.4 + f), top - R * 1.2 - f * R * 2.2, 1.8 * (1 - f) + 0.6, 0, TAU); ctx.fill(); } // chispas que suben
+}
+function drawFireGlow(ctx, p, T) { // resplandor del fuego en el suelo
+  const x = p.x, y = TOP + p.y * DEPTH, rr = p.r * (3 + 0.15 * Math.sin(T * 7 + p.x));
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, DEPTH); const g = ctx.createRadialGradient(0, 0, p.r * 0.5, 0, 0, rr); g.addColorStop(0, 'rgba(255,150,50,.38)'); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.fill(); ctx.restore();
+}
+
 // ============================================================================
 // CONTROL: inclinar el teléfono (con dedo y teclado de respaldo)
 // ============================================================================
@@ -399,7 +431,7 @@ addEventListener('keydown', e => KEYS.add(e.key.toLowerCase())); addEventListene
 const cv = $('cv');
 // Toques en la pelea (pedido del dueño): cada mitad de la pantalla controla un brazo (el que se ve a ese lado) arrastrando el dedo; tocar sin arrastrar = saltar (más largo, más fuerte)
 const PTRS = new Map();
-const joyCenter = () => ({ x: 16 + JOY_R, y: H - JOY_R - 18 - SAB });
+const joyCenter = () => ({ x: W / 2, y: H - JOY_R - 18 - SAB }); // abajo al centro (en las esquinas están el fuego y el pozo)
 cv.addEventListener('pointerdown', e => {
   if (scene !== 'duel' || !G || G.phase !== 'fight') return;
   try { cv.setPointerCapture(e.pointerId); } catch (_) { }
@@ -501,6 +533,7 @@ function duelStep(dt) {
     const sp = Math.hypot(m.vx, m.vy); m.dustT = (m.dustT || 0) - dt * sp / 60;
     if (sp > 90 && m.dustT < 0) { m.dustT = 0.5; G.dust.push({ x: m.x + (Math.random() - 0.5) * 8, y: m.y, z: 2, vx: -m.vx * 0.15, life: 0.6, r: 3 + Math.random() * 2 }); } // polvito al caminar rápido
   }
+  for (const m of G.ms) for (const o of arenaProps()) { if (o.k === 'fire' && m.z > FIRE_H + 4) continue; const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 1e-3, mn = o.r + (o.k === 'water' ? 6 : 0) + m.r * 0.7; if (d < mn) { m.x = o.x + dx / d * mn; m.y = o.y + dy / d * mn; const vn = (m.vx * dx + m.vy * dy) / d; if (vn < 0) { m.vx -= vn * dx / d; m.vy -= vn * dy / d; } } } // no se atraviesan el fuego ni el pozo (el fuego se puede saltar)
   { const dx = foe.x - me.x, dy = foe.y - me.y, d = Math.hypot(dx, dy) || 1e-3, mn = me.r + foe.r; if (d < mn) { const p = (mn - d) / 2, ux = dx / d, uy = dy / d; me.x -= ux * p; me.y -= uy * p; foe.x += ux * p; foe.y += uy * p; } } // no se atraviesan
   for (const m of G.ms) { const o = m === me ? foe : me, dx = o.x - m.x, dy = o.y - m.y; if (Math.hypot(dx, dy) > 4) m.phT = Math.atan2(dx, dy); m.guard = 1; } // siempre se miran entre sí: de frente, de lado, de espaldas o entremedio (pedido del dueño)
   { const now = performance.now(), held = [...PTRS.values()].find(p => !p.moved); me.charge = held && me.z === 0 && fight ? clamp(((now - held.t0) / 1000 - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1) : 0; } // mantener el dedo sin moverlo: se agacha cargando el salto
@@ -511,10 +544,12 @@ function duelStep(dt) {
 }
 function drawDuel(ctx, V) {
   drawArena(ctx, V);
+  const T = performance.now() / 1000, props = arenaProps();
+  for (const p of props) if (p.k === 'water') drawPool(ctx, p, T); else drawFireGlow(ctx, p, T);
   for (const m of G.ms) { const k = clamp(1 - m.z / 160, 0.45, 1); ctx.fillStyle = `rgba(30,20,10,${0.28 * k})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.15 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill(); } // sombras (más chicas mientras más alto salta)
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
-  for (const m of [...G.ms].sort((a, b) => a.y - b.y)) m.draw(ctx); // por profundidad
+  for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? it.m.draw(ctx) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
 }
 function drawCount(ctx) { // 3, 2, 1, ¡PELEA! (cada número aparece grande y se achica)
   const left = G.cd - GO_S, txt = left > 0 ? String(Math.ceil(left)) : '¡PELEA!', f = left > 0 ? 1 - (left % 1 || 1) : 1 - G.cd / GO_S;
@@ -526,7 +561,7 @@ function drawCount(ctx) { // 3, 2, 1, ¡PELEA! (cada número aparece grande y se
   ctx.restore();
 }
 function drawLevel(ctx, W, H) { // nivel de burbuja abajo: muestra hacia dónde estás inclinando (en el link de prueba es la palanca para caminar)
-  const r = TOUCH_WALK ? JOY_R : 30, x = 16 + r, y = H - r - 18 - SAB;
+  const r = TOUCH_WALK ? JOY_R : 30, x = W / 2, y = H - r - 18 - SAB;
   ctx.fillStyle = 'rgba(15,20,28,.55)'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r * 0.35, 0, TAU); ctx.stroke();
   ctx.fillStyle = G.src === 'none' ? 'rgba(255,255,255,.35)' : '#ffc861'; ctx.beginPath(); ctx.arc(x + G.inp.x * r * 0.7, y + G.inp.y * r * 0.7, 7, 0, TAU); ctx.fill();
