@@ -957,7 +957,8 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {}, co: false,
     this.speak(ck, t, kind === 'draw' ? 1 : 0, kind === 'draw' ? 0.2 : Math.max(0.55, this.exc), u, extra, urgent);
     if (sumK && Math.random() < (SUM_P[sumK] ?? 0.8)) { const ks = this.clip(sumK); if (ks && !CLIP.play(ks, true)) ks.forEach(k => CLIP.load(k)); } // y cómo fue la pelea («¡Tres nocauts en una sola pelea!»)
     this.cd = urgent ? 3 : 4 + Math.random() * 3; }, // (pausas más largas: hablaba demasiado, pedido del dueño)
-  step(dt) { if (!this.on) return; this.t = (this.t || 0) + dt; if (battle && !battle.over && this.exc > 0.55 && this.t - (this.chantT ?? -20) > 14 && Math.random() < dt * 0.1) { this.chantT = this.t; CROWD.react('chant'); } // cuando la pelea está intensa, a veces el público corea this.exc += (ANN_BASE - this.exc) * Math.min(1, dt * ANN_DECAY); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
+  step(dt) { if (!this.on) return; this.t = (this.t || 0) + dt; if (battle && !battle.over && this.exc > 0.55 && this.t - (this.chantT ?? -20) > 14 && Math.random() < dt * 0.1) { this.chantT = this.t; CROWD.react('chant'); } // cuando la pelea está intensa, a veces el público corea
+    this.exc += (ANN_BASE - this.exc) * Math.min(1, dt * ANN_DECAY); this.cd -= dt; if ((this.lvT = (this.lvT || 0) - dt) < 0) { this.lvT = 0.5; CROWD.level(this.exc); }
     if (this.cd > 0 || CAST.busy || (battle && battle.over)) { this.idleT = 0; return; } // (terminada la pelea sólo anuncia al ganador)
     if ((this.idleT = (this.idleT || 0) + dt) < (this.co && CAST.el ? ANN_IDLE_CO : ANN_IDLE)) return; this.idleT = 0; // el relleno espera un poco: si pasa algo, se narra eso (antes el relleno se quedaba siempre con el turno)
     const B = battle, al = B && B.ms ? B.ms.filter(x => !x.dead && !x.cloneOf) : [], a = al[Math.floor(Math.random() * al.length)];
@@ -5488,6 +5489,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
   { v: '1.77', d: '2026-11-24', items: ['Arreglado: en la web app una pelea podía quedar congelada (y la ✕ no respondía) porque el celular seguía usando audios viejos guardados; ahora siempre baja los nuevos y el juego no se detiene aunque algo falle.'] },
   { v: '1.76', d: '2026-11-23', items: ['Al terminar cada pantalla de carga, el huevo nace y sale un monstruo bebé al azar.'] },
