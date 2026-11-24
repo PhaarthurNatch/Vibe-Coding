@@ -46,6 +46,14 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .elbtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
 .elbtn canvas{width:110px;height:110px}
 .elbtn b{font-size:18px}
+/* calibrar el sensor antes del conteo */
+#calib{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));background:rgba(12,17,24,.72);text-align:center}
+#calib h2{margin:0;font-size:24px}
+#calib p{margin:0;color:var(--muted);font-weight:700;font-size:15px;max-width:300px}
+#calHold{--p:0;width:150px;height:150px;border-radius:50%;padding:10px;background:conic-gradient(var(--acc) calc(var(--p)*1turn),rgba(255,255,255,.14) 0);touch-action:none;box-shadow:0 4px 0 rgba(0,0,0,.45)}
+#calHold span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:var(--panel);font-weight:900;font-size:17px;line-height:1.2}
+#calHold.on span{background:var(--panel2)}
+#calMsg{min-height:20px;color:var(--acc)!important}
 </style>
 </head>
 <body>
@@ -56,6 +64,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <button class="hbtn" id="btnCal">⟲ Centrar</button>
 </div>
 <div id="tip"></div>
+<div id="calib" hidden>
+  <h2>Calibra tu sensor</h2>
+  <p>Sostén el teléfono como vas a jugar y mantén presionado el botón sin moverlo.</p>
+  <button id="calHold"><span>Mantén<br>presionado</span></button>
+  <p id="calMsg"></p>
+</div>
 <div id="pick">
   <h1>Duelo Elemental</h1>
   <p>Elige tu elemento</p>
@@ -75,6 +89,8 @@ const RIG_STIFF = 1.3, RIG_DAMP = 1.5; // misma física de resortes que Monster 
 const SAVE_KEY = 'duelo_elemental_v1'; // (Monster Brawl usa monster_brawl_*: no se pisan)
 const WALK_SPEED = 150;                // velocidad máxima caminando (unidades/s)
 const TILT_DEAD = 2.5, TILT_FULL = 20; // grados: zona muerta y grados para ir a toda velocidad
+const CAL_S = 1.5, CAL_MOVE = 6;       // calibrar: segundos manteniendo presionado y grados que se puede mover sin que se reinicie
+const COUNT_S = 3, GO_S = 0.8;         // conteo 3, 2, 1 y «¡PELEA!»
 
 // Elementos: color de la túnica de cada uno
 const ELEM = {
@@ -290,11 +306,11 @@ function drawArena(ctx, V) {
 // ============================================================================
 // CONTROL: inclinar el teléfono (con dedo y teclado de respaldo)
 // ============================================================================
-const TILT = { raw: null, ref: null, seen: false, needRef: true };
+const TILT = { raw: null, ref: null, seen: false, needRef: false }; // ref = posición neutra (se fija al calibrar)
 window.addEventListener('deviceorientation', e => {
   if (e.beta == null || e.gamma == null) return;
   TILT.raw = { b: e.beta, g: e.gamma }; TILT.seen = true;
-  if (TILT.needRef) { TILT.ref = { ...TILT.raw }; TILT.needRef = false; } // centra con la posición en que tienes el teléfono
+  if (TILT.needRef) { TILT.ref = { ...TILT.raw }; TILT.needRef = false; } // «⟲ Centrar» sin lectura todavía: toma la primera
 });
 const centerTilt = () => { TILT.needRef = true; if (TILT.raw) { TILT.ref = { ...TILT.raw }; TILT.needRef = false; } };
 function tiltVec() {
@@ -337,20 +353,46 @@ function startDuel(el) {
   foe.home = { x: foe.x, y: foe.y }; foe.wait = 1.5; foe.goal = null;
   G = { ms: [me, foe], me, foe, dust: [], inp: { x: 0, y: 0 }, t: 0 };
   $('fighters').innerHTML = G.ms.map(m => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div></div>`).join('');
-  $('pick').hidden = true; $('hud').hidden = false; scene = 'duel';
+  $('pick').hidden = true; $('hud').hidden = false; $('btnCal').hidden = true; scene = 'duel';
   layout(); for (const m of G.ms) { place(m); m.resetRig(); for (let i = 0; i < 30; i++) m.step(1 / 60); }
-  centerTilt();
-  showTip('Inclina el teléfono para caminar', 3500);
-  setTimeout(() => { if (scene === 'duel' && !TILT.seen) showTip(matchMedia('(pointer: coarse)').matches ? 'Arrastra el dedo para caminar' : 'Usa las flechas o arrastra el mouse', 4000); }, 1500);
+  G.phase = 'calib'; TILT.ref = null; calReset(''); $('calib').hidden = false; // antes del conteo hay que calibrar el sensor (pedido del dueño)
+}
+// ----- calibrar: mantener presionado sin mover el teléfono; el promedio de lo leído queda como neutro -----
+const CAL = { on: false, t: 0, n: 0, b: 0, g: 0, first: null };
+function calReset(msg) { CAL.on = false; CAL.t = CAL.n = CAL.b = CAL.g = 0; CAL.first = null; $('calHold').style.setProperty('--p', 0); $('calHold').classList.remove('on'); $('calMsg').textContent = msg; }
+function calStep(dt) {
+  if (!CAL.on) return;
+  if (TILT.raw) {
+    if (!CAL.first) CAL.first = { ...TILT.raw };
+    if (Math.abs(TILT.raw.b - CAL.first.b) > CAL_MOVE || Math.abs(TILT.raw.g - CAL.first.g) > CAL_MOVE) { calReset('¡Se movió! Inténtalo de nuevo, sin moverlo.'); return; }
+    CAL.b += TILT.raw.b; CAL.g += TILT.raw.g; CAL.n++;
+  }
+  CAL.t += dt; $('calHold').style.setProperty('--p', Math.min(1, CAL.t / CAL_S));
+  if (CAL.t >= CAL_S) { // listo: el promedio es la posición neutra
+    TILT.ref = CAL.n ? { b: CAL.b / CAL.n, g: CAL.g / CAL.n } : TILT.raw ? { ...TILT.raw } : null; TILT.needRef = false;
+    CAL.on = false; $('calib').hidden = true; G.phase = 'count'; G.cd = COUNT_S + GO_S;
+  }
+}
+{ const h = $('calHold');
+  h.addEventListener('pointerdown', e => { if (!G || G.phase !== 'calib') return; e.preventDefault(); calReset(''); CAL.on = true; h.classList.add('on'); try { h.setPointerCapture(e.pointerId); } catch (_) { } });
+  const up = () => { if (CAL.on) calReset('Mantenlo presionado hasta que se llene el círculo.'); };
+  h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+  h.addEventListener('contextmenu', e => e.preventDefault()); }
+function fightStart() {
+  G.phase = 'fight'; $('btnCal').hidden = false;
+  if (TILT.seen) showTip('Inclina el teléfono para caminar', 3000);
+  else showTip(matchMedia('(pointer: coarse)').matches ? 'Arrastra el dedo para caminar' : 'Usa las flechas o arrastra el mouse', 4000);
 }
 function duelStep(dt) {
   const { me, foe } = G;
-  const raw = readInput(), k = Math.min(1, dt * 10); G.inp.x += (raw.x - G.inp.x) * k; G.inp.y += (raw.y - G.inp.y) * k; G.src = raw.src;
+  if (G.phase === 'calib') calStep(dt);
+  if (G.phase === 'count') { G.cd -= dt; if (G.cd <= 0) fightStart(); }
+  const fight = G.phase === 'fight', raw = fight ? readInput() : { x: 0, y: 0, src: G.src || 'none' }, k = Math.min(1, dt * 10); G.inp.x += (raw.x - G.inp.x) * k; G.inp.y += (raw.y - G.inp.y) * k; G.src = raw.src;
   // tú: caminas hacia donde inclinas
   const a = Math.min(1, dt * 7);
   me.vx += (G.inp.x * WALK_SPEED - me.vx) * a; me.vy += (G.inp.y * WALK_SPEED - me.vy) * a;
   // rival: pasea cerca de su lugar y se aparta si te acercas mucho
-  foe.wait -= dt;
+  if (fight) foe.wait -= dt;
   if (!foe.goal && foe.wait <= 0) { const an = Math.random() * TAU, d = 30 + Math.random() * 70; foe.goal = { x: clamp(foe.home.x + Math.cos(an) * d, 40, ARENA_W - 40), y: clamp(foe.home.y + Math.sin(an) * d, 40, ARENA_D - 40) }; }
   let fvx = 0, fvy = 0;
   if (foe.goal) { const dx = foe.goal.x - foe.x, dy = foe.goal.y - foe.y, d = Math.hypot(dx, dy); if (d < 6) { foe.goal = null; foe.wait = 1 + Math.random() * 2.5; } else { fvx = dx / d * 60; fvy = dy / d * 60; } }
@@ -374,6 +416,15 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
   for (const m of [...G.ms].sort((a, b) => a.y - b.y)) m.draw(ctx); // por profundidad
+}
+function drawCount(ctx) { // 3, 2, 1, ¡PELEA! (cada número aparece grande y se achica)
+  const left = G.cd - GO_S, txt = left > 0 ? String(Math.ceil(left)) : '¡PELEA!', f = left > 0 ? 1 - (left % 1 || 1) : 1 - G.cd / GO_S;
+  const sc = 1 + 0.6 * Math.pow(1 - Math.min(1, f * 4), 2), fs = Math.min(W * (left > 0 ? 0.36 : 0.18), H * 0.22) * sc;
+  ctx.save(); ctx.translate(W / 2, H * 0.46); ctx.globalAlpha = left > 0 ? 1 - Math.max(0, f - 0.75) * 4 : 1;
+  ctx.font = `900 ${fs}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = fs * 0.14; ctx.strokeStyle = '#141019'; ctx.strokeText(txt, 0, 0);
+  const g = ctx.createLinearGradient(0, -fs / 2, 0, fs / 2); g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#ffc861'); g.addColorStop(1, '#ff7a3a'); ctx.fillStyle = g; ctx.fillText(txt, 0, 0);
+  ctx.restore();
 }
 function drawLevel(ctx, W, H) { // nivel de burbuja abajo: muestra hacia dónde estás inclinando
   const r = 30, x = 16 + r, y = H - r - 18 - SAB;
@@ -412,6 +463,7 @@ function frame() {
     ctx.save(); ctx.translate(ox, oy); ctx.scale(k, k); drawDuel(ctx, V); ctx.restore();
     if (TOUCH.id != null) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(TOUCH.x0, TOUCH.y0, 55, 0, TAU); ctx.stroke(); ctx.fillStyle = 'rgba(255,200,97,.6)'; ctx.beginPath(); ctx.arc(TOUCH.x0 + G.inp.x * 55, TOUCH.y0 + G.inp.y * 55, 16, 0, TAU); ctx.fill(); }
     drawLevel(ctx, W, H);
+    if (G.phase === 'count') drawCount(ctx);
   }
 }
 function loop() { requestAnimationFrame(loop); try { frame(); } catch (e) { console.error(e); } } // el bucle nunca se detiene por un error
@@ -434,7 +486,7 @@ function buildPick() {
     });
   }
 }
-$('btnBack').addEventListener('click', () => { scene = 'pick'; G = null; $('hud').hidden = true; $('pick').hidden = false; buildPick(); });
+$('btnBack').addEventListener('click', () => { scene = 'pick'; G = null; calReset(''); $('calib').hidden = true; $('hud').hidden = true; $('pick').hidden = false; buildPick(); });
 $('btnCal').addEventListener('click', () => { centerTilt(); showTip('Centrado', 1200); });
 
 layout(); buildPick(); loop();
