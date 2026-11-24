@@ -115,6 +115,7 @@ const TURN = 5;
 // Tomar el elemento (pedido del dueño): tocar un pozo o una llama y arrastrar saca una esfera de agua o una bola de fuego, sólo si eres de ese elemento
 const ORB = { r: 11, k: 170, z: 0.6, fall: 520, fade: 0.55 }; // tamaño, resorte que la lleva hacia tu dedo, gravedad del agua al soltarla, cuánto tarda en deshacerse
 const PROP_EL = { water: 'agua', fire: 'fuego' };
+const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
 const REACH_BEND = 0.8; // al apuntar a un pozo, una llama o el elemento, la mano llega a este largo del brazo: el codo queda flectado (hacia atrás)
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
 
@@ -562,13 +563,27 @@ function duelStep(dt) {
   }
   for (const m of G.ms) for (const o of arenaProps()) { if (o.k === 'fire' && m.z > FIRE_H + 4) continue; const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy) || 1e-3, mn = o.r + (o.k === 'water' ? 6 : 0) + m.r * 0.7; if (d < mn) { m.x = o.x + dx / d * mn; m.y = o.y + dy / d * mn; const vn = (m.vx * dx + m.vy * dy) / d; if (vn < 0) { m.vx -= vn * dx / d; m.vy -= vn * dy / d; } } } // no se atraviesan el fuego ni el pozo (el fuego se puede saltar)
   { const dx = foe.x - me.x, dy = foe.y - me.y, d = Math.hypot(dx, dy) || 1e-3, mn = me.r + foe.r; if (d < mn) { const p = (mn - d) / 2, ux = dx / d, uy = dy / d; me.x -= ux * p; me.y -= uy * p; foe.x += ux * p; foe.y += uy * p; } } // no se atraviesan
-  for (const m of G.ms) { const o = m === me ? foe : me, dx = o.x - m.x, dy = o.y - m.y; if (Math.hypot(dx, dy) > 4) m.phT = Math.atan2(dx, dy); m.guard = 1; } // siempre se miran entre sí: de frente, de lado, de espaldas o entremedio (pedido del dueño)
+  for (const m of G.ms) { const o = m === me ? foe : me, dx = o.x - m.x, dy = o.y - m.y; if (Math.hypot(dx, dy) > 4) m.phT = Math.atan2(dx, dy); m.phT += touchTurn(m, m.phT); m.guard = 1; } // siempre se miran entre sí (de frente, de lado, de espaldas o entremedio), salvo que un brazo necesite girar el cuerpo
   { const now = performance.now(), held = [...PTRS.values()].find(p => !p.moved); me.charge = held && me.z === 0 && fight ? clamp(((now - held.t0) / 1000 - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1) : 0; } // mantener el dedo sin moverlo: se agacha cargando el salto
   for (const m of G.ms) if (m.air(dt)) for (let i = 0; i < 6; i++) G.dust.push({ x: m.x + (Math.random() - 0.5) * 22, y: m.y + (Math.random() - 0.5) * 6, z: 1, vx: (Math.random() - 0.5) * 60, life: 0.5, r: 3 + Math.random() * 2 }); // polvo al caer
   for (const m of G.ms) { place(m); m.step(dt); }
   for (const q of G.dust) { q.life -= dt; q.x += q.vx * dt; q.z += 12 * dt; q.r += 6 * dt; }
   G.dust = G.dust.filter(q => q.life > 0);
   orbStep(dt);
+}
+const wrapA = a => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+function touchTurn(m, base) { // si un brazo que controlas tendría que ir muy hacia atrás o cruzar por delante, el cuerpo gira lo justo (pedido del dueño)
+  const ds = [];
+  for (const a of m.ix.arms) {
+    const c = a.ctl; if (!c) continue;
+    const ax = c.abs ? c.x - m.x : c.rx + c.dx, ay = c.abs ? (c.y - TOP) / DEPTH - m.y : 0; // apuntando: la dirección real en el suelo; arrastrando: sólo izquierda/derecha
+    if (Math.hypot(ax, ay) < 6) continue;
+    const sg = Math.sign(a.lat), beta = wrapA(Math.atan2(ax, ay) - base), al = sg * beta;
+    if (al >= ARM_RANGE[0] && al <= ARM_RANGE[1]) continue;
+    const d1 = wrapA(beta - sg * ARM_RANGE[0]), d2 = wrapA(beta - sg * ARM_RANGE[1]); ds.push(Math.abs(d1) < Math.abs(d2) ? d1 : d2);
+  }
+  if (!ds.length) return 0; if (ds.length === 1) return ds[0];
+  return Math.sign(ds[0]) === Math.sign(ds[1]) ? (Math.abs(ds[0]) > Math.abs(ds[1]) ? ds[0] : ds[1]) : (ds[0] + ds[1]) / 2;
 }
 function orbFx(o, n) { // gotitas o chispas que suelta la esfera
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 20 + Math.random() * 70;
