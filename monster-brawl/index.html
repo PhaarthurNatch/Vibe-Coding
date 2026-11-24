@@ -192,7 +192,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .lanp{background:var(--panel2);border-radius:14px;padding:4px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;border:3px solid var(--tc);font-size:11px;color:var(--muted);box-shadow:0 0 0 1px rgba(0,0,0,.2) inset}
 .lanp canvas{width:64px;height:64px}
 .lanp b{color:var(--text);font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lanp .tc{font-weight:900;color:var(--tc)}
+.lanp .tc{font-weight:900;color:var(--tc)}.lanp.me .tc{background:linear-gradient(#ffcf6e,#ff9a3c);color:#2a1600;border-radius:999px;padding:3px 12px;margin:2px 0;box-shadow:0 2px 0 rgba(0,0,0,.3);display:inline-flex;align-items:center;gap:5px}.lanp.me .tc::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--tc);box-shadow:0 0 0 1.5px #2a1600}/* en tu tarjeta, el color es un botón dorado: tocarlo cambia de equipo (pedido del dueño) */
 .lanp .usr{font-size:11px;font-weight:800;color:var(--acc);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lanp.me{cursor:pointer;background:#3d3166}
 .lanp.me:active{transform:scale(.96)}
@@ -7006,7 +7006,7 @@ function lanUI(st, data) {
     ps.forEach((p, i) => {
       const col = LAN_COLORS[p.color % LAN_COLORS.length], d = document.createElement(i === meI ? 'button' : 'div');
       d.className = 'lanp' + (i === meI ? ' me' : ''); d.style.setProperty('--tc', col.c);
-      d.innerHTML = `<canvas width="144" height="144"></canvas>${p.rec && p.rec.user ? `<span class="usr">👤 ${esc(p.rec.user)}</span>` : ''}<b>${esc(p.name)}${i === meI ? ' (tú)' : ''}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
+      d.innerHTML = `<canvas width="144" height="144"></canvas>${p.rec && p.rec.user ? `<span class="usr">👤 ${esc(p.rec.user)}</span>` : ''}<b>${esc(p.name)}</b><span class="tc">${col.n}</span><span class="rdy${p.ready ? ' on' : ''}">${p.ready ? '✓ Listo' : 'esperando'}</span>`;
       if (p.rec) drawThumb(d.querySelector('canvas'), p.rec);
       if (i === meI) d.onclick = e => { if (e.target.closest('.tc')) { if (host) { LAN.color = (LAN.color + 1) % LAN_COLORS.length; LAN.ready = false; lanLobbyUpdate(); } else lanSend({ t: 'col' }); } else lanUI('mpick'); }; // tocar el color = cambiar de equipo; tocar el monstruo = elegir otro del rancho
       list.appendChild(d);
