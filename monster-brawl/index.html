@@ -648,7 +648,7 @@ function ultTypeOf(g, train) {
   return ULT_KEYS.filter(k => k in st).map(k => [k, (st[k] - ULT_AVG[k][0]) / ULT_AVG[k][1]]).reduce((a, b) => b[1] > a[1] ? b : a)[0];
 }
 // ---------- Sonido (pedido del dueño): todo sintetizado con Web Audio (sin archivos); 🔊/🔇 en el Menú, se recuerda en este celular ----------
-const REC_SFX = ['ko_taan', 'ko_anvil', 'cd_tick', 'cd_fight', 'ot_music']; // efectos grabados con ElevenLabs (sfx/)
+const REC_SFX = ['ko_taan', 'ko_anvil', 'cd_tick', 'cd_fight', 'ot_music', 'boss_roar', 'boss_bite', 'boss_rip', 'boss_bone', 'boss_music']; // efectos grabados con ElevenLabs (sfx/)
 const SFX = (() => {
   let ac = null, out = null, sbus = null, last = {}; // sbus: efectos grabados (también bajan cuando hablan los comentaristas)
   const KEY = 'monster_brawl_sound', VOL = 0.32;
@@ -663,7 +663,7 @@ const SFX = (() => {
   const lastPick = {}; const pick5 = (k, n = 5) => { let i; do i = Math.random() * n | 0; while (i === lastPick[k]); return lastPick[k] = i; };
   const S = {
     get on() { return on; },
-    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); S.otStop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
+    set(v) { on = v; try { localStorage.setItem(KEY, v ? 'on' : 'off'); } catch (e) { } if (!v) { CAST.stop(); CROWD.stop(); S.otStop(); S.bmStop(); } if (!v && ac) ac.suspend().catch(() => { }); else ctx(); },
     unlock() { ctx(); CAST.unlock(); if (!S._pre) { S._pre = true; CLIP.preloadAll() /* (si no empezó al abrir la app; en fila, de a uno: ver CLIP.queued) */; } }, // con el primer toque ya se cargan los audios del relator y del público (así la intro no llega tarde)
     actx() { return ctx(); },
     duckGains() { return out ? [[out.gain, VOL], [sbus.gain, 1]] : []; }, // los comentaristas tienen prioridad: golpes y efectos bajan mientras hablan (pedido del dueño) // (los audios grabados del relator usan el mismo contexto de sonido)
@@ -671,6 +671,9 @@ const SFX = (() => {
     count(n) { if (smp('cd_tick', 1 + 0.06 * (3 - clamp(n, 1, 3)), 1)) return; S.beep(false); }, // 3, 2, 1 grabado (cada número un poco más agudo)
     otStart() { S._otWant = true; const c = ctx(); if (!c || S._ot) return; const b = CLIP.buf.ot_music; if (!b) { if (b === null) return; CLIP.load('ot_music', 'sfx/').then(() => { if (S._otWant && CLIP.buf.ot_music) S.otStart(); }); return; } /* (si no se pudo cargar, no reintenta: antes se quedaba pegado en un bucle y congelaba el juego) */ // música de «se acaba el tiempo» en la muerte súbita (pedido del dueño)
       const src = c.createBufferSource(), g = c.createGain(); src.buffer = b; src.loop = true; src.loopStart = 0.025; src.loopEnd = Math.min(b.duration, 8.025); g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.55, c.currentTime + 0.6); src.connect(g); g.connect(c.destination); src.start(); S._ot = { src, g }; },
+    bmStart() { S._bmWant = true; const c = ctx(); if (!c || S._bm) return; const b = CLIP.buf.boss_music; if (!b) { if (b === null) return; CLIP.load('boss_music', 'sfx/').then(() => { if (S._bmWant && CLIP.buf.boss_music) S.bmStart(); }); return; } // música épica de la pelea contra el jefe (original, generada con ElevenLabs; pedido del dueño)
+      const src = c.createBufferSource(), g = c.createGain(); src.buffer = b; src.loop = true; src.loopStart = 0.025; src.loopEnd = b.duration; g.gain.setValueAtTime(0.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(0.5, c.currentTime + 1.5); src.connect(g); g.connect(c.destination); src.start(); S._bm = { src, g }; },
+    bmStop() { S._bmWant = false; const o = S._bm, c = ac; S._bm = null; if (!o || !c) return; o.g.gain.cancelScheduledValues(c.currentTime); o.g.gain.setTargetAtTime(0.0001, c.currentTime, 0.6); setTimeout(() => { try { o.src.stop(); } catch (e) { } }, 3500); },
     otStop() { S._otWant = false; const o = S._ot, c = ac; S._ot = null; if (!o || !c) return; o.g.gain.cancelScheduledValues(c.currentTime); o.g.gain.setTargetAtTime(0.0001, c.currentTime, 0.25); setTimeout(() => { try { o.src.stop(); } catch (e) { } }, 1500); },
     beep(hi) { tone(hi ? 1320 : 880, 0.12, { type: 'square', v: 0.22 }); },
     fight() { if (smp('cd_fight', 1, 1)) return; noise(0.35, { f: 600, v: 0.8 }); tone(110, 0.4, { type: 'sawtooth', to: 55, v: 0.45 }); tone(660, 0.25, { type: 'square', v: 0.2, at: 0.02 }); },
@@ -714,6 +717,10 @@ const SFX = (() => {
       else if (type === 'dodge') { noise(0.4, { ft: 'bandpass', f: 2500, fto: 800, q: 3, v: 0.3 }); tone(1200, 0.3, { to: 300, v: 0.12 }); }
       else { noise(0.45, { f: 700, fto: 150, v: 0.85 }); tone(80, 0.45, { type: 'sawtooth', to: 40, v: 0.45 }); noise(0.6, { ft: 'bandpass', f: 300, fto: 1200, q: 1.5, v: 0.3, at: 0.1 }); } }, // Onda de choque: golpe al suelo y la onda que se expande
     ko(n = 0) { smp('ko_taan', Math.pow(2, 2 * Math.min(n, 7) / 12), 1.3); /* «¡taaan!» grabado: cada K.O. de la pelea suena 2 semitonos más agudo (pedido del dueño) */ noise(0.6, { f: 500, fto: 80, v: 0.9 }); tone(60, 0.7, { type: 'sine', to: 30, v: 0.8 }); tone(240, 0.5, { type: 'square', to: 80, v: 0.15, at: 0.05 }); },
+    bone() { if (smp('boss_bone', 1, 1)) return; noise(0.08, { f: 4000, v: 0.7 }); noise(0.06, { f: 3000, v: 0.6, at: 0.07 }); noise(0.07, { f: 3500, v: 0.5, at: 0.15 }); }, // huesos que se rompen (grabado)
+    rip() { if (smp('boss_rip', 1, 1)) return; /* arrancar la cabeza (grabado; si no cargó, sintetizado) */ noise(0.45, { f: 2600, fto: 500, v: 0.8, q: 2 }); noise(0.2, { f: 700, fto: 200, v: 0.6, at: 0.05 }); tone(110, 0.3, { type: 'sawtooth', to: 50, v: 0.3 }); }, // se la arranca
+    bite() { if (smp('boss_bite', 1, 1)) return; /* mordisco del Titán grabado (si no cargó, uno sintetizado) */ noise(0.12, { f: 3000, fto: 600, v: 0.9 }); tone(160, 0.18, { type: 'square', to: 60, v: 0.4 }); noise(0.25, { f: 900, fto: 200, v: 0.5, at: 0.06 }); },
+    roar() { if (smp('boss_roar', 0.88, 1)) return; /* (un poco más lento: dura más y suena más grave) */ /* rugido del Titán grabado (si no cargó, uno sintetizado) */ noise(1.5, { f: 700, fto: 140, v: 0.9, a: 0.12 }); tone(72, 1.5, { type: 'sawtooth', to: 44, v: 0.5, a: 0.1 }); tone(98, 1.4, { type: 'sawtooth', to: 58, v: 0.35, a: 0.1 }); },
     anvil() { if (smp('ko_anvil', 1, 0.85)) return; /* martillazo de herrero grabado (si no cargó, el sintetizado) */ tone(1568, 0.6, { type: 'triangle', v: 0.35 }); tone(2350, 0.45, { type: 'sine', v: 0.2 }); tone(523, 0.3, { type: 'square', v: 0.12 }); noise(0.12, { f: 3000, v: 0.4 }); },
     win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i === 3 ? 0.45 : 0.16, { type: 'square', v: 0.16, at: i * 0.12 })); },
     lose() { [392, 349, 311, 262].forEach((f, i) => tone(f, i === 3 ? 0.5 : 0.22, { type: 'triangle', v: 0.22, at: i * 0.2 })); },
@@ -915,7 +922,7 @@ const ANN = { exc: 0.2, cd: 1.5, on: false, last: {}, co: false,
     return L[i].replace(/\{n\}/g, n || '').replace(/\{m\}/g, m || '').replace(/\{u\}/g, u || ''); },
   hot() { return battle && battle.otShown || Math.random() < clamp((this.exc - 0.2) / 0.45, 0.1, 0.75); }, // relleno intenso o tranquilo según la emoción (al azar, para que se oigan los dos parecido; en la muerte súbita siempre intenso)
   start() { this.exc = 0.4; this.cd = 2.5; this.on = true; this.co = CAST.el && !!battle && Math.random() < CO_P; /* siempre narra él; ella en 20% de las peleas (al azar; antes 40%), en todos los modos (pedido del dueño; se probó una bolsa de exactamente 4 de cada 10 y prefirió el 40% al azar) */ CROWD.start(); },
-  stop() { this.on = false; CAST.stop(); CROWD.stop(); SFX.otStop(); },
+  stop() { this.on = false; CAST.stop(); CROWD.stop(); SFX.otStop(); SFX.bmStop(); },
   // kind: fight, hit, ult, uc (efecto de la ultimate), ko, ot, low, draw, end, dodge, fly, leap, roll, tail, boom, block, first, airhit, flung. n = quien hace, m = a quien, u = ultimate
   ev(kind, v = 0, n, m, u, pv, late) { pv = null; /* (antes pv eran frases desde tu lado, «¡tu monstruo!»: el dueño pidió que narren para todos por igual y se quitaron) */ if (!this.on) return; const B = battle;
     /* emoción (pedido del dueño: antes los golpes, que son muchos, la tenían casi siempre arriba y sólo sonaban las frases intensas):
@@ -1074,6 +1081,7 @@ function recGenome(rec, stage) {
     const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5, src.v6));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
   }
+  planFix(g); if (g.blob) g.neck.len = 0; // la cría no recibe partes que su cuerpo no permite (p. ej. cola en una serpiente)
   fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
   // los ojos heredados tienen que caber en la cabeza heredada
   const n = g.eyes.count, maxR = n <= 1 ? 0.5 : n === 2 ? 0.34 : n === 3 ? 0.3 : 0.24;
@@ -1137,6 +1145,9 @@ function bodyPlan(seed, gen = 11) { const r = rng((seed ^ 0xa4093822) >>> 0), u 
   if (gen >= 16) P.plan = [null, 'quad', 'spider', 'jelly', 'snake'][Math.floor(u * 5)]; // gen 16: todos los cuerpos igual de probables (humanoide incluido)
   if (gen >= 17) P.plan = BODY_PLANS17[Math.min(9, Math.floor(u * 10))]; // gen 17: 5 cuerpos más, todos igual de probables (pedido del dueño)
   return P; }
+// lo que cada cuerpo no puede tener (también para las crías, que heredan partes de padres con otro cuerpo)
+const PLAN_NO = { snake: ['legs', 'tail'], jelly: ['legs'], quad: ['arms', 'neck'], slime: ['arms', 'legs', 'wings', 'tail', 'neck'], crab: ['wings', 'tail', 'neck'], octopus: ['legs', 'arms', 'neck'], bird: ['arms'] };
+function planFix(g) { for (const k of PLAN_NO[g.plan] || []) { if (k === 'neck') g.neck.len = 0; else if (k === 'tail') g.tail.count = 0; else if (k === 'arms') { g.arms.pairs = 0; g.shoulders.size = 0; } else g[k].pairs = 0; } }
 function applyPlan(g, seed, gen) {
   const P = bodyPlan(seed, gen); if (!P.plan) return; g.plan = P.plan;
   if (P.plan === 'quad') { // cuatro patas, sin brazos, cuerpo ancho y la cabeza baja, por delante
@@ -1144,7 +1155,7 @@ function applyPlan(g, seed, gen) {
     g.torso.upper.w *= 1.35; g.torso.upper.h *= 0.9; g.torso.mid = g.torso.lower = null;
   } else if (P.plan === 'spider') { g.legs.pairs = P.u2 < 0.5 ? 3 : 4; g.legs.thick *= 0.55; g.legs.upper *= 1.7; g.legs.lower *= 1.3; g.feet.size *= 0.55; } // patas de araña
   else if (P.plan === 'jelly') { g.legs.pairs = 0; g.tents = { n: P.n, len: P.len, thick: P.th }; } // medusa: flota con tentáculos
-  else if (P.plan === 'snake') { g.legs.pairs = 0; g.coil = { thick: Math.max(12, (g.torso.lower || g.torso.mid || g.torso.upper).w * 0.48) }; } // serpiente: cola gruesa enrollada en el suelo
+  else if (P.plan === 'snake') { g.legs.pairs = 0; g.tail.count = 0; /* su cuerpo ya es la cola (pedido del dueño) */ g.coil = { thick: Math.max(12, (g.torso.lower || g.torso.mid || g.torso.upper).w * 0.48) }; } // serpiente: cola gruesa enrollada en el suelo
   else if (P.plan === 'centaur') { // centauro: cuerpo ancho de cuatro patas abajo y torso con brazos arriba
     g.arms.pairs = Math.max(1, g.arms.pairs); g.legs.pairs = 2; g.legs.spread = 0.85; const U = g.torso.upper; g.torso.mid = null; g.torso.lower = { w: U.w * 1.6, h: U.h * 0.8 };
   } else if (P.plan === 'slime') { // slime: una sola gota grande (como el bebé) sin brazos, piernas, alas ni cola
@@ -1167,7 +1178,7 @@ function applyAnatomy9(g, seed, gen = 9) {
   const sc = (o, ks, k) => { if (o) for (const q of ks) if (typeof o[q] === 'number') o[q] *= k; };
   for (const a of list) {
     if (a === 'cabezon') { sc(g.head, ['w', 'h'], 1.5); for (const t of ['upper', 'mid', 'lower']) sc(g.torso[t], ['w', 'h'], 0.86); sc(g.arms, ['upper', 'fore'], 0.85); sc(g.legs, ['upper', 'lower'], 0.85); }
-    else if (a === 'cuellilargo') { g.neck.len = r.f(40, 56); }
+    else if (a === 'cuellilargo') { const nl = r.f(40, 56); if (g.neck.len > 0) g.neck.len = nl; } // sólo alarga un cuello que ya tiene (antes se lo ponía también a niños, cuadrúpedos, etc.; pedido del dueño)
     else if (a === 'zancudo') { sc(g.legs, ['upper', 'lower'], 1.7); sc(g.legs, ['thick'], 0.75); }
     else if (a === 'brazilargo') { sc(g.arms, ['upper', 'fore'], 1.6); sc(g.arms, ['thick'], 0.85); }
     else if (a === 'rechoncho') { for (const t of ['upper', 'mid', 'lower']) { sc(g.torso[t], ['w'], 1.5); sc(g.torso[t], ['h'], 0.9); } sc(g.legs, ['upper', 'lower'], 0.65); sc(g.legs, ['thick'], 1.2); g.neck.len *= 0.5; }
@@ -2150,7 +2161,7 @@ class Monster {
   deadStep(dt) { // cuerpo noqueado: todas las partes caen juntas y los huesos mantienen su largo (antes se estiraban mucho)
     if (this.bodyRest) return; // ya quedó tendido: no se mueve más (pedido del dueño: a veces uno ya noqueado salía volando al caer el último); sólo lo despiertan las bombas y la onda de choque (pushBodies)
     const N = this.nodes, s = this.s, V = typeof battle !== 'undefined' && battle && battle.view, mg = 22 * s, f = Math.exp(-dt * 1.5);
-    for (const n of N) { n.px = n.x; n.py = n.y; n.vy += 900 * dt; n.vx *= f; n.x += n.vx * dt; n.y += n.vy * dt; }
+    for (const n of N) { n.px = n.x; n.py = n.y; n.vy += 900 * (this.slowFall ? 0.12 : 1) * dt; if (this.slowFall) n.vy = Math.min(n.vy, 180); /* tras un «fatality» cae mucho más lento (pedido del dueño) */ n.vx *= f; n.x += n.vx * dt; n.y += n.vy * dt; }
     const clampN = (n, i) => { const gy = this.gy + (i % 3) * 2 * s; if (n.y > gy) n.y = gy; if (V) { n.x = clamp(n.x, V.x0 + mg, V.x1 - mg); if (n.y < V.y0 + mg) n.y = V.y0 + mg; } };
     for (let it = 0; it < 6; it++) {
       for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; if (!P || !(n.len > 0.5)) continue;
@@ -2212,7 +2223,7 @@ class Monster {
     this.animate(dt); this.rigStep(dt / 2); this.rigStep(dt / 2);
   }
 
-  hop(dt) { const snk = this.g.plan === 'snake'; if (snk && this.z === 0 && this.vz > 0 && this.vz <= 300 && !this.held && !this.flung) this.vz *= 0.15; /* serpiente: los saltitos son apenas un levantón (pedido del dueño) */ if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * dt; this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 && !snk ? -this.vz * 0.25 : 0; } } // (la serpiente no rebota al caer)
+  hop(dt) { const snk = this.g.plan === 'snake'; if (snk && this.z === 0 && this.vz > 0 && this.vz <= 300 && !this.held && !this.flung) this.vz *= 0.15; /* serpiente: los saltitos son apenas un levantón (pedido del dueño) */ if (this.floatT > 0) this.vz += ((FLY.floatZ - this.z) * 6 - this.vz * 3) * dt; else { this.vz -= 1100 * (this.state === 'leap' ? FLY.leapG : 1) * (this.slowFall ? 0.12 : 1) * dt; if (this.slowFall) this.vz = Math.max(this.vz, -180); } this.z += this.vz * dt; if (this.z < 0) { this.z = 0; this.vz = this.vz < -150 && !snk ? -this.vz * 0.25 : 0; } } // (la serpiente no rebota al caer)
 
   poke(px, py) {
     SFX.poke(); { const tp = this.tp || {}; SFX.voice(this.s || 1, (tp.valor || 0) + (tp.agr || 0) * 0.5 >= 0); } // su vocecita: más aguda si es chico; un gruñido si es valiente
@@ -2227,6 +2238,7 @@ class Monster {
     if (this.dead) { // el cuerpo ya no se desvanece (pedido del dueño): queda tirado donde cayó y sirve de obstáculo
       this.deadT += dt; this.alpha = 1;
       let sx = 0; for (const n of this.nodes) sx += n.x; this.x = this.gx = clamp(sx / this.nodes.length, 0, ARENA_W); return; }
+    if (this.state === 'grabbed' || this.state === 'thrown') { this.desired = { x: 0, y: 0 }; return; } // en la mano del Titán o volando hacia la pared (lo mueven ellos)
     this.stT -= dt; this.meleeCd -= dt; this.rangedCd -= dt; this.dodgeCd -= dt; this.targetTimer -= dt; this.stunImmune -= dt; this.flyCd -= dt; if (this.g.blob) this.rollCd = (this.rollCd ?? ROLL.cd * 0.5 + Math.random() * ROLL.cdR) - dt;
     if (this.ultCd > 0) { this.ultCd -= dt; if (this.ultCd <= 0 && this.canUlt) this.ultReady = true; } // ultimate recargada
     for (const k in this.buffs) if (this.buffs[k] > 0) this.buffs[k] -= dt;
@@ -2452,8 +2464,9 @@ class Monster {
     head.vx -= ux * 90; head.vy += 30;
   }
 
+  dodgeChance() { return Math.min(0.9, this.st.dodge * (this.buffs.dodge > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1) * (this.tp.valor < -0.2 && this.hp / this.st.hp < this.scaredHp ? 1 + -this.tp.valor * 0.35 : 1)); }
   // Esquivar = moverse de verdad hacia un lado
-  incoming(att, dir, B) {
+  incoming(att, dir, B, away) { // away: hacia dónde escapar (golpes del Titán)
     const ghost = this.buffs.dodge > 0; // Reflejos fantasma: esquiva todo y contraataca
     if (this.dead || this.z > FLY.airZ || this.state === 'leap' || this.state === 'roll' || (this.dodgeCd > 0 && !ghost) || this.state === 'windup' || this.state === 'strike' || this.state === 'hitstun' || this.state === 'ultcharge') return;
     this.dodgeCd = 0.35;
@@ -2463,13 +2476,13 @@ class Monster {
         const dx = att.x - this.x, dy = att.y - this.y, d = Math.hypot(dx, dy) || 1;
         B.hit(this, att, ultPow(this) * 1.0, { x: dx / d, y: dy / d }, 'melee'); if (!att.dead) { att.vx += dx / d * 160; att.vy += dy / d * 160; }
       }
-    } else if (Math.random() >= Math.min(0.9, this.st.dodge * (this.buffs.dodge > 0 ? 2 : 1) * (this.buffs.all > 0 ? ULT_ALL_MUL : 1) * (this.tp.valor < -0.2 && this.hp / this.st.hp < this.scaredHp ? 1 + -this.tp.valor * 0.35 : 1))) return;
+    } else if (Math.random() >= this.dodgeChance()) return;
     this.dodgeCd = 1.1;
     let px = -dir.y, py = dir.x;
     const cx = ARENA_W / 2 - this.x, cy = ARENA_D / 2 - this.y;
     if (px * cx + py * cy < 0) { px = -px; py = -py; }
-    if (Math.random() < 0.25) { px = -px; py = -py; }
-    const sp = 330 + this.st.speed * 0.6;
+    if (away) { px = away.x; py = away.y; } else if (Math.random() < 0.25) { px = -px; py = -py; }
+    const sp = (330 + this.st.speed * 0.6) * (away ? 1.5 : 1); /* (del golpe del Titán salta más lejos para salir de la zona) */
     this.vx = px * sp - dir.x * 40; this.vy = py * sp - dir.y * 40; this.vz = 90;
     this.state = 'dodge'; this.stT = 0.28; if (B && B.kcamOn) { SFX.dodge(); ANN.ev('dodge', 0, this.name); }
     this.setEmo('surprised', 0.5, 2);
@@ -2477,6 +2490,18 @@ class Monster {
 
   physics(dt) {
     if (this.dead) { this.hop(dt); return; }
+    if (this.state === 'grabbed') { this.vx = this.vy = this.vz = 0; return; } // lo lleva la mano del Titán
+    if (this.state === 'thrown') { // lanzado contra la pared: al chocarla le duele (pedido del dueño)
+      const B = typeof battle !== 'undefined' ? battle : null, m = this.r;
+      if (this.throwDown && this.z + this.vz * dt <= 0) { // azotado contra el piso
+        const by = this.thrownBy; this.z = 0; this.state = 'free'; this.thrownT = 0; this.thrownBy = null; this.throwDown = false; this.vx = this.vy = 0; this.vz = 260;
+        if (B && by) { B.hit(by, this, by.st.melee * BOSS.throwDmg, { x: 0, y: 1 }, 'melee'); B.shake = Math.max(B.shake, 20); B.rings.push({ x: this.x, y: this.y, r: 6, max: 150 * (by.k || 1), life: 0.6, col: '#ffd9a0' }, { x: this.x, y: this.y, r: 4, max: 80 * (by.k || 1), life: 0.4, col: '#fff3d6' }); B.text(this, '¡CRASH!', '#ffb36b', true); if (B.kcamOn) { SFX.hit(40, true); SFX.mineBoom(); } }
+        return; }
+      this.x += this.vx * dt; this.y += this.vy * dt; this.hop(dt); this.thrownT = (this.thrownT || 0) + dt;
+      const wall = this.x <= m ? -1 : this.x >= ARENA_W - m ? 1 : 0;
+      if (wall || this.thrownT > 1.6) { this.x = clamp(this.x, m, ARENA_W - m); const by = this.thrownBy; this.state = 'free'; this.thrownT = 0; this.thrownBy = null; this.throwDown = false;
+        if (wall && B && by) { this.vx = -wall * 220; B.hit(by, this, by.st.melee * BOSS.throwDmg, { x: -wall, y: 0 }, 'melee'); B.shake = Math.max(B.shake, 18); B.rings.push({ x: this.x, y: this.y, r: 6, max: 110 * (by.k || 1), life: 0.5, col: '#ffd9a0' }); B.text(this, '¡PUM!', '#ffb36b', true); if (B.kcamOn) { SFX.hit(40, true); SFX.mineBoom(); } } }
+      return; }
     if (this.state === 'free') { const k = Math.min(1, dt * 7); this.vx += (this.desired.x - this.vx) * k; this.vy += (this.desired.y - this.vy) * k; }
     else if (this.state !== 'leap' && this.state !== 'roll') { const f = Math.exp(-dt * (this.state === 'dodge' || this.state === 'hitstun' ? 4 : 6)); this.vx *= f; this.vy *= f; }
     this.x += this.vx * dt; this.y += this.vy * dt;
@@ -2510,6 +2535,9 @@ class Monster {
       this._ghost = false;
     }
     ctx.save(); ctx.globalAlpha = this.alpha;
+    if (this.shrink && Math.abs(this.shrink - 1) > 0.002) { const P = N[this.g.head.none ? I.upper : I.head]; ctx.translate(P.x, P.y); ctx.scale(this.shrink, this.shrink); ctx.translate(-P.x, -P.y); } // más chico (en los «fatality»), alrededor de la cabeza
+    if (this.stretch && Math.abs(this.stretch - 1) > 0.002) { let py = -Infinity; if (this.stretchAt === 'head') py = N[I.head].y; else if (this.stretchAt === 'upper') py = N[I.upper].y; else for (const n of N) py = Math.max(py, n.y); ctx.translate(this.gx, py); ctx.scale(1 / Math.sqrt(Math.max(0.3, this.stretch)), this.stretch); ctx.translate(-this.gx, -py); } // estirado (le están arrancando la cabeza) y el rebote como elástico
+    if (this.onlyHead) { const P = N[I.head]; if (this.spin) { ctx.translate(P.x, P.y); ctx.rotate(this.spin); ctx.translate(-P.x, -P.y); } this.drawHead(ctx, C, lw); ctx.restore(); return; } // sólo la cabeza (la que le arrancó el Titán)
     if (this.rollA) { const P = N[I.head]; ctx.translate(P.x, P.y); ctx.rotate(this.rollA); ctx.translate(-P.x, -P.y); } // rodando
     if (!this._ghost) this.drawAura(ctx, false);
     if (this.buffs.speed > 0 && !this._ghost) { // Supervelocidad: estelas
@@ -2549,7 +2577,7 @@ class Monster {
       ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * 0.8, 0, 0, TAU); fillStroke(ctx, g.shoulders.accent ? C.accent : C.bodyL, C.ol, lw);
     }
     if (back) wingsTail();
-    this.drawHead(ctx, C, lw);
+    if (!hid('head')) this.drawHead(ctx, C, lw); // (sin cabeza: se la comió el Titán)
     if (!this._ghost) this.drawAura(ctx, true);
     if (this.buffs.defense > 0 && !this._ghost) { // Escudo de hierro: burbuja
       const m = N[I.mid], R = this.bubbleR * s * (1 + Math.sin(this.t * 6) * 0.03);
@@ -3261,7 +3289,12 @@ class Monster {
 // las mecánicas de siempre (objetivo, golpes, disparos, ultimates). Si destruyes las dos manos, ganas; si se acaba el tiempo, gana el jefe.
 // ============================================================================
 const bossScale = b => ((ARENA_W + 60) / 2 * BOSS.reach) / (b.g.torso.upper.w * 0.5); // tan grande que sus hombros casi tocan los bordes de la pantalla (pedido del dueño)
-const BOSS = { time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 2.2, slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
+const BOSS_PRE = 7.2, BOSS_ROAR = 3.7, BOSS_PRE_SLAMS = [[3.7, 4.8], [5.15, 6.15]]; /* rugido más largo (pedido del dueño) */ // entrada del jefe (s de juego = ×1,5 los reales): rugido y dos golpes a la arena con ambas manos (subida → caída)
+const bodyH = T => { let a = Infinity, b = -Infinity; for (const n of T.nodes) { if (n.y < a) a = n.y; if (n.y > b) b = n.y; } return Math.max(20, b - a); }; // alto del cuerpo en pantalla
+const headOff = T => new Set([...(T.hidden || []), 'head', 'neck', ...(T.g.head.none ? ['upper'] : [])]); // le quita la cabeza (sin cabeza: el trozo de torso donde tiene la cara; pedido del dueño)
+const BOSS_STUN = 2.4; // aturdimiento de tus monstruos cuando ruge el Titán (s de juego)
+const BOSS_FAST = { z: 0.45, lift: 0.22, aim: 0.14, g: 7000 }; // ráfaga de golpes: suben poco, casi sin aviso y caen rápido
+const BOSS = { timer: false, /* el reloj del jefe está quitado por ahora (pedido del dueño): sin límite de tiempo */ time: 50, young: { baby: 0.75, child: 0.75 }, handHp: 6.2, /* (era 2,2: el dueño pidió casi el triple de vida) */ both: 0.3, big: 1.4, rage: 0.6, /* con un brazo destruido ataca más rápido (sus tiempos ×0,6) */ grab: 0.45, /* chance de agarrar y lanzar con la mano sana */ grab2: 0.2, /* y con las dos manos (pedido del dueño: ya no hace falta perder una) */ barrage: 0.15, swat: 0.5, fatal: 0.4, /* chance de que a un monstruo casi noqueado le haga un «fatality» (morderle o arrancarle la cabeza) en vez de rematarlo normal */ /* si uno de tus monstruos va volando, chance de darle un manotazo con la mano abierta */ /* ráfaga: varios golpes rápidos seguidos (chance) */ throwV: 2100, throwDmg: 1.3, /* lanzado a la pared: velocidad y daño (× su golpe al suelo) */ /* con el jefe la arena es ×1,4 más grande: tus monstruos se ven más chicos al lado del Titán (pedido del dueño) */ /* chance de golpear con las dos manos a la vez */ slam: 0.15, slamR: 78, liftZ: 170, rest: 1.9, lift: 0.9, aim: 0.55, reach: 1.02, low: -0.28, top: 430, shoulderOut: 1.14, lean: 0.16 };
 // el modo Jefe aún no está desbloqueado en la web app: sólo se puede probar en el link de prueba (dentro de claude.ai) o abriendo el archivo (pedido del dueño)
 const BOSS_OPEN = (() => { try { return window.self !== window.top; } catch (e) { return true; } })() || location.protocol === 'file:';
 const BOSS_LIST = [{ seed: 3964193037, name: 'Titán' }]; // jefe de prueba: humanoide con textura de roca
@@ -3278,40 +3311,155 @@ class BossHand extends Monster {
   animate(dt) { this.t = (this.t || 0) + dt; if (this.hurtT > 0) this.hurtT -= dt; }
   rigStep() { }
   sync() { for (const n of this.nodes) { n.x = this.gx; n.y = this.gy - this.z - this.r; n.vx = n.vy = 0; } } // (los textos y partículas salen de sus «nodos»)
-  die() { this.dead = true; this.state = 'dead'; this.target = null; this.z = 0; this.vz = 0; this.phase = 'dead'; for (const k in this.buffs) this.buffs[k] = 0; }
+  die() { this.dead = true; this.state = 'dead'; this.target = null; this.z = 0; this.vz = 0; this.phase = 'dead'; for (const k in this.buffs) this.buffs[k] = 0; this.drop();
+    const B = typeof battle !== 'undefined' ? battle : null, o = B && B.ms.find(h => h.isHand && h !== this && !h.dead);
+    if (o && !B.bossRage) { // le destruyeron un brazo: vuelve a rugir, se enoja y ataca más rápido (pedido del dueño)
+      B.bossRage = true; B.bossRoar(); if (B.bossBody) B.bossBody.setEmo('angry', 9999, 5);
+      o.drop(); o.combo = 0; o.rage = true; o.phase = 'roarup'; o.ph = BOSS_ROAR + 0.3; } }
+  hold(T, B) { // lo tiene en la mano: detrás del puño, con la cabeza asomada por arriba (pedido del dueño); la altura de su cabeza se midió al agarrarlo (con el cuerpo quieto)
+    const R = Math.max(this.r * 1.05, (B.armW2 || 0) * 1.2), hh = (T.g.head.none ? T.g.torso.upper.h : T.g.head.h) * (T.s || 1);
+    T.x = this.x; T.y = this.y - 3; B.place(T); T.z = Math.max(0, T.gy - (this.gy - this.z - R * 1.3 - hh * 0.7) - (T.headOff || 0)); }
+  drop() { const e = this.held; this.held = null; this.eat = false; if (e) { e.grabbedBy = null; e.shrinkTo = null; } if (e && e.state === 'grabbed') { e.state = 'free'; e.vz = 0; } } // suelta al que tenía agarrado
   think(dt, B) {
     if (this.dead) { this.deadT = (this.deadT || 0) + dt; this.z = Math.max(0, this.z - 600 * dt); B.place(this); this.sync(); return; }
     this.state = 'free'; this.stT = 0; this.ph -= dt;
+    const opn = this.phase === 'reach' || this.phase === 'ripass' || this.phase === 'swatup' || this.phase === 'swatgo' || (this.phase === 'lift' && this.atk !== BOSS_FAST && !this.combo) || this.phase === 'roarup' || /* al subir, abierta; al apuntar ya forma el puño, y en la ráfaga siempre es puño (pedido del dueño) */ (this.phase === 'rest' && !this.combo && this.z < 30 * this.k && !this.dead); /* abierta y apoyada en el suelo, palma abajo, mientras descansa (pedido del dueño) */ this.open = (this.open || 0) + ((opn ? 1 : 0) - (this.open || 0)) * Math.min(1, dt * (opn ? 5 : 12));
+    if (this.phase === 'rest' && !this.combo && !this.dead && this.open > 0.9 && !this.flex && (this.flexCd = (this.flexCd ?? 2 + Math.random() * 4) - dt) <= 0) { this.flex = { n: 2 + Math.floor(Math.random() * 3), t: 0 }; this.flexCd = 4 + Math.random() * 6; } // descansando, a veces cierra y abre la mano 2 a 4 veces (pedido del dueño)
+    if (this.flex) { if (this.phase !== 'rest' || this.dead) this.flex = null; else { this.flex.t += dt; const c = this.flex.t / 0.6; if (c >= this.flex.n) this.flex = null; else this.open = 0.5 + 0.5 * Math.cos(c * TAU); } } // abre la mano para agarrar; la cierra al tomarlo (y para golpear)
     const foes = B.ms.filter(m => !m.dead && m.team !== this.team);
-    if (this.phase === 'rest') { this.z = 0; if (this.ph <= 0 && foes.length && !B.over) { this.target = foes[Math.floor(Math.random() * foes.length)]; this.phase = 'lift'; this.ph = BOSS.lift; } }
+    if (this.phase === 'roarup') { this.z += (BOSS.liftZ * 1.1 * this.k - this.z) * Math.min(1, dt * 4); if (this.ph <= 0) { this.phase = 'rest'; this.ph = 0.35; } } // ruge con la mano levantada del piso (pedido del dueño)
+    else if (this.phase === 'pound') { // golpea el piso en su lugar, como en la entrada (pedido del dueño)
+      const c0 = this.pt / 0.8; this.pt += dt; const c = this.pt / 0.8, u = c % 1, Z = BOSS.liftZ * 0.9 * this.k; this.z = u < 0.72 ? Z * Math.sin(u / 0.72 * Math.PI / 2) : Z * (1 - Math.pow((u - 0.72) / 0.28, 2));
+      if (Math.floor(c) > Math.floor(c0)) { this.z = 0; B.shake = Math.max(B.shake, 18); const R = BOSS.slamR * this.k; B.rings.push({ x: this.x, y: this.y, r: 10, max: R * 2.4, life: 0.8, col: '#ffd9a0' }, { x: this.x, y: this.y, r: 4, max: R * 1.3, life: 0.5, col: '#fff3d6' }); if (B.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); } if (c >= this.poundN) { this.phase = 'rest'; this.z = 0; } } }
+    else if (this.phase === 'rest') { this.z = Math.max(0, this.z - 900 * this.k * dt);
+      if (!this.combo && this.open > 0.9 && !this.flex && (this.ph > 1.3 || !foes.some(f => this.rage || (f.x < ARENA_W / 2) === (this.side < 0))) && (this.poundCd = (this.poundCd ?? 6 + Math.random() * 6) - dt) <= 0) { this.phase = 'pound'; this.pt = 0; this.poundN = Math.random() < 0.5 ? 1 : 2; this.poundCd = 9 + Math.random() * 8; return this.finish(B); } /* a veces golpea el piso estando en reposo */ if (this.restHold > 0) this.restHold -= dt; else if (!this.combo) { const f = Math.min(1, dt * 1.6); this.x += (ARENA_W * (this.side < 0 ? 0.1 : 0.9) - this.x) * f; this.y += (ARENA_D * 0.12 - this.y) * f; } /* descansa en la esquina de atrás de su lado, hacia su cuerpo (pedido del dueño) */ if (this.ph <= 0 && this.z <= 0 && foes.length && !B.over) {
+        const half = f => this.rage || (f.x < ARENA_W / 2) === (this.side < 0), /* (la mano que queda va por toda la arena; pedido del dueño) */ gf = foes.filter(f => f.z < FLY.airZ && f.state !== 'ultcharge' && half(f)); // sólo ataca en su lado de la arena (pedido del dueño)
+        if (!foes.some(half)) { this.ph = 0.25; return this.finish(B); } // nadie en su lado: sigue en reposo
+        const lethal = gf.filter(f => f.hp <= this.st.melee * 1.05 && !f.g.blob && (f._fatal ??= Math.random() < BOSS.fatal)); /* de vez en cuando, no siempre (se decide una vez por monstruo; pedido del dueño) */ // le queda un golpe: lo agarra y le come la cabeza (pedido del dueño)
+        if (lethal.length) { this.target = lethal[Math.floor(Math.random() * lethal.length)]; this.eat = true; this.phase = 'reach'; this.grabChk = this.grabMiss = false; this.ph = 1.6; return this.finish(B); }
+        const fly = foes.filter(f => f.z > FLY.airZ && f.state !== 'ultcharge' && half(f));
+        if (fly.length && Math.random() < BOSS.swat) { this.target = fly[Math.floor(Math.random() * fly.length)]; this.phase = 'swatup'; this.ph = 0.7; return this.finish(B); } // al que va volando: manotazo con la mano abierta (pedido del dueño)
+        if (gf.length && Math.random() < (this.rage ? BOSS.grab : BOSS.grab2)) { this.target = gf[Math.floor(Math.random() * gf.length)]; this.phase = 'reach'; this.grabChk = this.grabMiss = false; this.ph = 1.6; return this.finish(B); } // intenta agarrar a uno y lanzarlo (a la pared o al piso)
+        if (Math.random() < BOSS.barrage) { // ¡ráfaga! varios golpes rápidos seguidos (con las dos manos alternadas, o con la que le queda)
+          const o = B.ms.find(h => h.isHand && h !== this && !h.dead && h.phase === 'rest'), n = this.rage ? 6 : 4;
+          for (const [h, d] of [[this, 0], ...(o ? [[o, 0.22]] : [])]) { const L = foes.filter(f => h.rage || (f.x < ARENA_W / 2) === (h.side < 0)); if (!L.length) continue; h.combo = n - 1; h.target = L[Math.floor(Math.random() * L.length)]; h.atk = BOSS_FAST; h.phase = 'lift'; h.ph = BOSS_FAST.lift + d; }
+          B.text(this, '¡ráfaga!', '#ff8a7a', true); return this.finish(B); }
+        // cada golpe con su propia altura y ritmo (pedido del dueño); a veces golpea con las dos manos a la vez; sin un brazo, más rápido
+        const rf = this.rage ? BOSS.rage : 1, atk = { z: 0.6 + Math.random() * 0.8, lift: (0.55 + Math.random() * 0.8) * rf, aim: (0.3 + Math.random() * 0.6) * rf, g: (3000 + Math.random() * 2600) / rf };
+        const o = B.ms.find(h => h.isHand && h !== this && !h.dead && h.phase === 'rest'), go = h => { const L = foes.filter(f => h.rage || (f.x < ARENA_W / 2) === (h.side < 0)); if (!L.length) return; /* cada mano ataca sólo en su mitad de la arena (pedido del dueño) */ h.atk = atk; h.target = L[Math.floor(Math.random() * L.length)]; h.phase = 'lift'; h.ph = atk.lift; };
+        go(this); if (o && Math.random() < BOSS.both) go(o); } }
     else if (this.phase === 'lift' || this.phase === 'aim') { // sube y se pone encima de su objetivo (se ve su sombra)
       const T = this.target && !this.target.dead ? this.target : foes[0]; if (!T) { this.phase = 'rest'; this.ph = 1; }
       else { const f = Math.min(1, dt * (this.phase === 'lift' ? 3.2 : 1.6)); this.x += (clamp(T.x, this.r, ARENA_W - this.r) - this.x) * f; this.y += (clamp(T.y, this.r, ARENA_D - this.r) - this.y) * f; }
-      this.z += (BOSS.liftZ * this.k - this.z) * Math.min(1, dt * 5);
-      if (this.ph <= 0) { if (this.phase === 'lift') { this.phase = 'aim'; this.ph = BOSS.aim; } else { this.phase = 'slam'; this.vz = -200; } }
+      const A = this.atk || { z: 1, aim: BOSS.aim, g: 4200 }; this.z += (BOSS.liftZ * A.z * this.k - this.z) * Math.min(1, dt * 5);
+      if (this.ph <= 0) { if (this.phase === 'lift') { this.phase = 'aim'; this.ph = A.aim; } else { this.phase = 'slam'; this.vz = -200; } }
+    } else if (this.phase === 'swatup' || this.phase === 'swatgo') { // manotazo: se pone al costado del que vuela, a su altura, y lo barre con la mano abierta
+      const T = this.target;
+      if (!T || T.dead || T.z < FLY.airZ * 0.5) { this.phase = 'rest'; this.ph = 0.6; }
+      else if (this.phase === 'swatup') { const f = Math.min(1, dt * 5); this.x += (T.x + this.side * (this.r + T.r) * 2.2 - this.x) * f; this.y += (T.y - this.y) * f; this.z += (T.z - this.z) * f;
+        if (this.ph <= 0 && this.open > 0.8) { this.phase = 'swatgo'; this.ph = 0.4; this.swatMiss = false; this.swatChk = false; } }
+      else { this.x -= this.side * 2400 * this.k * dt; this.z += (T.z - this.z) * Math.min(1, dt * 8); this.y += (T.y - this.y) * Math.min(1, dt * 6);
+        const sd = Math.hypot(T.x - this.x, T.y - this.y);
+        if (!this.swatChk && sd < this.r + T.r + 90 * this.k) { this.swatChk = true; const ghost = T.buffs.dodge > 0; if (ghost || Math.random() < T.dodgeChance()) { this.swatMiss = true; const sg = T.y < ARENA_D * 0.5 ? 1 : -1; T.vy = sg * (330 + T.st.speed * 0.6) * 1.5; T.vz = 260; if (B.kcamOn) { SFX.dodge(); ANN.ev('dodge', 0, T.name); } T.setEmo('surprised', 0.5, 2); } } /* en el aire también puede esquivar el manotazo, como un disparo (pedido del dueño) */
+        if (!this.swatMiss && sd < this.r + T.r + 10 * this.k && Math.abs(T.z - this.z) < 80 * this.k) { // ¡paf!
+          B.hit(this, T, this.st.melee, { x: -this.side, y: 0 }, 'melee'); T.floatT = 0; T.floatBack = 0; T.vx = -this.side * 700; T.vz = -250; B.text(T, '¡manotazo!', '#ff8a7a', true); B.shake = Math.max(B.shake, 10); if (B.kcamOn) SFX.hit(40, true);
+          this.phase = 'rest'; this.ph = BOSS.rest * (this.rage ? BOSS.rage : 1) * (0.55 + Math.random() * 0.9); }
+        else if (this.ph <= 0) { this.phase = 'rest'; this.ph = 0.8; } } // (se le escapó)
+    } else if (this.phase === 'reach') { // primero abre la mano y después va a ras del suelo hacia su objetivo para agarrarlo
+      const T = this.target; this.z += (22 * this.k - this.z) * Math.min(1, dt * 6);
+      if (this.open < 0.85) { this.finish(B); return; } // (mientras abre la mano no avanza)
+      if (!T || T.dead || T.z > FLY.airZ || T.state === 'ultcharge' || this.ph <= 0) { this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * 0.6; this.eat = false; }
+      else { const f = Math.min(1, dt * 3.2); this.x += (T.x - this.x) * f; this.y += (T.y - this.y) * f;
+        const gd = Math.hypot(T.x - this.x, T.y - this.y) || 1;
+        if (!this.grabChk && gd < this.r + T.r + 80 * this.k) { this.grabChk = true; const ux = (T.x - this.x) / gd, uy = (T.y - this.y) / gd; T.incoming(this, { x: uy, y: -ux }, B, { x: ux, y: uy }); if (T.state === 'dodge') this.grabMiss = true; } /* también puede esquivar el agarre, como un disparo (pedido del dueño) */
+        if (this.grabMiss) { this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * 0.6; this.eat = false; this.grabChk = this.grabMiss = false; } /* se le escapó: la mano cierra en el aire y vuelve a descansar */
+        else if (gd < this.r + T.r + 14 * this.k) { this.grabChk = false; /* (la separación entre cuerpos no deja que se acerque más que la suma de los radios) */ { const hn = T.nodes[T.g.head.none ? T.ix.upper : T.ix.head], hh = (T.g.head.none ? T.g.torso.upper.h : T.g.head.h) * (T.s || 1); if (T.headOff == null || T.z < 2) T.headOff = hn ? (T.gy - T.z) - (hn.y - hh / 2) : hh * 2; /* (se mide con el cuerpo quieto en el suelo; si lo vuelve a agarrar en el aire, usa la medida anterior) */ } this.held = T; T.grabbedBy = this; T.state = 'grabbed'; T.ulting = false; T.ultRequest = false; T.setEmo('scared', 2, 4); B.text(T, '¡atrapado!', '#ff8a7a'); { const o = B.ms.find(h => h.isHand && h !== this && !h.dead && (h.phase === 'rest' || h.phase === 'pound')); this.rip = this.eat && !this.rage && o && !T.g.blob && Math.random() < 0.5 ? o : null; if (this.rip) { this.eat = false; o.phase = 'ripass'; o.ph = 2.2; o.target = T; o.ripBy = this; } } // con las dos manos, a veces en vez de morderlo le arranca la cabeza con la otra (pedido del dueño)
+          this.phase = this.rip ? 'ripup' : this.eat ? 'eatup' : 'carry'; this.ph = this.rip ? 6 : this.eat ? 2 : 1.35; /* («fatality» más lentos; pedido del dueño) */ this.hold(T, B); /* (desde el primer cuadro, detrás de la mano) */ if (this.rip || this.eat) T.shrinkTo = 0.78; /* en los «fatality» se ve un poco más chico (pedido del dueño) */ this.throwKind = Math.random() < 0.5 ? 'floor' : 'wall'; /* a veces lo azota contra el piso (pedido del dueño) */ if (B.kcamOn) SFX.hit(20, false); } }
+    } else if (this.phase === 'ripup' || this.phase === 'riphold') { // lo sostiene en alto, delante de él, mientras la otra mano le toma la cabeza; después de arrancarla lo sostiene un poco y lo suelta
+      const T = this.held;
+      if (this.phase === 'riphold') { if (T) this.hold(T, B); if (this.ph <= 0 || !T) { this.held = null; this.rip = null; if (T && !T.dead) { T.state = 'free'; T.grabbedBy = null; B.eatKill(this, T); } this.phase = 'rest'; this.ph = BOSS.rest; } }
+      else if (!T || T.dead || !this.rip || this.rip.dead || this.ph <= 0) { if (T && !T.dead) this.drop(); this.rip = null; this.phase = 'rest'; this.ph = 1; }
+      else { const f = Math.min(1, dt * 2.2); this.x += (ARENA_W * (0.5 + this.side * 0.1) - this.x) * f; this.y += (ARENA_D * 0.45 - this.y) * f; this.z += (BOSS.liftZ * 0.8 * this.k - this.z) * f; this.hold(T, B); }
+      this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); return;
+    } else if (this.phase === 'ripass' || this.phase === 'ripgrab' || this.phase === 'riptug' || this.phase === 'rippull') { // la otra mano: abre, le toma la cabeza, tira (cuesta: se estira) y se la arranca de golpe, como un elástico que se corta
+      const H = this.ripBy, T = this.target; if (!H || H.dead || !T || (T.dead && this.phase !== 'rippull') || (this.phase !== 'rippull' && H.held !== T)) { this.phase = 'rest'; this.ph = 1; this.ripBy = null; if (T) { T.stretch = 1; T.stretchSpring = false; } }
+      else { const R = Math.max(this.r * 1.05, (B.armW2 || 0) * 1.2), hn = T.nodes[T.g.head.none ? T.ix.upper : T.ix.head], Hb = bodyH(T);
+        if (this.phase === 'ripass' || this.phase === 'ripgrab') { const tx = T.x, tz = Math.max(0, this.gy - R * 0.55 - (hn.y + R * 0.6)), /* le toma la cabeza con la parte de arriba de la mano, donde está el pulgar (pedido del dueño) */ f = Math.min(1, dt * (this.phase === 'ripgrab' ? 8 : 3)); this.x += (tx - this.x) * f; this.y = T.y + 4; /* (delante del monstruo; pedido del dueño) */ this.z += (tz - this.z) * f;
+          if (this.phase === 'ripass' && this.ph < 0.6 && this.open > 0.8) { this.phase = 'ripgrab'; this.ph = 0.5; }
+          else if (this.phase === 'ripgrab' && this.ph <= 0) { this.phase = 'riptug'; this.ph = 1.6; this.tugZ = this.z; this.tugT = 0; T.stretchAt = 'feet'; T.setEmo('hurt', 3, 5); } }
+        else if (this.phase === 'riptug') { // tira y cuesta: se estira, tiembla…
+          this.tugT += dt; const u = Math.min(1, this.tugT / 1.6), pull = (R * 1.1 + Hb * 0.6) * (1 - Math.pow(1 - u, 2)) + Math.sin(this.tugT * 38) * 3 * this.k; this.z = this.tugZ + pull; /* (se estira bastante entre las dos manos: se tiene que ver) */ this.y = T.y + 4; this.x = T.x + Math.sin(this.tugT * 31) * 2 * this.k; { let bot = -Infinity; for (const n of T.nodes) bot = Math.max(bot, n.y); const want = this.gy - this.z - R * 0.55 - R * 0.6; T.stretch = clamp((bot - want) / Math.max(10, bot - hn.y), 1, 8); } /* la cabeza sigue a la mano que tira y el cuerpo se estira hasta la otra */ if (Math.random() < dt * 8) B.shake = Math.max(B.shake, 3);
+          if (this.ph <= 0) { // …y cede de golpe: ¡se la arranca!
+            this.phase = 'rippull'; this.ph = 0.6; const hd = new Monster(T.rec); hd.onlyHead = true; if (hd.g.head.none) hd.g.head.none = false; /* (sin cabeza: se lleva el trozo con la cara) */ hd.s = T.s; hd.team = T.team; hd.x = T.x; hd.y = this.y - 2; hd.z = T.z + Math.max(0, pull); B.place(hd); hd.resetRig(); hd.setEmo('dizzy', 99, 9); hd.spin = 0; hd.shrink = T.shrink || 1;
+            B.heads.push({ m: hd, by: this, dx: hd.x - this.x, dz: hd.z - this.z, t: 0 }); T.hidden = headOff(T); T.stretchSpring = true; T.stretchV = 0; /* el cuerpo vuelve como un elástico que se corta */ B.shake = Math.max(B.shake, 16); B.text(T, '¡RAS!', '#ff6b5b', true); if (B.kcamOn) { SFX.rip(); SFX.bone(); }
+            H.rip = null; H.phase = 'riphold'; H.ph = 0.8; } }
+        else { this.x += this.side * 900 * this.k * dt; this.z += 260 * this.k * dt; // la tira hacia afuera y arriba…
+          if (this.ph <= 0) { const h = B.heads.find(q => q.by === this); if (h) { h.by = null; h.m.vx = this.side * 650; h.m.vz = 420; h.m.vy = 120; h.spinV = this.side * 9; } this.phase = 'rest'; this.ph = BOSS.rest; this.ripBy = null; } } } // …y la lanza lejos
+      this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); return;
+    } else if (this.phase === 'eatup' || this.phase === 'bite' || this.phase === 'bitetug' || this.phase === 'bitehold') { // lo lleva a su boca, le muerde la cabeza, tira (cuesta) y se la arranca de un tirón (pedido del dueño)
+      const T = this.held, b = B.bossBody;
+      if (!T || T.dead || !b) { this.drop(); this.eat = false; this.phase = 'rest'; this.ph = 1; if (T) { T.stretch = 1; T.stretchSpring = false; } }
+      else { const hd0 = b.nodes[b.ix.head], sc = B.bossSc || 1, la = B.bossLean || 0, cx = hd0.x - b.gx, cy = hd0.y + (b.g.mouth.y || 0.3) * b.g.head.h * sc / 2 - TOP, /* (la altura exacta de su boca: la cabeza queda entre los dientes y el cuerpo se estira desde ahí) */ hd = { x: b.gx + cx * Math.cos(la) - cy * Math.sin(la) }, my = TOP + cx * Math.sin(la) + cy * Math.cos(la), /* su boca (con la inclinación del cuerpo) */ R = Math.max(this.r * 1.05, (B.armW2 || 0) * 1.2), hh = (T.g.head.none ? T.g.torso.upper.h : T.g.head.h) * (T.s || 1), Hb = bodyH(T);
+        const tz = Math.max(0, this.gy - R * 1.3 - hh * 0.2 - my); b.lookAt = { x: hd.x, y: my + 200 };
+        if (this.phase === 'eatup' || this.phase === 'bite') { const k = this.phase === 'bite' || this.ph < 0.5 ? 1 : Math.min(1, dt * 2.2); this.x += (hd.x - this.x) * k; this.z += (tz - this.z) * k; this.hold(T, B); } /* (al morder, la cabeza queda justo en su boca) */
+        if (this.phase === 'eatup') { b.mouthOpen = 1; b.setEmo('angry', 1, 5); if (this.ph <= 0) { this.phase = 'bite'; this.ph = 0.1; b.mouthOpen = 0; B.text(T, '¡ÑAM!', '#ff6b5b', true); if (B.kcamOn) SFX.bite(); T.setEmo('hurt', 3, 5); } } // muerde
+        else if (this.phase === 'bite') { b.mouthOpen = 0; if (this.ph <= 0) { this.phase = 'bitetug'; this.ph = 0.5; this.tugZ = this.z; this.tugT = 0; T.stretchAt = 'head'; } /* (el mordisco en sí es rápido; pedido del dueño) */ }
+        else if (this.phase === 'bitetug') { // tira hacia abajo con la cabeza entre los dientes: cuesta, se estira, tiembla…
+          b.mouthOpen = 0; this.tugT += dt; const u = Math.min(1, this.tugT / 0.5), pull = (R * 0.9 + Hb * 0.6) * (1 - Math.pow(1 - u, 2)) + Math.sin(this.tugT * 38) * 3 * this.k; this.z = Math.max(0, this.tugZ - pull); this.x = hd.x + Math.sin(this.tugT * 29) * 2 * this.k; { const hn2 = T.nodes[T.g.head.none ? T.ix.upper : T.ix.head]; let bot = -Infinity; for (const n of T.nodes) bot = Math.max(bot, n.y); const fy = this.gy - this.z - R * 0.55; T.stretch = clamp((fy - hn2.y) / Math.max(10, bot - hn2.y) / (T.shrink || 1), 1, 10); T.stretchAt = T.g.head.none ? 'upper' : 'head'; } /* la cabeza queda en la boca y el cuerpo se estira hasta la mano que tira */ if (Math.random() < dt * 8) B.shake = Math.max(B.shake, 3);
+          if (this.ph <= 0) { // …y cede de golpe: se la arranca de un mordisco
+            this.phase = 'bitehold'; this.ph = 0.8; T.hidden = headOff(T); T.stretchAt = 'feet'; T.stretchSpring = true; T.stretchV = 0; this.hold(T, B); B.shake = Math.max(B.shake, 16); if (B.kcamOn) { SFX.bone(); SFX.bite(); }
+            for (let i = 0; i < 14; i++) B.parts.push({ x: T.gx + (Math.random() - 0.5) * 30, y: my, vx: (Math.random() - 0.5) * 260, vy: -Math.random() * 220, life: 0.5 + Math.random() * 0.4, max: 0.9, col: hsl(T.g.pal.body), r: 3 + Math.random() * 4 }); } }
+        else { this.hold(T, B); if (this.ph <= 0) { this.held = null; this.eat = false; T.state = 'free'; T.grabbedBy = null; B.eatKill(this, T); this.phase = 'rest'; this.ph = BOSS.rest * (this.rage ? BOSS.rage : 1); } } } // pierde: lo suelta y cae
+      if (['eatup', 'bite', 'bitetug', 'bitehold'].includes(this.phase)) { this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); return; }
+    } else if (this.phase === 'carry' || this.phase === 'swing') { // lo saca de la pantalla hacia su lado (toma impulso) y lo trae de vuelta con fuerza: al pasar, lo lanza (pedido del dueño)
+      const T = this.held, down = this.throwKind === 'floor', out = this.side < 0 ? -300 * this.k : ARENA_W + 300 * this.k, rel = this.side < 0 ? ARENA_W * 0.2 : ARENA_W * 0.8;
+      if (!T || T.dead) { this.drop(); this.phase = 'rest'; this.ph = 1; }
+      else {
+        if (this.phase === 'carry') { // toma mucho impulso (pedido del dueño): contra la pared, saca la mano bien lejos de la pantalla; contra el piso, la sube muy alto
+          if (down) { this.z += (this.gy + 380 * this.k - this.z) * Math.min(1, dt * 2.6); this.x += (ARENA_W * (this.side < 0 ? 0.3 : 0.7) - this.x) * Math.min(1, dt * 2); } // sube la mano bien alto, hasta salir por arriba de la pantalla
+          else { this.z += (BOSS.liftZ * 0.7 * this.k - this.z) * Math.min(1, dt * 3); this.x += (out - this.x) * Math.min(1, dt * 2.6); }
+          if (this.ph <= 0) { this.phase = 'swing'; this.vz = 0; if (B.kcamOn) SFX.ult('ranged'); } }
+        else if (down) { this.z = Math.max(0, this.z - 4200 * this.k * dt); } // ¡vuelve rápido hacia abajo!
+        else { this.z += (40 * this.k - this.z) * Math.min(1, dt * 10); this.x += -this.side * 3400 * this.k * dt; } // ¡vuelve con fuerza!
+        this.hold(T, B); /* (un poco atrás: se dibuja detrás de la mano que lo tiene, con la cabeza asomada) */
+        if (this.phase === 'swing' && (down ? this.z < BOSS.liftZ * 0.9 * this.k : this.side * (this.x - rel) <= 0)) { // ¡lo lanza! (a la pared contraria o contra el piso)
+          this.held = null; T.grabbedBy = null; T.state = 'thrown'; T.thrownBy = this; T.thrownT = 0; T.throwDown = down; T.x = clamp(T.x, T.r + 4, ARENA_W - T.r - 4);
+          if (down) { T.vx = (Math.random() - 0.5) * 80; T.vy = 0; T.vz = -2600 * Math.max(0.7, this.k); }
+          else { T.vx = -this.side * BOSS.throwV * Math.max(0.7, this.k); T.vy = -Math.random() * 60; T.vz = 120; } /* (nunca hacia adelante: sigue detrás de la mano) */
+          B.shake = Math.max(B.shake, 12); this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * (0.55 + Math.random() * 0.9); this.restHold = 0.6; /* la mano se queda un momento donde lo soltó: el lanzado pasa por detrás de ella (pedido del dueño) */ } }
     } else if (this.phase === 'slam') { // ¡golpe al suelo!
-      this.vz -= 4200 * dt; this.z += this.vz * dt;
-      if (this.z <= 0) { this.z = 0; this.vz = 0; this.phase = 'rest'; this.ph = BOSS.rest + Math.random() * 0.8; this.slamAt = this.t;
-        const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 12); B.rings.push({ x: this.x, y: this.y, r: 10, max: R, life: 0.45, col: '#ffd9a0' });
+      this.vz -= ((this.atk && this.atk.g) || 4200) * dt; this.z += this.vz * dt;
+      if (!this.dodgeChk && this.vz < 0 && this.z < -this.vz * 0.22) { this.dodgeChk = true; const R0 = BOSS.slamR * this.k; for (const e of foes) { const dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy) || 1; if (d < R0 + e.r + 30) e.incoming(this, { x: dy / d, y: -dx / d }, B, { x: dx / d, y: dy / d }); } } /* justo antes de caer, tus monstruos pueden esquivarlo como a un disparo (pedido del dueño) */
+      if (this.z <= 0) { this.z = 0; this.vz = 0; this.dodgeChk = false; this.phase = 'rest'; this.ph = (BOSS.rest * (0.55 + Math.random() * 0.9) + Math.random() * 0.8) * (this.rage ? BOSS.rage : 1); this.slamAt = this.t;
+        if (this.combo > 0) { this.combo--; const L = foes.filter(f => this.rage || (f.x < ARENA_W / 2) === (this.side < 0)); if (L.length) { this.target = L[Math.floor(Math.random() * L.length)]; this.atk = BOSS_FAST; this.phase = 'lift'; this.ph = BOSS_FAST.lift; } } // ráfaga: sigue golpeando enseguida
+        const R = BOSS.slamR * this.k; B.shake = Math.max(B.shake, 20); B.rings.push({ x: this.x, y: this.y, r: 10, max: R * 2.4, life: 0.8, col: '#ffd9a0' }, { x: this.x, y: this.y, r: 4, max: R * 1.3, life: 0.5, col: '#fff3d6' }); /* sacudida y ondas de choque como en la entrada (pedido del dueño) */
         if (B.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); }
-        for (const e of foes) { if (e.z > FLY.airZ || e.state === 'ultcharge') continue; let dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy); if (d > R + e.r) continue; if (d < 1) { dx = 1; dy = 0; d = 1; }
+        for (const e of foes) { if (e.z > FLY.airZ || e.state === 'ultcharge' || e.state === 'dodge') continue; let dx = e.x - this.x, dy = e.y - this.y, d = Math.hypot(dx, dy); if (d > R + e.r) continue; if (d < 1) { dx = 1; dy = 0; d = 1; }
           B.hit(this, e, this.st.melee * (d < R * 0.5 ? 1 : 0.6), { x: dx / d, y: dy / d }, 'melee'); if (!e.dead) { e.vx += dx / d * 260; e.vy += dy / d * 260; e.vz = 260; } } }
     }
-    this.x = clamp(this.x, this.side < 0 ? this.r : ARENA_W * 0.38, this.side < 0 ? ARENA_W * 0.62 : ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); // cada mano se queda casi en su mitad (así los brazos no se cruzan)
+    this.finish(B);
   }
-  draw(ctx) { // un puño enorme
+  finish(B) { // cada mano cubre su mitad: los brazos no se cruzan (pedido del dueño); sin el otro brazo, la mano sana alcanza toda la arena (para agarrar)
+    if (['carry', 'swing', 'eatup', 'bite', 'bitetug', 'bitehold', 'ripup', 'riphold', 'ripass', 'ripgrab', 'riptug', 'rippull'].includes(this.phase)) { this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); return; } /* (al tomar impulso sale de la pantalla) */ const solo = this.rage; /* (cada mano en su mitad; la que queda, por toda la arena) */ this.x = clamp(this.x, this.side < 0 || solo ? this.r : ARENA_W * 0.5, this.side < 0 && !solo ? ARENA_W * 0.5 : ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); }
+  draw(ctx, only) { // un puño enorme (o la mano abierta para agarrar); only = 'thumb': sólo el pulgar (va detrás del monstruo que tiene agarrado)
+    if (only !== 'thumb') drawBossArm(ctx, this);
     const r = Math.max(this.r * 1.05, ((typeof battle !== 'undefined' && battle && battle.armW2) || 0) * 1.2), x = this.gx, y = this.gy - this.z - r * 0.55, /* el puño también va en proporción */ c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
-    if (A && !dead) { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
+    if (A && !dead && only !== 'thumb') { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
     ctx.save(); if (dead) ctx.globalAlpha = 0.75; const fill = dead ? '#6d6670' : this.hurtT > 0 ? '#ffffff' : hsl(c), dk = dead ? '#3c373f' : hsl(c, -22);
     ctx.lineWidth = 4; ctx.strokeStyle = dk; ctx.fillStyle = fill;
     // puño visto desde el dorso (pedido del dueño): el brazo entra por la muñeca y los nudillos quedan hacia el centro de la arena (f), con los dedos doblados asomando
     if (this.handRot) { ctx.translate(x, y); ctx.rotate(this.handRot); ctx.translate(-x, -y); } // sigue al antebrazo, pero nunca inclinada hacia abajo (pedido del dueño)
     const f = -this.side, rr = (cx, cy, w, h, k) => { ctx.beginPath(); ctx.roundRect(cx - w / 2, cy - h / 2, w, h, k); ctx.fill(); ctx.stroke(); };
-    ctx.beginPath(); ctx.ellipse(x + f * r * 0.12, y - r * 0.7, r * 0.52, r * 0.22, f * 0.12, 0, TAU); ctx.fill(); ctx.stroke(); // pulgar, asomando por arriba (es la mano del jefe vista desde el dorso)
-    for (let i = 0; i < 4; i++) rr(x + f * r * 0.78, y + (i - 1.5) * r * 0.37, r * 0.5, r * 0.36, r * 0.15); // dedos doblados
+    if (only === 'thumb' || !this.held) { const o = this.open || 0; ctx.beginPath(); ctx.ellipse(x + f * r * (0.12 + 0.3 * o), y - r * (0.7 + 0.25 * o), r * (0.52 + 0.2 * o), r * 0.22, f * (0.12 - 0.55 * o), 0, TAU); ctx.fill(); ctx.stroke(); } // pulgar, asomando por arriba (es la mano del jefe vista desde el dorso)
+    if (only === 'thumb') { ctx.restore(); return; }
+    const o = this.open || 0; // dedos: cerrados en puño para golpear, abiertos para agarrar (pedido del dueño)
+    if (o < 0.02) for (let i = 0; i < 4; i++) rr(x + f * r * 0.78, y + (i - 1.5) * r * 0.37, r * 0.5, r * 0.36, r * 0.15); // dedos doblados
+    else for (let i = 0; i < 4; i++) { const L = r * (0.5 + 0.95 * o), a = (i - 1.5) * 0.2 * o, px = x + f * r * 0.55, py = y + (i - 1.5) * r * 0.37; // dedos que se estiran y se abren en abanico
+      ctx.save(); ctx.translate(px, py); ctx.rotate(f * a); ctx.beginPath(); ctx.roundRect(f > 0 ? 0 : -L, -r * 0.17, L, r * 0.34, r * 0.16); ctx.fill(); ctx.stroke();
+      if (o > 0.4) { ctx.globalAlpha *= 0.5; ctx.lineWidth = 2; for (const q of [0.38, 0.7]) { ctx.beginPath(); ctx.moveTo(f * L * q, -r * 0.13); ctx.lineTo(f * L * q, r * 0.13); ctx.stroke(); } } ctx.restore(); } // (con sus nudillos)
     rr(x - f * r * 0.12, y, r * 1.6, r * 1.5, r * 0.5); // dorso
     ctx.save(); ctx.globalAlpha *= 0.45; ctx.lineWidth = 2.5; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - f * r * 0.6, y + (i - 1.5) * r * 0.14); ctx.lineTo(x + f * r * 0.35, y + (i - 1.5) * r * 0.36); ctx.stroke(); } ctx.restore(); // tendones
-    ctx.lineWidth = 3; if (!dead && !(this.hurtT > 0)) ctx.fillStyle = hsl(c, 8); for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + f * r * 0.56, y + (i - 1.5) * r * 0.37, r * 0.17, 0, TAU); ctx.fill(); ctx.stroke(); } // nudillos
+    ctx.lineWidth = 3; if (!dead && !(this.hurtT > 0)) ctx.fillStyle = hsl(c, 8); if (o < 0.5) for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + f * r * 0.56, y + (i - 1.5) * r * 0.37, r * 0.17, 0, TAU); ctx.fill(); ctx.stroke(); } // nudillos (en el puño)
     ctx.restore();
   }
 }
@@ -3340,15 +3488,22 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
   { let tg = 0; for (const h of B.ms) if (h.isHand && !h.dead) tg += -h.side * clamp(h.z / BOSS.liftZ, 0, 1); tg = clamp(tg, -1, 1) * BOSS.lean; /* el brazo que sube (su mano levantada) inclina hacia el otro lado; en reposo queda derecho (antes se usaba la altura de los codos y quedaba inclinado siempre) */ const nw = performance.now(), dtl = Math.min(0.1, (nw - (B._leanT || nw)) / 1000); B._leanT = nw; B.bossLean = (B.bossLean || 0) + (tg - (B.bossLean || 0)) * Math.min(1, dtl * 4); }
   const la = B.bossLean || 0, pvx = body.gx, pvy = TOP, rot = (x, y) => { const cx = x - pvx, cy = y - pvy, co = Math.cos(la), si = Math.sin(la); return [pvx + cx * co - cy * si, pvy + cx * si + cy * co]; };
   ctx.save(); ctx.beginPath(); ctx.rect(-2000, -2000, 4000 + ARENA_W, 2000 + TOP + 4); ctx.clip(); ctx.translate(pvx, pvy); ctx.rotate(la); ctx.translate(-pvx, -pvy); body.draw(ctx); // se corta en el piso: sólo se ve del torso para arriba
-  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); drawBossDetail(ctx, body, up, sc, rs, B); } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
+  { const Vw = B.view ? B.view.x1 - B.view.x0 : ARENA_W, rs = Vw * 0.2; for (const sd of [-1, 1]) ball(up.x + sd * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3, rs, B.ms.filter(m => m.isHand && m.side === sd).every(m => m.dead)); drawBossDetail(ctx, body, up, sc, rs, B); if (B.bossRage) { const hd = body.nodes[body.ix.head], g = body.g; ctx.save(); shapePath(ctx, g.head.shape, hd.x, hd.y, g.head.w * sc, g.head.h * sc); ctx.clip(); ctx.fillStyle = `rgba(255,30,10,${0.16 + 0.08 * Math.sin(performance.now() / 160)})`; ctx.fillRect(hd.x - g.head.w * sc, hd.y - g.head.h * sc, g.head.w * sc * 2, g.head.h * sc * 2); ctx.restore(); } /* furioso: la cara se pone roja (pedido del dueño) */ } // hombros enormes, mitad fuera de la pantalla (pedido del dueño)
   ctx.restore();
-  for (const h of B.ms) { if (!h.isHand) continue; const hx = h.gx, hy = h.gy - h.z - h.r * 0.55;
+  for (const h of B.ms) { if (!h.isHand) continue; const Rh = Math.max(h.r * 1.05, w2 * 1.2), cx0 = h.gx, cy0 = h.gy - h.z - Rh * 0.55, bk = h.side * Rh * 0.35, ra = h.handRot || 0, hx = cx0 + bk * Math.cos(ra), hy = cy0 + bk * Math.sin(ra); // el brazo se une al centro de la mano, un poco hacia la muñeca (pedido del dueño)
     // brazo de verdad (pedido del dueño): sale del hombro (más afuera que el torso) con largos fijos; de las dos posiciones posibles del codo se elige la que deja
     // el antebrazo más horizontal, apenas subiendo hacia el codo; se ve o no según dónde esté, sin forzarlo
     const [sx, sy] = rot(up.x + h.side * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3), [ex, ey, bad] = bossIK(V, h, sx, sy, hx, hy, B.bossL1);
     h.elbY = ey; // altura del codo (para la inclinación)
     { const f = -h.side, ux = (hx - ex) * f, uy = (hy - ey) * f; let a = Math.atan2(uy, ux); a = f > 0 ? Math.max(-0.7, Math.min(0, a)) : Math.max(0, Math.min(0.7, a)); h.handRot = a; } // el puño sigue al antebrazo sin doblarse hacia abajo
-    ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, h.dead, h.side); ctx.restore(); }
+    h.arm = { sx, sy, ex, ey, hx, hy, w1, w2, c }; } // el brazo se dibuja junto con su mano, a la profundidad de la mano (pedido del dueño: brazo y mano en la misma capa, delante o detrás de los monstruos según dónde estén)
+  if (B.roarT != null) { // rugido: ondas de sonido que salen de su cara (pedido del dueño)
+    const hd = body.nodes[body.ix.head], [fx, fy] = rot(hd.x, hd.y + body.g.head.h * sc * 0.18), Vw = V.x1 - V.x0, mr = Vw * 0.75, fade = Math.min(1, B.roarT / 0.15, (BOSS_ROAR - B.roarT) / 0.3);
+    ctx.save(); ctx.lineCap = 'round';
+    for (let i = 0; i < 5; i++) { const u = (B.roarT * 1.4 + i / 5) % 1, r = 20 + u * mr, a = (1 - u) * 0.75 * fade; if (a <= 0) continue;
+      ctx.strokeStyle = `rgba(255,236,200,${a})`; ctx.lineWidth = 3 + 10 * (1 - u); ctx.beginPath(); ctx.arc(fx, fy, r, 0.12 * Math.PI, 0.88 * Math.PI); ctx.stroke(); // hacia abajo, a la arena
+      ctx.lineWidth = 2 + 6 * (1 - u); ctx.beginPath(); ctx.arc(fx, fy, r * 0.8, -0.45 * Math.PI, 0.1 * Math.PI); ctx.stroke(); ctx.beginPath(); ctx.arc(fx, fy, r * 0.8, 0.9 * Math.PI, 1.45 * Math.PI); ctx.stroke(); } // y a los lados
+    ctx.restore(); }
 }
 
 // detalle y anatomía del jefe (pedido del dueño: como es tan grande, es como verlo de cerca): sombras, pectorales, clavículas, trapecios, cuello, abdomen, cicatriz y arrugas
@@ -3393,6 +3548,12 @@ function drawBossDetail(ctx, body, up, sc, rs, B) {
     ctx.strokeStyle = lt(0.35); ctx.lineWidth = lw * 2.5; ctx.beginPath(); ctx.arc(x, y, rs * 0.78, sd < 0 ? -1.75 : -2.4, sd < 0 ? -0.75 : -1.4); ctx.stroke();
     ctx.strokeStyle = dk(0.45); ctx.lineWidth = lw * 1.4; ctx.beginPath(); ctx.arc(x - sd * rs * 0.35, y + rs * 0.15, rs * 0.75, sd < 0 ? -0.6 : Math.PI * 0.75, sd < 0 ? 0.25 : Math.PI * 1.6); ctx.stroke(); }
 }
+function drawBossArm(ctx, h) { // brazo del jefe (hombro → codo → mano), en la misma capa que su mano
+  const A = h.arm; if (!A) return; const { sx, sy, ex, ey, hx, hy, w1, w2, c } = A, dead = h.dead;
+  const seg = (ax, ay, bx, by, w) => { ctx.lineCap = 'round'; ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = w + 8; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.strokeStyle = dead ? '#6d6670' : hsl(c); ctx.lineWidth = w; ctx.stroke(); };
+  ctx.save(); seg(sx, sy, ex, ey, w1); seg(ex, ey, hx, hy, w2);
+  ctx.fillStyle = dead ? '#6d6670' : hsl(c); ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(ex, ey, w1 * 0.62, 0, TAU); ctx.fill(); ctx.stroke();
+  bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, dead, h.side); ctx.restore(); }
 function bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, dead, side) { // bíceps, arrugas del codo y venas del antebrazo
   if (dead) return; const lw = Math.max(2, w2 * 0.05), dk = a => hsl(c, -30, a), lt = a => hsl(c, 18, a);
   ctx.lineCap = 'round';
@@ -3406,7 +3567,7 @@ function bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, dead, side) { // 
 
 class Battle {
   constructor(ms, mode) {
-    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = []; this.mines = [];
+    this.ms = ms; this.mode = mode; this.proj = []; this.parts = []; this.texts = []; this.mines = []; this.heads = []; // heads: cabezas arrancadas por el Titán
     this.time = 0; this.cine = null; this.rings = []; this.elim = []; this.ranking = null; this.over = false; this.endT = 0; this.reported = false; this.shake = 0; this.winTeam = null;
     this.player = ms.find(m => m.isPlayer); this.players = ms.filter(m => m.isPlayer);
     const P0 = mode === 'boss' ? [[0.5, 0.72], [0.27, 0.3], [0.73, 0.3]] : mode === '1v1' ? [[0.22, 0.5], [0.78, 0.5]] : mode === '2v2' ? [[0.2, 0.3], [0.2, 0.72], [0.8, 0.3], [0.8, 0.72]] : [[0.2, 0.25], [0.8, 0.25], [0.2, 0.8], [0.8, 0.8]];
@@ -3422,10 +3583,34 @@ class Battle {
   pushBodies(x, y, R, sp) { // cuerpos de noqueados dentro de R: salen lanzados hacia afuera (bombas y onda de choque)
     for (const e of this.ms) { if (!e.dead) continue; let dx = e.x - x, dy = e.y - y, d = Math.hypot(dx, dy); if (d > R) continue; if (d < 1) { dx = Math.random() - 0.5; dy = 0; d = Math.abs(dx) || 1; }
       const k = sp * (1 - 0.5 * d / R), vx = dx / d * k, vy = -(160 + 0.5 * k); e.bodyRest = false; for (const n of e.nodes) { n.vx += vx; n.vy += vy; } } }
+  bossRoar() { // el Titán ruge: todo tiembla y tus monstruos quedan aturdidos (también en la entrada; pedido del dueño)
+    this.roarT = 0; this.shake = Math.max(this.shake, 10); if (this.kcamOn) SFX.roar();
+    for (const m of this.ms) { if (m.isHand || m.dead) continue; m.setEmo('dizzy', BOSS_ROAR + 0.6, 4);
+      if (!(this.preT > 0) && !this.over && m.state !== 'grabbed' && m.state !== 'thrown' && m.state !== 'ultcharge' && !m.ulting && m.z < FLY.airZ) { m.state = 'hitstun'; m.stT = BOSS_STUN; m.atkArm = null; m.desired = { x: 0, y: 0 }; this.text(m, '¡aturdido!', '#ffd36b'); } } }
+  eatKill(a, t) { // noqueado por el mordisco: sin empujón ni ruido de K.O.; sólo cae cuando lo suelta (pedido del dueño)
+    t.hp = 0; t.die({ x: 0, y: 0 }, 0); t.vx = t.vy = 0; t.vz = 0; for (const n of t.nodes) { n.vx = 0; n.vy = 0; }
+    t.shrinkTo = null; t.kcamLand = this.kcamOn; // la cámara de K.O. se activa recién cuando cae al piso (pedido del dueño)
+    this.text(t, 'K.O.', '#ff7a7a', true); if (!this.ms.some(m => m.team === t.team && !m.dead)) this.elim.push(t.team); }
+  bossPre(dt) { // entrada del Titán: ruge (ondas de sonido desde su cara) y golpea dos veces los extremos de la arena con ambas manos (sacudida y ondas de choque)
+    const e0 = BOSS_PRE - this.preT; this.preT -= dt; const e = BOSS_PRE - this.preT, b = this.bossBody, cross = t => e0 < t && e >= t;
+    if (cross(0.15)) { this.bossRoar(); if (b) b.setEmo('angry', 4, 3); } // tus monstruos, asustados mientras ruge (pedido del dueño)
+    if (this.roarT != null) { this.roarT += dt; if (this.roarT < BOSS_ROAR) { this.shake = Math.max(this.shake, 4 + 3 * Math.sin(this.roarT * 30)); if (b) b.mouthOpen = 1; } else this.roarT = null; }
+    for (const h of this.ms) { if (!h.isHand) { this.place(h); h.animate(dt); h.rigStep(dt / 2); h.rigStep(dt / 2); continue; }
+      const f = Math.min(1, dt * 2.5); h.x += (ARENA_W * (h.side < 0 ? 0.1 : 0.9) - h.x) * f; h.y += (ARENA_D * 0.5 - h.y) * f; let z = 0;
+      for (const [a, c] of BOSS_PRE_SLAMS) if (e >= a && e < c) { const u = (e - a) / (c - a), Z = BOSS.liftZ * 1.15 * h.k; z = u < 0.72 ? Z * Math.sin(u / 0.72 * Math.PI / 2) : Z * (1 - Math.pow((u - 0.72) / 0.28, 2)); }
+      h.z = Math.max(0, z); h.phase = 'rest'; this.place(h); h.sync(); }
+    for (const [, c] of BOSS_PRE_SLAMS) if (cross(c)) { this.shake = 20; if (this.kcamOn) { SFX.mineBoom(); SFX.hit(40, true); }
+      for (const h of this.ms) if (h.isHand) { const R = BOSS.slamR * h.k; this.rings.push({ x: h.x, y: h.y, r: 10, max: R * 2.4, life: 0.8, col: '#ffd9a0' }, { x: h.x, y: h.y, r: 4, max: R * 1.3, life: 0.5, col: '#fff3d6' }); }
+      for (const m of this.ms) if (!m.isHand && !m.dead) { m.vz = 200; m.setEmo('scared', 1, 3); } }
+    for (const r of this.rings) { r.life -= dt; r.r += (r.max * 1.3 - r.r) * dt * 6; } this.rings = this.rings.filter(r => r.life > 0);
+    this.shake *= Math.exp(-dt * 5);
+    if (this.preT <= 0) { this.roarT = null; for (const h of this.ms) if (h.isHand) { h.z = 0; h.phase = 'rest'; h.ph = h.side < 0 ? 0.8 : 2.4; } }
+  }
   text(m, str, col, big) { const h = m.nodes[m.ix.head]; this.texts.push({ x: m.gx + (Math.random() - 0.5) * 16, y: h.y - m.g.head.h * m.s * 0.6, str, col, life: 0.9, big }); }
 
   hit(a, t, pow, dir, kind) {
     if (this.timedOut) return; // se acabó el tiempo: los disparos o bombas que quedaban ya no hacen daño
+    if (t.state === 'grabbed') return; // en la mano del Titán: no le llegan otros golpes (lo soltaban a mitad del «fatality»)
     if (t.state === 'ultcharge') return; // cargando la ultimate: invencible (ni daño ni empujón; no lo interrumpen), pedido del dueño
     const ot = this.time > OT_START && this.mode !== 'boss' ? 1 + (this.time - OT_START) / OT_RAMP : 1; // muerte súbita
     const allA = (a.buffs.all > 0 ? ULT_ALL_MUL : 1) * (a.tp.valor > 0.2 && a.hp / a.st.hp < a.scaredHp ? 1 + a.tp.valor * 0.35 : 1) * (a.tp.terco < -0.2 && t.hp / t.st.hp < 0.35 ? 1 + -a.tp.terco * 0.3 : 1), allT = (t.buffs.all > 0 ? 1 / ULT_ALL_MUL : 1) * (t.tp.valor > 0.2 && t.hp / t.st.hp < t.scaredHp ? 1 - t.tp.valor * 0.15 : 1); // potenciado / valiente
@@ -3466,7 +3651,7 @@ class Battle {
     if (this.kcamOn && !shielded && t.st) { const fr = dmg / t.st.hp; const pa = !this.spec && (a.cloneOf || a).isPlayer, pt = !this.spec && t.isPlayer && !t.cloneOf; if (dmg > 0) t.hitsTaken = (t.hitsTaken || 0) + 1; if (fr > 0.08) ANN.ev('hit', Math.min(1, fr * 3), (a.cloneOf || a).name, t.name, null, pa && !pt && Math.random() < 0.5 ? 'pgood' : pt && !pa && Math.random() < 0.5 ? 'pbad' : null); if (t.hp > 0 && t.hp / t.st.hp < 0.2 && !t._annLow) { t._annLow = true; ANN.ev('low', 0, null, t.name, null, pt && Math.random() < 0.7 ? 'plow' : null); } }
     if (this.kcamOn) { const uo = a.cloneOf || a; if (shielded) { SFX.shieldHit(); ANN.ev('block', 0, uo.name, t.name); } else if (a.buffs.all > 0 && uo.ultType) SFX.ultHit(uo.ultType, dmg); else if (kind === 'melee') SFX.hit(dmg, a.st.weight > 3); else SFX.impact(); } // sonido del golpe (contra el escudo: «¡clang!»)
     if (t.hp <= 0 && !t.dead) {
-      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { SFX.ko((this._koN = (this._koN || 0) + 1) - 1); { const pa = !this.spec && (a.cloneOf || a).isPlayer, pt = !this.spec && t.isPlayer && !t.cloneOf; ANN.ev('ko', 0, (a.cloneOf || a).name, t.name, null, pa && !pt && Math.random() < 0.5 ? 'pko' : pt && Math.random() < 0.6 ? 'pdown' : null); } } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
+      t.hp = 0; t.die(dir, kb); if (this.kcamOn && !this.kcam && !this.cine) this.kcam = { m: t, t: 0 }; /* kill cam */ if (this.kcamOn) { if (this.mode !== 'boss') SFX.ko((this._koN = (this._koN || 0) + 1) - 1); /* (contra el jefe no suena el «¡taaan!» de K.O.; pedido del dueño) */ { const pa = !this.spec && (a.cloneOf || a).isPlayer, pt = !this.spec && t.isPlayer && !t.cloneOf; ANN.ev('ko', 0, (a.cloneOf || a).name, t.name, null, pa && !pt && Math.random() < 0.5 ? 'pko' : pt && Math.random() < 0.6 ? 'pdown' : null); } } (a.cloneOf || a).kills++; // lo que noquea un clon cuenta para el original
       { const kx = t.gx, ky = t.nodes[t.ix.mid].y, cols = [hsl(t.g.pal.body, 8), hsl(t.g.pal.accent, 15), '#fff3b0', '#ffffff', '#ffb347']; // K.O.: estallido de partículas con sus colores (pedido del dueño)
         for (let i = 0; i < 48; i++) { const a2 = Math.random() * TAU, sp = 120 + Math.random() * 420; this.parts.push({ x: kx, y: ky, vx: Math.cos(a2) * sp + dir.x * 160, vy: Math.sin(a2) * sp * 0.8 - 160, life: 0.6 + Math.random() * 0.7, col: cols[i % cols.length], r: 2.5 + Math.random() * 4 }); }
         this.rings.push({ x: t.x, y: t.y, r: 10, max: 130, life: 0.5, col: '#fff3b0' }); this.shake = Math.min(14, this.shake + 6); }
@@ -3576,6 +3761,7 @@ class Battle {
   }
 
   step(dt) {
+    if (this.bossBody) { const L = this.ms.filter(m => !m.isHand && !m.dead && !m.cloneOf), aim = this.ms.find(h => h.isHand && !h.dead && h.phase !== 'rest' && h.target && !h.target.dead), T = (aim && aim.target) || L[0]; this.bossBody.lookAt = T ? { x: T.gx, y: T.gy - 40 } : null; } // el Titán siempre mira a tus monstruos (al que va a golpear, si hay; pedido del dueño)
     if (this.bossBody) { const b = this.bossBody, sc = this.bossSc = bossScale(b); { const H = this.ms.filter(h => h.isHand && !h.dead); let tg = 0; for (const h of H) tg += (h.x - ARENA_W * (h.side < 0 ? 0.27 : 0.73)) * 0.6 / Math.max(1, H.length); tg = clamp(tg, -ARENA_W * 0.22, ARENA_W * 0.22); this.bossShift = (this.bossShift || 0) + (tg - (this.bossShift || 0)) * Math.min(1, dt * 2.5); } /* se mueve hacia los lados siguiendo a sus manos (pedido del dueño) */ b.x = b.gx = ARENA_W / 2 + this.bossShift + (this.bossEx || 0); b.s = sc; if (b.gy == null || !this._bossFit) { b.gy = TOP + 120 * sc; b.resetRig && b.resetRig(); for (let k = 0; k < 120; k++) { b.animate(1 / 60); b.rigStep(1 / 60); } const c0 = b.nodes[b.ix.upper]; this._bossOff = c0 ? c0.y - b.gy : 0; } b.animate(dt); b.rigStep(dt / 2); b.rigStep(dt / 2); /* (al empezar se deja asentar el esqueleto y se mide dónde queda el pecho respecto de su base) */ const ch = b.nodes[b.ix.upper]; if (ch) { { const H = this.ms.filter(h => h.isHand && !h.dead); let tg = 0; for (const h of H) tg += (clamp(h.z / BOSS.liftZ, 0, 1) * 0.16 - clamp(h.y / ARENA_D - 0.35, 0, 0.6) * 0.18 - (h.phase === 'slam' ? 0.06 : 0)) * TOP / Math.max(1, H.length); this.bossRise = (this.bossRise || 0) + (tg - (this.bossRise || 0)) * Math.min(1, dt * 1.5); } /* sube cuando levanta las manos y baja al estirarse hacia adelante o al golpear (pedido del dueño) */ { const V = this.view, H = this.ms.filter(h => h.isHand && !h.dead), U = b.g.torso.upper, sw = U.w * sc * 0.5; if (V && H.length) { // si el brazo tendría que doblarse hacia adentro o subir el codo sobre el hombro, el jefe sube más o se corre hacia el lado (pedido del dueño)
         const bx = ARENA_W / 2 + this.bossShift, by = TOP + BOSS.low * TOP - this.bossRise; let best = null; if (!this.bossL1) { const sx0 = ARENA_W / 2 - sw * BOSS.shoulderOut, sy0 = TOP + BOSS.low * TOP - U.h * sc * 0.3; this.bossL1 = Math.hypot(sx0 - V.x0, sy0 - (TOP + ARENA_D * DEPTH * 0.45)); }
         for (let ox = -120; ox <= 120; ox += 20) for (let oy = 0; oy <= 90; oy += 15) { let bad = 0; for (const h of H) { const r = bossIK(V, h, bx + ox + h.side * sw * BOSS.shoulderOut, by - oy - U.h * sc * 0.3, h.gx, h.gy - h.z - h.r * 0.55, this.bossL1); bad += r[2] + r[3] * 0.4; }
@@ -3583,6 +3769,17 @@ class Battle {
         this.bossEx = (this.bossEx || 0) + (best[1] - (this.bossEx || 0)) * Math.min(1, dt * 1.2); this.bossEy = (this.bossEy || 0) + (best[2] - (this.bossEy || 0)) * Math.min(1, dt * 1.2); } }
       this._bossOff += ((ch.y - b.gy) - this._bossOff) * Math.min(1, dt * 0.3); b.gy = TOP + BOSS.low * TOP - this.bossRise - (this.bossEy || 0) - Math.sin(this.time * 1.7) * 5 - this._bossOff; /* sin rebote (pedido del dueño): la base va directo donde debe quedar el pecho, en vez de corregirse persiguiéndolo */ /* (low: fracción de TOP; negativo = más arriba) */ this._bossFit = true; } } // el jefe respira y se mueve al fondo
     if (this.kcam) { const k = this.kcam; k.t += dt; if (k.t >= KC_T) this.kcam = null; else dt *= k.t < 0.2 ? 0.03 : k.t < 0.95 ? 0.3 : 0.3 + 0.7 * (k.t - 0.95) / 0.4; } // kill cam: se congela un instante en el golpe y sigue en cámara lenta
+    if (this.preT > 0) { this.bossPre(dt); return; } // jefe: antes del conteo ruge y golpea la arena (pedido del dueño)
+    for (const m of this.ms) if (m.kcamLand && m.dead && (m.z <= 0.5 && Math.max(...m.nodes.map(n => n.y)) >= m.gy - 3 * m.s)) { m.kcamLand = false; if (!this.kcam && !this.cine) this.kcam = { m, t: 0 }; this.shake = Math.max(this.shake, 8); }
+    for (const m of this.ms) if (m.shrinkTo != null || m.shrink) { const t = m.shrinkTo ?? 1; m.shrink = (m.shrink || 1) + (t - (m.shrink || 1)) * Math.min(1, dt * 4); if (t === 1 && Math.abs(m.shrink - 1) < 0.003) { m.shrink = 1; m.shrinkTo = null; } }
+    for (const m of this.ms) if (m.stretchSpring) { m.stretchV += (-(m.stretch - 1) * 160 - m.stretchV * 4.5) * dt; m.stretch += m.stretchV * dt; if (Math.abs(m.stretch - 1) < 0.004 && Math.abs(m.stretchV) < 0.08) { m.stretch = 1; m.stretchSpring = false; } } // rebote de elástico
+    for (const h of this.heads) { const m = h.m; h.t += dt; // la cabeza arrancada: en la mano que la tiene y después vuela y rueda por el suelo
+      if (h.by) { m.x = h.by.x + h.dx; m.z = h.by.z + h.dz; m.y = h.by.y - 2; }
+      else { m.x += m.vx * dt; m.y += m.vy * dt; m.vz -= 1500 * dt; m.z += m.vz * dt; m.spin += (h.spinV || 0) * dt; if (m.z <= 0) { m.z = 0; m.vz = Math.abs(m.vz) > 120 ? -m.vz * 0.35 : 0; m.vx *= 0.6; m.vy *= 0.6; h.spinV = (h.spinV || 0) * 0.6; } m.y = clamp(m.y, 0, ARENA_D); }
+      this.place(m); m.animate(dt); m.rigStep(dt); if (h.t > 3.5) m.alpha = Math.max(0, 1 - (h.t - 3.5)); }
+    this.heads = this.heads.filter(h => h.t < 4.6);
+    if (this.bossBody && !this.over && !(this.introT > 0) && this.roarT == null && (this.roarCd = (this.roarCd ?? 12 + Math.random() * 8) - dt) <= 0) { this.roarCd = 14 + Math.random() * 10; this.bossRoar(); this.bossBody.setEmo('angry', BOSS_ROAR, 4); } // de vez en cuando ruge (pedido del dueño)
+    if (this.roarT != null) { this.roarT += dt; if (this.roarT < BOSS_ROAR) { this.shake = Math.max(this.shake, 4 + 3 * Math.sin(this.roarT * 30)); if (this.bossBody) this.bossBody.mouthOpen = 1; } else this.roarT = null; } // rugido de rabia (le destruyeron un brazo)
     if (this.introT > 0) { // cuenta regresiva: se mueven en el lugar, todavía no pelean
       const n0 = Math.ceil(this.introT / INTRO_STEP);
       this.introT -= dt;
@@ -3605,7 +3802,7 @@ class Battle {
     }
     if (this.mines.some(b => b.done)) this.mines = this.mines.filter(b => !b.done);
     // separación entre cuerpos
-    const al = this.ms.filter(m => !m.dead);
+    const al = this.ms.filter(m => !m.dead && m.state !== 'grabbed' && !m.held); // (el agarrado y la mano que lo lleva no se empujan)
     for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
       const a = al[i], b = al[j]; if (Math.abs(a.z - b.z) > FLY.airZ) continue;
       const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), mn = a.r + b.r;
@@ -3663,7 +3860,7 @@ class Battle {
       if (this.time > OT_START && !this.otShown && this.mode !== 'boss') { this.otShown = true; this.banner = { text: '¡Muerte súbita!', sub: 'el daño va subiendo', t: 0 }; this.shake = 6; if (this.kcamOn) { ANN.ev('ot'); SFX.otStart(); } }
       const alive = new Set(this.ms.filter(m => !m.dead).map(m => m.team));
       if (alive.size === 1 && this.ms.length > 1) this.lastT = this.lastT ?? this.time; // queda uno: se espera un instante por si el otro cae «al mismo tiempo» (un disparo o bomba ya lanzados)
-      if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || this.time > HARD_LIMIT || (this.otShown && this.time - OT_START >= OT_TIMER * BATTLE_SPEED) || (this.mode === 'boss' && alive.size > 1 && this.time >= BOSS.time * BATTLE_SPEED)) {
+      if (alive.size === 0 || (alive.size === 1 && this.time - this.lastT >= DRAW_WIN) || (this.time > HARD_LIMIT && this.mode !== 'boss') || (this.otShown && this.time - OT_START >= OT_TIMER * BATTLE_SPEED) || (this.mode === 'boss' && BOSS.timer && alive.size > 1 && this.time >= BOSS.time * BATTLE_SPEED)) {
         this.over = true; this.timedOut = alive.size > 1; const bossTO = this.timedOut && this.mode === 'boss'; this.isDraw = alive.size === 0 || (this.timedOut && !bossTO); /* con el jefe, si se acaba el tiempo gana el jefe */ // empate: los últimos caen al mismo tiempo (pedido del dueño; antes eran 15 s de muerte súbita sin K.O.)
         if (this.timedOut) this.otCheer = (this.otHits || 0) / Math.max(1, this.ms.filter(m => !m.dead && !m.cloneOf).length) / Math.max(1, this.time - OT_START) >= OT_INTENSE; // se acabó el tiempo: ¿fue intenso?
         if (this.isDraw && this.kcamOn) { this.drawBig = { t: -(alive.size === 0 ? KO_DELAY : 0), cheer: !!this.otCheer, tout: this.timedOut }; setTimeout(() => { if (battle === this) { drawCrowd(this.drawBig); ANN.ev('draw', this.timedOut ? (this.otCheer ? 1 : 0.5) : 0); } }, alive.size === 0 ? KO_DELAY * 1000 : 0); } else if (this.kcamOn) this.koBig = { t: -KO_DELAY }; // última muerte: «K.O.» martillado (aparece 1 s después; pedido del dueño)
@@ -3707,9 +3904,9 @@ class Battle {
     for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
     // monstruos ordenados por profundidad
     // monstruos (vivos y noqueados) y proyectiles por profundidad: lo de adelante tapa a lo de atrás (antes los noqueados iban siempre detrás)
-    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...this.proj.map(p => ({ y: p.y, p })), ...this.mines.map(b => ({ y: b.y, b }))].sort((a, b) => a.y - b.y);
+    const sorted = [...this.ms.map(m => ({ y: m.y, m })), ...(this.heads || []).map(h => ({ y: h.m.y, m: h.m })), ...this.proj.map(p => ({ y: p.y, p })), ...this.mines.map(b => ({ y: b.y, b }))].sort((a, b) => a.y - b.y);
     for (const it of sorted) {
-      if (it.m) { it.m.draw(ctx); continue; }
+      if (it.m) { if (it.m.state === 'grabbed' && it.m.grabbedBy && it.m.grabbedBy.held === it.m) it.m.grabbedBy.draw(ctx, 'thumb'); /* el pulgar del Titán va detrás del monstruo agarrado (pedido del dueño) */ it.m.draw(ctx); continue; }
       if (it.b) { drawMine(ctx, it.b, this.time); continue; }
       const p = it.p, Y = (pt) => TOP + pt[1] * DEPTH - pt[2];
       ctx.lineCap = 'round';
@@ -4124,6 +4321,10 @@ function ranchDeco() {
   RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
   return RANCH.deco = { d, flowers, path, pathW: PATH_W * RANCH_RF };
 }
+// Las tácticas de combate también son su forma de ser fuera de la pelea (pedido del dueño): al centro se comporta como siempre
+const tpOf = rec => { const t = (rec && rec.temper) || {}, c = v => clamp(+v || 0, -1, 1); return { agr: c(t.agr), terco: c(t.terco), valor: c(t.valor), ritmo: c(t.ritmo), def: c(t.def) }; };
+const RP = { soc: 0.85, comp: 0.3, fence: 0.75, fenceLone: 0.9, speed: 0.22, pause: 0.4, sit: 1.5, nap: 1.2, hop: 0.8, curious: 0.5, look: 0.45, plant: 0.25 }; // cuánto cambia cada rasgo con el medidor en el extremo
+function wpick(L, w) { let t = 0; for (const q of L) t += w(q); let r = Math.random() * t; for (const q of L) if ((r -= w(q)) <= 0) return q; return L[L.length - 1]; }
 function syncRanch() {
   const cap = Math.max(slotCap(), save.monsters.length), A = RANCH.actors;
   for (let i = 0; i < cap; i++) {
@@ -4143,6 +4344,7 @@ function syncRanch() {
       else a.sz = { w: 44, h: 56 };
     }
     if (a.m) { a.m.sleep = resting(rec) || !!a.nap; a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
+    a.tp = tpOf(rec);
   }
   A.length = cap;
   for (const a of A) if (a.play && (a.kind !== 'mon' || !a.play.mate || a.play.mate.kind !== 'mon' || !A.includes(a.play.mate) || (a.play.mate.play && a.play.mate.play.mate !== a))) { a.play = null; a.walk = false; a.idle = 1; } // su compañero de juego ya no está: deja de jugar
@@ -4161,8 +4363,9 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (!RANCH.napInit) { RANCH.napInit = true; if (dayInfo().night) for (const a of A) if (a.kind === 'mon' && a.m && !resting(a.rec) && Math.random() < 0.35) { a.nap = { t: 60 + Math.random() * 240 }; a.m.sleep = true; a.walk = false; } } // de noche, al entrar algunos ya están durmiendo
   for (const a of A) if (a.nap && ((a.nap.t -= dt) < 0 || a === focus)) { a.nap = null; if (a.m) a.m.sleep = resting(a.rec); a.idle = 0.5 + Math.random(); } // despierta al terminar la siesta o si lo eliges
-  if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec) || !!a.nap; a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  if (++RANCH.frame % 60 === 0) for (const a of A) { a.tp = tpOf(a.rec); if (a.m) { a.m.sleep = resting(a.rec) || !!a.nap; a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); } }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
+  const TP = a => a.tp || (a.tp = tpOf(a.rec)), soc = a => Math.max(0.15, 1 + RP.soc * TP(a).agr); // sociable (de cerca) / solitario (de lejos)
   const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.rest && !a.m.held && a.m.z === 0;
   RANCH.famCd = RANCH.famCd || {};
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { // padre e hijo que se cruzan: se saludan y les salen corazones (pedido del dueño)
@@ -4175,14 +4378,14 @@ function ranchStep(dt) {
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
     const free = A.filter(canPlay);
-    if (free.length) { const a = free[Math.floor(Math.random() * free.length)]; a.come = { stay: RANCH_COME_STAY }; a.walk = false; }
+    if (free.length) { const a = wpick(free, soc); a.come = { stay: RANCH_COME_STAY }; a.walk = false; } /* (los sociables vienen más seguido) */
   }
   const young = a => a.rec && (a.rec.stage === 'baby' || a.rec.stage === 'child');
   if ((RANCH.kidCd = (RANCH.kidCd ?? 5 + Math.random() * 8) - dt) < 0) { // bebés y niños juegan bastante más entre ellos (pedido del dueño)
     RANCH.kidCd = 10 + Math.random() * 12;
-    const kids = A.filter(q => canPlay(q) && young(q));
-    if (kids.length >= 2) {
-      const a = kids[Math.floor(Math.random() * kids.length)], b = kids.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+    const kids = A.filter(q => canPlay(q) && young(q)), pros = A.filter(q => canPlay(q) && !young(q) && TP(q).terco <= -0.5); /* protectores («al más débil»): también juegan con los pequeños */
+    if (kids.length >= 2 || (kids.length && pros.length)) {
+      const a = wpick(kids, soc), others = kids.length < 2 || (pros.length && Math.random() < 0.35) ? pros : kids.filter(q => q !== a), b = others.sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) / soc(p) - Math.hypot(q.x - a.x, q.z - a.z) / soc(q))[0];
       const kind = Math.random() < 0.5 ? 'hop' : 'chase';
       a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
       a.walk = b.walk = false;
@@ -4192,7 +4395,7 @@ function ranchStep(dt) {
     RANCH.playCd = 25 + Math.random() * 33;
     const free = A.filter(canPlay);
     if (free.length >= 2) {
-      const a = free[Math.floor(Math.random() * free.length)], b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+      const a = wpick(free, soc), b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) / soc(p) - Math.hypot(q.x - a.x, q.z - a.z) / soc(q))[0]; /* los sociables juegan más; los solitarios casi no */
       const kind = Math.random() < 0.5 ? 'hop' : 'chase';
       a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
       a.walk = b.walk = false;
@@ -4210,6 +4413,8 @@ function ranchStep(dt) {
         for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
         if (t > 0 && t < RANCH_ASK_HEARTS && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.13; ranchHeart(a); } // los mismos pocos corazones que al pedir caricias
         if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
+      } else if (a.sidestep) { // ágil («esquivar»): se aparta de un saltito cuando otro pasa muy cerca
+        const S = a.sidestep; vx = S.x * 0.9; vz = S.z * 0.9; a.x += vx * dt; a.z += vz * dt; a.walk = false; if ((S.t -= dt) < 0) { a.sidestep = null; a.idle = Math.max(a.idle || 0, 0.4); }
       } else if (a.rest) { // sentado descansando un rato (pasa poco)
         a.walk = false; a.m.sitting = true;
         if ((a.rest.t -= dt) < 0) { a.rest = null; a.m.sitting = false; a.idle = 0.8 + Math.random(); }
@@ -4255,7 +4460,7 @@ function ranchStep(dt) {
         vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; a.m.z = Math.sin(Math.PI * e) * F.h; a.m.vz = 0;
         a.m.setEmo('happy', 0.3, 1); // volando: contento
         F.seen = F.seen || new Set();
-        for (const b of A) if (b !== a && b.kind === 'mon' && !b.fly && !b.m.sleep && !F.seen.has(b) && Math.hypot(b.x - a.x, b.z - a.z) < 0.6) { F.seen.add(b); if (Math.random() < 0.6) b.m.setEmo('surprised', 0.8, 1); } // el que ve pasar a otro volando por encima se sorprende
+        for (const b of A) if (b !== a && b.kind === 'mon' && !b.fly && !b.m.sleep && !F.seen.has(b) && Math.hypot(b.x - a.x, b.z - a.z) < 0.6) { F.seen.add(b); if (Math.random() < 0.6) { const v = TP(b).valor; b.m.setEmo(v < 0 && Math.random() < -v ? 'scared' : v > 0 && Math.random() < v ? 'happy' : 'surprised', 0.8, 1); } } /* el tímido se asusta; el atrevido se alegra */ // el que ve pasar a otro volando por encima se sorprende
         if (F.t >= 1) { a.fly = null; a.m.z = 0; a.walk = false; a.idle = 1 + Math.random() * 2; }
       } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
         const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
@@ -4263,23 +4468,29 @@ function ranchStep(dt) {
         a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / (RANCH_FLY_SPEED * (0.16 + (a.m.st.speed || 100) / 1800) / 0.2156), /* proporcional a lo rápido que camina (pedido del dueño) */ h: 170 + Math.random() * 90 };
         a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
-        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
+        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = (0.16 + (a.m.st.speed || 100) / 1800) * (1 + RP.speed * TP(a).ritmo); /* inquieto (golpes rápidos) camina más rápido; tranquilo (golpes fuertes), más lento */
         if ((a.wchk = (a.wchk || 0) + dt) > 1) { a.wchk = 0; if (a.wlast != null && a.wlast - d < 0.02) { a.walk = false; a.idle = 0.3; } a.wlast = d; } // si no avanza (un árbol u otro en el camino), elige otro lugar
         if (!a.walk) a.wlast = null;
-        else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
+        else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = (1.6 + Math.random() * 4.5) * (1 - RP.pause * TP(a).ritmo); /* pausas cortas si es inquieto, largas si es tranquilo */
+          const q = a.company; a.company = null; if (q && q.m && A.includes(q) && Math.hypot(q.x - a.x, q.z - a.z) < 0.5) { a.m.setEmo('happy', 1.4, 1); if (TP(a).terco < -0.2 && (young(q) || q.m.baseEmo === 'sad')) { ranchHeart(a); if (!q.m.sleep) q.m.setEmo('happy', 1.4, 1); } } /* llegó junto a otro: contento; el protector le da cariño al pequeño o al triste */
+          if (Math.random() < RP.plant * Math.max(0, -TP(a).def)) { a.idle += 2 + Math.random() * 3; a.awayT = -0.4; } } /* firme («aguantar»): a veces se queda plantado mirando */
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
-      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (de noche más seguido)
+      } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P * (1 + RP.nap * Math.max(0, -TP(a).ritmo))) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
+      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1) * (1 + RP.sit * Math.max(0, -TP(a).ritmo) - 0.5 * Math.max(0, TP(a).ritmo))) { /* el tranquilo se sienta más; el inquieto, menos */ a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (de noche más seguido)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
+        const T = TP(a), fenceP = 0.2 * (T.agr >= 0 ? 1 - RP.fence * T.agr : 1 - RP.fenceLone * T.agr); /* el solitario pasea más junto a la reja; el sociable, menos */
+        let comp = null; if (Math.random() < RP.comp * (Math.max(0, T.agr) + Math.max(0, -T.terco))) { const L = A.filter(q => q !== a && q.kind === 'mon' && !q.fly), prot = -T.terco > T.agr; if (L.length) comp = wpick(L, q => (prot && (young(q) || q.m.baseEmo === 'sad') ? 5 : 1) / (0.3 + Math.hypot(q.x - a.x, q.z - a.z))); } /* sociable: va junto a otro; protector: junto a un pequeño o a uno triste */
+        a.company = null;
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
-          if (k < 6 && Math.random() < 0.2) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
+          if (comp && k < 8) { nx = comp.x + Math.cos(ang) * 0.32; nz = comp.z + Math.sin(ang) * 0.32; }
+          else if (k < 6 && Math.random() < fenceP) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
           const rr = Math.hypot(nx, nz);
-          if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
+          if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; if (comp && k < 8) a.company = comp; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (RANCH.day && RANCH.day.night && Math.random() < 0.12) a.m.setEmo('yawn', 1.6, 1); // de noche, a veces bostezan
-        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } // a veces da un saltito contento (más si está energético)
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11) * Math.max(0.2, 1 + RP.hop * T.valor) * (1 + 0.5 * Math.max(0, T.ritmo))) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } /* el atrevido («con todo») salta más; el tímido, menos */ // a veces da un saltito contento (más si está energético)
       }
     }
     a.mvx = vx; a.mvz = vz; // cómo se está moviendo (para apartarse de los demás sin empujarlos)
@@ -4298,17 +4509,17 @@ function ranchStep(dt) {
       else if ((a.turnT = (a.turnT || 0) + dt) > 1.3) a.awayT = Math.max(-0.4, (a.awayT || 0) - dt); // quieto un rato: se da vuelta a mirar
       // Miradas (pedido del dueño): si pasa cerca de ti (el centro) te mira; si se cruza con otro monstruo, lo mira
       const rC = Math.hypot(a.x, a.z);
-      if (rC < RANCH_LOOK_ME && !a.fly) { a.m.lookDir = { x: 0, y: 0.15 }; if (a.lookWho !== 'me') { a.lookWho = 'me'; if (Math.random() < 0.45) a.m.setEmo('happy', 1.2, 1); } } // te sigue con los ojos (no se da vuelta) y a veces se alegra de verte
+      if (rC < RANCH_LOOK_ME && !a.fly) { a.m.lookDir = { x: 0, y: 0.15 }; if (a.lookWho !== 'me') { a.lookWho = 'me'; if (Math.random() < 0.45 * (1 + 0.5 * TP(a).agr)) a.m.setEmo('happy', 1.2, 1); } } // te sigue con los ojos (no se da vuelta) y a veces se alegra de verte
       else {
-        let best = null, bd = RANCH_LOOK_OTHER;
+        let best = null, bd = RANCH_LOOK_OTHER * (1 + RP.look * TP(a).terco); /* el curioso («al más cercano») mira a los que pasan desde más lejos */
         for (const b of A) if (b !== a && b.kind === 'mon' && b.scr && a.scr) { const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < bd) { bd = d; best = b; } }
-        if (best !== a.lookWho) { a.lookWho = best; if (best && !a.play && !a.fam) { const q = Math.random(); if (q < 0.3) a.m.setEmo('surprised', 0.6, 1); else if (q < 0.6) a.m.setEmo('happy', 1, 1); } } // al cruzarse con otro, a veces se sorprende o se alegra
+        if (best !== a.lookWho) { a.lookWho = best; if (best && !a.play && !a.fam) { const q = Math.random(), T = TP(a), cu = 1 + RP.curious * T.terco; if (q < 0.3 * cu) a.m.setEmo(T.valor < 0 && Math.random() < -T.valor ? 'scared' : T.valor > 0 && Math.random() < T.valor ? 'happy' : 'surprised', 0.6, 1); else if (q < 0.6 * cu) a.m.setEmo('happy', 1, 1); } } // al cruzarse con otro, a veces se sorprende o se alegra
         if (best) { const dx = best.scr.X - a.scr.X, dy = (best.scr.Y - best.scr.k * 40) - (a.scr.Y - a.scr.k * 40), d = Math.hypot(dx, dy) || 1; a.m.lookDir = { x: dx / d, y: dy / d * 0.6 }; }
         else a.m.lookDir = null;
       }
       a.m.back = (a.awayT || 0) > 0.15;
       const svx = (vx * c - vz * sn) * (V ? V.RX : 200) / Math.max(0.05, (V ? V.kb : 1) * (a.sc || 1));
-      const spd = Math.hypot(vx, vz) > 0 ? (a.play && a.play.kind === 'chase' && a.play.phase === 'play' ? 150 : 42) : 0; // a la pinta: corren (piernas rápidas y pasos largos, como en la arena)
+      const spd = Math.hypot(vx, vz) > 0 ? (a.play && a.play.kind === 'chase' && a.play.phase === 'play' ? 150 : 42 * (1 + RP.speed * TP(a).ritmo)) : 0; // a la pinta: corren (piernas rápidas y pasos largos, como en la arena)
       a.m.vx = clamp(svx, -spd, spd); a.m.vy = Math.sqrt(Math.max(0, spd * spd - a.m.vx * a.m.vx));
       if (!a.fly) a.m.hop(dt); if (a.m.g.wings.pairs && a.m.z > 0 && a.m.vz < -WING_FALL) a.m.vz = -WING_FALL; // con alas sigue bajando despacio, aleteando
       a.m.animate(dt); a.m.rigStep(dt / 2); a.m.rigStep(dt / 2);
@@ -4320,7 +4531,9 @@ function ranchStep(dt) {
     if (p.kind === 'free' || q.kind === 'free' || p.fly || q.fly) continue; // los espacios libres no empujan a nadie; los que vuelan pasan por encima
     if (d < 0.3) { // ya no se empujan: el que va caminando se aparta y rodea al otro; el que está quieto no se mueve (pedido del dueño)
       const mv = a => a.kind === 'mon' && Math.hypot(a.mvx || 0, a.mvz || 0) > 0.01, pm = mv(p), qm = mv(q), f = (0.3 - d) * 0.5, nx = dx / d, nz = dz / d;
-      let wp = pm && !qm ? 1 : qm && !pm ? 0 : 0.5; if (p.kind !== 'mon') wp = 0; if (q.kind !== 'mon') wp = 1;
+      const yl = a => a.kind === 'mon' ? Math.max(0.1, 1 + 0.9 * Math.min(0, TP(a).def)) : 1; /* el firme («aguantar») casi no se aparta */
+      let wp = pm && !qm ? 1 : qm && !pm ? 0 : yl(p) / (yl(p) + yl(q)); if (p.kind !== 'mon') wp = 0; if (q.kind !== 'mon') wp = 1;
+      for (const [s0, o, sg] of [[p, q, -1], [q, p, 1]]) if (s0.kind === 'mon' && !mv(s0) && mv(o) && !s0.sidestep && s0 !== focus && !s0.m.sleep && !s0.rest && !s0.come && s0.m.z === 0 && (s0.ssCd || 0) < RANCH.t && Math.random() < TP(s0).def) { s0.ssCd = RANCH.t + 3; const sd = Math.random() < 0.5 ? 1 : -1, px = -nz * sd, pz = nx * sd; s0.sidestep = { x: px + sg * nx * 0.5, z: pz + sg * nz * 0.5, t: 0.3 }; s0.m.vz = 150; } /* el ágil («esquivar») se aparta de un saltito */
       const side = (a, sx, sz) => { const tn = (a.mvx || 0) * -sz + (a.mvz || 0) * sx; return Math.abs(tn) > 0.005 ? Math.sign(tn) : (a.avSide = a.avSide || (Math.random() < 0.5 ? -1 : 1)); };
       if (wp > 0) { p.x -= nx * f * wp; p.z -= nz * f * wp; if (pm) { const sd = side(p, -nx, -nz); p.x += nz * sd * 0.12 * dt; p.z -= nx * sd * 0.12 * dt; } }
       if (wp < 1) { q.x += nx * f * (1 - wp); q.z += nz * f * (1 - wp); if (qm) { const sd = side(q, nx, nz); q.x -= nz * sd * 0.12 * dt; q.z += nx * sd * 0.12 * dt; } }
@@ -5077,7 +5290,7 @@ const barnMonKey = r => [r.stage, r.level, JSON.stringify(r.pts || {}), r.ult ||
 function barnItem(r) {
   {
     if (r.stage === 'egg') return { rec: r, egg: new EggView(r) };
-    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3); // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño)
+    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); { const R = tpOf(r).ritmo; m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3) + 0.2 * Math.max(0, -R) - 0.15 * Math.max(0, R); } // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño); el tranquilo duerme más y el inquieto menos (tácticas)
     for (let i = 0; i < 30; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
     return { rec: r, m, sz: m.estSize(), key: barnMonKey(r) };
   }
@@ -5113,13 +5326,20 @@ function barnAnim(dt) {
   for (const it of BARN.ms) {
     if (!it) continue;
     if (it.egg) { if (it !== skip) it.egg.update(dt); continue; } // (el de cerca lo anima la vista de cerca)
-    const m = it.m; if (!m || it === skip) continue; // el de cerca lo mueve la vista de cerca
+    const m = it.m; if (!m || it === skip) { if (m) m.lookDir = null; continue; } // el de cerca lo mueve la vista de cerca
     if (it === F || it.settle) { // de cerca: igual que en el rancho (se para, salta, lo puedes tomar), sin salirse de su cama
-      if (it === F) { m.sitting = false; it.settle = true; }
+      if (it === F) { m.sitting = false; it.settle = true; m.lookDir = null; }
       const k = it.k || 1; m.homeStep(dt, sp * 0.4 / k, 500);
       if (it !== F && !m.held && m.z === 0 && Math.abs(m.gx) < 3) { it.settle = false; m.gx = 0; m.vx = 0; m.sitting = true; } // ya volvió a su cama: se sienta
-    } else { m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+    } else { m.bowHead = (m.petBowT = (m.petBowT || 0) - dt) > 0; /* mientras lo acaricias baja la cabeza */ if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
   }
+}
+function barnMood(it, m, dt) { // despierto en su cama, se nota su forma de ser (tácticas): el inquieto se mueve, el curioso y el sociable miran a los vecinos
+  const T = tpOf(it.rec);
+  if (m.z > 0 || m.vz) m.hop(dt); else if (T.ritmo > 0 && Math.random() < dt * 0.3 * T.ritmo) { m.vz = 90 + Math.random() * 50; if (Math.random() < 0.4) m.setEmo('happy', 0.8, 1); } /* inquieto: da saltitos sentado */
+  if ((it.lookT = (it.lookT ?? 1 + Math.random() * 4) - dt) < 0) { const k = Math.max(0, T.terco) + Math.max(0, T.agr); it.lookT = (3 + Math.random() * 5) / (1 + k);
+    if (Math.random() < 0.25 + 0.5 * Math.min(1, k)) { const sd = Math.random() < 0.5 ? -1 : 1, i = BARN.ms.indexOf(it), nb = BARN.ms[i + sd]; m.lookDir = nb && nb.m ? { x: sd, y: 0.1 } : { x: sd * 0.6, y: -0.3 }; if (nb && nb.m && Math.random() < 0.35 * (1 + T.agr)) m.setEmo(T.valor < -0.2 && Math.random() < 0.5 ? 'surprised' : 'happy', 1, 1); } /* mira a su vecino (o a su alrededor) */
+    else m.lookDir = null; }
 }
 function barnLeaveStep(dt) { // los que van saliendo al rancho (también mientras miras a otro de cerca: no se pausan)
   for (const L of BARN.leaves.slice()) { // se para, camina hacia la izquierda hasta la puerta y sale (pedido del dueño)
@@ -5489,6 +5709,8 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.82', d: '2026-11-24', items: ['Jefe: el manotazo y el agarre del Titán también se pueden esquivar, igual que los disparos en los otros modos.', 'En el granero puedes acariciar a un monstruo sin elegirlo, frotándolo despacio como en el rancho (le sube la moral).'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia y ataca más rápido; además intenta agarrar a tus monstruos para lanzarlos.', 'Jefe: los brazos y las manos del Titán quedan delante o detrás de tus monstruos según dónde estén; la mano se abre para agarrar y el monstruo atrapado queda detrás de ella.', 'Jefe: para lanzar a tu monstruo, el Titán toma mucho impulso: saca la mano bien lejos de la pantalla y la trae de vuelta con fuerza contra la pared, o la sube muy alto y lo azota contra el piso.', 'Jefe: a veces hace una ráfaga de golpes rápidos seguidos (con las dos manos, o con la que le queda); ya no necesita perder una mano para agarrar y lanzar, y al rugir de rabia levanta la mano del piso.', 'Jefe: a tus monstruos que van volando a veces les da un manotazo con la mano abierta y los bota.', 'Jefe: al atrapar a tu monstruo se le asoma la cabeza por arriba de la mano; para azotarlo contra el piso, el Titán sube la mano hasta salir de la pantalla y la baja rápido.', 'Jefe: si a tu monstruo le queda un solo golpe, el Titán lo agarra, se lo lleva a la boca y le come la cabeza de un mordisco (con ruido de mordisco), y al soltarlo simplemente cae. El pulgar queda detrás del monstruo atrapado.', 'Jefe: cuando una mano no ataca, descansa abierta y apoyada en el suelo en la esquina de atrás de su lado (y a veces cierra y abre la mano un par de veces); el brazo se une al centro de la mano.', 'Jefe: de vez en cuando el Titán ruge y todo tiembla; cada vez que ruge, tus monstruos quedan aturdidos (en la entrada ponen cara de mareados).', 'Jefe: la mano en reposo a veces golpea el piso como en la entrada.', 'Jefe: los «fatality» (comerle o arrancarle la cabeza) pasan sólo de vez en cuando. Para arrancarla, una mano sostiene a tu monstruo y la otra le agarra la cabeza con la parte del pulgar y se la saca. A los monstruos sin cabeza les quita la parte donde tienen la cara.', 'Jefe: sonidos grabados de arrancar y de huesos que se rompen en los «fatality»; los «fatality» son más lentos y a la cabeza le cuesta salir (tu monstruo se estira y de golpe cede, como un elástico); en el arrancado las dos manos quedan delante de tu monstruo; el mordisco en sí es rápido; después cae y la cámara del K.O. se activa cuando toca el piso.', 'Jefe: ya no suena el sonido de K.O. de los otros modos.', 'Jefe: por ahora no tiene reloj ni límite de tiempo.', 'Jefe: música épica de orquesta y coro durante la pelea.', 'Jefe: al lanzar a tu monstruo (a los lados o al piso), siempre queda detrás de la mano.', 'Jefe: en los «fatality» tu monstruo se ve un poco más chico, y mientras está en la mano del Titán ya no le llegan otros golpes.', 'Jefe: cada mano ataca sólo a los monstruos de su lado (si no hay nadie, se queda descansando), pero la mano que le queda va por toda la arena; al subir va abierta, al apuntar forma el puño y en la ráfaga siempre es puño.', 'Jefe: en el mordisco tu monstruo se estira desde la boca del Titán hasta su mano.', 'Jefe: los golpes del Titán al suelo se pueden esquivar, igual que los disparos en los otros modos.', 'Las tácticas de combate ahora también son la forma de ser de tu monstruo en el rancho y el granero: los de cerca son sociables y los de lejos solitarios; los que van al más cercano son curiosos y los que van al más débil cuidan y juegan con los pequeños; los «con todo» son atrevidos y saltan más, y los que se cuidan son tímidos y se asustan fácil; los de golpes rápidos son inquietos y los de golpes fuertes tranquilos y dormilones; los que esquivan se apartan de un saltito y los que aguantan no se mueven.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
@@ -6083,6 +6305,7 @@ let touch = null, petAcc = 0;
 const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY - homeView.gy) / homeView.k });
 cv.addEventListener('pointerdown', e => {
   if (scene === 'barn') { if (document.querySelector('.modal.on')) return; BARN.drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), t0: performance.now(), v: 0, moved: false, id: e.pointerId, mode: null, zoom: BARN.focus != null, onMon: false };
+    if (BARN.focus == null) { const L = barnToLocal(e.clientX, e.clientY); BARN.drag.petIt = BARN.ms.find(it => it && it.m && it.hit && !it.arrive && !barnLeaving(it) && e.clientX > it.hit.x0 && e.clientX < it.hit.x1 && e.clientY > it.hit.y0 && e.clientY < it.hit.y1 - (it.hit.y1 - it.hit.y0) * 0.12) || null; } /* sin elegirlo: frotar despacio encima lo acaricia, como en el rancho (pedido del dueño) */
     if (BARN.focus != null) { const it = BARN.ms[BARN.focus], h = it && it.hit, w = barnToLocal(e.clientX, e.clientY); BARN.drag.onMon = !!(h && w.x > h.x0 && w.x < h.x1 && w.y > h.y0 && w.y < h.y1);
       if (BARN.drag.onMon && it.m) { const G = BARN.drag, l = barnMonLocal(it, e.clientX, e.clientY); G.last = l; G.hist = [[l.x, l.y, performance.now()]]; G.timer = setTimeout(() => { if (BARN.drag === G && !G.mode) barnGrab(it, G); }, GRAB_HOLD_MS); } } /* mantener presionado = tomarlo */ BARN.vx = 0; BARN.goto = null; try { cv.setPointerCapture(e.pointerId); } catch (err) { } return; } // granero: deslizar a los lados
   if (scene === 'home' && homePage === 1 && ranchMode && !zoom && RANCH.view) { // rancho: arrastrar a los lados lo gira, tocar elige
@@ -6102,11 +6325,12 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   if (scene === 'barn') { const G = BARN.drag; if (!G || e.pointerId !== G.id) return; const now = performance.now(), dx = e.clientX - G.lx, tx = e.clientX - G.x0, ty = e.clientY - G.y0;
-    if (!G.mode && !G.grab && Math.hypot(tx, ty) > 10) { G.mode = G.zoom && G.onMon ? 'pet' : Math.abs(ty) > Math.abs(tx) ? 'v' : 'h'; G.moved = true; } // vertical: deslizar hacia abajo sale (al rancho, o de cerca: se aleja)
+    if (!G.mode && !G.grab && Math.hypot(tx, ty) > 10) { const slow = Math.hypot(tx, ty) / Math.max(1, now - G.t0) <= 0.9; G.mode = G.zoom && G.onMon ? 'pet' : G.petIt && slow ? 'gpet' : Math.abs(ty) > Math.abs(tx) ? 'v' : 'h'; G.moved = true; } /* (rápido = recorrer camas; despacio sobre un monstruo = acariciar) */ // vertical: deslizar hacia abajo sale (al rancho, o de cerca: se aleja)
     if (G.grab) { const it = BARN.ms[BARN.focus], m = it && it.m; if (!m) return; const l = barnMonLocal(it, e.clientX, e.clientY), hw = barnSp() * 0.4 / (it.k || 1); // lo llevas colgando del dedo (sin salirte de su cama)
       m.gx = clamp(l.x - G.offX, -hw, hw); m.z = Math.max(0, G.offY - l.y); G.hist.push([l.x, l.y, performance.now()]); if (G.hist.length > 6) G.hist.shift();
       const h = G.hist, a = h[0], b = h[h.length - 1], v = Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.max(0.016, (b[2] - a[2]) / 1000); if (v > 1400 && !m.sleep) m.setEmo('dizzy', 0.8, 4); return; } // lo sacudes mucho = se marea
     if (G.mode === 'pet') { clearTimeout(G.timer); const it = BARN.ms[BARN.focus], l = barnMonLocal(it, e.clientX, e.clientY); barnPet(it, G.last || l, l); G.last = l; G.lx = e.clientX; G.ly = e.clientY; return; }
+    if (G.mode === 'gpet') { const it = G.petIt, l = barnMonLocal(it, e.clientX, e.clientY); barnPet(it, G.last || l, l); G.last = l; return; }
     if (G.mode !== 'h' || G.zoom) return;
     BARN.x -= dx / barnSp(); G.v = -dx / barnSp() / Math.max(0.001, (now - G.lt) / 1000); G.lx = e.clientX; G.lt = now; return; }
   const G = RANCH.drag;
@@ -6152,6 +6376,7 @@ cv.addEventListener('pointerup', e => {
       if (G.mode === 'v') { if (e.clientY - G.y0 > 60) barnUnzoom(); return; }
       if (G.mode === 'h') { const dx = e.clientX - G.x0; if (Math.abs(dx) > 50) { const j = barnNeighbor(dx < 0 ? 1 : -1); if (j != null) { barnSelect(j); BARN.focus = j; barnUI(true); } } return; }
       if (G.onMon) { if (it && it.m) { const l = barnMonLocal(it, e.clientX, e.clientY); it.m.poke(l.x, l.y); } else barnPoke(it); } return; } // tocar = sacudirlo (se enoja o se asusta según su personalidad)
+    if (G.mode === 'gpet') { if (G.petIt && G.petIt.m) G.petIt.m.setEmo('happy', 5, 2); return; } // queda contento
     if (G.mode === 'v') { if (e.clientY - G.y0 > 60) leaveBarn(); return; } // dedo hacia abajo: al rancho
     if (G.moved) { BARN.vx = performance.now() - G.lt < 120 ? clamp(G.v, -12, 12) : 0; return; }
     const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
@@ -6241,14 +6466,14 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
   }
   lastMode = mode; lastTeam = pick ? team : null;
   const me = team[0];
-  TOP = mode === 'boss' ? BOSS.top : 170; // con el jefe, más espacio arriba para su cuerpo
+  TOP = mode === 'boss' ? BOSS.top * BOSS.big : 170; // con el jefe, más espacio arriba para su cuerpo
   const zoom = Math.max(...team.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82, adult: 1, awakened: 1 }[r.stage] || 1)));
-  ARENA_W = 600 * zoom;
+  const bz = mode === 'boss' ? BOSS.big : 1; ARENA_W = 600 * zoom * bz;
   const players = team.map(r => { const m = new Monster(r); m.isPlayer = true; m.team = 0; return m; });
   const foe = ref => makeFoe(ref);
   const list = [...players];
   if (mode === '1v1') { const e = foe(me); e.team = 1; list.push(e); }
-  else if (mode === 'boss') { const brec = bossRec(); for (const sd of [-1, 1]) { const h = new BossHand(brec, sd, players[0], zoom); h.team = 1; list.push(h); } list.bossRec = brec; } // el jefe: sus dos manos pelean en la arena
+  else if (mode === 'boss') { const brec = bossRec(); for (const sd of [-1, 1]) { const h = new BossHand(brec, sd, players[0], zoom * bz); h.team = 1; list.push(h); } list.bossRec = brec; } // el jefe: sus dos manos pelean en la arena
   else if (mode === '2v2') {
     if (players.length < 2) { const al = foe(me); al.team = 0; list.push(al); } // aliado al azar
     for (const ref of [team[0], team[1] || team[0]]) { const e = foe(ref); e.team = 1; list.push(e); }
@@ -6261,16 +6486,18 @@ function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST
   // En vertical, la arena llena todo el alto que queda bajo los datos de los peleadores (y sobre el botón ULTIMATE)
   if (H / W > 1.25) {
     const k = W / (ARENA_W + 60), avail = ($('ultBar').hidden ? H - 16 : $('ultBar').getBoundingClientRect().top - 8) - $('fighters').getBoundingClientRect().bottom - 8;
-    ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom, 1400 * zoom);
-  } else ARENA_D = 560 * zoom;
-  battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('angry', 9999, 1); battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
+    ARENA_D = clamp((avail / k - TOP - 30) / DEPTH, 420 * zoom * bz, 1400 * zoom * bz);
+  } else ARENA_D = 560 * zoom * bz;
+  battle = new Battle(list, mode); battle.kcamOn = true; if (list.bossRec) { battle.bossBody = new Monster(list.bossRec); battle.bossBody.setEmo('focus', 9999, 1); /* enojado de verdad cuando le destruyen un brazo */ battle.bossK = zoom; $('modeLbl').textContent = 'Jefe · ' + list.bossRec.name; } battle.arena = pickArena(); $('modeLbl').textContent += ' · ' + ARENAS[battle.arena].n; // (las simulaciones no tienen kill cam) // arena al azar, con su nombre arriba (pedido del dueño)
   battle.introT = INTRO_S; battle.shake = 6; for (const m of list) m.setEmo('focus', INTRO_S, 2); // 3, 2, 1... ¡FIGHT!
+  if (mode === 'boss') { battle.preT = BOSS_PRE; battle.shake = 0; SFX.bmStart(); } // (con su música) // el Titán ruge y golpea la arena antes del conteo (pedido del dueño)
   scene = 'battle';
   keepAwake(true);
 }
 
 // Cuenta regresiva estilo arcade: números metálicos que golpean la pantalla y un "FIGHT!" en llamas
 function drawIntro(b) {
+  if (b.preT > 0) return; // (la entrada del jefe va antes del conteo)
   let txt, p, big = false;
   if (b.introT > 0) { if (!b._annIntro && b.mode === 'boss') b._annIntro = true; /* contra el jefe no hay comentaristas ni público (pedido del dueño) */ if (!b._annIntro) { b._annIntro = true; ANN.start(); const A0 = b.ms.find(x => x.isPlayer) || b.ms[0], B0 = b.ms.find(x => x.team !== A0.team); ANN.ev('intro', 0, A0 && A0.name, B0 && B0.name); } const n = Math.ceil(b.introT / INTRO_STEP); if (b._sndN !== n) { b._sndN = n; SFX.count(n); } } else if (b.fightT != null && !b._sndF) { b._sndF = true; SFX.fight(); if (b.mode !== 'boss') { if (!ANN.on) ANN.start(); ANN.ev('go'); } } // el relator presenta durante el 3, 2, 1 y grita «Fight!» / «¡A luchar!» (pedido del dueño) // sonido de la cuenta regresiva y del FIGHT!
   if (b.introT > 0) { const n = Math.ceil(b.introT / INTRO_STEP); txt = String(n); p = 1 - (b.introT - (n - 1) * INTRO_STEP) / INTRO_STEP; }
@@ -6297,8 +6524,8 @@ const KO_HIT = [0.12, 0.62], KO_FALL = 0.14, KO_DELAY = 1; // KO_DELAY: el «K.O
 function drawCrowd(k) { // reacción del público al empate: aplausos si fue intenso, abucheo si no (pedido del dueño)
   if (k.cheer) { CROWD.react('clap'); setTimeout(() => CROWD.react('cheer'), 400); } else if (!CROWD.react('boo')) SFX.boo(); }
 function drawOTTimer(b, top = H * 0.05) { // reloj de la muerte súbita: 10 s que bajan (pedido del dueño)
-  const boss = b.mode === 'boss', TOT = boss ? BOSS.time : OT_SHOW; // con el jefe, el reloj se ve toda la pelea (pedido del dueño)
-  if (boss ? (b.over || b.introT > 0 || b.koBig || b.timeBig) : (!(b.time > OT_START) || b.over || b.drawBig || b.koBig)) return; const left = boss ? Math.max(0, BOSS.time - b.time / BATTLE_SPEED) : Math.max(0, OT_TIMER - (b.time - OT_START) / BATTLE_SPEED), n = Math.ceil(left); if (left > TOT) return;
+  const boss = b.mode === 'boss', TOT = boss ? BOSS.time : OT_SHOW; if (boss && !BOSS.timer) return; /* sin reloj por ahora (pedido del dueño) */ // con el jefe, el reloj se ve toda la pelea (pedido del dueño)
+  if (boss ? (b.over || b.introT > 0 || b.preT > 0 || b.koBig || b.timeBig) : (!(b.time > OT_START) || b.over || b.drawBig || b.koBig)) return; const left = boss ? Math.max(0, BOSS.time - b.time / BATTLE_SPEED) : Math.max(0, OT_TIMER - (b.time - OT_START) / BATTLE_SPEED), n = Math.ceil(left); if (left > TOT) return;
   if (b._otSec !== n) { b._otSec = n; if (n <= 3 && n > 0) SFX.count(4 - n); else if (n > 0 && n <= 10) SFX.beep(false); if (n === 5) ANN.ev('tleft'); }
   const fr = left - Math.floor(left), urg = n <= 3, /* igual que el de la muerte súbita (pedido del dueño) */ pulse = 1 + (urg ? 0.25 : 0.1) * Math.pow(fr, 3), fs0 = Math.min(W * 0.09, H * 0.065), fs = fs0 * pulse, x = boss ? fs0 * 1.1 + 6 : W / 2, y = top + fs0 * 0.8; /* con el jefe, a un costado para no taparle la cara */ // justo bajo los datos de los peleadores
   ctx.save(); ctx.globalAlpha = Math.min(1, (TOT - left) / 0.4 + (boss ? 1 : 0)); const r = fs * 0.75;
@@ -6389,7 +6616,7 @@ function setupUltBar(list) {
   bar.hidden = !mine.length;
   bar.querySelectorAll('[data-ultm]').forEach(b => b.onclick = () => {
     const m = battle.ms[+b.dataset.ultm];
-    if (!m || !m.ultReady || m.ultRequest || ultBusy(m) || m.dead || battle.over || battle.introT > 0) return;
+    if (!m || !m.ultReady || m.ultRequest || ultBusy(m) || m.dead || battle.over || battle.introT > 0 || battle.preT > 0) return;
     m.ultRequest = true; if (battle.puppet) lanSend({ t: 'u' }); updateUltBar(); try { navigator.vibrate && navigator.vibrate(20); } catch (e) { }
   });
 }
@@ -6398,7 +6625,7 @@ function updateUltBar() {
   if (!battle) return;
   $('ultBar').querySelectorAll('[data-ultm]').forEach(b => {
     const m = battle.ms[+b.dataset.ultm], used = !m.ultReady || m.ultRequest || ultBusy(m), cd = !m.dead && !m.ultReady && !m.ultRequest && m.ultCd > 0;
-    b.disabled = used || m.dead || battle.over || battle.introT > 0;
+    b.disabled = used || m.dead || battle.over || battle.introT > 0 || battle.preT > 0;
     b.classList.toggle('cd', cd); // recargando: segundos grandes y barra dorada que se llena
     if (cd) b.style.setProperty('--p', (100 * (1 - m.ultCd / (ULT_RECHARGE_S * BATTLE_SPEED))).toFixed(1) + '%');
     b.querySelector('b').textContent = m.dead ? 'K.O.' : m.ultRequest || ultBusy(m) ? '¡CARGANDO!' : cd ? `${Math.ceil(m.ultCd / BATTLE_SPEED)} s` : !m.ultReady ? 'USADA' : 'ULTIMATE';
@@ -6422,7 +6649,7 @@ async function keepAwake(on) {
 // al volver a la app en medio de una pelea, el navegador lo suelta: se pide de nuevo
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && scene === 'battle') keepAwake(true); });
 
-function goHome() { if (scene === 'battle') ldCover('Volviendo al rancho…'); /* pantalla de carga al volver de cualquier pelea (pedido del dueño) */ ANN.stop(); $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
+function goHome() { if (scene === 'battle') ldCover('Volviendo al rancho…'); /* pantalla de carga al volver de cualquier pelea (pedido del dueño) */ ANN.stop(); $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); whenClear(checkGrowth); }
 
 // ---------- Crecimiento: ocurre al volver al menú, con animación a pantalla completa ----------
 function newParts(o, n) { // partes que tiene la etapa nueva y no tenía la anterior, en el orden en que aparecen
@@ -6452,6 +6679,8 @@ function partNodes(M, key) {
   }
   return [];
 }
+// espera a que se quite la pantalla de carga (la de inicio o la de volver de la pelea) para que no tape la animación de crecer (pedido del dueño)
+function whenClear(fn) { const b = $('boot'), ld = $('ld'), ok = (!b || b.classList.contains('out')) && (!ld || ld.hidden || ld.classList.contains('out')); if (ok) fn(); else setTimeout(() => whenClear(fn), 100); }
 function checkGrowth() {
   const elig = r => r && r.stage !== 'egg' && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
   const rec = [...(save.monsters.length ? [cur()] : []), ...save.monsters].find(elig);
@@ -6754,7 +6983,7 @@ function loopFrame(now) {
       if (battle.lan && (LAN.sendT = (LAN.sendT + 1) % (battle.ms.length > 4 ? 3 : 2)) === 0) lanSend(lanSnapshot()); // con muchos jugadores, 20 veces por segundo
     }
     ANN.step(dt);
-    if (battle.over && !battle._annEnd) { SFX.otStop(); const B = battle; B._annEnd = true; B._overAt = performance.now(); const talk = ANN.on && !CAST.muted && SFX.on; B._annUntil = talk ? Infinity : 0; // cierre del relator: el resultado espera a que termine (pedido del dueño)
+    if (battle.over && !battle._annEnd) { SFX.otStop(); SFX.bmStop(); const B = battle; B._annEnd = true; B._overAt = performance.now(); const talk = ANN.on && !CAST.muted && SFX.on; B._annUntil = talk ? Infinity : 0; // cierre del relator: el resultado espera a que termine (pedido del dueño)
       if (talk) setTimeout(() => { if (battle !== B) return; if (!B.isDraw) { const w = B.ms.find(x => x.team === B.winTeam && !x.cloneOf); ANN.ev('end', 0, w && w.name); }
         ANN.on = false; B._annUntil = performance.now() + CLIP.wait() * 1000 + 350; setTimeout(() => { if (battle === B || !ANN.on) CROWD.stop(); }, CLIP.wait() * 1000 + 4000); }, B.koBig ? (KO_DELAY + 0.75) * 1000 : B.drawBig ? (KO_DELAY + 0.3) * 1000 : 500); }
     if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
@@ -7189,7 +7418,7 @@ $('btnInstall').onclick = async () => {
 addEventListener('appinstalled', () => { $('btnInstall').hidden = true; });
 
 renderHome();
-checkGrowth();
+whenClear(checkGrowth);
 if (save.notice) { const n = save.notice; delete save.notice; persist(); ask(n, { ok: 'Entendido', cancel: null }); }
 setTimeout(async () => { // la partida empezó de cero pero hay una copia con más monstruos: ofrecer recuperarla
   if (saveCount(save) > 1) return;
