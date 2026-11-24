@@ -138,6 +138,7 @@ class Fighter {
       return { sd, hip, knee, foot, hx: sd * B.hipX, ph: sd > 0 ? Math.PI : 0 };
     });
     I.hem = [-1, 1].map(sd => add(I.root, sd * B.torW * 0.54, B.legU * 0.85, 70, 0.18)); // borde de la túnica: blando, se mece al caminar
+    for (const i of [I.lower, I.upper, I.head]) N[i].ff = true; // torso y cabeza no se quedan atrás al caminar (si no, la cadera iba adelante y se veía inclinada la parte de abajo)
     this.legSum = B.legU + B.legL;
   }
   rootTarget() { return { x: this.gx, y: this.gy - this.legSum * 0.93 * this.s - this.z }; }
@@ -150,11 +151,12 @@ class Fighter {
     const sp = Math.hypot(this.vx, this.vy), moving = clamp(sp / 50, 0, 1);
     this.walkPh += sp * 0.11 * dt;
     const lean = clamp(this.vx / 150, -1, 1);
+    const want = clamp((this.wantVx ?? this.vx) / 150, -1, 1); this.leanU = (this.leanU || 0) + (want - (this.leanU || 0)) * Math.min(1, dt * 12); // el pecho se inclina primero, hacia donde quiere ir (pedido del dueño)
     const root = N[0], rt = this.rootTarget();
     const bob = Math.abs(Math.sin(this.walkPh)) * 2.5 * moving + Math.sin(t * 2.2) * 0.6;
     root.x = rt.x; root.y = rt.y - bob * s;
-    N[I.lower].ax = lean * 1.2; N[I.upper].ax = lean * 2.6; N[I.upper].ay = Math.sin(t * 2) * 0.6;
-    const head = N[I.head]; head.ax = lean * 3.8; head.ay = 0;
+    N[I.lower].ax = -lean * 1.8; N[I.upper].ax = this.leanU * 4.5; N[I.upper].ay = Math.sin(t * 2) * 0.6 + Math.abs(this.leanU) * 0.8;
+    const head = N[I.head]; head.ax = this.leanU * 2.2; head.ay = 0;
     for (const a of I.arms) { // brazos: se balancean al caminar
       const el = N[a.el], ha = N[a.ha], sw = Math.sin(this.walkPh + (a.sd > 0 ? 0 : Math.PI)) * moving;
       el.ax = a.sd * Math.sin(t * 1.6) * 1 - lean * 2; el.ay = sw * 3;
@@ -177,7 +179,8 @@ class Fighter {
       const n = N[i], P = N[n.p];
       const tx = n.useT ? n.tx : P.x + (n.ox + n.ax) * s, ty = n.useT ? n.ty : P.y + (n.oy + n.ay) * s;
       const k = n.k * n.boost * RIG_STIFF, c = n.c * RIG_DAMP * Math.sqrt(n.boost * RIG_STIFF);
-      n.vx += (k * (tx - n.x) - c * n.vx) * dt; n.vy += (k * (ty - n.y) - c * n.vy) * dt;
+      const fx = n.ff ? this.vx * c / k : 0, fy = n.ff ? this.vy * DEPTH * c / k : 0; // compensa el retraso del resorte al avanzar
+      n.vx += (k * (tx + fx - n.x) - c * n.vx) * dt; n.vy += (k * (ty + fy - n.y) - c * n.vy) * dt;
       n.x += n.vx * dt; n.y += n.vy * dt;
       if (n.len > 0.5) {
         const dx = n.x - P.x, dy = n.y - P.y, d = Math.hypot(dx, dy) || 1e-4, L = n.len * s, mn = L * 0.55, mx = L * 1.3;
@@ -203,23 +206,25 @@ class Fighter {
       const fw = B.legW * 1.45 * s, fh = B.legW * 0.7 * s, fx = f.x + L.sd * 1.2 * s;
       rectPath(ctx, fx - fw / 2, f.y - fh * 0.6, fw, fh); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = '#3a2a1e'; ctx.fill();
     }
-    // túnica: torso + falda (un solo contorno)
-    const r = P(I.root), up = P(I.upper);
-    let ax = up.x - r.x, ay = up.y - r.y; const aL = Math.hypot(ax, ay) || 1; ax /= aL; ay /= aL;
-    const px = -ay, py = ax, tw = B.torW * 0.5 * s, top = { x: up.x + ax * B.torH * 0.15 * s, y: up.y + ay * B.torH * 0.15 * s };
-    const bl = { x: r.x - px * tw, y: r.y - py * tw }, br = { x: r.x + px * tw, y: r.y + py * tw }, tl = { x: top.x - px * tw, y: top.y - py * tw }, tr = { x: top.x + px * tw, y: top.y + py * tw };
+    // túnica: torso + falda (un solo contorno). El torso tiene un quiebre a media altura (nodo lower): abajo casi derecho, arriba se inclina
+    const r = P(I.root), lo = P(I.lower), up = P(I.upper), tw = B.torW * 0.5 * s;
+    const nrm = (x, y) => { const L = Math.hypot(x, y) || 1; return { x: x / L, y: y / L }; };
+    const a1 = nrm(lo.x - r.x, lo.y - r.y), a2 = nrm(up.x - lo.x, up.y - lo.y), am = nrm(a1.x + a2.x, a1.y + a2.y);
+    const top = { x: up.x + a2.x * B.torH * 0.15 * s, y: up.y + a2.y * B.torH * 0.15 * s };
+    const side = (c, a, k) => ({ x: c.x - a.y * tw * k, y: c.y + a.x * tw * k }); // k = -1 izquierda, 1 derecha
+    const bl = side(r, a1, -1), br = side(r, a1, 1), ml = side(lo, am, -1), mr = side(lo, am, 1), tl = side(top, a2, -1), tr = side(top, a2, 1);
     const hl = P(I.hem[0]), hr = P(I.hem[1]);
-    const torsoP = () => { ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y); ctx.lineTo(br.x, br.y); ctx.lineTo(bl.x, bl.y); ctx.closePath(); };
-    const skirtP = () => { ctx.beginPath(); ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y); ctx.lineTo(hr.x, hr.y); ctx.lineTo(hl.x, hl.y); ctx.closePath(); };
+    const poly = pts => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y); ctx.closePath(); };
+    const torsoP = () => poly([tl, tr, mr, br, bl, ml]), skirtP = () => poly([bl, br, hr, hl]);
     ctx.strokeStyle = OL; ctx.lineWidth = lw * 2; skirtP(); ctx.stroke(); torsoP(); ctx.stroke();
     ctx.fillStyle = E.dark; skirtP(); ctx.fill();
     ctx.strokeStyle = E.trim; ctx.lineWidth = 2.2 * s; ctx.beginPath(); ctx.moveTo(hl.x, hl.y - 1.4 * s); ctx.lineTo(hr.x, hr.y - 1.4 * s); ctx.stroke(); // ribete del borde
     ctx.fillStyle = E.robe; torsoP(); ctx.fill();
-    // ribete al centro y cinturón
+    // ribete al centro, cinturón y sombra de un lado
     const mid = (a, b, t) => ({ x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t) });
-    ctx.strokeStyle = E.trim; ctx.lineWidth = 2.4 * s; { const a = mid(tl, tr, 0.5), b = mid(bl, br, 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-    { const a = mid(bl, tl, 0.22), b = mid(br, tr, 0.22); ctx.strokeStyle = E.dark; ctx.lineWidth = 4 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.lineCap = 'round'; }
-    ctx.fillStyle = 'rgba(0,0,0,.14)'; { const a = mid(tr, tl, 0.28), b = mid(br, bl, 0.28); ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(br.x, br.y); ctx.closePath(); ctx.fill(); } // sombra de un lado
+    ctx.strokeStyle = E.trim; ctx.lineWidth = 2.4 * s; { const a = mid(tl, tr, 0.5), m = mid(ml, mr, 0.5), b = mid(bl, br, 0.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(m.x, m.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    { const a = mid(bl, ml, 0.62), b = mid(br, mr, 0.62); ctx.strokeStyle = E.dark; ctx.lineWidth = 4 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.lineCap = 'round'; }
+    ctx.fillStyle = 'rgba(0,0,0,.14)'; poly([tr, mid(tr, tl, 0.28), mid(mr, ml, 0.28), mid(br, bl, 0.28), br, mr]); ctx.fill();
     // cabeza: cuadrada, sin rostro
     const hd = P(I.head), hs = B.head * s, ha = Math.atan2(hd.y - up.y, hd.x - up.x) + Math.PI / 2;
     ctx.save(); ctx.translate(hd.x, hd.y); ctx.rotate(ha);
@@ -390,14 +395,14 @@ function duelStep(dt) {
   const fight = G.phase === 'fight', raw = fight ? readInput() : { x: 0, y: 0, src: G.src || 'none' }, k = Math.min(1, dt * 10); G.inp.x += (raw.x - G.inp.x) * k; G.inp.y += (raw.y - G.inp.y) * k; G.src = raw.src;
   // tú: caminas hacia donde inclinas
   const a = Math.min(1, dt * 7);
-  me.vx += (G.inp.x * WALK_SPEED - me.vx) * a; me.vy += (G.inp.y * WALK_SPEED - me.vy) * a;
+  me.wantVx = G.inp.x * WALK_SPEED; me.vx += (G.inp.x * WALK_SPEED - me.vx) * a; me.vy += (G.inp.y * WALK_SPEED - me.vy) * a;
   // rival: pasea cerca de su lugar y se aparta si te acercas mucho
   if (fight) foe.wait -= dt;
   if (!foe.goal && foe.wait <= 0) { const an = Math.random() * TAU, d = 30 + Math.random() * 70; foe.goal = { x: clamp(foe.home.x + Math.cos(an) * d, 40, ARENA_W - 40), y: clamp(foe.home.y + Math.sin(an) * d, 40, ARENA_D - 40) }; }
   let fvx = 0, fvy = 0;
   if (foe.goal) { const dx = foe.goal.x - foe.x, dy = foe.goal.y - foe.y, d = Math.hypot(dx, dy); if (d < 6) { foe.goal = null; foe.wait = 1 + Math.random() * 2.5; } else { fvx = dx / d * 60; fvy = dy / d * 60; } }
   { const dx = foe.x - me.x, dy = foe.y - me.y, d = Math.hypot(dx, dy) || 1; if (d < 70) { fvx += dx / d * 70 * (1 - d / 70) * 1.5; fvy += dy / d * 70 * (1 - d / 70) * 1.5; foe.home = { x: clamp(foe.x, 60, ARENA_W - 60), y: clamp(foe.y, 60, ARENA_D - 60) }; } }
-  foe.vx += (fvx - foe.vx) * Math.min(1, dt * 5); foe.vy += (fvy - foe.vy) * Math.min(1, dt * 5);
+  foe.wantVx = fvx; foe.vx += (fvx - foe.vx) * Math.min(1, dt * 5); foe.vy += (fvy - foe.vy) * Math.min(1, dt * 5);
   for (const m of G.ms) {
     m.x += m.vx * dt; m.y += m.vy * dt;
     if (m.x < m.r) { m.x = m.r; m.vx = Math.max(0, m.vx); } if (m.x > ARENA_W - m.r) { m.x = ARENA_W - m.r; m.vx = Math.min(0, m.vx); }
