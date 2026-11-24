@@ -112,6 +112,9 @@ const TAP_MOVE = 14;  // px: si el dedo se mueve menos que esto es un toque (sal
 const JUMP = { min: 230, max: 520, t0: 0.06, t1: 0.45, g: 1100 }; // salto: toque rápido = salto corto, un poco más largo = más fuerte (hasta t1 s)
 const JOY_R = 44;     // palanca para caminar (sólo en el link de prueba, donde no llega la inclinación)
 const TURN = 5;
+// Tomar el elemento (pedido del dueño): tocar un pozo o una llama y arrastrar saca una esfera de agua o una bola de fuego, sólo si eres de ese elemento
+const ORB = { r: 11, k: 170, z: 0.6, fall: 520, fade: 0.55 }; // tamaño, resorte que la lleva hacia tu dedo, gravedad del agua al soltarla, cuánto tarda en deshacerse
+const PROP_EL = { water: 'agua', fire: 'fuego' };
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
 
 const load = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; } };
@@ -462,11 +465,16 @@ cv.addEventListener('pointermove', e => {
     const me = G.me, N = me.nodes, a = pickArm(p.x0);
     if (a) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
   }
+  if (p.prop >= 0 && p.arm && !p.orb && G && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE) { // arrastrar desde el pozo o la llama: si es tu elemento, lo tomas
+    const pr = arenaProps()[p.prop];
+    if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
+  }
   if (p.arm && p.arm.ctl) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
 });
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; PTRS.delete(e.pointerId);
+  if (p.orb) p.orb.held = false; // al soltarlo, el agua cae y salpica; el fuego se apaga
   if (p.arm) p.arm.ctl = null; // al soltar, el brazo vuelve a su posición
   else if (up && !p.moved && G && G.phase === 'fight') { const d = (performance.now() - p.t0) / 1000; G.me.jump(lerp(JUMP.min, JUMP.max, clamp((d - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1))); }
   if (G) G.me.charge = 0;
@@ -493,7 +501,7 @@ function startDuel(el) {
   const foe = new Fighter(fel, SKINS[Math.floor(Math.random() * SKINS.length)], 'Rival');
   me.isMe = true; me.x = ARENA_W * 0.5; me.y = ARENA_D * 0.75; foe.x = ARENA_W * 0.5; foe.y = ARENA_D * 0.25;
   foe.home = { x: foe.x, y: foe.y }; foe.wait = 1.5; foe.goal = null;
-  G = { ms: [me, foe], me, foe, dust: [], inp: { x: 0, y: 0 }, t: 0 };
+  G = { ms: [me, foe], me, foe, dust: [], orbs: [], fx: [], inp: { x: 0, y: 0 }, t: 0 };
   $('fighters').innerHTML = G.ms.map(m => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div></div>`).join('');
   $('pick').hidden = true; $('hud').hidden = false; $('btnCal').hidden = true; scene = 'duel';
   me.ph = me.phT = Math.atan2(foe.x - me.x, foe.y - me.y); foe.ph = foe.phT = Math.atan2(me.x - foe.x, me.y - foe.y); me.guard = me.guardK = foe.guard = foe.guardK = 1;
@@ -556,7 +564,54 @@ function duelStep(dt) {
   for (const m of G.ms) { place(m); m.step(dt); }
   for (const q of G.dust) { q.life -= dt; q.x += q.vx * dt; q.z += 12 * dt; q.r += 6 * dt; }
   G.dust = G.dust.filter(q => q.life > 0);
+  orbStep(dt);
 }
+function orbFx(o, n) { // gotitas o chispas que suelta la esfera
+  for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 20 + Math.random() * 70;
+    G.fx.push(o.k === 'water' ? { k: 'drop', x: o.x + Math.cos(a) * ORB.r * 0.6, y: o.y + Math.sin(a) * ORB.r * 0.6, vx: Math.cos(a) * sp - o.vx * 0.1, vy: Math.sin(a) * sp - 40 - o.vy * 0.1, g: 420, life: 0.5 + Math.random() * 0.3, r: 1.6 + Math.random() * 1.8 }
+      : { k: 'ember', x: o.x + Math.cos(a) * ORB.r * 0.5, y: o.y + Math.sin(a) * ORB.r * 0.5, vx: Math.cos(a) * sp * 0.5 - o.vx * 0.15, vy: -40 - Math.random() * 60 - o.vy * 0.15, g: -30, life: 0.4 + Math.random() * 0.3, r: 1.2 + Math.random() * 1.6 }); }
+}
+function orbStep(dt) {
+  for (const o of G.orbs) {
+    o.t += dt;
+    const p = [...PTRS.values()].find(q => q.orb === o);
+    if (o.held && p) { // sigue a tu dedo con un resorte (se siente como moverlo con el control)
+      const w = toWorld(p.x, p.y), c = 2 * ORB.z * Math.sqrt(ORB.k);
+      o.vx += ((w.x - o.x) * ORB.k - o.vx * c) * dt; o.vy += ((w.y - o.y) * ORB.k - o.vy * c) * dt;
+      if (p.arm && p.arm.ctl) { p.arm.ctl.x = o.x; p.arm.ctl.y = o.y; } // la mano apunta a la esfera
+    } else { // suelta: el agua cae y salpica; el fuego sube un poco y se apaga
+      o.held = false; o.life -= dt / ORB.fade;
+      if (o.k === 'water') o.vy += ORB.fall * dt; else { o.vy -= 60 * dt; o.vx *= Math.exp(-dt * 3); }
+      if (o.life <= 0) orbFx(o, o.k === 'water' ? 16 : 12);
+    }
+    o.x += o.vx * dt; o.y += o.vy * dt;
+    const sp = Math.hypot(o.vx, o.vy); o.acc = (o.acc || 0) + dt * (o.k === 'fire' ? 18 : 2) + dt * sp / (o.k === 'water' ? 60 : 30); while (o.acc > 1) { o.acc--; orbFx(o, 1); }
+  }
+  G.orbs = G.orbs.filter(o => o.life > 0);
+  for (const q of G.fx) { q.life -= dt; q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt; }
+  G.fx = G.fx.filter(q => q.life > 0);
+}
+function drawOrb(ctx, o, T) {
+  const r = ORB.r * (o.held ? Math.min(1, 0.4 + o.t * 3) : 0.6 + 0.4 * o.life), sp = Math.hypot(o.vx, o.vy), ang = Math.atan2(o.vy, o.vx);
+  ctx.save(); ctx.globalAlpha = o.held ? 1 : Math.max(0, o.life);
+  if (o.k === 'water') { // esfera de agua: se estira hacia donde va y tiembla
+    const st = 1 + Math.min(0.55, sp / 650), wob = Math.sin(T * 11 + o.x * 0.1) * 0.07;
+    ctx.translate(o.x, o.y); ctx.rotate(ang);
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r * st); g.addColorStop(0, '#e4f7ff'); g.addColorStop(0.45, '#6cc2f2'); g.addColorStop(1, '#1f6fc0');
+    ctx.fillStyle = g; ctx.strokeStyle = '#164d86'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(0, 0, r * st * (1 + wob), r / Math.sqrt(st) * (1 - wob), 0, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.rotate(-ang); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.4, r * 0.28, r * 0.16, -0.6, 0, TAU); ctx.fill();
+  } else { // bola de fuego: núcleo brillante con llamas que quedan atrás y hacia arriba
+    ctx.translate(o.x, o.y);
+    ctx.globalCompositeOperation = 'lighter'; const gl = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.6); gl.addColorStop(0, 'rgba(255,170,60,.55)'); gl.addColorStop(1, 'rgba(255,90,20,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, r * 2.6, 0, TAU); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
+    let tx = -o.vx * 0.06, ty = -o.vy * 0.06 - 14; const tl = Math.hypot(tx, ty) || 1, ux = tx / tl, uy = ty / tl, L = Math.min(r * 3.2, r * 1.4 + tl * 0.8);
+    for (const [col, wk, lk] of [['#e2401c', 1, 1], ['#ff8a1f', 0.75, 0.8], ['#ffd25a', 0.5, 0.6]]) for (let k = -1; k <= 1; k++) {
+      const fl = 1 + 0.2 * Math.sin(T * 13 + k * 2.1 + o.x), px = -uy, py = ux, w = r * 0.75 * wk, ll = L * lk * fl * (k ? 0.75 : 1), bx = px * k * r * 0.45, by = py * k * r * 0.45;
+      ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(bx + px * w, by + py * w); ctx.quadraticCurveTo(bx + px * w + ux * ll * 0.5, by + py * w + uy * ll * 0.5, bx + ux * ll + Math.sin(T * 7 + k) * 2, by + uy * ll); ctx.quadraticCurveTo(bx - px * w + ux * ll * 0.5, by - py * w + uy * ll * 0.5, bx - px * w, by - py * w); ctx.arc(bx, by, w, Math.atan2(-py, -px), Math.atan2(py, px), true); ctx.fill(); }
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, '#fffbe6'); g.addColorStop(0.5, '#ffd25a'); g.addColorStop(1, '#ff7a1f'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * (0.85 + 0.06 * Math.sin(T * 17)), 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawFx(ctx) { for (const q of G.fx) { ctx.globalAlpha = clamp(q.life * 2.2, 0, 1); ctx.fillStyle = q.k === 'drop' ? '#7cc8f4' : q.life > 0.25 ? '#ffd25a' : '#ff6a1f'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); } ctx.globalAlpha = 1; }
 function drawDuel(ctx, V) {
   drawArena(ctx, V);
   const T = performance.now() / 1000, props = arenaProps();
@@ -568,6 +623,7 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
   for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? it.m.draw(ctx) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
+  drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
 }
 function drawCount(ctx) { // 3, 2, 1, ¡PELEA! (cada número aparece grande y se achica)
   const left = G.cd - GO_S, txt = left > 0 ? String(Math.ceil(left)) : '¡PELEA!', f = left > 0 ? 1 - (left % 1 || 1) : 1 - G.cd / GO_S;
