@@ -47,7 +47,8 @@ const { chromium, devices } = require('playwright');
     await p.waitForTimeout(500);
     const pt = await p.evaluate(i => { const f = arenaProps()[i], v = view(); return { x: v.ox + f.x * v.k, y: v.oy + (TOP + f.y * DEPTH - (f.k === 'fire' ? 20 : 0)) * v.k }; }, idx);
     await touch('touchStart', [{ x: pt.x, y: pt.y, id: 5 }]); await p.waitForTimeout(100);
-    const tx = 200, ty = 400; for (let i = 1; i <= 10; i++) { await touch('touchMove', [{ x: pt.x + (tx - pt.x) * i / 10, y: pt.y + (ty - pt.y) * i / 10, id: 5 }]); await p.waitForTimeout(25); }
+    const tx = 200, ty = 400; { const dx = tx - pt.x, dy = ty - pt.y, d = Math.hypot(dx, dy); for (let i = 1; i <= 6; i++) { await touch('touchMove', [{ x: pt.x + dx / d * 7 * i, y: pt.y + dy / d * 7 * i, id: 5 }]); await p.waitForTimeout(40); } } // empezar despacio = esfera (rápido sería salpicadura)
+    for (let i = 1; i <= 10; i++) { await touch('touchMove', [{ x: pt.x + (tx - pt.x) * i / 10, y: pt.y + (ty - pt.y) * i / 10, id: 5 }]); await p.waitForTimeout(25); }
     await p.waitForTimeout(700);
     const o = await p.evaluate(([tx, ty]) => { const o = G.orbs[0]; if (!o) return null; const v = view(); return { k: o.k, held: o.held, dist: Math.hypot(v.ox + o.x * v.k - tx, v.oy + o.y * v.k - ty) }; }, [tx, ty]);
     await touch('touchEnd', []); await p.waitForTimeout(1200);

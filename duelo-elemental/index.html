@@ -123,6 +123,8 @@ const SHIELD = { r: 34, block: 0.75, wear: 0.03 }; // radio, cuánto daño quita
 // Lanzar la esfera: si la sueltas moviéndola rápido sale disparada y daña al que golpea
 const THROW = { min: 260, max: 1000, dmg0: 8, dmgK: 0.012, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño = dmg0 + velocidad·dmgK, segundos que vuela, empujón
 const HP_MAX = 100, KO_S = 2.6;
+// Salpicadura (pedido del dueño): deslizar rápido desde tu pozo o tu llama lanza una salpicadura del elemento en esa dirección (no se controla después); también daña
+const SPLASH = { decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg0: 7, dmgK: 7 }; // px que se mueve el dedo antes de decidir, rapidez (px/s) desde la que es salpicadura y no esfera, gotas/llamas, abertura, velocidad, duración, daño = dmg0 + dmgK·(rapidez/2000, hasta 1)
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
 const REACH_BEND = 0.8; // al apuntar a un pozo, una llama o el elemento, la mano llega a este largo del brazo: el codo queda flectado (hacia atrás)
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
@@ -474,15 +476,18 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   if (e.pointerId === TOUCH.id) { TOUCH.x = e.clientX; TOUCH.y = e.clientY; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY;
+  const nowT = performance.now(); (p.hist = p.hist || [{ t: p.t0, x: p.x0, y: p.y0 }]).push({ t: nowT, x: p.x, y: p.y }); if (p.hist.length > 4) p.hist.shift(); // últimos movimientos del dedo (para saber qué tan rápido desliza)
   if (!p.moved && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE && G) { // empieza a mover el brazo del lado donde está el dedo
     const me = G.me, N = me.nodes, a = pickArm(p.x0);
     if (a) { p.moved = true; p.arm = a; a.ctl = { rx: N[a.ha].x - N[a.sh].x, ry: N[a.ha].y - N[a.sh].y, dx: 0, dy: 0 }; p.x0 = p.x; p.y0 = p.y; me.charge = 0; }
   }
-  if (p.prop >= 0 && p.arm && !p.orb && !p.stream && G && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_MOVE) { // arrastrar desde el pozo o la llama: si es tu elemento, lo tomas
-    const pr = arenaProps()[p.prop];
-    if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
+  const pdist = Math.hypot(p.x - p.x0, p.y - p.y0);
+  if (p.prop >= 0 && p.arm && !p.orb && !p.stream && !p.splashed && G && pdist > SPLASH.decide && p.hist.length >= 3) { // arrastrar desde el pozo o la llama: si es tu elemento, rápido = salpicadura, más despacio = la esfera
+    const pr = arenaProps()[p.prop], h0 = p.hist[p.hist.length - 2], v = Math.hypot(p.x - h0.x, p.y - h0.y) / Math.max(0.008, (nowT - h0.t) / 1000); // rapidez del dedo en el último tramo entre dos movimientos (si lo dejaste quieto antes de deslizar, no cuenta)
+    if (PROP_EL[pr.k] === G.me.el && v > SPLASH.v) { spawnSplash(pr, (p.x - p.x0) / pdist, (p.y - p.y0) / pdist, v, G.me); p.splashed = true; }
+    else if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
   }
-  if (p.arm && p.arm.ctl) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
+  if (p.arm && p.arm.ctl && !p.splashed) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
 });
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
@@ -514,7 +519,7 @@ function startDuel(el) {
   const foe = new Fighter(fel, SKINS[Math.floor(Math.random() * SKINS.length)], 'Rival');
   me.isMe = true; me.x = ARENA_W * 0.5; me.y = ARENA_D * 0.75; foe.x = ARENA_W * 0.5; foe.y = ARENA_D * 0.25;
   foe.home = { x: foe.x, y: foe.y }; foe.wait = 1.5; foe.goal = null;
-  G = { ms: [me, foe], me, foe, dust: [], orbs: [], fx: [], flow: [], texts: [], inp: { x: 0, y: 0 }, t: 0 };
+  G = { ms: [me, foe], me, foe, dust: [], orbs: [], fx: [], flow: [], splashes: [], texts: [], inp: { x: 0, y: 0 }, t: 0 };
   $('fighters').innerHTML = G.ms.map((m, i) => `<div class="fcard${m.isMe ? ' me' : ''}"><div class="nm"><span class="chip" style="background:${m.E.robe}"></span>${m.name}</div><div class="el">${m.E.n}</div><div class="hpb"><i id="hp${i}"></i></div><div class="shb"><i id="sh${i}" style="background:${m.E.trim}"></i></div></div>`).join('');
   $('pick').hidden = true; $('hud').hidden = false; $('btnCal').hidden = true; scene = 'duel';
   me.ph = me.phT = Math.atan2(foe.x - me.x, foe.y - me.y); foe.ph = foe.phT = Math.atan2(me.x - foe.x, me.y - foe.y); me.guard = me.guardK = foe.guard = foe.guardK = 1;
@@ -577,7 +582,7 @@ function duelStep(dt) {
   for (const m of G.ms) { place(m); m.step(dt); }
   for (const q of G.dust) { q.life -= dt; q.x += q.vx * dt; q.z += 12 * dt; q.r += 6 * dt; }
   G.dust = G.dust.filter(q => q.life > 0);
-  orbStep(dt); flowStep(dt);
+  orbStep(dt); flowStep(dt); splashStep(dt);
   for (const m of G.ms) { m.shield = Math.max(0, m.shield - STREAM.decay * dt); m.downK += ((G.phase === 'ko' && m.hp <= 0 ? 1 : 0) - m.downK) * Math.min(1, dt * 6); }
   for (const t of G.texts) { t.life -= dt; t.y -= 28 * dt; } G.texts = G.texts.filter(t => t.life > 0);
   if (G.phase === 'fight' && G.ms.some(m => m.hp <= 0)) { G.phase = 'ko'; G.koT = KO_S; clearTouches(); }
@@ -642,21 +647,54 @@ function drawShield(ctx, m, T) { // esfera de agua o fuego alrededor del persona
   }
   ctx.restore();
 }
-function hitFighter(m, o) { // la esfera lanzada golpea: el daño baja según el escudo, que se gasta
-  const sp = Math.hypot(o.vx, o.vy), raw = THROW.dmg0 + sp * THROW.dmgK, red = SHIELD.block * m.shield, dmg = raw * (1 - red);
+function hitFighter(m, o) { // la esfera lanzada golpea
+  const sp = Math.hypot(o.vx, o.vy); dealDamage(m, THROW.dmg0 + sp * THROW.dmgK, o.vx, o.vy); orbFx(o, 18);
+}
+function dealDamage(m, raw, vx, vy, kbK = 1) { // daño con o sin escudo: baja según cuánto elemento tiene alrededor, y el escudo se gasta
+  const o = { vx, vy }, sp = Math.hypot(vx, vy), red = SHIELD.block * m.shield, dmg = raw * (1 - red);
   m.shield = Math.max(0, m.shield - raw * SHIELD.wear); m.hp = Math.max(0, m.hp - dmg);
-  const dx = o.vx / (sp || 1), dy = o.vy / DEPTH / (sp || 1), L = Math.hypot(dx, dy) || 1, kb = THROW.kb * (1 - 0.6 * red);
+  const dx = o.vx / (sp || 1), dy = o.vy / DEPTH / (sp || 1), L = Math.hypot(dx, dy) || 1, kb = THROW.kb * kbK * (1 - 0.6 * red);
   m.vx += dx / L * kb; m.vy += dy / L * kb;
   for (const n of m.nodes) { n.vx += o.vx / (sp || 1) * 160 * (1 - red); n.vy += o.vy / (sp || 1) * 100 * (1 - red) - 40; } // el golpe lo sacude
   const hd = m.nodes[m.ix.head]; G.texts.push({ x: hd.x, y: hd.y - 16, str: '-' + Math.max(1, Math.round(dmg)), col: red > 0.05 ? '#bfe6ff' : '#ffe07a', life: 1 });
   if (red > 0.05) G.texts.push({ x: hd.x, y: hd.y - 32, str: 'escudo −' + Math.round(red * 100) + '%', col: '#e8f6ff', life: 1, small: true });
-  orbFx(o, 18);
+}
+function spawnSplash(pr, ux, uy, v, owner) { // salpicadura: un abanico de gotas o llamas que sale del pozo o la llama hacia donde deslizaste
+  const st = propTop(pr), sp = SPLASH.sp0 + Math.min(v, 2500) * SPLASH.spK, a0 = Math.atan2(uy, ux), parts = [];
+  for (let i = 0; i < SPLASH.n; i++) { const a = a0 + (Math.random() + Math.random() - 1) * SPLASH.spread, s2 = sp * (0.7 + Math.random() * 0.45);
+    parts.push({ x: st.x + (Math.random() - 0.5) * 8, y: st.y + (Math.random() - 0.5) * 6, vx: Math.cos(a) * s2, vy: Math.sin(a) * s2, life: SPLASH.life * (0.75 + Math.random() * 0.5), r: pr.k === 'water' ? 3 + Math.random() * 3.5 : 3.5 + Math.random() * 3, max: 0 }); }
+  for (const q of parts) q.max = q.life;
+  G.splashes.push({ k: pr.k, owner, hit: new Set(), dmg: SPLASH.dmg0 + SPLASH.dmgK * Math.min(1, v / 2000), parts });
+  const a = owner.ix.arms.find(x => x.ctl && x.ctl.abs); if (a) { a.ctl.x = st.x + ux * 70; a.ctl.y = st.y + uy * 70; } // el brazo acompaña el gesto
+}
+function splashStep(dt) {
+  for (const S of G.splashes) {
+    for (const q of S.parts) {
+      if (q.life <= 0) continue;
+      q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt;
+      if (S.k === 'water') q.vy += 300 * dt; else { q.vx *= Math.exp(-dt * 1.1); q.vy = q.vy * Math.exp(-dt * 1.1) - 50 * dt; q.r += 9 * dt; } // alcance: más o menos media arena
+      for (const m of G.ms) { if (m === S.owner) continue;
+        const c = m.nodes[m.ix.upper], top = m.nodes[m.ix.head].y - BODY.head * 0.6 * m.s, inBody = Math.abs(q.x - m.gx) < BODY.torW * 0.6 * m.s + q.r && q.y > top && q.y < m.gy + 2;
+        const inShield = m.shield > 0.05 && Math.hypot(q.x - c.x, (q.y - c.y - 6 * m.s) / 0.92) < SHIELD.r * m.s + q.r;
+        if (inBody || inShield) { if (!S.hit.has(m)) { S.hit.add(m); dealDamage(m, S.dmg, q.vx, q.vy, 0.7); } q.life = Math.min(q.life, 0.05); orbFx({ k: S.k, x: q.x, y: q.y, vx: q.vx * 0.3, vy: q.vy * 0.3 }, 1); }
+      }
+    }
+  }
+  G.splashes = G.splashes.filter(S => S.parts.some(q => q.life > 0));
+}
+function drawSplash(ctx) {
+  for (const S of G.splashes) for (const q of S.parts) {
+    if (q.life <= 0) continue; const f = q.life / q.max;
+    if (S.k === 'water') { const sp = Math.hypot(q.vx, q.vy), st = 1 + Math.min(1.2, sp / 500); ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(q.vy, q.vx)); ctx.globalAlpha = Math.min(1, f * 2); ctx.fillStyle = '#4aa6ea'; ctx.beginPath(); ctx.ellipse(0, 0, q.r * st, q.r, 0, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(230,248,255,.85)'; ctx.beginPath(); ctx.ellipse(-q.r * 0.3, -q.r * 0.3, q.r * 0.4, q.r * 0.25, 0, 0, TAU); ctx.fill(); ctx.restore(); }
+    else { ctx.save(); ctx.globalAlpha = Math.min(1, f * 1.8); ctx.fillStyle = f > 0.5 ? '#ff7a1f' : '#e2401c'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); ctx.fillStyle = f > 0.5 ? '#ffd25a' : '#ff9a2a'; ctx.beginPath(); ctx.arc(q.x - q.vx * 0.004, q.y - q.vy * 0.004, q.r * 0.55, 0, TAU); ctx.fill(); if (f > 0.6) { ctx.fillStyle = '#fff4c0'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 0.25, 0, TAU); ctx.fill(); } ctx.restore(); } // llamas: rojo y naranja por fuera, amarillo adentro
+  }
+  ctx.globalAlpha = 1;
 }
 function newRound() { // otra ronda después del K.O.
   const { me, foe } = G; clearTouches();
   for (const m of G.ms) { m.hp = HP_MAX; m.shield = 0; m.vx = m.vy = 0; m.z = m.vz = 0; }
   me.x = ARENA_W * 0.5; me.y = ARENA_D * 0.75; foe.x = ARENA_W * 0.5; foe.y = ARENA_D * 0.25; foe.home = { x: foe.x, y: foe.y }; foe.goal = null; foe.wait = 1.5;
-  G.orbs = []; G.flow = []; G.phase = 'count'; G.cd = COUNT_S + GO_S;
+  G.orbs = []; G.flow = []; G.splashes = []; G.phase = 'count'; G.cd = COUNT_S + GO_S;
 }
 function orbFx(o, n) { // gotitas o chispas que suelta la esfera
   for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 20 + Math.random() * 70;
@@ -722,7 +760,7 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
   for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? (it.m.draw(ctx), drawShield(ctx, it.m, T)) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
-  drawFlow(ctx); drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
+  drawFlow(ctx); drawSplash(ctx); drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
   ctx.textAlign = 'center'; for (const t of G.texts) { ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.small ? 11 : 18}px system-ui, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y); } ctx.globalAlpha = 1;
 }
 function drawBig(ctx, txt, f) { // letras grandes (K.O.)
