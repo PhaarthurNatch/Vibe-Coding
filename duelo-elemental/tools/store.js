@@ -19,6 +19,12 @@ const path = require('path');
   await p.waitForTimeout(800); const docked = await p.evaluate(() => G.orbs.filter(o => o.docked).length);
   await t('touchEnd', []); await p.waitForTimeout(800);
   const still = await p.evaluate(() => { const o = G.orbs.find(o => o.docked), c = G.me.nodes[G.me.ix.upper]; return o ? Math.hypot(o.x - c.x, o.y - c.y) : null; });
+  // llevar 3 esferas más: el máximo es 3 orbitando
+  for (let n = 0; n < 3; n++) { await t('touchStart', [{ x: pool.x, y: pool.y }]); await p.waitForTimeout(60);
+    for (let i = 1; i <= 15; i++) { await t('touchMove', [{ x: pool.x + (me.x - pool.x) * i / 15, y: pool.y + (me.y - pool.y) * i / 15 }]); await p.waitForTimeout(30); }
+    await p.waitForTimeout(900); await t('touchEnd', []); await p.waitForTimeout(700); }
+  const maxOk = await p.evaluate(() => G.orbs.filter(o => o.docked).length);
+  await p.evaluate(() => { const d = G.orbs.filter(o => o.docked); G.orbs = [d[0]]; });
   // deslizar rápido hacia abajo (lejos del rival): no dispara
   await t('touchStart', [{ x: 300, y: 400 }]); await p.waitForTimeout(40); for (let i = 1; i <= 3; i++) { await t('touchMove', [{ x: 300, y: 400 + i * 60 }]); await p.waitForTimeout(8); } await t('touchEnd', []); await p.waitForTimeout(300);
   const notFired = await p.evaluate(() => G.orbs.filter(o => o.docked).length);
@@ -27,9 +33,10 @@ const path = require('path');
   await t('touchStart', [{ x: 300, y: 600 }]); await p.waitForTimeout(40); for (let i = 1; i <= 3; i++) { await t('touchMove', [{ x: 300, y: 600 - i * 60 }]); await p.waitForTimeout(8); } await t('touchEnd', []);
   const flying = await p.evaluate(() => G.orbs.filter(o => o.thrown).length); await p.waitForTimeout(1200);
   const dmg = hp0 - await p.evaluate(() => G.foe.hp);
-  console.log({ early, docked, still: still && still.toFixed(1), notFired, flying, dmg: dmg.toFixed(1) });
+  console.log({ early, docked, maxOk, still: still && still.toFixed(1), notFired, flying, dmg: dmg.toFixed(1) });
   if (early !== 0) errs.push('se guardó de inmediato');
-  if (docked !== 1 || !(still < 40)) errs.push('no quedó flotando cerca del personaje');
+  if (docked !== 1 || !(still < 55)) errs.push('no quedó orbitando cerca del personaje');
+  if (maxOk !== 3) errs.push('el máximo no es 3: ' + maxOk);
   if (notFired !== 1) errs.push('disparó hacia atrás');
   if (flying !== 1 || !(dmg > 5)) errs.push('no se disparó al rival');
   console.log(errs.length ? 'ERRORS: ' + errs.join(' | ') : 'no errors'); await b.close();

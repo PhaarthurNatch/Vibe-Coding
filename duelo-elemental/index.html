@@ -124,7 +124,7 @@ const SHIELD = { r: 34, block: 0.75, wear: 0.03 }; // radio, cuánto daño quita
 const THROW = { min: 260, max: 1000, dmg: 14, life: 1.4, kb: 260 }; // velocidad mínima para lanzarla y máxima, daño (la rapidez no lo cambia, pedido del dueño), segundos que vuela, empujón
 const HP_MAX = 100, KO_S = 2.6;
 // Guardar la esfera (pedido del dueño): llevarla a tu personaje y dejarla ahí un momento hace que quede flotando cerca de él; un deslizamiento rápido hacia adelante la dispara al rival
-const DOCK = { r: 30, s: 0.45, max: 2, fire: 760, fwd: Math.PI / 3 }; // radio donde cuenta como "en tu personaje", segundos que hay que dejarla, cuántas puede guardar, velocidad del disparo, cuánto puede desviarse el deslizamiento de "hacia el rival" (60°)
+const DOCK = { r: 30, s: 0.5, max: 3, orbX: 40, orbY: 13, fire: 760, fwd: Math.PI / 3 }; // radio del anillo de carga, segundos que la esfera tiene que tocar tu personaje, cuántas puede guardar (3), radio de la órbita a lo ancho y hacia el fondo, velocidad del disparo, cuánto puede desviarse el deslizamiento de "hacia el rival" (60°)
 // Salpicadura (pedido del dueño): arrastrar desde tu pozo o tu llama y soltar pronto (antes de `quick` s) lanza una salpicadura del elemento en esa dirección (no se controla después); también daña. Si sigues arrastrando, sale la esfera
 const SPLASH = { quick: 0.3, decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg: 12 }; // px que hay que arrastrar, rapidez (px/s) del deslizamiento que dispara la esfera guardada, gotas/llamas, abertura, velocidad, duración, daño (la rapidez no cambia el daño, pedido del dueño)
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
@@ -729,12 +729,13 @@ function orbStep(dt) {
       const w = toWorld(p.x, p.y), c = 2 * ORB.z * Math.sqrt(ORB.k);
       o.vx += ((w.x - o.x) * ORB.k - o.vx * c) * dt; o.vy += ((w.y - o.y) * ORB.k - o.vy * c) * dt;
       if (p.arm && p.arm.ctl) { p.arm.ctl.x = o.x; p.arm.ctl.y = o.y; } // la mano apunta a la esfera
-      const me = G.me, ch = me.nodes[me.ix.upper], near = Math.hypot(o.x - ch.x, o.y - ch.y - 4 * me.s) < DOCK.r * me.s, full = G.orbs.filter(q => q.docked && q.owner === me).length >= DOCK.max;
+      const me = G.me, ch = me.nodes[me.ix.upper], near = Math.abs(o.x - me.gx) < BODY.torW * 0.6 * me.s + ORB.r * 0.6 && o.y > me.nodes[me.ix.head].y - BODY.head * 0.6 * me.s && o.y < me.gy + 2, /* la esfera toca a tu personaje */ full = G.orbs.filter(q => q.docked && q.owner === me).length >= DOCK.max;
       o.dockT = near && !full ? (o.dockT || 0) + dt : Math.max(0, (o.dockT || 0) - dt * 2); // dejarla un momento en tu personaje (no es inmediato)
       if (o.dockT >= DOCK.s) { o.held = false; o.docked = true; o.owner = me; o.dockT = 0; p.orb = null; p.docked = true; if (p.arm) { p.arm.ctl = null; p.arm = null; } for (let i = 0; i < 10; i++) orbFx(o, 1); }
     } else if (o.docked) { // guardada: flota cerca de tu personaje, girando despacio a la altura del pecho
-      const m = o.owner, c = m.nodes[m.ix.upper], idx = G.orbs.filter(q => q.docked && q.owner === m).indexOf(o), an = performance.now() / 1000 * 1.4 + idx * Math.PI; // con dos, una a cada lado
-      const tx = c.x + Math.cos(an) * 24 * m.s, ty = c.y - 2 * m.s + Math.sin(an) * 7 * m.s + Math.sin(o.t * 3 + idx) * 2, k = 90, cc = 2 * 0.7 * Math.sqrt(k);
+      const m = o.owner, c = m.nodes[m.ix.upper], idx = G.orbs.filter(q => q.docked && q.owner === m).indexOf(o), an = performance.now() / 1000 * 1.4 + idx * TAU / DOCK.max; // repartidas en la órbita
+      o.back = Math.sin(an) < 0; // en la mitad de atrás de la órbita pasa por detrás del personaje
+      const tx = c.x + Math.cos(an) * DOCK.orbX * m.s, ty = c.y - 2 * m.s + Math.sin(an) * DOCK.orbY * m.s + Math.sin(o.t * 3 + idx) * 2, k = 90, cc = 2 * 0.7 * Math.sqrt(k);
       o.vx += ((tx - o.x) * k - o.vx * cc) * dt; o.vy += ((ty - o.y) * k - o.vy * cc) * dt; o.life = 1;
     } else if (o.thrown) { // lanzada: vuela y daña al que golpea (con o sin escudo)
       o.life -= dt / THROW.life; if (o.k === 'water') o.vy += 60 * dt;
@@ -786,9 +787,9 @@ function drawDuel(ctx, V) {
   for (const m of G.ms) { const k = clamp(1 - m.z / 160, 0.45, 1); ctx.fillStyle = `rgba(30,20,10,${0.28 * k})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.15 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill(); } // sombras (más chicas mientras más alto salta)
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
-  for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? (it.m.draw(ctx), drawShield(ctx, it.m, T)) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
+  for (const it of [...G.ms.map(m => ({ y: m.y, m })), ...props.filter(p => p.k === 'fire').map(p => ({ y: p.y, p }))].sort((a, b) => a.y - b.y)) it.m ? (G.orbs.forEach(o => { if (o.docked && o.owner === it.m && o.back) drawOrb(ctx, o, T); }), it.m.draw(ctx), G.orbs.forEach(o => { if (o.docked && o.owner === it.m && !o.back) drawOrb(ctx, o, T); }), drawShield(ctx, it.m, T)) : drawFire(ctx, it.p, T); // por profundidad (el fuego tapa o queda detrás de los personajes)
   for (const o of G.orbs) if (o.held && o.dockT > 0.02) { const m = G.me, c = m.nodes[m.ix.upper], f = Math.min(1, o.dockT / DOCK.s); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(c.x, c.y + 4 * m.s, DOCK.r * m.s, 0, TAU); ctx.stroke(); ctx.strokeStyle = o.k === 'water' ? '#8fd3ff' : '#ffc861'; ctx.beginPath(); ctx.arc(c.x, c.y + 4 * m.s, DOCK.r * m.s, -Math.PI / 2, -Math.PI / 2 + f * TAU); ctx.stroke(); } // anillo que se llena mientras la dejas en tu personaje
-  drawFlow(ctx); drawSplash(ctx); drawFx(ctx); for (const o of G.orbs) drawOrb(ctx, o, T); // el elemento que tomaste va por encima
+  drawFlow(ctx); drawSplash(ctx); drawFx(ctx); for (const o of G.orbs) if (!o.docked) drawOrb(ctx, o, T); // el elemento que tomaste va por encima (las que orbitan, con su personaje)
   ctx.textAlign = 'center'; for (const t of G.texts) { ctx.globalAlpha = clamp(t.life * 2.5, 0, 1); ctx.font = `900 ${t.small ? 11 : 18}px system-ui, sans-serif`; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,.85)'; ctx.strokeText(t.str, t.x, t.y); ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y); } ctx.globalAlpha = 1;
 }
 function drawBig(ctx, txt, f) { // letras grandes (K.O.)
