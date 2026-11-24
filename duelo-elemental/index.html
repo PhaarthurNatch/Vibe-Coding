@@ -104,6 +104,8 @@ const SKINS = ['#f2d0b0', '#e4b48c', '#c98d62', '#a56b43', '#7a4a2c'];
 // Medidas del cuerpo (humanoides chicos, todo rectangular)
 const BODY = { legU: 14, legL: 14, legW: 7.5, hipX: 5.5, torW: 23, torH: 27, head: 18, armU: 12.5, armF: 12, armW: 6.5 };
 const OL = '#141019'; // contorno
+// Posición de combate (pedido del dueño): levemente agachado, piernas abiertas y flectadas, codos levemente abiertos y puños hacia adelante con el brazo doblado
+const STANCE = { crouch: 0.17, feet: 7, knee: 4.5, elbowX: 4.5, elbowY: -1.5, fistIn: 6.5, fistUpF: -10.5, fistUpB: -13, fistF: 1.3, fistB: 0.85 };
 
 const load = () => { try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch (e) { return {}; } };
 const save = d => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(d)); } catch (e) { } };
@@ -142,7 +144,7 @@ class Fighter {
     for (const i of [I.lower, I.upper, I.head]) N[i].ff = true; // torso y cabeza no se quedan atrás al caminar (si no, la cadera iba adelante y se veía inclinada la parte de abajo)
     this.legSum = B.legU + B.legL;
   }
-  rootTarget() { return { x: this.gx, y: this.gy - this.legSum * 0.93 * this.s - this.z }; }
+  rootTarget() { return { x: this.gx, y: this.gy - this.legSum * (0.93 - STANCE.crouch * (this.guardK || 0)) * this.s - this.z }; } // en guardia, levemente agachado
   resetRig() {
     const N = this.nodes, rt = this.rootTarget(); N[0].x = rt.x; N[0].y = rt.y;
     for (let i = 1; i < N.length; i++) { const n = N[i], P = N[n.p]; n.x = P.x + n.ox * this.s; n.y = P.y + n.oy * this.s; n.vx = n.vy = 0; }
@@ -162,8 +164,8 @@ class Fighter {
     const gk = this.guardK, fr = this.fk >= 0;
     for (const a of I.arms) { // brazos: se balancean al caminar; en guardia, los antebrazos van hacia donde mira: de frente, las manos por delante del cuerpo (más abajo); de espaldas, por detrás (más arriba, tapadas por el torso)
       const el = N[a.el], ha = N[a.ha], sw = Math.sin(this.walkPh + (a.sd > 0 ? 0 : Math.PI)) * moving * (1 - 0.6 * gk);
-      el.ax = a.sd * Math.sin(t * 1.6) * 1 - lean * 2 + a.sd * 3.5 * gk; el.ay = sw * 3 - 2 * gk;
-      ha.ax = a.sd * Math.sin(t * 1.6 + 0.5) * 1.5 - lean * 2 - a.sd * 9 * gk; ha.ay = sw * 5 + (fr ? -6 : -12) * gk + Math.sin(t * 2.3 + a.sd) * 0.6 * gk;
+      el.ax = a.sd * Math.sin(t * 1.6) * (1 - 0.7 * gk) - lean * 2 + a.sd * STANCE.elbowX * gk; el.ay = sw * 3 + STANCE.elbowY * gk; // codos levemente abiertos
+      ha.ax = a.sd * Math.sin(t * 1.6 + 0.5) * 1.5 * (1 - 0.7 * gk) - lean * 2 - a.sd * STANCE.fistIn * gk; ha.ay = sw * 5 + (fr ? STANCE.fistUpF : STANCE.fistUpB) * gk + Math.sin(t * 2.3 + a.sd) * 0.6 * gk; // puños hacia adelante, brazo doblado
     }
     I.hem.forEach((h, i) => { const n = N[h]; n.ax = -lean * 4 + Math.sin(t * 2.4 + i * 1.7) * 0.6 * (1 + moving); n.ay = -moving * 1.5; }); // la túnica queda atrás
     // Piernas: los pies buscan el suelo y dan pasos hacia donde camina
@@ -171,9 +173,10 @@ class Fighter {
     for (const L of I.legs) {
       const hip = N[L.hip], knee = N[L.knee], foot = N[L.foot], ph = this.walkPh + L.ph;
       const stride = Math.min(1, sp / 45) * 7 * s, lift = Math.max(0, Math.cos(ph)) * 5 * s * moving;
-      foot.tx = this.gx + L.hx * s * 1.1 + Math.sin(ph) * stride * ux;
+      const gk = this.guardK;
+      foot.tx = this.gx + (L.hx * 1.1 + L.sd * STANCE.feet * gk) * s + Math.sin(ph) * stride * ux; // en guardia, piernas abiertas
       foot.ty = Math.min(this.gy - lift + Math.sin(ph) * stride * uy * DEPTH, hip.y + this.legSum * s * 0.98);
-      knee.tx = (hip.x + foot.x) / 2 + L.sd * 2 * s; knee.ty = (hip.y + foot.y) / 2;
+      knee.tx = (hip.x + foot.x) / 2 + L.sd * (2 + STANCE.knee * gk) * s; knee.ty = (hip.y + foot.y) / 2 - gk * 1.5 * s; // y flectadas (rodillas hacia afuera)
     }
   }
   rigStep(dt) { // igual que Monster Brawl: resorte hacia su lugar + los huesos no se estiran infinito
@@ -211,7 +214,9 @@ class Fighter {
           const ang = Math.atan2(hn.y - el.y, hn.x - el.x), hw = B.armW * 1.05 * s;
           ctx.save(); ctx.translate(hn.x, hn.y); ctx.rotate(ang);
           ctx.strokeStyle = E.trim; ctx.lineWidth = 2 * s; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(-hw * 0.55, -B.armW * 0.48 * s); ctx.lineTo(-hw * 0.55, B.armW * 0.48 * s); ctx.stroke(); // puño de la manga
-          ctx.beginPath(); ctx.rect(-hw * 0.2, -hw / 2, hw, hw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
+          const fk = 1 + ((fr ? STANCE.fistF : STANCE.fistB) - 1) * this.guardK, fw = hw * fk; // puño: de frente se ve más grande (viene hacia ti), de espaldas más chico
+          ctx.beginPath(); ctx.rect(-hw * 0.2, -fw / 2, fw, fw); ctx.lineWidth = lw * 2; ctx.strokeStyle = OL; ctx.stroke(); ctx.fillStyle = this.skin; ctx.fill();
+          if (this.guardK > 0.5) { ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = 1.1 * s; ctx.beginPath(); for (const k of [-0.17, 0.17]) { ctx.moveTo(-hw * 0.2 + fw * 0.55, fw * k); ctx.lineTo(-hw * 0.2 + fw * 0.95, fw * k); } ctx.stroke(); } // nudillos
           ctx.restore(); };
         if (fr) { upper(); fore(); } else { fore(); upper(); } // el antebrazo siempre va delante del brazo: de espaldas queda detrás (pedido del dueño)
       } };
