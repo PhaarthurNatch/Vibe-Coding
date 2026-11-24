@@ -373,7 +373,7 @@ function drawArena(ctx, V) {
 
 // ----- Elementos en las esquinas (pedido del dueño): fuego arriba a la izquierda y abajo a la derecha, pozo de agua abajo a la izquierda y arriba a la derecha -----
 const FIRE_R = 22, FIRE_H = 13, POOL_R = 40;
-function arenaProps() { const W = ARENA_W, D = ARENA_D, f = FIRE_R + 6, w = POOL_R + 8; return [{ k: 'fire', x: f, y: f, r: FIRE_R }, { k: 'water', x: w, y: D - w, r: POOL_R }, { k: 'fire', x: W - f, y: D - f, r: FIRE_R }, { k: 'water', x: W - w, y: w, r: POOL_R }]; } // bien pegados a las esquinas (pedido del dueño)
+function arenaProps() { const W = ARENA_W, D = ARENA_D, f = FIRE_R * 0.8, w = POOL_R * 0.8; return [{ k: 'fire', x: f, y: f, r: FIRE_R }, { k: 'water', x: w, y: D - w, r: POOL_R }, { k: 'fire', x: W - f, y: D - f, r: FIRE_R }, { k: 'water', x: W - w, y: w, r: POOL_R }]; } // metidos en las esquinas (pedido del dueño): el pozo queda cortado por el muro y el borde de la arena
 function drawPool(ctx, p, T) { // pozo de agua: borde de piedra y agua con ondas y brillos
   const x = p.x, y = TOP + p.y * DEPTH, R = p.r, RY = R * DEPTH, rim = 7, h = 6;
   ctx.fillStyle = '#5e5850'; ctx.beginPath(); ctx.ellipse(x, y, R + rim, (R + rim) * DEPTH, 0, 0, Math.PI); ctx.lineTo(x - R - rim, y - h); ctx.ellipse(x, y - h, R + rim, (R + rim) * DEPTH, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill(); // costado del borde
@@ -545,7 +545,9 @@ function duelStep(dt) {
 function drawDuel(ctx, V) {
   drawArena(ctx, V);
   const T = performance.now() / 1000, props = arenaProps();
+  ctx.save(); ctx.beginPath(); ctx.rect(V.x0 - 20, TOP, V.x1 - V.x0 + 40, ARENA_D * DEPTH); ctx.clip(); // sólo sobre el suelo
   for (const p of props) if (p.k === 'water') drawPool(ctx, p, T); else drawFireGlow(ctx, p, T);
+  ctx.restore();
   for (const m of G.ms) { const k = clamp(1 - m.z / 160, 0.45, 1); ctx.fillStyle = `rgba(30,20,10,${0.28 * k})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.15 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill(); } // sombras (más chicas mientras más alto salta)
   for (const m of G.ms) if (m.isMe) { ctx.strokeStyle = 'rgba(255,200,97,.8)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.4 * m.s, m.r * 0.5 * m.s, 0, 0, TAU); ctx.stroke(); } // anillo dorado: tú
   for (const q of G.dust) { ctx.fillStyle = `rgba(200,180,140,${q.life * 0.7})`; ctx.beginPath(); ctx.arc(q.x, TOP + q.y * DEPTH - q.z, q.r, 0, TAU); ctx.fill(); }
