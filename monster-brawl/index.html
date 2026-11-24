@@ -225,7 +225,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .setview textarea:focus{outline:none;border-color:var(--acc)}
 .frlist{display:flex;flex-direction:column;gap:6px}.fritem{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;text-align:left;padding:12px 14px}.fritem small{color:var(--muted);font-size:12px}
 .rktabs{display:flex;gap:6px}.rktabs .btn{flex:1;padding:9px 4px;font-size:13px}.rktabs .btn.on{background:linear-gradient(#ffe08a,#ffb23c);color:#2a1200}.rkrow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;text-align:left;padding:11px 14px}.rkrow .pos{font-size:20px;font-weight:900;text-align:center;color:var(--muted)}.rkrow small{color:var(--muted);font-size:12px}.rkrow .val{font-size:20px;font-weight:900;color:#ffd36b}.rkrow.me{outline:2px solid #ffcf6e}
-.frrec{display:block;margin-top:4px;font-size:13px;color:var(--muted)}.frrec b{color:var(--text)}.frrec.mon{text-align:center;margin:0 0 2px}
+.frrec{display:block;margin-top:4px;font-size:13px;color:var(--muted)}.frrec b{color:var(--text)}.frrec.mon{text-align:center;margin:0 0 2px}#accOnline{margin:8px 0 2px}.vsrec{color:var(--muted)}.vsrec b{color:var(--text)}
 .accstats{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:4px}.accstats div:nth-child(-n+3){grid-column:span 2}.accstats div:nth-child(n+4){grid-column:span 3}.accstats div{background:var(--panel2);border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px}.accstats b{font-size:22px;font-variant-numeric:tabular-nums}.accstats span{font-size:11px;color:var(--muted);font-weight:700;text-align:center}
 .frreq{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;background:var(--panel2);border-radius:14px;padding:8px 10px;border:2px solid var(--acc)}.frreq b{font-size:14px}.frreq small{display:block;color:var(--muted);font-size:11px}.frreq .btn{padding:8px 10px;font-size:13px}
 .frdot{width:11px;height:11px;border-radius:50%;background:#5a5470;box-shadow:0 0 0 2px rgba(0,0,0,.25)}.frdot.on{background:#3ee06a;box-shadow:0 0 8px #3ee06a}
@@ -436,6 +436,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="setview" data-view="account" hidden>
       <h2 style="font-size:22px" id="accName">Mi cuenta</h2>
       <div class="accstats" id="accStats"></div>
+      <p class="frrec mon" id="accOnline"></p>
       <button class="btn setitem" id="accUser"><span>✏️ Nombre de usuario</span><small id="accUserName"></small></button>
       <button class="btn setitem" data-go="cloud"><span>☁️ Nube</span><small id="cloudState">sin cuenta</small></button>
       <button class="btn" data-go="main">‹ Volver</button>
@@ -5489,6 +5490,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en Mi cuenta ves tus victorias y derrotas Online, y en el perfil de un amigo y al elegir monstruo en una sala 1 vs 1, cuántas veces le has ganado y perdido a ese jugador.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
   { v: '1.77', d: '2026-11-24', items: ['Arreglado: en la web app una pelea podía quedar congelada (y la ✕ no respondía) porque el celular seguía usando audios viejos guardados; ahora siempre baja los nuevos y el juego no se detiene aunque algo falle.'] },
@@ -5640,6 +5642,7 @@ function accountView() { // Mi cuenta (pedido del dueño): tu nombre, tu récord
   $('accName').textContent = save.user || 'Mi cuenta'; $('accUserName').textContent = save.user ? 'cambiar' : cloud ? 'crear' : 'requiere la Nube';
   const box = (n, l) => `<div><b>${n}</b><span>${l}</span></div>`;
   $('accStats').innerHTML = box(A.w, 'Victorias') + box(A.l, 'Derrotas') + box(tot ? Math.round(A.w / tot * 100) + '%' : '—', 'Ganadas') + box(A.run || 0, 'Racha actual') + box(bestStreak(), 'Racha más larga');
+  const O = save.online || { w: 0, l: 0 }; $('accOnline').innerHTML = `🌐 Online: ${wlText(O)}`;
 }
 function openSettings() { setView('main'); $('settings').classList.add('on'); if (cloud && save.user) friendsRefresh(); }
 $('btnSettings').onclick = openSettings;
@@ -5904,7 +5907,7 @@ function friendView() { // su equipo del rancho; tocar uno muestra sus estadíst
   const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f) { setView('friends'); return; }
   const p = FR.profs[f.uid], on = isOnline(p);
   $('fdName').innerHTML = `<i class="frdot ${on ? 'on' : ''}" style="display:inline-block;margin-right:8px;vertical-align:middle"></i>${esc((p && p.name) || f.name)}`;
-  $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}`;
+  $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}<span class="frrec">🌐 Online 1 vs 1 · ${vsLine((p && p.name) || f.name, f.name)}</span>`;
   const T = $('fdTeam'), team = (p && p.team) || []; T.innerHTML = team.length ? '' : '<p class="tdesc">No tiene monstruos en su rancho.</p>';
   team.forEach(r => { const d = document.createElement('button'); d.className = 'lanp'; d.style.setProperty('--tc', 'var(--panel2)'); d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span>`; try { drawThumb(d.querySelector('canvas'), r); } catch (e) { } d.onclick = () => friendMon(r); T.appendChild(d); });
   const fighting = on && p.st === 'battle'; $('fdFight').disabled = !on;
@@ -7017,6 +7020,7 @@ function lanUI(st, data) {
     info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
   } else if (st === 'mpick') { // elegir con qué monstruo del rancho pelear (pedido del dueño)
     info.innerHTML = '¿Con quién peleas?'; const mine = lanMine();
+    { const ps = host ? lanPlayers() : LAN.lobby || [], meI = host ? 0 : LAN.lobbyMe, o = ps.length === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && o.color !== (ps[meI] || {}).color) info.innerHTML += `<br><small class="vsrec">🌐 ${vsLine(u)}</small>`; } // en 1 vs 1: tu récord contra ese jugador (pedido del dueño)
     for (const r of save.monsters.filter(r => r.stage !== 'egg')) {
       const d = document.createElement('button'); d.className = 'lanp me'; d.style.setProperty('--tc', r === mine ? 'var(--acc)' : 'var(--panel2)');
       d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}${r === mine ? ' ✓' : ''}</span>`; drawThumb(d.querySelector('canvas'), r);
@@ -7134,11 +7138,21 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
   for (const q of B.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt; }
   for (const t of B.texts) { t.y -= 45 * dt; t.life -= dt; }
 }
+// Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por nombre de usuario en minúsculas)
+const vsRec = (...us) => { for (const u of us) { const r = u && save.vs && save.vs[String(u).toLowerCase()]; if (r) return r; } return { w: 0, l: 0 }; };
+const wlText = r => `<b>${r.w}</b> ${r.w === 1 ? 'victoria' : 'victorias'} · <b>${r.l}</b> ${r.l === 1 ? 'derrota' : 'derrotas'}`;
+const vsLine = (u, ...more) => { const r = vsRec(u, ...more); return `Contra <b>${esc(r.n || u)}</b>: ${wlText(r)}`; };
+function lanCount(B, me, won) { // se cuenta una vez por pelea (lanFinish tiene B.reported); los empates no cuentan
+  const O = save.online || (save.online = { w: 0, l: 0 }); O[won ? 'w' : 'l']++;
+  const all = B.ms.filter(m => !m.cloneOf), foe = all.find(m => m.team !== me.team), u = foe && foe.rec && foe.rec.user;
+  if (all.length === 2 && u && (!save.user || u.toLowerCase() !== save.user.toLowerCase())) { const V = save.vs || (save.vs = {}), k = u.toLowerCase(), r = V[k] || (V[k] = { n: u, w: 0, l: 0 }); r.n = u; r[won ? 'w' : 'l']++; }
+  persist(); }
 function lanFinish() {
   const B = battle; if (!B || B.reported) return; B.reported = true;
   if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut, dr: !!B.isDraw });
   updateFighters();
   const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
+  if (!B.isDraw && me) lanCount(B, me, place === 1);
   if (B.isDraw) { $('resTitle').textContent = 'Empate'; $('resTitle').className = 'mid'; } else { $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste'; (place === 1 ? SFX.win : SFX.lose)(); $('resTitle').className = place === 1 ? 'win' : 'lose'; }
   $('resText').innerHTML = '';
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha'; $('resRoom').hidden = false;
