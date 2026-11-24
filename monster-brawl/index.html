@@ -5489,7 +5489,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
+  { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.', 'La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
   { v: '1.77', d: '2026-11-24', items: ['Arreglado: en la web app una pelea podía quedar congelada (y la ✕ no respondía) porque el celular seguía usando audios viejos guardados; ahora siempre baja los nuevos y el juego no se detiene aunque algo falle.'] },
@@ -6422,7 +6422,7 @@ async function keepAwake(on) {
 // al volver a la app en medio de una pelea, el navegador lo suelta: se pide de nuevo
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && scene === 'battle') keepAwake(true); });
 
-function goHome() { if (scene === 'battle') ldCover('Volviendo al rancho…'); /* pantalla de carga al volver de cualquier pelea (pedido del dueño) */ ANN.stop(); $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); checkGrowth(); }
+function goHome() { if (scene === 'battle') ldCover('Volviendo al rancho…'); /* pantalla de carga al volver de cualquier pelea (pedido del dueño) */ ANN.stop(); $('resRoom').hidden = true; keepAwake(false); scene = 'home'; battle = null; $('battleUI').classList.remove('on'); $('result').classList.remove('on'); $('home').classList.add('on'); renderHome(); whenClear(checkGrowth); }
 
 // ---------- Crecimiento: ocurre al volver al menú, con animación a pantalla completa ----------
 function newParts(o, n) { // partes que tiene la etapa nueva y no tenía la anterior, en el orden en que aparecen
@@ -6452,6 +6452,8 @@ function partNodes(M, key) {
   }
   return [];
 }
+// espera a que se quite la pantalla de carga (la de inicio o la de volver de la pelea) para que no tape la animación de crecer (pedido del dueño)
+function whenClear(fn) { const b = $('boot'), ld = $('ld'), ok = (!b || b.classList.contains('out')) && (!ld || ld.hidden || ld.classList.contains('out')); if (ok) fn(); else setTimeout(() => whenClear(fn), 100); }
 function checkGrowth() {
   const elig = r => r && r.stage !== 'egg' && STAGE_ORDER.indexOf(stageForLevel(r.level)) > STAGE_ORDER.indexOf(r.stage);
   const rec = [...(save.monsters.length ? [cur()] : []), ...save.monsters].find(elig);
@@ -7189,7 +7191,7 @@ $('btnInstall').onclick = async () => {
 addEventListener('appinstalled', () => { $('btnInstall').hidden = true; });
 
 renderHome();
-checkGrowth();
+whenClear(checkGrowth);
 if (save.notice) { const n = save.notice; delete save.notice; persist(); ask(n, { ok: 'Entendido', cancel: null }); }
 setTimeout(async () => { // la partida empezó de cero pero hay una copia con más monstruos: ofrecer recuperarla
   if (saveCount(save) > 1) return;
