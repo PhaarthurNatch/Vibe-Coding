@@ -33,8 +33,16 @@ const { chromium, devices } = require('playwright');
   await p.evaluate(() => { G.foe.shield = 0; G.foe.hp = 100; G.foe.x = ARENA_W * 0.5; G.foe.y = ARENA_D * 0.25; G.foe.vx = G.foe.vy = 0; G.orbs = []; }); await p.waitForTimeout(500);
   const sw = async () => { const tg = await p.evaluate(() => { const v = view(), f = G.foe; return { x: v.ox + f.gx * v.k, y: v.oy + (f.gy - 40 * f.s) * v.k }; });
     await t('touchStart', [{ x: fire.x, y: fire.y }]); await p.waitForTimeout(150); /* deja el dedo un momento y luego desliza rápido */ for (let i = 1; i <= 3; i++) { await t('touchMove', [{ x: fire.x + (tg.x - fire.x) * i * 0.4, y: fire.y + (tg.y - fire.y) * i * 0.4 }]); await p.waitForTimeout(8); } /* (los toques simulados llegan cada ~50 ms; en un celular cada ~10 ms) */
-    const r = await p.evaluate(() => ({ s: G.splashes.length, o: G.orbs.length})); await t('touchEnd', []); await p.waitForTimeout(900); return { ...r, d: 100 - await p.evaluate(() => G.foe.hp) }; };
+    await t('touchEnd', []); await p.waitForTimeout(30); const r = await p.evaluate(() => ({ s: G.splashes.length, o: G.orbs.length })); await p.waitForTimeout(900); return { ...r, d: 100 - await p.evaluate(() => G.foe.hp) }; }; // soltar pronto = salpicadura
+
   const s1 = await sw();
+  // arrastrar rápido pero seguir arrastrando (sin soltar): sale la esfera, no la salpicadura
+  await p.waitForTimeout(400); await p.evaluate(() => { G.orbs = []; G.splashes = []; });
+  await t('touchStart', [{ x: fire.x, y: fire.y }]); for (let i = 1; i <= 3; i++) { await t('touchMove', [{ x: fire.x + i * 40, y: fire.y + i * 25 }]); await p.waitForTimeout(8); }
+  for (let i = 1; i <= 6; i++) { await t('touchMove', [{ x: fire.x + 120 + i * 5, y: fire.y + 75 }]); await p.waitForTimeout(60); }
+  const keep = await p.evaluate(() => ({ s: G.splashes.length, o: G.orbs.length })); await t('touchEnd', []); await p.waitForTimeout(600);
+  console.log({ sigueArrastrando: keep });
+  if (!(keep.o === 1 && keep.s === 0)) errs.push('seguir arrastrando no dio una esfera');
   console.log({ salpicadura: s1 });
   if (!(s1.s === 1 && s1.o === 0)) errs.push('deslizar rápido no hizo salpicadura');
   if (!(s1.d > 5)) errs.push('la salpicadura no dañó');

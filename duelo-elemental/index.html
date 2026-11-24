@@ -125,8 +125,8 @@ const THROW = { min: 260, max: 1000, dmg0: 8, dmgK: 0.012, life: 1.4, kb: 260 };
 const HP_MAX = 100, KO_S = 2.6;
 // Guardar la esfera (pedido del dueño): llevarla a tu personaje y dejarla ahí un momento hace que quede flotando cerca de él; un deslizamiento rápido hacia adelante la dispara al rival
 const DOCK = { r: 30, s: 0.45, max: 2, fire: 760, fwd: Math.PI / 3 }; // radio donde cuenta como "en tu personaje", segundos que hay que dejarla, cuántas puede guardar, velocidad del disparo, cuánto puede desviarse el deslizamiento de "hacia el rival" (60°)
-// Salpicadura (pedido del dueño): deslizar rápido desde tu pozo o tu llama lanza una salpicadura del elemento en esa dirección (no se controla después); también daña
-const SPLASH = { decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg0: 7, dmgK: 7 }; // px que se mueve el dedo antes de decidir, rapidez (px/s) desde la que es salpicadura y no esfera, gotas/llamas, abertura, velocidad, duración, daño = dmg0 + dmgK·(rapidez/2000, hasta 1)
+// Salpicadura (pedido del dueño): arrastrar desde tu pozo o tu llama y soltar pronto (antes de `quick` s) lanza una salpicadura del elemento en esa dirección (no se controla después); también daña. Si sigues arrastrando, sale la esfera
+const SPLASH = { quick: 0.3, decide: 30, v: 900, n: 26, spread: 0.32, sp0: 540, spK: 0.15, life: 0.62, dmg0: 7, dmgK: 7 }; // px que se mueve el dedo antes de decidir, rapidez (px/s) desde la que es salpicadura y no esfera, gotas/llamas, abertura, velocidad, duración, daño = dmg0 + dmgK·(rapidez/2000, hasta 1)
 const ARM_RANGE = [-15 * Math.PI / 180, 85 * Math.PI / 180]; // rango cómodo de cada brazo (desde un poco cruzado por delante hasta un poco detrás del costado); fuera de él, el cuerpo gira
 const REACH_BEND = 0.8; // al apuntar a un pozo, una llama o el elemento, la mano llega a este largo del brazo: el codo queda flectado (hacia atrás)
 const LIMB = { k: 2.6, z: 0.55, mn: 0.9, mx: 1.06 }; // extremidades más rígidas (pedido del dueño): resortes más firmes y frenados, y los huesos casi no cambian de largo     // qué tan rápido gira para mirar al otro (transición gradual)
@@ -497,16 +497,16 @@ cv.addEventListener('pointermove', e => {
       }
     }
   }
-  if (p.prop >= 0 && p.arm && !p.orb && !p.stream && !p.splashed && G && pdist > SPLASH.decide && p.hist.length >= 3) { // arrastrar desde el pozo o la llama: si es tu elemento, rápido = salpicadura, más despacio = la esfera
-    const pr = arenaProps()[p.prop], h0 = p.hist[p.hist.length - 2], v = Math.hypot(p.x - h0.x, p.y - h0.y) / Math.max(0.008, (nowT - h0.t) / 1000); // rapidez del dedo en el último tramo entre dos movimientos (si lo dejaste quieto antes de deslizar, no cuenta)
-    if (PROP_EL[pr.k] === G.me.el && v > SPLASH.v) { spawnSplash(pr, (p.x - p.x0) / pdist, (p.y - p.y0) / pdist, v, G.me); p.splashed = true; }
-    else if (PROP_EL[pr.k] === G.me.el) { p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1, ptr: e.pointerId }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1); }
-  }
+  if (p.prop >= 0 && p.arm && !p.orb && !p.stream && !p.splashed && !p.dragT && G && pdist > TAP_MOVE) p.dragT = nowT; // empezó a arrastrar desde el pozo o la llama: si suelta pronto es salpicadura; si sigue, sale la esfera (dragStep)
   if (p.arm && p.arm.ctl && !p.splashed && !p.fired && !p.docked) { if (p.arm.ctl.abs) { const w = toWorld(p.x, p.y); p.arm.ctl.x = w.x; p.arm.ctl.y = w.y; } else { const k = view().k; p.arm.ctl.dx = (p.x - p.x0) / k * ARM_GAIN; p.arm.ctl.dy = (p.y - p.y0) / k * ARM_GAIN; } }
 });
 const endPtr = (e, up) => {
   if (e.pointerId === TOUCH.id) { TOUCH.id = null; return; }
   const p = PTRS.get(e.pointerId); if (!p) return; PTRS.delete(e.pointerId);
+  if (up && G && G.phase === 'fight' && p.prop >= 0 && p.dragT && !p.orb && !p.stream && !p.splashed) { // soltó pronto después de arrastrar desde su pozo o su llama: salpicadura hacia donde arrastró
+    const pr = arenaProps()[p.prop], d = Math.hypot(p.x - p.x0, p.y - p.y0);
+    if (PROP_EL[pr.k] === G.me.el && d > SPLASH.decide) { const v = d / Math.max(0.03, (performance.now() - p.dragT) / 1000); spawnSplash(pr, (p.x - p.x0) / d, (p.y - p.y0) / d, v, G.me); }
+  }
   if (p.orb) { const o = p.orb, sp = Math.hypot(o.vx, o.vy); o.held = false; if (sp > THROW.min && G) { const k = Math.min(1, THROW.max / sp); o.vx *= k; o.vy *= k; o.thrown = true; o.owner = G.me; o.life = 1; } } // soltarla moviéndola rápido = lanzarla; despacio: el agua cae y salpica, el fuego se apaga
   if (p.arm) p.arm.ctl = null; // al soltar, el brazo vuelve a su posición
   else if (up && !p.moved && G && G.phase === 'fight') { const d = (performance.now() - p.t0) / 1000; G.me.jump(lerp(JUMP.min, JUMP.max, clamp((d - JUMP.t0) / (JUMP.t1 - JUMP.t0), 0, 1))); }
@@ -620,6 +620,11 @@ function touchTurn(m, base) { // si un brazo que controlas tendría que ir muy h
 function propTop(pr) { return { x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r * 0.8) }; }
 function flowStep(dt) { // mantener presionado tu pozo o tu llama: sale una corriente que va hacia ti y forma el escudo
   const now = performance.now();
+  for (const p of PTRS.values()) { // sigue arrastrando desde tu pozo o tu llama más de SPLASH.quick: sale la esfera
+    if (p.prop < 0 || !p.dragT || p.orb || p.splashed || p.stream || G.phase !== 'fight' || (now - p.dragT) / 1000 < SPLASH.quick) continue;
+    const pr = arenaProps()[p.prop]; if (PROP_EL[pr.k] !== G.me.el) continue;
+    p.orb = { k: pr.k, x: pr.x, y: TOP + pr.y * DEPTH - (pr.k === 'water' ? 6 : FIRE_H + pr.r), vx: 0, vy: -60, held: true, t: 0, life: 1 }; G.orbs.push(p.orb); for (let i = 0; i < 8; i++) orbFx(p.orb, 1);
+  }
   for (const p of PTRS.values()) {
     if (p.prop < 0 || !p.arm || p.orb || G.phase !== 'fight') continue;
     const pr = arenaProps()[p.prop];
