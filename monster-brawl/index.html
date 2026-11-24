@@ -7018,7 +7018,7 @@ function lanUI(st, data) {
     info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
   } else if (st === 'mpick') { // elegir con qué monstruo del rancho pelear (pedido del dueño)
     info.innerHTML = '¿Con quién peleas?'; const mine = lanMine();
-    { const ps = host ? lanPlayers() : LAN.lobby || [], meI = host ? 0 : LAN.lobbyMe, o = ps.length === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && o.color !== (ps[meI] || {}).color) info.innerHTML += `<br><small class="vsrec">🌐 ${vsLine(o.rec.uid, u)}</small>`; } // en 1 vs 1: tu récord contra ese jugador (pedido del dueño)
+    { const ps = host ? lanPlayers() : LAN.lobby || [], meI = host ? 0 : LAN.lobbyMe, o = ps.length === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && o.color !== (ps[meI] || {}).color) info.innerHTML += `<br><small class="vsrec">${vsLine(o.rec.uid, u)}</small>`; } // en 1 vs 1: tu récord contra ese jugador (pedido del dueño)
     for (const r of save.monsters.filter(r => r.stage !== 'egg')) {
       const d = document.createElement('button'); d.className = 'lanp me'; d.style.setProperty('--tc', r === mine ? 'var(--acc)' : 'var(--panel2)');
       d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}${r === mine ? ' ✓' : ''}</span>`; drawThumb(d.querySelector('canvas'), r);
@@ -7139,7 +7139,7 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
 // Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por su cuenta (uid); si no viene, por nombre de usuario en minúsculas)
 const vsRec = (uid, ...us) => { const V = save.vs || {}; if (uid && V[uid]) return V[uid]; for (const u of us) { const r = u && V[String(u).toLowerCase()]; if (r) return r; } return { w: 0, l: 0 }; };
 const wlText = r => `<b>${r.w}</b> ${r.w === 1 ? 'victoria' : 'victorias'} · <b>${r.l}</b> ${r.l === 1 ? 'derrota' : 'derrotas'}`;
-const vsLine = (uid, u, ...more) => { const r = vsRec(uid, u, ...more); return `Contra <b>${esc(u || r.n)}</b>: ${wlText(r)}`; };
+const vsLine = (uid, u, ...more) => { const r = vsRec(uid, u, ...more); return `Tú <b>${r.w} – ${r.l}</b> ${esc(u || r.n)}`; }; // marcador simple (pedido del dueño)
 function lanCount(B, me, won) { // se cuenta una vez por pelea (lanFinish tiene B.reported); los empates no cuentan
   const O = save.online || (save.online = { w: 0, l: 0 }); O[won ? 'w' : 'l']++;
   const all = B.ms.filter(m => !m.cloneOf), foe = all.find(m => m.team !== me.team), u = foe && foe.rec && foe.rec.user;
