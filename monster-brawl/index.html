@@ -4315,6 +4315,10 @@ function ranchDeco() {
   RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
   return RANCH.deco = { d, flowers, path, pathW: PATH_W * RANCH_RF };
 }
+// Las tácticas de combate también son su forma de ser fuera de la pelea (pedido del dueño): al centro se comporta como siempre
+const tpOf = rec => { const t = (rec && rec.temper) || {}, c = v => clamp(+v || 0, -1, 1); return { agr: c(t.agr), terco: c(t.terco), valor: c(t.valor), ritmo: c(t.ritmo), def: c(t.def) }; };
+const RP = { soc: 0.85, comp: 0.3, fence: 0.75, fenceLone: 0.9, speed: 0.22, pause: 0.4, sit: 1.5, nap: 1.2, hop: 0.8, curious: 0.5, look: 0.45, plant: 0.25 }; // cuánto cambia cada rasgo con el medidor en el extremo
+function wpick(L, w) { let t = 0; for (const q of L) t += w(q); let r = Math.random() * t; for (const q of L) if ((r -= w(q)) <= 0) return q; return L[L.length - 1]; }
 function syncRanch() {
   const cap = Math.max(slotCap(), save.monsters.length), A = RANCH.actors;
   for (let i = 0; i < cap; i++) {
@@ -4334,6 +4338,7 @@ function syncRanch() {
       else a.sz = { w: 44, h: 56 };
     }
     if (a.m) { a.m.sleep = resting(rec) || !!a.nap; a.m.baseEmo = baseEmoFor(rec); a.m.battered = isBattered(rec); }
+    a.tp = tpOf(rec);
   }
   A.length = cap;
   for (const a of A) if (a.play && (a.kind !== 'mon' || !a.play.mate || a.play.mate.kind !== 'mon' || !A.includes(a.play.mate) || (a.play.mate.play && a.play.mate.play.mate !== a))) { a.play = null; a.walk = false; a.idle = 1; } // su compañero de juego ya no está: deja de jugar
@@ -4352,8 +4357,9 @@ function ranchStep(dt) {
   const A = RANCH.actors, V = RANCH.view, c = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
   if (!RANCH.napInit) { RANCH.napInit = true; if (dayInfo().night) for (const a of A) if (a.kind === 'mon' && a.m && !resting(a.rec) && Math.random() < 0.35) { a.nap = { t: 60 + Math.random() * 240 }; a.m.sleep = true; a.walk = false; } } // de noche, al entrar algunos ya están durmiendo
   for (const a of A) if (a.nap && ((a.nap.t -= dt) < 0 || a === focus)) { a.nap = null; if (a.m) a.m.sleep = resting(a.rec); a.idle = 0.5 + Math.random(); } // despierta al terminar la siesta o si lo eliges
-  if (++RANCH.frame % 60 === 0) for (const a of A) if (a.m) { a.m.sleep = resting(a.rec) || !!a.nap; a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); }
+  if (++RANCH.frame % 60 === 0) for (const a of A) { a.tp = tpOf(a.rec); if (a.m) { a.m.sleep = resting(a.rec) || !!a.nap; a.m.baseEmo = baseEmoFor(a.rec); a.m.battered = isBattered(a.rec); } }
   // A veces dos monstruos juegan entre sí (pedido del dueño): se buscan y saltan juntos, o uno persigue al otro
+  const TP = a => a.tp || (a.tp = tpOf(a.rec)), soc = a => Math.max(0.15, 1 + RP.soc * TP(a).agr); // sociable (de cerca) / solitario (de lejos)
   const canPlay = a => a.kind === 'mon' && a !== focus && !a.m.sleep && !a.fly && !a.play && !a.come && !a.greet && !a.fam && !a.rest && !a.m.held && a.m.z === 0;
   RANCH.famCd = RANCH.famCd || {};
   for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { // padre e hijo que se cruzan: se saludan y les salen corazones (pedido del dueño)
@@ -4366,14 +4372,14 @@ function ranchStep(dt) {
   if ((RANCH.askCd = (RANCH.askCd ?? 40 + Math.random() * 60) - dt) < 0) { // de vez en cuando uno viene solo a pedirte cariño (poco, pedido del dueño)
     RANCH.askCd = 70 + Math.random() * 80;
     const free = A.filter(canPlay);
-    if (free.length) { const a = free[Math.floor(Math.random() * free.length)]; a.come = { stay: RANCH_COME_STAY }; a.walk = false; }
+    if (free.length) { const a = wpick(free, soc); a.come = { stay: RANCH_COME_STAY }; a.walk = false; } /* (los sociables vienen más seguido) */
   }
   const young = a => a.rec && (a.rec.stage === 'baby' || a.rec.stage === 'child');
   if ((RANCH.kidCd = (RANCH.kidCd ?? 5 + Math.random() * 8) - dt) < 0) { // bebés y niños juegan bastante más entre ellos (pedido del dueño)
     RANCH.kidCd = 10 + Math.random() * 12;
-    const kids = A.filter(q => canPlay(q) && young(q));
-    if (kids.length >= 2) {
-      const a = kids[Math.floor(Math.random() * kids.length)], b = kids.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+    const kids = A.filter(q => canPlay(q) && young(q)), pros = A.filter(q => canPlay(q) && !young(q) && TP(q).terco <= -0.5); /* protectores («al más débil»): también juegan con los pequeños */
+    if (kids.length >= 2 || (kids.length && pros.length)) {
+      const a = wpick(kids, soc), others = kids.length < 2 || (pros.length && Math.random() < 0.35) ? pros : kids.filter(q => q !== a), b = others.sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) / soc(p) - Math.hypot(q.x - a.x, q.z - a.z) / soc(q))[0];
       const kind = Math.random() < 0.5 ? 'hop' : 'chase';
       a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
       a.walk = b.walk = false;
@@ -4383,7 +4389,7 @@ function ranchStep(dt) {
     RANCH.playCd = 25 + Math.random() * 33;
     const free = A.filter(canPlay);
     if (free.length >= 2) {
-      const a = free[Math.floor(Math.random() * free.length)], b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) - Math.hypot(q.x - a.x, q.z - a.z))[0];
+      const a = wpick(free, soc), b = free.filter(q => q !== a).sort((p, q) => Math.hypot(p.x - a.x, p.z - a.z) / soc(p) - Math.hypot(q.x - a.x, q.z - a.z) / soc(q))[0]; /* los sociables juegan más; los solitarios casi no */
       const kind = Math.random() < 0.5 ? 'hop' : 'chase';
       a.play = { mate: b, kind, phase: 'go', t: 0, lead: true }; b.play = { mate: a, kind, phase: 'go', t: 0, lead: false };
       a.walk = b.walk = false;
@@ -4401,6 +4407,8 @@ function ranchStep(dt) {
         for (const h of [0.15, 0.8]) if (t0 < h && t >= h && a.m.z === 0) a.m.vz = 120 + Math.random() * 40;
         if (t > 0 && t < RANCH_ASK_HEARTS && (F.h = (F.h || 0) - dt) <= 0) { F.h = 0.13; ranchHeart(a); } // los mismos pocos corazones que al pedir caricias
         if (t > 2.3) { a.fam = null; a.idle = 0.5 + Math.random(); }
+      } else if (a.sidestep) { // ágil («esquivar»): se aparta de un saltito cuando otro pasa muy cerca
+        const S = a.sidestep; vx = S.x * 0.9; vz = S.z * 0.9; a.x += vx * dt; a.z += vz * dt; a.walk = false; if ((S.t -= dt) < 0) { a.sidestep = null; a.idle = Math.max(a.idle || 0, 0.4); }
       } else if (a.rest) { // sentado descansando un rato (pasa poco)
         a.walk = false; a.m.sitting = true;
         if ((a.rest.t -= dt) < 0) { a.rest = null; a.m.sitting = false; a.idle = 0.8 + Math.random(); }
@@ -4446,7 +4454,7 @@ function ranchStep(dt) {
         vx = (nx - a.x) / dt; vz = (nz - a.z) / dt; a.x = nx; a.z = nz; a.m.z = Math.sin(Math.PI * e) * F.h; a.m.vz = 0;
         a.m.setEmo('happy', 0.3, 1); // volando: contento
         F.seen = F.seen || new Set();
-        for (const b of A) if (b !== a && b.kind === 'mon' && !b.fly && !b.m.sleep && !F.seen.has(b) && Math.hypot(b.x - a.x, b.z - a.z) < 0.6) { F.seen.add(b); if (Math.random() < 0.6) b.m.setEmo('surprised', 0.8, 1); } // el que ve pasar a otro volando por encima se sorprende
+        for (const b of A) if (b !== a && b.kind === 'mon' && !b.fly && !b.m.sleep && !F.seen.has(b) && Math.hypot(b.x - a.x, b.z - a.z) < 0.6) { F.seen.add(b); if (Math.random() < 0.6) { const v = TP(b).valor; b.m.setEmo(v < 0 && Math.random() < -v ? 'scared' : v > 0 && Math.random() < v ? 'happy' : 'surprised', 0.8, 1); } } /* el tímido se asusta; el atrevido se alegra */ // el que ve pasar a otro volando por encima se sorprende
         if (F.t >= 1) { a.fly = null; a.m.z = 0; a.walk = false; a.idle = 1 + Math.random() * 2; }
       } else if (a.m.g.wings.pairs && !a.walk && a.m.z === 0 && (a.flyCd = (a.flyCd ?? 12 + Math.random() * 24) - dt) < 0) {
         const a1 = Math.atan2(a.x, a.z) + Math.PI + (Math.random() - 0.5) * 0.7, r1 = RANCH_RMAX * (0.7 + Math.random() * 0.25);
@@ -4454,23 +4462,29 @@ function ranchStep(dt) {
         a.fly = { x0: a.x, z0: a.z, x1, z1, t: 0, dur: dist / (RANCH_FLY_SPEED * (0.16 + (a.m.st.speed || 100) / 1800) / 0.2156), /* proporcional a lo rápido que camina (pedido del dueño) */ h: 170 + Math.random() * 90 };
         a.flyCd = 28 + Math.random() * 37; a.m.vz = 220;
       } else if (a.walk) {
-        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = 0.16 + (a.m.st.speed || 100) / 1800;
+        const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz), sp = (0.16 + (a.m.st.speed || 100) / 1800) * (1 + RP.speed * TP(a).ritmo); /* inquieto (golpes rápidos) camina más rápido; tranquilo (golpes fuertes), más lento */
         if ((a.wchk = (a.wchk || 0) + dt) > 1) { a.wchk = 0; if (a.wlast != null && a.wlast - d < 0.02) { a.walk = false; a.idle = 0.3; } a.wlast = d; } // si no avanza (un árbol u otro en el camino), elige otro lugar
         if (!a.walk) a.wlast = null;
-        else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = 1.6 + Math.random() * 4.5; }
+        else if (d < 0.03) { a.walk = false; a.wlast = null; a.idle = (1.6 + Math.random() * 4.5) * (1 - RP.pause * TP(a).ritmo); /* pausas cortas si es inquieto, largas si es tranquilo */
+          const q = a.company; a.company = null; if (q && q.m && A.includes(q) && Math.hypot(q.x - a.x, q.z - a.z) < 0.5) { a.m.setEmo('happy', 1.4, 1); if (TP(a).terco < -0.2 && (young(q) || q.m.baseEmo === 'sad')) { ranchHeart(a); if (!q.m.sleep) q.m.setEmo('happy', 1.4, 1); } } /* llegó junto a otro: contento; el protector le da cariño al pequeño o al triste */
+          if (Math.random() < RP.plant * Math.max(0, -TP(a).def)) { a.idle += 2 + Math.random() * 3; a.awayT = -0.4; } } /* firme («aguantar»): a veces se queda plantado mirando */
         else { vx = dx / d * sp; vz = dz / d * sp; a.x += vx * dt; a.z += vz * dt; }
-      } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
-      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1)) { a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (de noche más seguido)
+      } else if ((a.idle -= dt) < 0 && RANCH.day && RANCH.day.night && a.m.z === 0 && Math.random() < RANCH_NAP_P * (1 + RP.nap * Math.max(0, -TP(a).ritmo))) { a.nap = { t: 60 + Math.random() * 180 }; a.m.sleep = true; a.walk = false; // de noche a veces se duermen un buen rato (1–4 min)
+      } else if (a.idle < 0 && Math.random() < RANCH_SIT_P * (RANCH.day && RANCH.day.night ? 3 : 1) * (1 + RP.sit * Math.max(0, -TP(a).ritmo) - 0.5 * Math.max(0, TP(a).ritmo))) { /* el tranquilo se sienta más; el inquieto, menos */ a.rest = { t: 20 + Math.random() * 25 }; a.walk = false; // a veces se sienta a descansar (de noche más seguido)
       } else if (a.idle < 0) { // elige otro lugar cerca para ir caminando
+        const T = TP(a), fenceP = 0.2 * (T.agr >= 0 ? 1 - RP.fence * T.agr : 1 - RP.fenceLone * T.agr); /* el solitario pasea más junto a la reja; el sociable, menos */
+        let comp = null; if (Math.random() < RP.comp * (Math.max(0, T.agr) + Math.max(0, -T.terco))) { const L = A.filter(q => q !== a && q.kind === 'mon' && !q.fly), prot = -T.terco > T.agr; if (L.length) comp = wpick(L, q => (prot && (young(q) || q.m.baseEmo === 'sad') ? 5 : 1) / (0.3 + Math.hypot(q.x - a.x, q.z - a.z))); } /* sociable: va junto a otro; protector: junto a un pequeño o a uno triste */
+        a.company = null;
         for (let k = 0; k < 12; k++) {
           let ang = Math.random() * TAU, dd = 0.3 + Math.random() * 1.1, nx = a.x + Math.cos(ang) * dd, nz = a.z + Math.sin(ang) * dd;
-          if (k < 6 && Math.random() < 0.2) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
+          if (comp && k < 8) { nx = comp.x + Math.cos(ang) * 0.32; nz = comp.z + Math.sin(ang) * 0.32; }
+          else if (k < 6 && Math.random() < fenceP) { const ca = Math.atan2(a.x, a.z) + (Math.random() - 0.5) * 0.8, cr = RANCH_RMAX - Math.random() * 0.3; nx = Math.sin(ca) * cr; nz = Math.cos(ca) * cr; } // a veces va a pasear junto a la reja
           const rr = Math.hypot(nx, nz);
-          if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; break; } // dentro de la cerca, sin meterse al granero
+          if (rr > RANCH_RMIN && rr < RANCH_RMAX && !(RANCH.trees || []).some(t => Math.hypot(nx - t.x, nz - t.z) < t.cr + 0.03)) { a.tx = nx; a.tz = nz; a.walk = true; if (comp && k < 8) a.company = comp; break; } // dentro de la cerca, sin meterse al granero
         }
         if (!a.walk) a.idle = 0.5;
         if (RANCH.day && RANCH.day.night && Math.random() < 0.12) a.m.setEmo('yawn', 1.6, 1); // de noche, a veces bostezan
-        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11)) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } // a veces da un saltito contento (más si está energético)
+        if (Math.random() < (a.m.baseEmo === 'energetic' ? 0.34 : 0.11) * Math.max(0.2, 1 + RP.hop * T.valor) * (1 + 0.5 * Math.max(0, T.ritmo))) { a.m.vz = 200; a.m.setEmo('happy', 0.8, 1); } /* el atrevido («con todo») salta más; el tímido, menos */ // a veces da un saltito contento (más si está energético)
       }
     }
     a.mvx = vx; a.mvz = vz; // cómo se está moviendo (para apartarse de los demás sin empujarlos)
@@ -4489,17 +4503,17 @@ function ranchStep(dt) {
       else if ((a.turnT = (a.turnT || 0) + dt) > 1.3) a.awayT = Math.max(-0.4, (a.awayT || 0) - dt); // quieto un rato: se da vuelta a mirar
       // Miradas (pedido del dueño): si pasa cerca de ti (el centro) te mira; si se cruza con otro monstruo, lo mira
       const rC = Math.hypot(a.x, a.z);
-      if (rC < RANCH_LOOK_ME && !a.fly) { a.m.lookDir = { x: 0, y: 0.15 }; if (a.lookWho !== 'me') { a.lookWho = 'me'; if (Math.random() < 0.45) a.m.setEmo('happy', 1.2, 1); } } // te sigue con los ojos (no se da vuelta) y a veces se alegra de verte
+      if (rC < RANCH_LOOK_ME && !a.fly) { a.m.lookDir = { x: 0, y: 0.15 }; if (a.lookWho !== 'me') { a.lookWho = 'me'; if (Math.random() < 0.45 * (1 + 0.5 * TP(a).agr)) a.m.setEmo('happy', 1.2, 1); } } // te sigue con los ojos (no se da vuelta) y a veces se alegra de verte
       else {
-        let best = null, bd = RANCH_LOOK_OTHER;
+        let best = null, bd = RANCH_LOOK_OTHER * (1 + RP.look * TP(a).terco); /* el curioso («al más cercano») mira a los que pasan desde más lejos */
         for (const b of A) if (b !== a && b.kind === 'mon' && b.scr && a.scr) { const d = Math.hypot(b.x - a.x, b.z - a.z); if (d < bd) { bd = d; best = b; } }
-        if (best !== a.lookWho) { a.lookWho = best; if (best && !a.play && !a.fam) { const q = Math.random(); if (q < 0.3) a.m.setEmo('surprised', 0.6, 1); else if (q < 0.6) a.m.setEmo('happy', 1, 1); } } // al cruzarse con otro, a veces se sorprende o se alegra
+        if (best !== a.lookWho) { a.lookWho = best; if (best && !a.play && !a.fam) { const q = Math.random(), T = TP(a), cu = 1 + RP.curious * T.terco; if (q < 0.3 * cu) a.m.setEmo(T.valor < 0 && Math.random() < -T.valor ? 'scared' : T.valor > 0 && Math.random() < T.valor ? 'happy' : 'surprised', 0.6, 1); else if (q < 0.6 * cu) a.m.setEmo('happy', 1, 1); } } // al cruzarse con otro, a veces se sorprende o se alegra
         if (best) { const dx = best.scr.X - a.scr.X, dy = (best.scr.Y - best.scr.k * 40) - (a.scr.Y - a.scr.k * 40), d = Math.hypot(dx, dy) || 1; a.m.lookDir = { x: dx / d, y: dy / d * 0.6 }; }
         else a.m.lookDir = null;
       }
       a.m.back = (a.awayT || 0) > 0.15;
       const svx = (vx * c - vz * sn) * (V ? V.RX : 200) / Math.max(0.05, (V ? V.kb : 1) * (a.sc || 1));
-      const spd = Math.hypot(vx, vz) > 0 ? (a.play && a.play.kind === 'chase' && a.play.phase === 'play' ? 150 : 42) : 0; // a la pinta: corren (piernas rápidas y pasos largos, como en la arena)
+      const spd = Math.hypot(vx, vz) > 0 ? (a.play && a.play.kind === 'chase' && a.play.phase === 'play' ? 150 : 42 * (1 + RP.speed * TP(a).ritmo)) : 0; // a la pinta: corren (piernas rápidas y pasos largos, como en la arena)
       a.m.vx = clamp(svx, -spd, spd); a.m.vy = Math.sqrt(Math.max(0, spd * spd - a.m.vx * a.m.vx));
       if (!a.fly) a.m.hop(dt); if (a.m.g.wings.pairs && a.m.z > 0 && a.m.vz < -WING_FALL) a.m.vz = -WING_FALL; // con alas sigue bajando despacio, aleteando
       a.m.animate(dt); a.m.rigStep(dt / 2); a.m.rigStep(dt / 2);
@@ -4511,7 +4525,9 @@ function ranchStep(dt) {
     if (p.kind === 'free' || q.kind === 'free' || p.fly || q.fly) continue; // los espacios libres no empujan a nadie; los que vuelan pasan por encima
     if (d < 0.3) { // ya no se empujan: el que va caminando se aparta y rodea al otro; el que está quieto no se mueve (pedido del dueño)
       const mv = a => a.kind === 'mon' && Math.hypot(a.mvx || 0, a.mvz || 0) > 0.01, pm = mv(p), qm = mv(q), f = (0.3 - d) * 0.5, nx = dx / d, nz = dz / d;
-      let wp = pm && !qm ? 1 : qm && !pm ? 0 : 0.5; if (p.kind !== 'mon') wp = 0; if (q.kind !== 'mon') wp = 1;
+      const yl = a => a.kind === 'mon' ? Math.max(0.1, 1 + 0.9 * Math.min(0, TP(a).def)) : 1; /* el firme («aguantar») casi no se aparta */
+      let wp = pm && !qm ? 1 : qm && !pm ? 0 : yl(p) / (yl(p) + yl(q)); if (p.kind !== 'mon') wp = 0; if (q.kind !== 'mon') wp = 1;
+      for (const [s0, o, sg] of [[p, q, -1], [q, p, 1]]) if (s0.kind === 'mon' && !mv(s0) && mv(o) && !s0.sidestep && s0 !== focus && !s0.m.sleep && !s0.rest && !s0.come && s0.m.z === 0 && (s0.ssCd || 0) < RANCH.t && Math.random() < TP(s0).def) { s0.ssCd = RANCH.t + 3; const sd = Math.random() < 0.5 ? 1 : -1, px = -nz * sd, pz = nx * sd; s0.sidestep = { x: px + sg * nx * 0.5, z: pz + sg * nz * 0.5, t: 0.3 }; s0.m.vz = 150; } /* el ágil («esquivar») se aparta de un saltito */
       const side = (a, sx, sz) => { const tn = (a.mvx || 0) * -sz + (a.mvz || 0) * sx; return Math.abs(tn) > 0.005 ? Math.sign(tn) : (a.avSide = a.avSide || (Math.random() < 0.5 ? -1 : 1)); };
       if (wp > 0) { p.x -= nx * f * wp; p.z -= nz * f * wp; if (pm) { const sd = side(p, -nx, -nz); p.x += nz * sd * 0.12 * dt; p.z -= nx * sd * 0.12 * dt; } }
       if (wp < 1) { q.x += nx * f * (1 - wp); q.z += nz * f * (1 - wp); if (qm) { const sd = side(q, nx, nz); q.x -= nz * sd * 0.12 * dt; q.z += nx * sd * 0.12 * dt; } }
@@ -5268,7 +5284,7 @@ const barnMonKey = r => [r.stage, r.level, JSON.stringify(r.pts || {}), r.ult ||
 function barnItem(r) {
   {
     if (r.stage === 'egg') return { rec: r, egg: new EggView(r) };
-    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3); // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño)
+    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); { const R = tpOf(r).ritmo; m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3) + 0.2 * Math.max(0, -R) - 0.15 * Math.max(0, R); } // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño); el tranquilo duerme más y el inquieto menos (tácticas)
     for (let i = 0; i < 30; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
     return { rec: r, m, sz: m.estSize(), key: barnMonKey(r) };
   }
@@ -5304,13 +5320,20 @@ function barnAnim(dt) {
   for (const it of BARN.ms) {
     if (!it) continue;
     if (it.egg) { if (it !== skip) it.egg.update(dt); continue; } // (el de cerca lo anima la vista de cerca)
-    const m = it.m; if (!m || it === skip) continue; // el de cerca lo mueve la vista de cerca
+    const m = it.m; if (!m || it === skip) { if (m) m.lookDir = null; continue; } // el de cerca lo mueve la vista de cerca
     if (it === F || it.settle) { // de cerca: igual que en el rancho (se para, salta, lo puedes tomar), sin salirse de su cama
-      if (it === F) { m.sitting = false; it.settle = true; }
+      if (it === F) { m.sitting = false; it.settle = true; m.lookDir = null; }
       const k = it.k || 1; m.homeStep(dt, sp * 0.4 / k, 500);
       if (it !== F && !m.held && m.z === 0 && Math.abs(m.gx) < 3) { it.settle = false; m.gx = 0; m.vx = 0; m.sitting = true; } // ya volvió a su cama: se sienta
-    } else { m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+    } else { if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
   }
+}
+function barnMood(it, m, dt) { // despierto en su cama, se nota su forma de ser (tácticas): el inquieto se mueve, el curioso y el sociable miran a los vecinos
+  const T = tpOf(it.rec);
+  if (m.z > 0 || m.vz) m.hop(dt); else if (T.ritmo > 0 && Math.random() < dt * 0.3 * T.ritmo) { m.vz = 90 + Math.random() * 50; if (Math.random() < 0.4) m.setEmo('happy', 0.8, 1); } /* inquieto: da saltitos sentado */
+  if ((it.lookT = (it.lookT ?? 1 + Math.random() * 4) - dt) < 0) { const k = Math.max(0, T.terco) + Math.max(0, T.agr); it.lookT = (3 + Math.random() * 5) / (1 + k);
+    if (Math.random() < 0.25 + 0.5 * Math.min(1, k)) { const sd = Math.random() < 0.5 ? -1 : 1, i = BARN.ms.indexOf(it), nb = BARN.ms[i + sd]; m.lookDir = nb && nb.m ? { x: sd, y: 0.1 } : { x: sd * 0.6, y: -0.3 }; if (nb && nb.m && Math.random() < 0.35 * (1 + T.agr)) m.setEmo(T.valor < -0.2 && Math.random() < 0.5 ? 'surprised' : 'happy', 1, 1); } /* mira a su vecino (o a su alrededor) */
+    else m.lookDir = null; }
 }
 function barnLeaveStep(dt) { // los que van saliendo al rancho (también mientras miras a otro de cerca: no se pausan)
   for (const L of BARN.leaves.slice()) { // se para, camina hacia la izquierda hasta la puerta y sale (pedido del dueño)
@@ -5680,7 +5703,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia y ataca más rápido; además intenta agarrar a tus monstruos para lanzarlos.', 'Jefe: los brazos y las manos del Titán quedan delante o detrás de tus monstruos según dónde estén; la mano se abre para agarrar y el monstruo atrapado queda detrás de ella.', 'Jefe: para lanzar a tu monstruo, el Titán toma mucho impulso: saca la mano bien lejos de la pantalla y la trae de vuelta con fuerza contra la pared, o la sube muy alto y lo azota contra el piso.', 'Jefe: a veces hace una ráfaga de golpes rápidos seguidos (con las dos manos, o con la que le queda); ya no necesita perder una mano para agarrar y lanzar, y al rugir de rabia levanta la mano del piso.', 'Jefe: a tus monstruos que van volando a veces les da un manotazo con la mano abierta y los bota.', 'Jefe: al atrapar a tu monstruo se le asoma la cabeza por arriba de la mano; para azotarlo contra el piso, el Titán sube la mano hasta salir de la pantalla y la baja rápido.', 'Jefe: si a tu monstruo le queda un solo golpe, el Titán lo agarra, se lo lleva a la boca y le come la cabeza de un mordisco (con ruido de mordisco), y al soltarlo simplemente cae. El pulgar queda detrás del monstruo atrapado.', 'Jefe: cuando una mano no ataca, descansa abierta y apoyada en el suelo en la esquina de atrás de su lado (y a veces cierra y abre la mano un par de veces); el brazo se une al centro de la mano.', 'Jefe: de vez en cuando el Titán ruge y todo tiembla; cada vez que ruge, tus monstruos quedan aturdidos (en la entrada ponen cara de mareados).', 'Jefe: la mano en reposo a veces golpea el piso como en la entrada.', 'Jefe: los «fatality» (comerle o arrancarle la cabeza) pasan sólo de vez en cuando. Para arrancarla, una mano sostiene a tu monstruo y la otra le agarra la cabeza con la parte del pulgar y se la saca. A los monstruos sin cabeza les quita la parte donde tienen la cara.', 'Jefe: sonidos grabados de arrancar y de huesos que se rompen en los «fatality»; los «fatality» son más lentos y a la cabeza le cuesta salir (tu monstruo se estira y de golpe cede, como un elástico); en el arrancado las dos manos quedan delante de tu monstruo; el mordisco en sí es rápido; después cae y la cámara del K.O. se activa cuando toca el piso.', 'Jefe: ya no suena el sonido de K.O. de los otros modos.', 'Jefe: por ahora no tiene reloj ni límite de tiempo.', 'Jefe: música épica de orquesta y coro durante la pelea.', 'Jefe: al lanzar a tu monstruo (a los lados o al piso), siempre queda detrás de la mano.', 'Jefe: en los «fatality» tu monstruo se ve un poco más chico, y mientras está en la mano del Titán ya no le llegan otros golpes.', 'Jefe: cada mano ataca sólo a los monstruos de su lado (si no hay nadie, se queda descansando), pero la mano que le queda va por toda la arena; al subir va abierta, al apuntar forma el puño y en la ráfaga siempre es puño.', 'Jefe: en el mordisco tu monstruo se estira desde la boca del Titán hasta su mano.', 'Jefe: los golpes del Titán al suelo se pueden esquivar, igual que los disparos en los otros modos.'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia y ataca más rápido; además intenta agarrar a tus monstruos para lanzarlos.', 'Jefe: los brazos y las manos del Titán quedan delante o detrás de tus monstruos según dónde estén; la mano se abre para agarrar y el monstruo atrapado queda detrás de ella.', 'Jefe: para lanzar a tu monstruo, el Titán toma mucho impulso: saca la mano bien lejos de la pantalla y la trae de vuelta con fuerza contra la pared, o la sube muy alto y lo azota contra el piso.', 'Jefe: a veces hace una ráfaga de golpes rápidos seguidos (con las dos manos, o con la que le queda); ya no necesita perder una mano para agarrar y lanzar, y al rugir de rabia levanta la mano del piso.', 'Jefe: a tus monstruos que van volando a veces les da un manotazo con la mano abierta y los bota.', 'Jefe: al atrapar a tu monstruo se le asoma la cabeza por arriba de la mano; para azotarlo contra el piso, el Titán sube la mano hasta salir de la pantalla y la baja rápido.', 'Jefe: si a tu monstruo le queda un solo golpe, el Titán lo agarra, se lo lleva a la boca y le come la cabeza de un mordisco (con ruido de mordisco), y al soltarlo simplemente cae. El pulgar queda detrás del monstruo atrapado.', 'Jefe: cuando una mano no ataca, descansa abierta y apoyada en el suelo en la esquina de atrás de su lado (y a veces cierra y abre la mano un par de veces); el brazo se une al centro de la mano.', 'Jefe: de vez en cuando el Titán ruge y todo tiembla; cada vez que ruge, tus monstruos quedan aturdidos (en la entrada ponen cara de mareados).', 'Jefe: la mano en reposo a veces golpea el piso como en la entrada.', 'Jefe: los «fatality» (comerle o arrancarle la cabeza) pasan sólo de vez en cuando. Para arrancarla, una mano sostiene a tu monstruo y la otra le agarra la cabeza con la parte del pulgar y se la saca. A los monstruos sin cabeza les quita la parte donde tienen la cara.', 'Jefe: sonidos grabados de arrancar y de huesos que se rompen en los «fatality»; los «fatality» son más lentos y a la cabeza le cuesta salir (tu monstruo se estira y de golpe cede, como un elástico); en el arrancado las dos manos quedan delante de tu monstruo; el mordisco en sí es rápido; después cae y la cámara del K.O. se activa cuando toca el piso.', 'Jefe: ya no suena el sonido de K.O. de los otros modos.', 'Jefe: por ahora no tiene reloj ni límite de tiempo.', 'Jefe: música épica de orquesta y coro durante la pelea.', 'Jefe: al lanzar a tu monstruo (a los lados o al piso), siempre queda detrás de la mano.', 'Jefe: en los «fatality» tu monstruo se ve un poco más chico, y mientras está en la mano del Titán ya no le llegan otros golpes.', 'Jefe: cada mano ataca sólo a los monstruos de su lado (si no hay nadie, se queda descansando), pero la mano que le queda va por toda la arena; al subir va abierta, al apuntar forma el puño y en la ráfaga siempre es puño.', 'Jefe: en el mordisco tu monstruo se estira desde la boca del Titán hasta su mano.', 'Jefe: los golpes del Titán al suelo se pueden esquivar, igual que los disparos en los otros modos.', 'Las tácticas de combate ahora también son la forma de ser de tu monstruo en el rancho y el granero: los de cerca son sociables y los de lejos solitarios; los que van al más cercano son curiosos y los que van al más débil cuidan y juegan con los pequeños; los «con todo» son atrevidos y saltan más, y los que se cuidan son tímidos y se asustan fácil; los de golpes rápidos son inquietos y los de golpes fuertes tranquilos y dormilones; los que esquivan se apartan de un saltito y los que aguantan no se mueven.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
