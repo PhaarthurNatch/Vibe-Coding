@@ -372,8 +372,8 @@ function drawArena(ctx, V) {
 }
 
 // ----- Elementos en las esquinas (pedido del dueño): fuego arriba a la izquierda y abajo a la derecha, pozo de agua abajo a la izquierda y arriba a la derecha -----
-const FIRE_R = 22, FIRE_H = 13, POOL_R = 40, PROP_M = 62;
-function arenaProps() { const m = PROP_M, W = ARENA_W, D = ARENA_D; return [{ k: 'fire', x: m, y: m * 0.9, r: FIRE_R }, { k: 'water', x: m + 8, y: D - m - 10, r: POOL_R }, { k: 'fire', x: W - m, y: D - m * 0.9, r: FIRE_R }, { k: 'water', x: W - m - 8, y: m + 10, r: POOL_R }]; }
+const FIRE_R = 22, FIRE_H = 13, POOL_R = 40;
+function arenaProps() { const W = ARENA_W, D = ARENA_D, f = FIRE_R + 6, w = POOL_R + 8; return [{ k: 'fire', x: f, y: f, r: FIRE_R }, { k: 'water', x: w, y: D - w, r: POOL_R }, { k: 'fire', x: W - f, y: D - f, r: FIRE_R }, { k: 'water', x: W - w, y: w, r: POOL_R }]; } // bien pegados a las esquinas (pedido del dueño)
 function drawPool(ctx, p, T) { // pozo de agua: borde de piedra y agua con ondas y brillos
   const x = p.x, y = TOP + p.y * DEPTH, R = p.r, RY = R * DEPTH, rim = 7, h = 6;
   ctx.fillStyle = '#5e5850'; ctx.beginPath(); ctx.ellipse(x, y, R + rim, (R + rim) * DEPTH, 0, 0, Math.PI); ctx.lineTo(x - R - rim, y - h); ctx.ellipse(x, y - h, R + rim, (R + rim) * DEPTH, 0, Math.PI, 0, true); ctx.closePath(); ctx.fill(); // costado del borde
