@@ -5489,7 +5489,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).'] },
+  { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
   { v: '1.77', d: '2026-11-24', items: ['Arreglado: en la web app una pelea podía quedar congelada (y la ✕ no respondía) porque el celular seguía usando audios viejos guardados; ahora siempre baja los nuevos y el juego no se detiene aunque algo falle.'] },
