@@ -3302,10 +3302,11 @@ class BossHand extends Monster {
   think(dt, B) {
     if (this.dead) { this.deadT = (this.deadT || 0) + dt; this.z = Math.max(0, this.z - 600 * dt); B.place(this); this.sync(); return; }
     this.state = 'free'; this.stT = 0; this.ph -= dt;
+    this.open = (this.open || 0) + ((this.phase === 'reach' ? 1 : 0) - (this.open || 0)) * Math.min(1, dt * (this.phase === 'reach' ? 5 : 12)); // abre la mano para agarrar; la cierra al tomarlo (y para golpear)
     const foes = B.ms.filter(m => !m.dead && m.team !== this.team);
     if (this.phase === 'rest') { this.z = 0; if (this.ph <= 0 && foes.length && !B.over) {
         const gf = foes.filter(f => f.z < FLY.airZ && f.state !== 'ultcharge');
-        if (this.rage && gf.length && Math.random() < BOSS.grab) { this.target = gf[Math.floor(Math.random() * gf.length)]; this.phase = 'reach'; this.ph = 1.3; return this.finish(B); } // con la mano sana: intenta agarrar a uno y lanzarlo a la pared (pedido del dueño)
+        if (this.rage && gf.length && Math.random() < BOSS.grab) { this.target = gf[Math.floor(Math.random() * gf.length)]; this.phase = 'reach'; this.ph = 1.6; return this.finish(B); } // con la mano sana: intenta agarrar a uno y lanzarlo a la pared (pedido del dueño)
         // cada golpe con su propia altura y ritmo (pedido del dueño); a veces golpea con las dos manos a la vez; sin un brazo, más rápido
         const rf = this.rage ? BOSS.rage : 1, atk = { z: 0.6 + Math.random() * 0.8, lift: (0.55 + Math.random() * 0.8) * rf, aim: (0.3 + Math.random() * 0.6) * rf, g: (3000 + Math.random() * 2600) / rf };
         const o = B.ms.find(h => h.isHand && h !== this && !h.dead && h.phase === 'rest'), go = h => { const mine = h.rage ? foes : foes.filter(f => (f.x < ARENA_W / 2) === (h.side < 0)), L = mine.length ? mine : foes; /* cada mano ataca en su mitad de la arena (pedido del dueño) */ h.atk = atk; h.target = L[Math.floor(Math.random() * L.length)]; h.phase = 'lift'; h.ph = atk.lift; };
@@ -3315,15 +3316,16 @@ class BossHand extends Monster {
       else { const f = Math.min(1, dt * (this.phase === 'lift' ? 3.2 : 1.6)); this.x += (clamp(T.x, this.r, ARENA_W - this.r) - this.x) * f; this.y += (clamp(T.y, this.r, ARENA_D - this.r) - this.y) * f; }
       const A = this.atk || { z: 1, aim: BOSS.aim, g: 4200 }; this.z += (BOSS.liftZ * A.z * this.k - this.z) * Math.min(1, dt * 5);
       if (this.ph <= 0) { if (this.phase === 'lift') { this.phase = 'aim'; this.ph = A.aim; } else { this.phase = 'slam'; this.vz = -200; } }
-    } else if (this.phase === 'reach') { // va a ras del suelo hacia su objetivo para agarrarlo
+    } else if (this.phase === 'reach') { // primero abre la mano y después va a ras del suelo hacia su objetivo para agarrarlo
       const T = this.target; this.z += (22 * this.k - this.z) * Math.min(1, dt * 6);
+      if (this.open < 0.85) { this.finish(B); return; } // (mientras abre la mano no avanza)
       if (!T || T.dead || T.z > FLY.airZ || T.state === 'ultcharge' || this.ph <= 0) { this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * 0.6; }
       else { const f = Math.min(1, dt * 3.2); this.x += (T.x - this.x) * f; this.y += (T.y - this.y) * f;
         if (Math.hypot(T.x - this.x, T.y - this.y) < this.r + T.r + 14 * this.k) { /* (la separación entre cuerpos no deja que se acerque más que la suma de los radios) */ this.held = T; T.state = 'grabbed'; T.ulting = false; T.ultRequest = false; T.setEmo('scared', 2, 4); B.text(T, '¡atrapado!', '#ff8a7a'); this.phase = 'carry'; this.ph = 0.75; if (B.kcamOn) SFX.hit(20, false); } }
     } else if (this.phase === 'carry') { // lo levanta y toma impulso hacia su lado
       const T = this.held; if (!T || T.dead) { this.drop(); this.phase = 'rest'; this.ph = 1; }
       else { this.z += (BOSS.liftZ * 0.85 * this.k - this.z) * Math.min(1, dt * 5); this.x += ((this.side < 0 ? ARENA_W * 0.12 : ARENA_W * 0.88) - this.x) * Math.min(1, dt * 2.5);
-        T.x = this.x; T.y = this.y + 2; T.z = Math.max(0, this.z - this.r * 0.4);
+        T.x = this.x; T.y = this.y - 3; T.z = Math.max(0, this.z - this.r * 0.4); /* (un poco atrás: se dibuja detrás de la mano que lo tiene) */
         if (this.ph <= 0) { // ¡lo lanza a la pared contraria!
           this.held = null; T.state = 'thrown'; T.thrownBy = this; T.thrownT = 0; T.vx = -this.side * BOSS.throwV * Math.max(0.7, this.k); T.vy = (Math.random() - 0.5) * 120; T.vz = 120; B.shake = Math.max(B.shake, 8); if (B.kcamOn) SFX.ult('ranged');
           this.phase = 'rest'; this.ph = BOSS.rest * BOSS.rage * (0.55 + Math.random() * 0.9); } }
@@ -3339,7 +3341,8 @@ class BossHand extends Monster {
   }
   finish(B) { // cada mano cubre su mitad: los brazos no se cruzan (pedido del dueño); sin el otro brazo, la mano sana alcanza toda la arena (para agarrar)
     const solo = this.rage; this.x = clamp(this.x, this.side < 0 || solo ? this.r : ARENA_W * 0.5, this.side < 0 && !solo ? ARENA_W * 0.5 : ARENA_W - this.r); this.y = clamp(this.y, this.r, ARENA_D - this.r); B.place(this); this.sync(); }
-  draw(ctx) { // un puño enorme
+  draw(ctx) { // un puño enorme (o la mano abierta para agarrar)
+    drawBossArm(ctx, this);
     const r = Math.max(this.r * 1.05, ((typeof battle !== 'undefined' && battle && battle.armW2) || 0) * 1.2), x = this.gx, y = this.gy - this.z - r * 0.55, /* el puño también va en proporción */ c = this.g.pal.body, dead = this.dead, A = this.phase === 'aim' || this.phase === 'slam';
     if (A && !dead) { ctx.save(); const a = 0.35 + 0.35 * Math.sin((this.t || 0) * 18); ctx.strokeStyle = `rgba(255,60,40,${a})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(this.gx, this.gy, BOSS.slamR * this.k, BOSS.slamR * this.k * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.restore(); } // aviso de dónde va a caer
     ctx.save(); if (dead) ctx.globalAlpha = 0.75; const fill = dead ? '#6d6670' : this.hurtT > 0 ? '#ffffff' : hsl(c), dk = dead ? '#3c373f' : hsl(c, -22);
@@ -3347,11 +3350,15 @@ class BossHand extends Monster {
     // puño visto desde el dorso (pedido del dueño): el brazo entra por la muñeca y los nudillos quedan hacia el centro de la arena (f), con los dedos doblados asomando
     if (this.handRot) { ctx.translate(x, y); ctx.rotate(this.handRot); ctx.translate(-x, -y); } // sigue al antebrazo, pero nunca inclinada hacia abajo (pedido del dueño)
     const f = -this.side, rr = (cx, cy, w, h, k) => { ctx.beginPath(); ctx.roundRect(cx - w / 2, cy - h / 2, w, h, k); ctx.fill(); ctx.stroke(); };
-    ctx.beginPath(); ctx.ellipse(x + f * r * 0.12, y - r * 0.7, r * 0.52, r * 0.22, f * 0.12, 0, TAU); ctx.fill(); ctx.stroke(); // pulgar, asomando por arriba (es la mano del jefe vista desde el dorso)
-    for (let i = 0; i < 4; i++) rr(x + f * r * 0.78, y + (i - 1.5) * r * 0.37, r * 0.5, r * 0.36, r * 0.15); // dedos doblados
+    { const o = this.open || 0; ctx.beginPath(); ctx.ellipse(x + f * r * (0.12 + 0.3 * o), y - r * (0.7 + 0.25 * o), r * (0.52 + 0.2 * o), r * 0.22, f * (0.12 - 0.55 * o), 0, TAU); ctx.fill(); ctx.stroke(); } // pulgar, asomando por arriba (es la mano del jefe vista desde el dorso)
+    const o = this.open || 0; // dedos: cerrados en puño para golpear, abiertos para agarrar (pedido del dueño)
+    if (o < 0.02) for (let i = 0; i < 4; i++) rr(x + f * r * 0.78, y + (i - 1.5) * r * 0.37, r * 0.5, r * 0.36, r * 0.15); // dedos doblados
+    else for (let i = 0; i < 4; i++) { const L = r * (0.5 + 0.95 * o), a = (i - 1.5) * 0.2 * o, px = x + f * r * 0.55, py = y + (i - 1.5) * r * 0.37; // dedos que se estiran y se abren en abanico
+      ctx.save(); ctx.translate(px, py); ctx.rotate(f * a); ctx.beginPath(); ctx.roundRect(f > 0 ? 0 : -L, -r * 0.17, L, r * 0.34, r * 0.16); ctx.fill(); ctx.stroke();
+      if (o > 0.4) { ctx.globalAlpha *= 0.5; ctx.lineWidth = 2; for (const q of [0.38, 0.7]) { ctx.beginPath(); ctx.moveTo(f * L * q, -r * 0.13); ctx.lineTo(f * L * q, r * 0.13); ctx.stroke(); } } ctx.restore(); } // (con sus nudillos)
     rr(x - f * r * 0.12, y, r * 1.6, r * 1.5, r * 0.5); // dorso
     ctx.save(); ctx.globalAlpha *= 0.45; ctx.lineWidth = 2.5; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(x - f * r * 0.6, y + (i - 1.5) * r * 0.14); ctx.lineTo(x + f * r * 0.35, y + (i - 1.5) * r * 0.36); ctx.stroke(); } ctx.restore(); // tendones
-    ctx.lineWidth = 3; if (!dead && !(this.hurtT > 0)) ctx.fillStyle = hsl(c, 8); for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + f * r * 0.56, y + (i - 1.5) * r * 0.37, r * 0.17, 0, TAU); ctx.fill(); ctx.stroke(); } // nudillos
+    ctx.lineWidth = 3; if (!dead && !(this.hurtT > 0)) ctx.fillStyle = hsl(c, 8); if (o < 0.5) for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x + f * r * 0.56, y + (i - 1.5) * r * 0.37, r * 0.17, 0, TAU); ctx.fill(); ctx.stroke(); } // nudillos (en el puño)
     ctx.restore();
   }
 }
@@ -3388,7 +3395,7 @@ function drawBossBack(ctx, B) { // el cuerpo del jefe al fondo (del torso para a
     const [sx, sy] = rot(up.x + h.side * sw * BOSS.shoulderOut, up.y - U.h * sc * 0.3), [ex, ey, bad] = bossIK(V, h, sx, sy, hx, hy, B.bossL1);
     h.elbY = ey; // altura del codo (para la inclinación)
     { const f = -h.side, ux = (hx - ex) * f, uy = (hy - ey) * f; let a = Math.atan2(uy, ux); a = f > 0 ? Math.max(-0.7, Math.min(0, a)) : Math.max(0, Math.min(0.7, a)); h.handRot = a; } // el puño sigue al antebrazo sin doblarse hacia abajo
-    ctx.save(); seg(sx, sy, ex, ey, w1, h.dead); seg(ex, ey, hx, hy, w2, h.dead); ball(ex, ey, w1 * 0.62, h.dead); bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, h.dead, h.side); ctx.restore(); }
+    h.arm = { sx, sy, ex, ey, hx, hy, w1, w2, c }; } // el brazo se dibuja junto con su mano, a la profundidad de la mano (pedido del dueño: brazo y mano en la misma capa, delante o detrás de los monstruos según dónde estén)
   if (B.roarT != null) { // rugido: ondas de sonido que salen de su cara (pedido del dueño)
     const hd = body.nodes[body.ix.head], [fx, fy] = rot(hd.x, hd.y + body.g.head.h * sc * 0.18), Vw = V.x1 - V.x0, mr = Vw * 0.75, fade = Math.min(1, B.roarT / 0.15, (BOSS_ROAR - B.roarT) / 0.3);
     ctx.save(); ctx.lineCap = 'round';
@@ -3440,6 +3447,12 @@ function drawBossDetail(ctx, body, up, sc, rs, B) {
     ctx.strokeStyle = lt(0.35); ctx.lineWidth = lw * 2.5; ctx.beginPath(); ctx.arc(x, y, rs * 0.78, sd < 0 ? -1.75 : -2.4, sd < 0 ? -0.75 : -1.4); ctx.stroke();
     ctx.strokeStyle = dk(0.45); ctx.lineWidth = lw * 1.4; ctx.beginPath(); ctx.arc(x - sd * rs * 0.35, y + rs * 0.15, rs * 0.75, sd < 0 ? -0.6 : Math.PI * 0.75, sd < 0 ? 0.25 : Math.PI * 1.6); ctx.stroke(); }
 }
+function drawBossArm(ctx, h) { // brazo del jefe (hombro → codo → mano), en la misma capa que su mano
+  const A = h.arm; if (!A) return; const { sx, sy, ex, ey, hx, hy, w1, w2, c } = A, dead = h.dead;
+  const seg = (ax, ay, bx, by, w) => { ctx.lineCap = 'round'; ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = w + 8; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.strokeStyle = dead ? '#6d6670' : hsl(c); ctx.lineWidth = w; ctx.stroke(); };
+  ctx.save(); seg(sx, sy, ex, ey, w1); seg(ex, ey, hx, hy, w2);
+  ctx.fillStyle = dead ? '#6d6670' : hsl(c); ctx.strokeStyle = dead ? '#3c373f' : hsl(c, -22); ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(ex, ey, w1 * 0.62, 0, TAU); ctx.fill(); ctx.stroke();
+  bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, dead, h.side); ctx.restore(); }
 function bossArmDetail(ctx, sx, sy, ex, ey, hx, hy, w1, w2, c, dead, side) { // bíceps, arrugas del codo y venas del antebrazo
   if (dead) return; const lw = Math.max(2, w2 * 0.05), dk = a => hsl(c, -30, a), lt = a => hsl(c, 18, a);
   ctx.lineCap = 'round';
@@ -5554,7 +5567,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia, ataca más rápido y con la mano sana intenta agarrar a tus monstruos para lanzarlos contra la pared.'] },
+  { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia, ataca más rápido y con la mano sana intenta agarrar a tus monstruos para lanzarlos contra la pared.', 'Jefe: los brazos y las manos del Titán quedan delante o detrás de tus monstruos según dónde estén; la mano se abre para agarrar y el monstruo atrapado queda detrás de ella.'] },
   { v: '1.80', d: '2026-11-24', items: ['Contador de peleas Online: en la sala de una pelea 1 vs 1 ves cuántas veces le has ganado y perdido a ese jugador (sigue igual aunque se cambie el nombre de usuario).', 'En la sala Online, el color de tu tarjeta ahora es un botón dorado para cambiar de equipo.'] },
   { v: '1.79', d: '2026-11-24', items: ['Arreglado: los comentaristas casi no hablaban (sólo decían la ultimate y los K.O.). Ahora vuelven a narrar los golpes, las esquivas y a conversar entre ellos.'] },
   { v: '1.78', d: '2026-11-24', items: ['Más variedad en el público: el doble de ovaciones, «ooh», sorpresas, aplausos y abucheos, y reacciones nuevas: se ríen, corean cuando la pelea está intensa o en la muerte súbita, y dicen «aww» cuando a alguien le queda poca vida.'] },
