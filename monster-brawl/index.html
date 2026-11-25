@@ -154,6 +154,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .xp .bar i{background:#8f7bff}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .topbar .mode{font-weight:800;font-size:15px}
+.tbr{display:flex;align-items:center;gap:8px}.specbadge{display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.35);border:1px solid rgba(255,207,110,.5);color:#ffd36e;border-radius:12px;padding:2px 8px;font-size:14px;font-weight:800}.specbadge[hidden]{display:none}.specbadge.pop{animation:specpop .5s ease}@keyframes specpop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}} /* alguien te está espectando (pedido del dueño) */
 .roundbtn{width:44px;height:44px;border-radius:50%;background:var(--panel2);font-weight:800}
 .fighters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
 .bossbar{grid-column:1/-1;order:-1;background:rgba(37,29,61,.92);border-radius:12px;padding:7px 10px;border:2px solid #e0402a;display:flex;flex-direction:column;gap:5px;font-weight:800;font-size:13px}.bossbar .bar{height:14px;border-radius:7px}.bossbar .bar i{background:linear-gradient(90deg,#ff3b30,#ff9a3c)!important;border-radius:7px;transition:width .2s}
@@ -382,7 +383,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
   <div class="topbar">
     <button class="roundbtn" id="quit">✕</button>
     <div class="mode" id="modeLbl">1 vs 1</div>
-    <label class="arsw" aria-label="Comentaristas"><span>🎙️</span><input type="checkbox" class="sw" id="arCastSw"></label>
+    <div class="tbr"><span class="specbadge" id="specBadge" hidden title="Te están mirando">👁️ <b id="specN">1</b></span><label class="arsw" aria-label="Comentaristas"><span>🎙️</span><input type="checkbox" class="sw" id="arCastSw"></label></div>
   </div>
   <div class="fighters" id="fighters"></div>
   <div class="spacer"></div>
@@ -5726,6 +5727,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.85', d: '2026-11-25', items: ['En la arena, arriba aparece un 👁️ con el número de amigos que están mirando tu pelea.', 'Online y al espectar: los disparos se ven fluidos (antes se movían a saltos).'] },
   { v: '1.84', d: '2026-11-24', items: ['Si juegas sin cuenta, el juego te ofrece guardar tu partida en la nube para no perderla si borras los datos o cambias de celular.'] },
   { v: '1.82', d: '2026-11-24', items: ['Jefe: el manotazo y el agarre del Titán también se pueden esquivar, igual que los disparos en los otros modos.', 'En el granero puedes acariciar a un monstruo sin elegirlo, frotándolo despacio como en el rancho (le sube la moral).'] },
   { v: '1.81', d: '2026-11-24', items: ['La animación de crecer ya no queda tapada por la pantalla de carga: empieza cuando ésta se quita.', 'Arreglado: el «cuello largo» ya no le sale a monstruos que no tienen cuello (niños, cuadrúpedos, cangrejos, slimes, pulpos).', 'Las serpientes ya no tienen cola: su cuerpo es la cola.', 'Jefe: el Titán tiene casi el triple de vida, cada golpe sube a distinta altura y con distinto ritmo, y a veces golpea con las dos manos a la vez.', 'Jefe: cada mano del Titán ataca sólo su mitad de la arena (los brazos ya no se cruzan) y, antes del conteo, ruge con ondas de sonido y golpea dos veces la arena con ambas manos, sacudiéndola.', 'Jefe: cada golpe del Titán sacude toda la arena y suelta ondas de choque, y tus monstruos se ven más chicos a su lado.', 'Jefe: el rugido dura más y tus monstruos ponen cara de susto; el Titán siempre mira a tus monstruos.', 'Jefe: al destruirle un brazo vuelve a rugir, se le pone la cara roja de rabia y ataca más rápido; además intenta agarrar a tus monstruos para lanzarlos.', 'Jefe: los brazos y las manos del Titán quedan delante o detrás de tus monstruos según dónde estén; la mano se abre para agarrar y el monstruo atrapado queda detrás de ella.', 'Jefe: para lanzar a tu monstruo, el Titán toma mucho impulso: saca la mano bien lejos de la pantalla y la trae de vuelta con fuerza contra la pared, o la sube muy alto y lo azota contra el piso.', 'Jefe: a veces hace una ráfaga de golpes rápidos seguidos (con las dos manos, o con la que le queda); ya no necesita perder una mano para agarrar y lanzar, y al rugir de rabia levanta la mano del piso.', 'Jefe: a tus monstruos que van volando a veces les da un manotazo con la mano abierta y los bota.', 'Jefe: al atrapar a tu monstruo se le asoma la cabeza por arriba de la mano; para azotarlo contra el piso, el Titán sube la mano hasta salir de la pantalla y la baja rápido.', 'Jefe: si a tu monstruo le queda un solo golpe, el Titán lo agarra, se lo lleva a la boca y le come la cabeza de un mordisco (con ruido de mordisco), y al soltarlo simplemente cae. El pulgar queda detrás del monstruo atrapado.', 'Jefe: cuando una mano no ataca, descansa abierta y apoyada en el suelo en la esquina de atrás de su lado (y a veces cierra y abre la mano un par de veces); el brazo se une al centro de la mano.', 'Jefe: de vez en cuando el Titán ruge y todo tiembla; cada vez que ruge, tus monstruos quedan aturdidos (en la entrada ponen cara de mareados).', 'Jefe: la mano en reposo a veces golpea el piso como en la entrada.', 'Jefe: los «fatality» (comerle o arrancarle la cabeza) pasan sólo de vez en cuando. Para arrancarla, una mano sostiene a tu monstruo y la otra le agarra la cabeza con la parte del pulgar y se la saca. A los monstruos sin cabeza les quita la parte donde tienen la cara.', 'Jefe: sonidos grabados de arrancar y de huesos que se rompen en los «fatality»; los «fatality» son más lentos y a la cabeza le cuesta salir (tu monstruo se estira y de golpe cede, como un elástico); en el arrancado las dos manos quedan delante de tu monstruo; el mordisco en sí es rápido; después cae y la cámara del K.O. se activa cuando toca el piso.', 'Jefe: ya no suena el sonido de K.O. de los otros modos.', 'Jefe: por ahora no tiene reloj ni límite de tiempo.', 'Jefe: música épica de orquesta y coro durante la pelea.', 'Jefe: al lanzar a tu monstruo (a los lados o al piso), siempre queda detrás de la mano.', 'Jefe: en los «fatality» tu monstruo se ve un poco más chico, y mientras está en la mano del Titán ya no le llegan otros golpes.', 'Jefe: cada mano ataca sólo a los monstruos de su lado (si no hay nadie, se queda descansando), pero la mano que le queda va por toda la arena; al subir va abierta, al apuntar forma el puño y en la ráfaga siempre es puño.', 'Jefe: en el mordisco tu monstruo se estira desde la boca del Titán hasta su mano.', 'Jefe: los golpes del Titán al suelo se pueden esquivar, igual que los disparos en los otros modos.', 'Las tácticas de combate ahora también son la forma de ser de tu monstruo en el rancho y el granero: los de cerca son sociables y los de lejos solitarios; los que van al más cercano son curiosos y los que van al más débil cuidan y juegan con los pequeños; los «con todo» son atrevidos y saltan más, y los que se cuidan son tímidos y se asustan fácil; los de golpes rápidos son inquietos y los de golpes fuertes tranquilos y dormilones; los que esquivan se apartan de un saltito y los que aguantan no se mueven.'] },
@@ -6221,12 +6223,17 @@ function specSendStart(v) {
   const recs = B.ms.map(m => ({ ...lanRec(m.rec), user: m.isPlayer ? save.user : m.rec.user, uid: m.isPlayer ? (cloud && cloud.uid) || undefined : m.rec.uid })); // en Online, cada monstruo con el nombre de su jugador
   try { v.dc.send(JSON.stringify({ t: 'vstart', aw: ARENA_W, ad: ARENA_D, mode: B.mode, teams: B.ms.map(m => m.team), recs, me: B.ms.map(m => !!m.isPlayer), clone: B.ms.map(m => m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1), who: save.user, lan: !!B.lan })); } catch (e) { }
 }
+let specShown = 0;
+function specBadge() { // arriba en la arena: 👁️ y cuántos te están mirando (pedido del dueño)
+  const n = scene === 'battle' && battle && !battle.spec ? SPEC.viewers.filter(v => v.open).length : 0; if (n === specShown) return;
+  const b = $('specBadge'); b.hidden = !n; $('specN').textContent = n; if (n > specShown) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } specShown = n;
+}
 function specTick() { // cada pocos cuadros, el estado de la pelea a los que miran
-  const open = SPEC.viewers.filter(v => v.open); if (!open.length || !battle || battle.spec) return;
+  specBadge(); const open = SPEC.viewers.filter(v => v.open); if (!open.length || !battle || battle.spec) return;
   if ((SPEC.sendT = (SPEC.sendT + 1) % 3) === 0) { const s = JSON.stringify(lanSnapshot()); for (const v of open) try { v.dc.send(s); } catch (e) { } }
   if (battle.over && !SPEC.endSent) { SPEC.endSent = true; const m = JSON.stringify({ t: 'vend', win: battle.winTeam, rank: battle.ranking, dr: !!battle.isDraw }); for (const v of open) try { v.dc.send(m); } catch (e) { } setTimeout(specCloseViewers, 4000); }
 }
-function specCloseViewers() { for (const v of SPEC.viewers) { try { v.dc.close(); v.pc.close(); } catch (e) { } } SPEC.viewers = []; SPEC.endSent = false; }
+function specCloseViewers() { for (const v of SPEC.viewers) { try { v.dc.close(); v.pc.close(); } catch (e) { } } SPEC.viewers = []; SPEC.endSent = false; specBadge(); }
 setInterval(() => { if (scene === 'battle' && battle && !battle.spec && cloud && save.user && !document.hidden) specServe(); else if (SPEC.viewers.length && scene !== 'battle') specCloseViewers(); }, 3000);
 function specUI(msg, cancel) { // ventana mientras se conecta
   $('lanTitle').textContent = 'Espectar'; $('lanInfo').textContent = msg; $('lanList').innerHTML = ''; $('lanCode').hidden = true;
@@ -7004,7 +7011,7 @@ function loopFrame(now) {
     if (battle.over && !battle._annEnd) { SFX.otStop(); SFX.bmStop(); const B = battle; B._annEnd = true; B._overAt = performance.now(); const talk = ANN.on && !CAST.muted && SFX.on; B._annUntil = talk ? Infinity : 0; // cierre del relator: el resultado espera a que termine (pedido del dueño)
       if (talk) setTimeout(() => { if (battle !== B) return; if (!B.isDraw) { const w = B.ms.find(x => x.team === B.winTeam && !x.cloneOf); ANN.ev('end', 0, w && w.name); }
         ANN.on = false; B._annUntil = performance.now() + CLIP.wait() * 1000 + 350; setTimeout(() => { if (battle === B || !ANN.on) CROWD.stop(); }, CLIP.wait() * 1000 + 4000); }, B.koBig ? (KO_DELAY + 0.75) * 1000 : B.drawBig ? (KO_DELAY + 0.3) * 1000 : 500); }
-    if (SPEC.viewers.length) specTick(); // tus amigos que están mirando tu pelea
+    if (SPEC.viewers.length || specShown) specTick(); // tus amigos que están mirando tu pelea (y el 👁️ de arriba)
     const top = $('fighters').getBoundingClientRect().bottom + 8, bottom = $('ultBar').hidden ? 16 : H - $('ultBar').getBoundingClientRect().top + 8;
     const bw = ARENA_W + 60, bh = TOP + ARENA_D * DEPTH + 30;
     const k = Math.min(W / bw, (H - top - bottom) / bh);
@@ -7350,7 +7357,7 @@ function lanSnapshot() {
     ms: B.ms.map(m => [R1(m.x), R1(m.y), R1(m.z), R1(m.vx), R1(m.vy), Math.round(m.hp), m.dead ? 1 : 0, m.state, R1(m.strikeExt || 0), [R1(m.atkDir.x * 100) / 100, R1(m.atkDir.y * 100) / 100],
       m.atkArm ? m.ix.arms.indexOf(m.atkArm) : -1, B.ms.indexOf(m.target), m.emo, R1(m.emoT), m.emoP, R1(m.hurtT), R1(m.mouthOpen),
       [R1(m.buffs.defense), R1(m.buffs.speed), R1(m.buffs.dodge), R1(m.buffs.all)], R1(m.floatT || 0), m.ulting ? 1 : 0, m.ultReady ? 1 : 0, R1(m.ultCd || 0), m.ultRequest ? 1 : 0, m.winEmo, R1(m.alpha), R1(m.auraBoost || 0), m.cloneOf ? B.ms.indexOf(m.cloneOf) : -1]),
-    pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])])]),
+    pr: B.proj.map(p => [R1(p.x), R1(p.y), R1(p.z), R1(p.r), p.color, p.kind, p.giant ? 1 : 0, p.trail.map(q => [R1(q[0]), R1(q[1]), R1(q[2])]), p.nid || (p.nid = B._pid = (B._pid || 0) + 1), R1(p.vx), R1(p.vy)]), /* (con número y velocidad: el otro celular la hace avanzar entre un estado y el siguiente) */
     rg: B.rings.map(r => [R1(r.x), R1(r.y), R1(r.r), r.max, R1(r.life * 100) / 100, r.col]),
     mn: B.mines.map(b => [R1(b.x0), R1(b.y0), R1(b.x), R1(b.y), R1(b.t * 100) / 100, b.fly, b.col]),
     tx: B.texts.map(t => [R1(t.x), R1(t.y), t.str, t.col, R1(t.life * 100) / 100, t.big ? 1 : 0]),
@@ -7360,7 +7367,10 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
   const B = battle, s = LAN.snap;
   if (s) {
     if (s.ar != null) B.arena = s.ar; B.time = s.tm; if (s.tm > OT_START && !B._otMus && !B.over) { B._otMus = true; SFX.otStart(); } B.introT = s.it; B.fightT = s.ft; B.shake = s.sh; B.banner = s.ban; B.cine = s.cine && s.cine[0] >= 0 ? { m: B.ms[s.cine[0]], t: s.cine[1] } : null; B.kcam = s.kc && s.kc[0] >= 0 && B.ms[s.kc[0]] ? { m: B.ms[s.kc[0]], t: s.kc[1] } : null; if (s.ko && !B.koBig) B.koBig = { t: -KO_DELAY }; if (s.dw && !B.drawBig) { B.drawBig = { t: 0, tout: s.dw > 1, cheer: s.dw === 3 }; drawCrowd(B.drawBig); ANN.ev('draw', s.dw === 3 ? 1 : s.dw === 2 ? 0.5 : 0); } if (!!B.cine !== !!B._annCine) { B._annCine = !!B.cine; if (B.cine) ANN.ev('ult'); } if (B.banner && B.banner.text === '¡Muerte súbita!' && !B._annOt) { B._annOt = true; ANN.ev('ot'); }
-    B.proj = s.pr.map(p => ({ x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }));
+    { const old = B._pmap || new Map(), nw = new Map(); // disparos: cada uno sigue avanzando solo entre un estado y el siguiente (antes saltaban de a 20–30 por segundo; pedido del dueño)
+      B.proj = s.pr.map(p => { if (p[8] == null) return { x: p[0], y: p[1], z: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], trail: p[7] }; /* (anfitrión con una versión anterior) */
+        let o = old.get(p[8]); if (!o) o = { x: p[0], y: p[1], z: p[2], trail: [] }; Object.assign(o, { tx: p[0], ty: p[1], tz: p[2], r: p[3], color: p[4], kind: p[5], giant: !!p[6], vx: p[9], vy: p[10], live: true }); nw.set(p[8], o); return o; });
+      B._pmap = nw; }
     B.rings = s.rg.map(r => ({ x: r[0], y: r[1], r: r[2], max: r[3], life: r[4], col: r[5] }));
     B.mines = (s.mn || []).map(b => ({ x0: b[0], y0: b[1], x: b[2], y: b[3], t: b[4], fly: b[5], col: b[6] }));
     B.texts = s.tx.map(t => ({ x: t[0], y: t[1], str: t[2], col: t[3], life: t[4], big: !!t[5] }));
@@ -7382,6 +7392,8 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
   }
   for (const q of B.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt; }
   for (const t of B.texts) { t.y -= 45 * dt; t.life -= dt; }
+  { const k = B.kcam ? B.kcam.t : 9, rate = B.cine ? 0 : BATTLE_SPEED * (k < 0.2 ? 0.03 : k < 0.95 ? 0.3 : k < KC_T ? 0.3 + 0.7 * (k - 0.95) / 0.4 : 1), g = dt * rate, f = Math.min(1, dt * 10); // (al ritmo de la pelea del anfitrión, con la cámara lenta del K.O.)
+    for (const p of B.proj) { if (!p.live) continue; p.tx += p.vx * g; p.ty += p.vy * g; p.x += p.vx * g; p.y += p.vy * g; p.x += (p.tx - p.x) * f; p.y += (p.ty - p.y) * f; p.z += (p.tz - p.z) * f; p.trail.push([p.x, p.y, p.z]); if (p.trail.length > 7) p.trail.shift(); } }
 }
 // Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por su cuenta (uid); si no viene, por nombre de usuario en minúsculas)
 const vsRec = (uid, ...us) => { const V = save.vs || {}; if (uid && V[uid]) return V[uid]; for (const u of us) { const r = u && V[String(u).toLowerCase()]; if (r) return r; } return { w: 0, l: 0 }; };
