@@ -4915,7 +4915,7 @@ function renderHome() {
       $('home').classList.remove('first'); $('home').classList.add('barnctx', 'vacant'); homeEmpty = null; show = null; egg = null; if (homePage === 2) setPage(1);
       $('mName').textContent = 'Cama libre'; $('mSub').textContent = ''; edgeLabels(0); $('rest').hidden = true; $('hint').hidden = true;
       $('cLv').textContent = $('cHearts').textContent = $('cTime').textContent = ''; $('cIdx').textContent = `${barnCtx.i + 1}/${BARN_MAX}`;
-      $('stats').innerHTML = `<p class="eggmsg">Esta cama está libre.</p><button class="btn primary" id="bedUse">Poner algo aquí</button>`; $('bedUse').onclick = () => openBarn(barnCtx.i);
+      $('stats').innerHTML = `<p class="eggmsg">Esta cama está libre.</p><div style="grid-column:1/-1;display:flex;justify-content:center;width:100%"><button class="btn primary" id="bedUse">Poner algo aquí</button></div>`; $('bedUse').onclick = () => openBarn(barnCtx.i);
       $('homePanel').style.visibility = ''; return;
     }
     $('home').classList.remove('vacant');
