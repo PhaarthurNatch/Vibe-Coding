@@ -1074,13 +1074,17 @@ function scaleGenome(g, k) {
 // los grupos que no están (mutación) salen de su propia semilla. Como el origen se calcula en la misma etapa, al crecer conserva todo.
 const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears'], antennae: ['antennae'],
   neck: ['neck'], body: ['torso', 'spots'], arms: ['arms', 'shoulders'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'], texture: ['texture'], plan: ['plan', 'blob', 'coil', 'tents'] }; /* textura y tipo de cuerpo (serpiente, slime, araña…) también se heredan (pedido del dueño); el cuerpo de serpiente es su cola: nunca junto con otra cola (planFix) */ // orejas y antenas separadas; los hombros van con los brazos (sólo existen con brazos)
+// Crías sin gen de tipo de cuerpo (nacidas antes de que se heredara, o por mutación): el tipo de cuerpo sale del mismo padre que el torso
+// (o de cualquier otra parte heredada), así nunca tienen un cuerpo que ninguno de sus padres tiene (pedido del dueño: un slime de padres que no lo eran)
+const PLAN_FALLBACK = ['body', 'legs', 'arms', 'head', 'tail', 'wings', 'neck', 'pal', 'eyes', 'mouth', 'horns', 'ears', 'antennae', 'texture'];
+function planOrigin(genes) { for (const k of PLAN_FALLBACK) if (genes[k]) return genes[k]; return null; }
 function recGenome(rec, stage) {
   const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5, (rec.gen || 0) >= 6 ? rec.gen : 0);
   if (rec.statGenes) g.statGenes = rec.statGenes; /* stats heredados (semilla de origen por grupo) */
   if (!rec.genes) return g;
   const cache = {}, ownHead = JSON.parse(JSON.stringify(g.head)); let planHead = null;
   for (const [grp, keys] of Object.entries(GENE_GROUPS)) {
-    const src = rec.genes[grp]; if (!src) continue;
+    const src = rec.genes[grp] || (grp === 'plan' ? planOrigin(rec.genes) : null); if (!src) continue;
     const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}${src.v4 ? 1 : 0}${src.v5 ? 1 : 0}${src.v6 || 0}`;
     const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5, src.v6));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
@@ -5257,7 +5261,7 @@ function makeChild(A, B) {
   for (const grp of Object.keys(GENE_GROUPS)) {
     const la = !!(A.geneLock && A.geneLock[grp]), lb = !!(B.geneLock && B.geneLock[grp]); // gen comprado en la Tienda: esa parte se hereda sí o sí de ese padre
     if (la || lb) rec.genes[grp] = origin(la && lb ? (Math.random() < 0.5 ? A : B) : la ? A : B, grp);
-    else if (Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación
+    else if (grp === 'plan' || Math.random() >= BREED_MUTATION) rec.genes[grp] = origin(Math.random() < 0.5 ? A : B, grp); // si no, mutación (el tipo de cuerpo nunca muta: sale siempre de un padre, pedido del dueño)
   }
   rec.statGenes = {}; const sOrigin = (P, grp) => (P.statGenes && P.statGenes[grp] != null) ? P.statGenes[grp] : P.seed;
   for (const grp of Object.keys(STAT_GROUPS)) { // stats: cada grupo sale de uno de los padres (10% muta = los suyos propios); con gen comprado, de ese padre sí o sí
@@ -5759,6 +5763,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
   { v: '1.85', d: '2026-11-25', items: ['En la arena, arriba aparece un 👁️ con el número de amigos que están mirando tu pelea.', 'Online y al espectar: los disparos se ven fluidos (antes se movían a saltos).'] },
   { v: '1.84', d: '2026-11-24', items: ['Si juegas sin cuenta, el juego te ofrece guardar tu partida en la nube para no perderla si borras los datos o cambias de celular.'] },
