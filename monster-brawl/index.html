@@ -3907,7 +3907,7 @@ class Battle {
       const lift = m.z + m.hover * m.s, k = clamp(1 - lift / 120, 0.3, 1);
       if (m.buffs.all > 0 && !m.dead) { ctx.fillStyle = `rgba(255,207,110,${0.35 * Math.min(1, m.buffs.all) * (0.75 + 0.25 * Math.sin(m.t * 8))})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.9 * m.s, m.r * 0.7 * m.s, 0, 0, TAU); ctx.fill(); }
       ctx.fillStyle = `rgba(30,15,40,${0.28 * k * m.alpha})`; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.25 * m.s * k, m.r * 0.42 * m.s * k, 0, 0, TAU); ctx.fill();
-      if (this.lan && !m.dead) { ctx.globalAlpha = 0.85 * m.alpha; ctx.strokeStyle = LAN_COLORS[m.team % LAN_COLORS.length].c; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.35 * m.s, m.r * 0.48 * m.s, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } // pelea local: anillo con el color del equipo
+      if (this.lan && !m.dead) { ctx.globalAlpha = 0.85 * m.alpha; ctx.strokeStyle = lanTeamCol(m.team); ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(m.gx, m.gy, m.r * 1.35 * m.s, m.r * 0.48 * m.s, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } // pelea local: anillo con el color del equipo
     }
     for (const r of this.rings) { const gy = TOP + r.y * DEPTH; ctx.globalAlpha = clamp(r.life * 2, 0, 1); ctx.strokeStyle = r.col; ctx.lineWidth = 10; ctx.beginPath(); ctx.ellipse(r.x, gy, r.r, r.r * DEPTH, 0, 0, TAU); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); ctx.globalAlpha = 1; }
     for (const p of this.proj) { const gy = TOP + p.y * DEPTH; ctx.fillStyle = 'rgba(30,15,40,.2)'; ctx.beginPath(); ctx.ellipse(p.x, gy, p.r, p.r * 0.4, 0, 0, TAU); ctx.fill(); }
@@ -3950,8 +3950,9 @@ function drawMine(ctx, b, time) { // bomba: vuela en arco hasta su lugar y queda
   const on = e >= 1 && Math.sin(time * 14 + x) > 0; // armada: la chispa parpadea
   ctx.fillStyle = on ? '#ff5d3a' : '#ffd36b'; ctx.globalAlpha = e >= 1 ? 1 : 0.6; ctx.beginPath(); ctx.arc(x + R * 0.5, cy - R * 1.9, on ? 4 : 3, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
 }
+const lanTeamCol = t => t === 99 ? '#9a93ab' : LAN_COLORS[t % LAN_COLORS.length].c; // (los rivales del juego en el modo juntos: gris)
 function teamColor(m, mode, myTeam = 0) {
-  if (mode === 'lan') return LAN_COLORS[m.team % LAN_COLORS.length].c; // pelea local: el color de su equipo
+  if (mode === 'lan') return lanTeamCol(m.team); // pelea local: el color de su equipo
   if (m.isPlayer) return '#ffcf6e';
   if (mode === '2v2') return m.team === myTeam ? '#5ee08a' : '#ff5d6c'; // compañero verde, rivales rojo
   return '#ff5d6c';
@@ -5758,6 +5759,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
   { v: '1.85', d: '2026-11-25', items: ['En la arena, arriba aparece un 👁️ con el número de amigos que están mirando tu pelea.', 'Online y al espectar: los disparos se ven fluidos (antes se movían a saltos).'] },
   { v: '1.84', d: '2026-11-24', items: ['Si juegas sin cuenta, el juego te ofrece guardar tu partida en la nube para no perderla si borras los datos o cambias de celular.'] },
   { v: '1.82', d: '2026-11-24', items: ['Jefe: el manotazo y el agarre del Titán también se pueden esquivar, igual que los disparos en los otros modos.', 'En el granero puedes acariciar a un monstruo sin elegirlo, frotándolo despacio como en el rancho (le sube la moral).'] },
@@ -7138,7 +7140,7 @@ function lanLobbyUpdate() {
   if (LAN.kind === 'trade') { if (lanLinked()) { lanSend({ t: 'tstart' }); if (!LAN.tr.done) lanUI('trade'); } else if (LAN.room) lanUI('troom'); return; } // intercambio: de a dos
   const players = lanPlayers();
   LAN.peers.filter(p => p.open).forEach((p, i) => lanSend({ t: 'lobby', players, you: i + 1 }, p)); // cada invitado sabe cuál es él
-  if (!(battle && battle.lan) && players.length >= 2 && players.every(p => p.ready && p.rec) && lanModeOf(players.map(p => p.color))) { lanStartHost(); return; } // todos marcaron «Listo»: empieza sola
+  if (!(battle && battle.lan) && players.length >= 2 && players.every(p => p.ready && p.rec) && (lanModeOf(players.map(p => p.color)) || lanCoop(players.map(p => p.color)))) { lanStartHost(); return; } // todos marcaron «Listo»: empieza sola
   if ($('lan').classList.contains('on') && !LAN.pending && !(battle && battle.lan) && LAN.view !== 'mpick') lanUI('lobby');
 }
 // ---------- Salas por internet (pedido del dueño): código de sala de 4 letras ----------
@@ -7231,6 +7233,8 @@ async function lanJoin(code) { // invitado: se anota en la sala y espera la ofer
 // ---------- Ventana de la pelea local ----------
 // El modo sale de los colores: cada color es un equipo ('1v1', 'ffa' = todos distintos, 'teams' = hay compañeros)
 const lanSizes = teams => { const c = {}; for (const t of teams) c[t] = (c[t] || 0) + 1; return Object.values(c).sort((a, b) => b - a); };
+const lanCoop = teams => teams.length >= 2 && new Set(teams).size === 1; // todos del mismo color: juntos contra rivales del juego (pedido del dueño)
+const LAN_AI = 99; // el equipo de los rivales del juego en el modo juntos
 const lanModeOf = teams => { const z = lanSizes(teams); return z.length < 2 ? null : teams.length === 2 ? '1v1' : z[0] === 1 ? 'ffa' : 'teams'; };
 const lanModeName = teams => { const z = lanSizes(teams); return z[0] === 1 && z.length > 2 ? 'Todos contra todos' : z.join(' vs '); };
 // ---------- Intercambio de monstruos (pedido del dueño): misma sala por código, de a dos; cada uno ofrece uno y ambos aceptan ----------
@@ -7307,7 +7311,7 @@ function lanUI(st, data) {
     const meReady = !!(ps[meI] && ps[meI].ready); // cada uno marca «Listo»; cuando todos están listos, la pelea empieza sola
     const rb = B(meReady ? 'Quitar listo' : '✓ Listo', () => { if (host) { LAN.ready = !LAN.ready; lanLobbyUpdate(); } else lanSend({ t: 'rdy', v: !meReady }); }, meReady ? '' : 'primary');
     rb.disabled = n < 2 && !meReady; btns.append(rb);
-    info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : !mode ? 'Todos del mismo color: elijan otro color' : lanModeName(teams)}</small>`;
+    info.innerHTML += `<br><small>${n < 2 ? 'Esperando jugadores…' : lanCoop(teams) ? `Juntos contra ${n} rivales (${n} vs ${n}): ganan XP y monedas` : !mode ? 'Elijan sus colores' : lanModeName(teams)}</small>`;
     { const o = n === 2 && ps[1 - meI], u = o && o.rec && o.rec.user; if (u && mode === '1v1') info.innerHTML += `<br><small class="vsrec">${vsLine(o.rec.uid, u)}</small>`; } // en 1 vs 1 contra otro jugador: tu récord contra él (pedido del dueño)
   } else if (st === 'mpick') { // elegir con qué monstruo del rancho pelear (pedido del dueño)
     info.innerHTML = '¿Con quién peleas?'; const mine = lanMine();
@@ -7344,7 +7348,7 @@ function lanMsg(m, peer) {
   else if (m.t === 'start' && LAN.role === 'guest') lanStartGuest(m);
   else if (m.t === 's' && battle && battle.puppet) LAN.snap = m;
   else if (m.t === 'u' && battle && battle.lan && LAN.role === 'host') { const g = battle.ms[peer.idx]; if (g && g.ultReady && !ultBusy(g) && !g.dead) g.ultRequest = true; }
-  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; battle.isDraw = !!m.dr; lanFinish(); }
+  else if (m.t === 'end' && battle && battle.puppet) { battle.over = true; battle.winTeam = m.win; battle.ranking = m.rank; battle.timedOut = m.to; battle.isDraw = !!m.dr; battle.endKills = m.k; lanFinish(); }
   else if (m.t === 'again' && LAN.role === 'host' && (!battle || battle.over)) lanStartHost(); // un invitado pide revancha
 }
 // Después de una pelea: todos vuelven a la sala (para cambiar colores); el anfitrión avisa a los demás
@@ -7369,21 +7373,22 @@ function lanSetupBattle(list, aw, ad, mode) { ldCover('Entrando a la arena…', 
 }
 function lanStartHost() {
   const guests = LAN.peers.filter(p => p.open && p.rec).slice(0, LAN_MAX - 1); if (!guests.length) return;
-  const n = guests.length + 1, teams = [LAN.color, ...guests.map(p => p.color)], mode = lanModeOf(teams); // cada color es un equipo
-  if (!mode) { ask('Todos tienen el mismo color: elijan al menos 2 colores para pelear.', { ok: 'Entendido', cancel: null }); return; }
+  const n = guests.length + 1, teams = [LAN.color, ...guests.map(p => p.color)], coop = lanCoop(teams); let mode = lanModeOf(teams); // cada color es un equipo
+  if (!mode && !coop) { ask('Elijan sus colores para pelear.', { ok: 'Entendido', cancel: null }); return; }
   LAN.mode = mode; lanUnready(); // al volver a la sala, todos marcan «Listo» de nuevo
   const recs = [lanRec(lanMine()), ...guests.map(p => p.rec)];
-  const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1)));
-  const list = recs.map((r, i) => { const m = new Monster(i === 0 ? lanMine() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else m.remoteCtl = true; return m; }); // los demás los manejan sus celulares (botón ULTIMATE)
+  if (coop) { for (let i = 0; i < n; i++) { const f = makeFoe(recs[i]); recs.push(lanRec(f.rec)); teams.push(LAN_AI); } mode = n === 2 ? '2v2' : 'teams'; LAN.mode = mode; } // juntos: tantos rivales del juego como jugadores, de su misma etapa (pedido del dueño)
+  const zoom = Math.max(...recs.map(r => ({ baby: 0.6, child: 0.7, teen: 0.82 }[r.stage] || 1))), N = recs.length;
+  const list = recs.map((r, i) => { const m = new Monster(i === 0 ? lanMine() : r); m.team = teams[i]; if (i === 0) m.isPlayer = true; else if (i < n) m.remoteCtl = true; return m; }); // los demás jugadores los manejan sus celulares (botón ULTIMATE); los rivales del juego, la IA
   guests.forEach((p, i) => p.idx = i + 1);
-  lanSetupBattle(list, (mode === '1v1' ? 600 : 640 * Math.sqrt(Math.max(4, n) / 4)) * zoom, null, mode); // más jugadores, arena más grande
-  battle.introT = INTRO_S; battle.shake = 6; for (const m of battle.ms) m.setEmo('focus', INTRO_S, 2);
-  guests.forEach(p => lanSend({ t: 'start', aw: ARENA_W, ad: ARENA_D, mode, teams, recs, you: p.idx }, p));
+  lanSetupBattle(list, (mode === '1v1' ? 600 : 640 * Math.sqrt(Math.max(4, N) / 4)) * zoom, null, mode); // más jugadores, arena más grande
+  battle.coop = coop; battle.introT = INTRO_S; battle.shake = 6; for (const m of battle.ms) m.setEmo('focus', INTRO_S, 2);
+  guests.forEach(p => lanSend({ t: 'start', aw: ARENA_W, ad: ARENA_D, mode, teams, recs, you: p.idx, coop }, p));
 }
 function lanStartGuest(m) {
   LAN.me = m.you; LAN.mode = m.mode;
   const list = m.recs.map((r, i) => { const mo = new Monster(i === m.you ? Object.assign({}, lanMine(), r) : r); mo.team = m.teams[i]; if (i === m.you) mo.isPlayer = true; return mo; }); // el mío
-  lanSetupBattle(list, m.aw, m.ad, m.mode);
+  lanSetupBattle(list, m.aw, m.ad, m.mode); battle.coop = !!m.coop;
   battle.puppet = true; LAN.snap = null;
 }
 // Lo que manda el anfitrión: estado de cada monstruo y del combate (redondeado para que pese poco)
@@ -7417,20 +7422,26 @@ function lanApply(dt) { // invitado: copia lo que mandó el anfitrión y anima l
     s.ms.forEach((a, i) => { if (!B.ms[i] && a[26] >= 0 && B.ms[a[26]]) { const o = B.ms[a[26]], c = new Monster(o.rec); c.team = o.team; c.cloneOf = o; c.x = a[0]; c.y = a[1]; B.place(c); c.resetRig(); B.ms[i] = c; } // un clon nuevo (ultimate Clon)
       const m = B.ms[i]; if (!m) return;
       if (m._fresh === undefined) { m.x = a[0]; m.y = a[1]; m._fresh = 1; }
-      m.tx = a[0]; m.ty = a[1]; m.z = a[2]; m.vx = a[3]; m.vy = a[4]; m.hp = a[5];
+      m.tx = a[0]; m.ty = a[1]; if (m.tz == null) m.z = a[2]; m.tz = a[2]; m.vx = a[3]; m.vy = a[4]; m.hp = a[5];
       if (a[6] && !m.dead) m.die({ x: Math.sign(m.vx) || 1, y: 0 }, 300);
       m.state = a[7]; m.strikeExt = a[8]; m.atkDir = { x: a[9][0], y: a[9][1] }; m.atkArm = a[10] >= 0 ? m.ix.arms[a[10]] : null; m.target = a[11] >= 0 ? B.ms[a[11]] : null;
       m.emo = a[12]; m.emoT = a[13]; m.emoP = a[14]; m.hurtT = a[15]; m.mouthOpen = a[16];
       m.buffs = { defense: a[17][0], speed: a[17][1], dodge: a[17][2], all: a[17][3] }; m.floatT = a[18]; m.ulting = !!a[19]; m.ultReady = !!a[20]; m.ultCd = a[21]; m.ultRequest = !!a[22]; m.winEmo = a[23]; m.alpha = a[24]; m.auraBoost = a[25]; });
     LAN.snap = null;
   }
+  const kc = B.kcam ? B.kcam.t : 9, rateG = B.cine ? 0 : BATTLE_SPEED * (kc < 0.2 ? 0.03 : kc < 0.95 ? 0.3 : kc < KC_T ? 0.3 + 0.7 * (kc - 0.95) / 0.4 : 1), gG = dt * rateG; // el ritmo de la pelea del anfitrión (con la cámara lenta del K.O. y la pausa de la ultimate)
+  // Entre un estado y el siguiente todo sigue moviéndose solo y se corrige suave (pedido del dueño: en Online se veía a saltos, no sólo las balas)
+  B.time += gG;
   for (const m of B.ms) {
-    if (m.tx != null) { const k = Math.min(1, dt * 18); m.x += (m.tx - m.x) * k; m.y += (m.ty - m.y) * k; }
+    if (m.tx != null) { if (!m.dead) { m.tx += m.vx * gG; m.ty += m.vy * gG; } const k = Math.min(1, dt * 14); m.x += (m.tx - m.x) * k; m.y += (m.ty - m.y) * k; }
+    if (m.tz != null) m.z += (m.tz - m.z) * Math.min(1, dt * 16);
     B.place(m); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2);
   }
+  for (const r of B.rings) { r.life -= gG; r.r += (r.max * 1.3 - r.r) * gG * 9; }
+  for (const b of B.mines) b.t += gG;
   for (const q of B.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 500 * dt; q.life -= dt; }
   for (const t of B.texts) { t.y -= 45 * dt; t.life -= dt; }
-  { const k = B.kcam ? B.kcam.t : 9, rate = B.cine ? 0 : BATTLE_SPEED * (k < 0.2 ? 0.03 : k < 0.95 ? 0.3 : k < KC_T ? 0.3 + 0.7 * (k - 0.95) / 0.4 : 1), g = dt * rate, f = Math.min(1, dt * 10); // (al ritmo de la pelea del anfitrión, con la cámara lenta del K.O.)
+  { const g = gG, f = Math.min(1, dt * 10); // disparos (al ritmo de la pelea del anfitrión)
     for (const p of B.proj) { if (!p.live) continue; p.tx += p.vx * g; p.ty += p.vy * g; p.x += p.vx * g; p.y += p.vy * g; p.x += (p.tx - p.x) * f; p.y += (p.ty - p.y) * f; p.z += (p.tz - p.z) * f; p.trail.push([p.x, p.y, p.z]); if (p.trail.length > 7) p.trail.shift(); } }
 }
 // Victorias y derrotas Online (pedido del dueño): en total (save.online) y contra cada jugador en 1 vs 1 (save.vs, por su cuenta (uid); si no viene, por nombre de usuario en minúsculas)
@@ -7445,12 +7456,17 @@ function lanCount(B, me, won) { // se cuenta una vez por pelea (lanFinish tiene 
   persist(); }
 function lanFinish() {
   const B = battle; if (!B || B.reported) return; B.reported = true;
-  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut, dr: !!B.isDraw });
+  if (LAN.role === 'host') lanSend({ t: 'end', win: B.winTeam, rank: B.ranking, to: !!B.timedOut, dr: !!B.isDraw, k: B.ms.map(m => m.kills || 0) });
   updateFighters();
   const me = B.ms[LAN.role === 'host' ? 0 : LAN.me], rank = B.ranking || [B.winTeam], nT = new Set(B.ms.map(m => m.team)).size, place = rank.indexOf(me.team) + 1;
   if (!B.isDraw && me) lanCount(B, me, place === 1);
   if (B.isDraw) { $('resTitle').textContent = 'Empate'; $('resTitle').className = 'mid'; } else { $('resTitle').textContent = place === 1 ? '¡Ganaste!' : 'Perdiste'; (place === 1 ? SFX.win : SFX.lose)(); $('resTitle').className = place === 1 ? 'win' : 'lose'; }
   $('resText').innerHTML = '';
+  if (B.coop && me) { // juntos contra rivales del juego: XP y monedas como en un 2 vs 2 (pedido del dueño)
+    const rec = lanMine(), pl = B.isDraw ? 2 : place, [bx, bc] = (REWARDS['2v2'])[Math.min(pl, 2) - 1], kills = (B.endKills ? B.endKills[B.ms.indexOf(me)] : me.kills) || 0, xp = bx + kills * KO_XP, coins = bc + kills * KO_COINS;
+    if (rec && rec.stage !== 'egg') { rec.xp = (rec.xp || 0) + xp; save.coins += coins; while (rec.level < MAX_LEVEL && rec.xp >= xpNeed(rec.level)) { rec.xp -= xpNeed(rec.level); rec.level++; } if (rec.level >= MAX_LEVEL) { rec.level = MAX_LEVEL; rec.xp = 0; } persist(); }
+    $('resText').innerHTML = `<div class="rwd"><b class="nm"><span>${esc(rec ? rec.name : '')}</span></b><span>${B.isDraw ? 'Empate' : place === 1 ? 'Victoria' : 'Derrota'}</span><span class="rx">+${bx} XP</span><span class="rc">+${bc} 🪙</span>${kills ? `<span>${kills > 1 ? kills + ' K.O.' : 'K.O.'}</span><span class="rx">+${kills * KO_XP} XP</span><span class="rc">+${kills * KO_COINS} 🪙</span>` : ''}<span class="tot">Total</span><span class="rx tot">+${xp} XP</span><span class="rc tot">+${coins} 🪙</span></div>`;
+  }
   $('resAgain').disabled = false; $('resAgain').textContent = LAN.role === 'host' ? 'Revancha' : 'Pedir revancha'; $('resRoom').hidden = false;
   $('result').classList.add('on');
 }
