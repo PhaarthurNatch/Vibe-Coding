@@ -15,13 +15,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* pantalla de carga al abrir (pedido del dueño: que no se vea trabado mientras carga) */
-#boot,#ld{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 42%,#2c2250,var(--bg) 70%);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease}
+#boot,#ld{position:fixed;inset:0;z-index:99999;background:radial-gradient(circle at 50% 42%,#2c2250,var(--bg) 70%);display:flex;align-items:center;justify-content:center;transition:opacity .45s ease;-webkit-transform:translateZ(0);transform:translateZ(0);will-change:opacity;-webkit-backface-visibility:hidden;backface-visibility:hidden} /* (capa propia: en el iPhone la pantalla de carga parpadeaba con el juego dibujándose debajo) */
+.bootegg,.bootbaby{-webkit-backface-visibility:hidden;backface-visibility:hidden;will-change:transform}
 #boot.out,#ld.out{opacity:0;pointer-events:none}.bootin{display:flex;flex-direction:column;align-items:center;gap:18px}
 .bootnest{position:relative;width:74px;height:94px}.bootnest .bootegg{position:absolute;inset:0}
 .bootegg{width:74px;height:94px;border-radius:50% 50% 48% 48%/58% 58% 42% 42%;background:#f4ead8;border:4px solid #2a1f3d;position:relative;animation:bootwig 1.4s ease-in-out infinite;transform-origin:50% 90%;box-shadow:0 10px 0 -4px rgba(0,0,0,.25)}
 .bootegg i{position:absolute;border-radius:50%;background:#e06a3b}.bootegg i:nth-child(1){width:18px;height:14px;left:14px;top:22px}.bootegg i:nth-child(2){width:12px;height:12px;right:16px;top:40px}.bootegg i:nth-child(3){width:16px;height:12px;left:26px;bottom:16px}
 /* al terminar la carga el huevo nace (medio segundo antes de que se quite la pantalla; pedido del dueño): se parte en zigzag, la tapa sale volando y asoma un monstruito */
-.bootnest.hatch .bootegg.top{clip-path:polygon(0 0,100% 0,100% 50%,87% 42%,75% 52%,62% 42%,50% 52%,37% 42%,25% 52%,12% 42%,0 50%)}.bootegg.bot{clip-path:polygon(0 50%,12% 42%,25% 52%,37% 42%,50% 52%,62% 42%,75% 52%,87% 42%,100% 50%,100% 100%,0 100%)}
+.bootnest.hatch .bootegg.top{-webkit-clip-path:polygon(0 0,100% 0,100% 50%,87% 42%,75% 52%,62% 42%,50% 52%,37% 42%,25% 52%,12% 42%,0 50%);clip-path:polygon(0 0,100% 0,100% 50%,87% 42%,75% 52%,62% 42%,50% 52%,37% 42%,25% 52%,12% 42%,0 50%)}.bootegg.bot{-webkit-clip-path:polygon(0 50%,12% 42%,25% 52%,37% 42%,50% 52%,62% 42%,75% 52%,87% 42%,100% 50%,100% 100%,0 100%);clip-path:polygon(0 50%,12% 42%,25% 52%,37% 42%,50% 52%,62% 42%,75% 52%,87% 42%,100% 50%,100% 100%,0 100%)}
 .bootbaby{position:absolute;left:-23px;top:-74px;width:120px;height:120px;transform:translateY(60px) scale(.55);opacity:0;transform-origin:50% 97%} /* un bebé al azar dibujado con el juego */
 .bootnest.hatch .bootegg{animation:none}.bootnest.hatch .bootegg.top{animation:capfly .5s cubic-bezier(.3,.6,.4,1) forwards}.bootnest.hatch .bootbaby{animation:babypop .45s .08s cubic-bezier(.3,1.6,.5,1) forwards}
 @keyframes capfly{0%{transform:none}25%{transform:translate(0,-6px) rotate(-6deg)}100%{transform:translate(-34px,-70px) rotate(-55deg);opacity:0}}
@@ -154,6 +155,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .xp .bar i{background:#8f7bff}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .topbar .mode{font-weight:800;font-size:15px}
+#tpJoin{width:100%;margin:4px 0 2px}#fdTrade{margin-top:8px} /* Unirse arriba en ¡A pelear!; Intercambio en el perfil de un amigo (pedido del dueño) */
 .tbr{display:flex;align-items:center;gap:8px}.specbadge{display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.35);border:1px solid rgba(255,207,110,.5);color:#ffd36e;border-radius:12px;padding:2px 8px;font-size:14px;font-weight:800}.specbadge[hidden]{display:none}.specbadge.pop{animation:specpop .5s ease}@keyframes specpop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}} /* alguien te está espectando (pedido del dueño) */
 .roundbtn{width:44px;height:44px;border-radius:50%;background:var(--panel2);font-weight:800}
 .fighters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
@@ -346,9 +348,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <div class="stats" id="stats"></div>
     <div class="rest" id="rest" hidden><span id="restTxt"></span></div>
     <button class="btn primary fightbtn" id="btnFight">⚔️ Luchar</button>
-    <div class="row fightrow">
-      <button class="btn" id="btnLan">🌐 Online</button>
-    </div>
+    <button class="btn" id="btnLan" hidden style="display:none">🌐 Online</button><!-- (se quitó del menú Luchar, pedido del dueño: a Online se entra con «Unirse» en ¡A pelear! o invitando a un amigo) -->
     <div class="row fightrow">
       <button class="btn primary" data-mode="boss">👑 Jefe</button>
       <button class="btn primary" data-mode="ffa">Pelea de a 4</button>
@@ -462,6 +462,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <p class="tdesc" id="fdStatus"></p>
       <div class="frteam" id="fdTeam"></div>
       <button class="btn primary" id="fdFight">⚔️ Invitar a pelear</button>
+      <button class="btn primary" id="fdTrade">🔄 Intercambio</button>
       <button class="btn" id="fdRemove">Quitar amigo</button>
       <button class="btn" data-go="friends">‹ Volver</button>
     </div>
@@ -550,6 +551,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div class="modal" id="teamPick">
   <div class="card">
     <h2 style="font-size:22px">¡A pelear!</h2>
+    <button class="btn" id="tpJoin">🌐 Unirse a una sala</button>
     <p id="tpInfo"></p>
     <div class="tplist" id="tpList"></div>
 
@@ -830,6 +832,7 @@ const CLIP = { sprites: {},
     if (!after && c.currentTime < this.end - 0.05) return false; // nunca corta lo que se está diciendo (pedido del dueño: a veces un audio nuevo cortaba al anterior); para interrumpir a propósito, antes CAST.stop()
     const queue = after && c.currentTime < this.end; if (!queue) this.stop(); this.srcs = this.srcs.filter(x => x._end > c.currentTime);
     if (!this.out) { this.out = c.createGain(); this.out.gain.value = 0.95; this.out.connect(c.destination); }
+    { const fin = typeof battle !== 'undefined' && battle && battle.over; this.out.gain.setTargetAtTime(fin ? 1.2 : 0.95, c.currentTime, 0.05); } /* la despedida suena con la ovación, el «K.O.» y el resumen encima: más fuerte (pedido del dueño: a veces se oía despacio) */
     let t = queue ? this.end + 0.15 : c.currentTime + 0.02; const t0 = t; for (const k of keys) { const s = c.createBufferSource(); s.connect(this.out); this.start(s, k, t); t += this.buf[k].duration - 0.05; s._end = t; this.srcs.push(s); } this.end = t; duckFor(c, t0, t); return true; },
   stop() { for (const s of this.srcs) try { s.stop(); } catch (e) { } this.srcs = []; this.end = 0; },
   get busy() { if (!this.end || !SFX.on) return false; const c = SFX.actx(); return !!c && c.currentTime < this.end; },
@@ -837,8 +840,8 @@ const CLIP = { sprites: {},
 };
 // Mientras hablan los comentaristas, el público y la música de la muerte súbita bajan un poco y después vuelven (pedido del dueño)
 const DUCK_K = 0.35; // todo lo demás (público, música, golpes y efectos) baja a esto mientras hablan: los comentaristas siempre tienen prioridad (pedido del dueño)
-function duckFor(c, t0, t1) { for (const [g, base] of [[CROWD.out && CROWD.out.gain, 0.55], [SFX._ot && SFX._ot.g.gain, 0.55], ...SFX.duckGains()]) { if (!g) continue;
-  try { const now = c.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.setTargetAtTime(base * DUCK_K, Math.max(now, t0 - 0.05), 0.08); g.setTargetAtTime(base, t1 + 0.1, 0.35); } catch (e) { } } }
+function duckFor(c, t0, t1) { const dk = typeof battle !== 'undefined' && battle && battle.over ? 0.2 : DUCK_K; /* (al final, todo lo demás baja más) */ for (const [g, base] of [[CROWD.out && CROWD.out.gain, 0.55], [SFX._ot && SFX._ot.g.gain, 0.55], ...SFX.duckGains()]) { if (!g) continue;
+  try { const now = c.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.setTargetAtTime(base * dk, Math.max(now, t0 - 0.05), 0.08); g.setTargetAtTime(base, t1 + 0.1, 0.35); } catch (e) { } } }
 // Público (pedido del dueño; efectos grabados con ElevenLabs en sfx/): murmullo del estadio en bucle que sube con la emoción y reacciones (ooh, sorpresa, ovación, aplausos, abucheo)
 const CROWD = { on: (() => { try { return localStorage.getItem('monster_brawl_crowd') !== '0'; } catch (e) { return true; } })(), loop: null, g: null, out: null, last: 0,
   N: { cheer: 20, ooh: 20, gasp: 20, clap: 20, boo: 20, laugh: 10, chant: 10, aww: 10 }, kinds: ['cheer', 'ooh', 'gasp', 'clap', 'boo', 'laugh', 'chant', 'aww'], get keys() { const k = ['crowd_loop']; for (const t of this.kinds) for (let i = 1; i <= this.N[t]; i++) k.push(`crowd_${t}_${i}`); return k; }, // 20 variaciones de cada reacción y 3 reacciones nuevas (risas, cánticos, «aww»), al azar sin repetir (pedido del dueño: más variación del público) // 10 variaciones de cada reacción, al azar (pedido del dueño)
@@ -1070,18 +1073,20 @@ function scaleGenome(g, k) {
 // Cría: cada grupo de partes del hijo sale del monstruo "origen" de uno de sus padres (rec.genes[grupo] = {seed, legacy, v3});
 // los grupos que no están (mutación) salen de su propia semilla. Como el origen se calcula en la misma etapa, al crecer conserva todo.
 const GENE_GROUPS = { pal: ['pal', 'pattern'], head: ['head'], eyes: ['eyes'], mouth: ['mouth'], horns: ['horns'], ears: ['ears'], antennae: ['antennae'],
-  neck: ['neck'], body: ['torso', 'spots'], arms: ['arms', 'shoulders'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'] }; // orejas y antenas separadas; los hombros van con los brazos (sólo existen con brazos)
+  neck: ['neck'], body: ['torso', 'spots'], arms: ['arms', 'shoulders'], legs: ['legs', 'feet'], wings: ['wings'], tail: ['tail'], texture: ['texture'], plan: ['plan', 'blob', 'coil', 'tents'] }; /* textura y tipo de cuerpo (serpiente, slime, araña…) también se heredan (pedido del dueño); el cuerpo de serpiente es su cola: nunca junto con otra cola (planFix) */ // orejas y antenas separadas; los hombros van con los brazos (sólo existen con brazos)
 function recGenome(rec, stage) {
   const g = genGenome(rec.seed, stage, rec.legacy, (rec.gen || 0) >= 3, (rec.gen || 0) >= 4, (rec.gen || 0) >= 5, (rec.gen || 0) >= 6 ? rec.gen : 0);
   if (rec.statGenes) g.statGenes = rec.statGenes; /* stats heredados (semilla de origen por grupo) */
   if (!rec.genes) return g;
-  const cache = {};
+  const cache = {}, ownHead = JSON.parse(JSON.stringify(g.head)); let planHead = null;
   for (const [grp, keys] of Object.entries(GENE_GROUPS)) {
     const src = rec.genes[grp]; if (!src) continue;
     const id = `${src.seed}:${src.legacy ? 1 : 0}${src.v3 ? 1 : 0}${src.v4 ? 1 : 0}${src.v5 ? 1 : 0}${src.v6 || 0}`;
     const pg = cache[id] || (cache[id] = genGenome(src.seed, stage, src.legacy, src.v3, src.v4, src.v5, src.v6));
     for (const k of keys) g[k] = pg[k] == null ? pg[k] : JSON.parse(JSON.stringify(pg[k]));
+    if (grp === 'plan') planHead = pg.head;
   }
+  if (g.blob && g.head.none) { const h = JSON.parse(JSON.stringify(planHead && !planHead.none ? planHead : ownHead)); h.none = false; g.head = h; } /* cuerpo de una pieza (slime) con la cabeza de un padre «sin cabeza»: su cuerpo ES la cabeza; antes quedaban sólo los ojos y la boca flotando */
   planFix(g); if (g.blob) g.neck.len = 0; // la cría no recibe partes que su cuerpo no permite (p. ej. cola en una serpiente)
   fitHeadless(g); // cabeza "sin cabeza" heredada: la cara va en el torso de este hijo
   // los ojos heredados tienen que caber en la cabeza heredada
@@ -2003,7 +2008,9 @@ class Monster {
     for (const q of this.aura) { q.y += q.vy * dt; q.x += Math.sin(this.t * 3 + q.ph) * 12 * dt * s; q.life -= dt; }
     if (this.aura.length) this.aura = this.aura.filter(q => q.life > 0);
   }
+  unroll(ctx) { const ra = this.rollA; if (!ra) return false; const P = this.nodes[this.ix.head]; ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(-ra); ctx.translate(-P.x, -P.y); return true; } // los efectos (aura, estelas) no giran con el cuerpo al rodar: siguen hacia arriba (pedido del dueño)
   drawAura(ctx, front) {
+    const ur = this.unroll(ctx);
     for (const q of this.aura) {
       if (q.front !== front) continue;
       const a = clamp(q.life / 0.6, 0, 1) * this.alpha;
@@ -2011,6 +2018,7 @@ class Monster {
       ctx.globalAlpha = a * 0.25; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * 1.8, 0, TAU); ctx.fill();
       ctx.globalAlpha = a * 0.9; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill();
     }
+    if (ur) ctx.restore();
     ctx.globalAlpha = this.alpha;
   }
 
@@ -2542,10 +2550,10 @@ class Monster {
     if (this.rollA) { const P = N[I.head]; ctx.translate(P.x, P.y); ctx.rotate(this.rollA); ctx.translate(-P.x, -P.y); } // rodando
     if (!this._ghost) this.drawAura(ctx, false);
     if (this.buffs.speed > 0 && !this._ghost) { // Supervelocidad: estelas
-      const sp = Math.hypot(this.vx, this.vy) || 1, ux = this.vx / sp, uy = this.vy / sp * DEPTH, m = N[I.mid];
+      const urs = this.unroll(ctx), sp = Math.hypot(this.vx, this.vy) || 1, ux = this.vx / sp, uy = this.vy / sp * DEPTH, m = N[I.mid];
       ctx.strokeStyle = this.auraCols[1]; ctx.lineCap = 'round';
       for (let k = -2; k <= 2; k++) { ctx.globalAlpha = 0.5 * this.alpha; ctx.lineWidth = 3 * s; const ox = -uy * k * 10 * s, oy = ux * k * 10 * s; ctx.beginPath(); ctx.moveTo(m.x + ox - ux * 20 * s, m.y + oy - uy * 20 * s); ctx.lineTo(m.x + ox - ux * (60 + Math.random() * 30) * s, m.y + oy - uy * (60 + Math.random() * 30) * s); ctx.stroke(); }
-      ctx.globalAlpha = this.alpha;
+      ctx.globalAlpha = this.alpha; if (urs) ctx.restore();
     }
     const hid = k => this.hidden && this.hidden.has(k); // partes que aún no aparecen (animación de crecer)
     const back = this.back; // de espaldas (en el rancho, caminando lejos de la cámara): sin cara ni panza, alas y cola por delante
@@ -4305,22 +4313,24 @@ function ranchDeco() {
   for (let i = 0; i < 4; i++) { const a = r.f(0, TAU), rr = r.f(0.4, 0.85); d.push({ k: 'rock', x: Math.sin(a) * rr, z: Math.cos(a) * rr, s: r.f(0.7, 1.2) }); }
   const NP = 72; for (let i = 0; i < NP; i++) { const a = i / NP * TAU, b = (i + 1) / NP * TAU; d.push({ k: 'post', x: Math.sin(a), z: Math.cos(a) }); d.push({ k: 'rail', x: Math.sin(a), z: Math.cos(a), x2: Math.sin(b), z2: Math.cos(b) }); }
   d.push({ k: 'barn', x: 0, z: -1.3 }); // granero afuera, detrás de la cerca (hay que girar para verlo)
+  d.push({ k: 'town', x: 0, z: 1.34 }); // pueblo al lado opuesto, también afuera de la cerca y con su camino (pedido del dueño; todavía vacío)
   // (los árboles de afuera, detrás de la cerca, se quitaron: pedido del dueño)
   const flowers = Array.from({ length: 150 }, () => { const a = r.f(0, TAU), rr = Math.sqrt(r.f(0.05, 0.9)); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, c: r.pick(['#ffd36b', '#ff8fb3', '#ffffff', '#b9a6ff', '#7fe0ff']), g: r.f(0, 1) < 0.5 }; });
   // Camino de tierra (pedido del dueño): del centro (donde está uno) hasta la puerta del granero, con dos curvas suaves; pasa por una abertura en la cerca
   const PATH_W = 0.045, pathPts = Array.from({ length: 81 }, (_, i) => { const t = i / 80; return { x: 0.075 * Math.sin(TAU * t), z: -1.24 * t }; });
-  const pathDist = (x, z) => Math.min(...pathPts.map(q => Math.hypot(x - q.x, z - q.z)));
-  const gateA = Math.atan2(0.075 * Math.sin(TAU / 1.24), -1); // donde el camino cruza la cerca
+  const pathPts2 = pathPts.map(q => ({ x: -q.x, z: -q.z })); // el camino al pueblo: el mismo, hacia el otro lado
+  const pathDist = (x, z) => Math.min(...pathPts.map(q => Math.hypot(x - q.x, z - q.z)), ...pathPts2.map(q => Math.hypot(x - q.x, z - q.z)));
+  const gateA = Math.atan2(0.075 * Math.sin(TAU / 1.24), -1), gateB = Math.atan2(-0.075 * Math.sin(TAU / 1.24), 1); // donde los caminos cruzan la cerca
   const angD = (a, b) => Math.abs(((a - b) % TAU + TAU * 1.5) % TAU - TAU / 2);
   for (let i = d.length - 1; i >= 0; i--) { const o = d[i];
     if ((o.k === 'tree' || o.k === 'bush' || o.k === 'rock') && pathDist(o.x, o.z) < PATH_W + (o.k === 'tree' ? 0.07 : 0.05)) d.splice(i, 1); // nada encima del camino
-    else if (o.k === 'post' && angD(Math.atan2(o.x, o.z), gateA) < 0.045) d.splice(i, 1); // abertura en la cerca
-    else if (o.k === 'rail' && angD(Math.atan2(o.x + o.x2, o.z + o.z2), gateA) < 0.06) d.splice(i, 1); }
+    else if (o.k === 'post' && Math.min(angD(Math.atan2(o.x, o.z), gateA), angD(Math.atan2(o.x, o.z), gateB)) < 0.045) d.splice(i, 1); // aberturas en la cerca
+    else if (o.k === 'rail' && Math.min(angD(Math.atan2(o.x + o.x2, o.z + o.z2), gateA), angD(Math.atan2(o.x + o.x2, o.z + o.z2), gateB)) < 0.06) d.splice(i, 1); }
   for (let i = flowers.length - 1; i >= 0; i--) if (pathDist(flowers[i].x, flowers[i].z) < PATH_W + 0.02) flowers.splice(i, 1);
-  const path = pathPts.map(q => ({ x: q.x * RANCH_RF, z: q.z * RANCH_RF }));
+  const path = pathPts.map(q => ({ x: q.x * RANCH_RF, z: q.z * RANCH_RF })), path2 = pathPts2.map(q => ({ x: q.x * RANCH_RF, z: q.z * RANCH_RF }));
   for (const o of [...d, ...flowers]) { o.x *= RANCH_RF; o.z *= RANCH_RF; if (o.x2 != null) { o.x2 *= RANCH_RF; o.z2 *= RANCH_RF; } } // todo a la escala del rancho
   RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
-  return RANCH.deco = { d, flowers, path, pathW: PATH_W * RANCH_RF };
+  return RANCH.deco = { d, flowers, path, path2, pathW: PATH_W * RANCH_RF };
 }
 // Las tácticas de combate también son su forma de ser fuera de la pelea (pedido del dueño): al centro se comporta como siempre
 const tpOf = rec => { const t = (rec && rec.temper) || {}, c = v => clamp(+v || 0, -1, 1); return { agr: c(t.agr), terco: c(t.terco), valor: c(t.valor), ritmo: c(t.ritmo), def: c(t.def) }; };
@@ -4592,7 +4602,7 @@ const SEASON_FX = { // color del suelo (mezcla), copas de los árboles, flores y
 };
 const mixRgb = (c1, hex, t) => { const m = c1.match(/\d+/g); const a = m ? m.map(Number) : [parseInt(c1.slice(1, 3), 16), parseInt(c1.slice(3, 5), 16), parseInt(c1.slice(5, 7), 16)]; const p = parseInt(hex.slice(1), 16), b = [(p >> 16) & 255, (p >> 8) & 255, p & 255]; return `rgb(${a.map((v, i) => Math.round(v * (1 - t) + b[i] * t)).join(',')})`; };
 function drawRanch(c, r, opt) {
-  if (!opt) RANCH.barnHit = null;
+  if (!opt) RANCH.barnHit = RANCH.townHit = null;
   // Perspectiva de una persona parada DENTRO del rancho, en su centro: el rancho es grande comparado con los monstruos,
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
   const TN = performance.now() / 1000; // tiempo para que las plantas se mezan
@@ -4633,10 +4643,10 @@ function drawRanch(c, r, opt) {
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
   const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, DI.r1); gg.addColorStop(1, DI.r2); c.fillStyle = gg; c.fill();
   { // camino de tierra, sobre el suelo: cada tramo se recorta contra el plano cercano antes de proyectarlo (así al girar no se ven esquinas en el extremo cercano)
-    const L = D.path, hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'], DN = 0.03;
+    const hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'], DN = 0.03;
     const cam = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co; return [wx, CAM_D - wz]; };
     const scr = q => [cx + q[0] * F / q[1], Yh + camH / q[1]];
-    for (const [wk, cc] of [[1, col[0]], [0.72, col[1]]]) {
+    for (const L of [D.path, D.path2]) for (const [wk, cc] of [[1, col[0]], [0.72, col[1]]]) {
       const E = L.map((q, i) => { const a = L[Math.max(0, i - 1)], b = L[Math.min(L.length - 1, i + 1)], tx = b.x - a.x, tz = b.z - a.z, tl = Math.hypot(tx, tz) || 1, nx = -tz / tl * hw * wk, nz = tx / tl * hw * wk;
         return [cam(q.x + nx, q.z + nz), cam(q.x - nx, q.z - nz)]; });
       c.beginPath(); let any = false;
@@ -4704,6 +4714,18 @@ function drawRanch(c, r, opt) {
     } else if (d.k === 'rail') {
       c.restore(); c.save(); const q = P(d.x2, d.z2); c.globalAlpha = Math.min(near(p), near(q)); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
       for (const hh of [18, 36]) { c.lineWidth = 4 * u * (p.sc + q.sc) / 2; c.beginPath(); c.moveTo(p.X, p.Y - hh * u * p.sc); c.lineTo(q.X, q.Y - hh * u * q.sc); c.stroke(); }
+    } else if (d.k === 'town') { // el pueblo (pedido del dueño): casitas, un pozo y un banderín; de noche, ventanas con luz
+      const BK = 1.8; c.scale(BK, BK);
+      if (!opt && near(p) > 0.5) { const hw = Math.max(150 * k * BK, 50), hh = Math.max(170 * k * BK, 60); RANCH.townHit = { x0: p.X - hw, x1: p.X + hw, y0: p.Y - hh, y1: p.Y + 10 * k, depth: p.Y }; } // se toca como el granero
+      const nl = clamp(DI.dark / 0.3, 0, 1), win = nl > 0.05 ? `rgba(255,205,110,${0.5 + 0.5 * nl})` : '#bfe3ff';
+      c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(0, 0, 165, 26, 0, 0, TAU); c.fill();
+      const house = (x, w, h, wall, roof, door) => { c.fillStyle = wall; c.fillRect(x - w / 2, -h, w, h); c.fillStyle = roof; c.beginPath(); c.moveTo(x - w / 2 - 10, -h + 2); c.lineTo(x, -h - w * 0.55); c.lineTo(x + w / 2 + 10, -h + 2); c.closePath(); c.fill();
+        c.fillStyle = win; c.fillRect(x - w * 0.32, -h * 0.72, w * 0.2, w * 0.2); c.fillRect(x + w * 0.12, -h * 0.72, w * 0.2, w * 0.2);
+        c.fillStyle = door; c.fillRect(x - w * 0.11, -h * 0.42, w * 0.22, h * 0.42);
+        if (nl > 0.05) { const kk = k * BK; (RANCH.barnGlow = RANCH.barnGlow || []).push([p.X + x * kk, p.Y - h * 0.62 * kk, w * 0.7 * kk, nl * 0.7]); } };
+      house(-95, 70, 64, '#e8d3a8', '#6c4fa0', '#7a5230'); house(95, 66, 58, '#d9e4ef', '#3f7d6a', '#7a5230'); house(0, 92, 88, '#f1e2c0', '#b9573f', '#6b4428'); // tres casitas
+      c.fillStyle = '#8f8a99'; c.beginPath(); c.ellipse(-30, -6, 16, 6, 0, 0, TAU); c.fill(); c.fillRect(-46, -20, 32, 14); c.fillStyle = '#4a7fb8'; c.beginPath(); c.ellipse(-30, -20, 16, 6, 0, 0, TAU); c.fill(); // pozo
+      c.strokeStyle = '#6b4a32'; c.lineWidth = 4; c.beginPath(); c.moveTo(150, 0); c.lineTo(150, -150); c.stroke(); c.fillStyle = '#ffcf6e'; c.beginPath(); c.moveTo(150, -150); c.lineTo(150 + 38 + Math.sin(TN * 3) * 4, -138); c.lineTo(150, -124); c.closePath(); c.fill(); // banderín
     } else if (d.k === 'barn') {
       const BK = 1.8; c.scale(BK, BK); // más grande, para que se vea y se pueda tocar
       if (!opt && near(p) > 0.5) { const hw = Math.max(100 * k * BK, 40), hh = Math.max(180 * k * BK, 60); RANCH.barnHit = { x0: p.X - hw, x1: p.X + hw, y0: p.Y - hh, y1: p.Y + 10 * k, depth: p.Y }; } // el granero se toca como un botón
@@ -4766,6 +4788,7 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 function ranchTap(x, y, act) {
   const a = act !== undefined ? act : ranchHit(x, y), B = RANCH.barnHit;
   if (B && x > B.x0 && x < B.x1 && y > B.y0 && y < B.y1 && (!a || a.hit.depth < B.depth)) { enterBarn(); return; } // el granero (si no hay un monstruo delante)
+  const Tn = RANCH.townHit; if (Tn && x > Tn.x0 && x < Tn.x1 && y > Tn.y0 && y < Tn.y1 && (!a || a.hit.depth < Tn.depth)) { SFX.click(); ask('🏘️ El pueblo: pronto habrá cosas por hacer aquí.', { ok: 'Entendido', cancel: null }); return; } // el pueblo: por ahora vacío (pedido del dueño)
   if (a) { SFX.click(); ranchZoomTo(a); }
 }
 // Caricia en el rancho: frotar sobre el monstruo
@@ -4886,7 +4909,16 @@ function renderHome() {
   checkBreedUnlock(); checkUltUnlock(); checkCloudNag();
   $('coins').textContent = save.coins;
   if (barnCtx) { // de cerca en el granero: la misma vista de cerca, con un monstruo del granero (no pelea)
-    const it = BARN.ms[barnCtx.i], rec = cur(); if (!it || !(it.m || it.egg) || !rec) { barnExit(); return; }
+    const it = BARN.ms[barnCtx.i], rec = cur();
+    if (!it) { // cama libre, de cerca (pedido del dueño): un huevo transparente con «?» y lo que puedes poner aquí
+      $('home').classList.remove('first'); $('home').classList.add('barnctx', 'vacant'); homeEmpty = null; show = null; egg = null; if (homePage === 2) setPage(1);
+      $('mName').textContent = 'Cama libre'; $('mSub').textContent = ''; edgeLabels(0); $('rest').hidden = true; $('hint').hidden = true;
+      $('cLv').textContent = $('cHearts').textContent = $('cTime').textContent = ''; $('cIdx').textContent = `${barnCtx.i + 1}/${BARN_MAX}`;
+      $('stats').innerHTML = `<p class="eggmsg">Esta cama está libre.</p><button class="btn primary" id="bedUse">Poner algo aquí</button>`; $('bedUse').onclick = () => openBarn(barnCtx.i);
+      $('homePanel').style.visibility = ''; return;
+    }
+    $('home').classList.remove('vacant');
+    if (!(it.m || it.egg) || !rec) { barnExit(); return; }
     if (it.egg) { // un huevo del granero, de cerca (pedido del dueño): se abre a toques ahí mismo
       $('home').classList.remove('vacant', 'first'); $('home').classList.add('barnctx'); homeEmpty = null; show = null; egg = it.egg;
       if (homePage === 2) setTimeout(renderTrain);
@@ -4993,7 +5025,7 @@ function checkCloudNag() {
   if (N.n && Date.now() - N.t < CLOUD_NAG_DAYS[Math.min(N.n - 1, CLOUD_NAG_DAYS.length - 1)] * 864e5) return;
   cloudNagShown = true;
   setTimeout(() => whenClear(async () => { /* (después de la pantalla de carga) */
-    if (cloud || scene !== 'home' || document.querySelector('.modal.on, #dialog.on')) { cloudNagShown = false; return; }
+    if (cloud || scene !== 'home' || !ranchMode || document.querySelector('.modal.on, #dialog.on')) { cloudNagShown = false; return; }
     save.cloudNag = { n: N.n + 1, t: Date.now() }; persist();
     const yes = await ask('Tu partida está guardada sólo en este celular: si borras los datos del navegador o cambias de celular, la pierdes. ¿La guardamos en la nube? Sólo necesitas entrar con Google o con tu correo.', { ok: '☁️ Guardar en la nube', cancel: 'Después' });
     if (yes) { openSettings(); setView('cloud'); }
@@ -5016,7 +5048,7 @@ document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => set
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
-  if (n === 2 && homeEmpty != null) return; // los espacios libres no aparecen en Estadísticas
+  if (n === 2 && (homeEmpty != null || (barnCtx && !BARN.ms[barnCtx.i]))) return; // los espacios libres no aparecen en Estadísticas
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
   if (n !== homePage) SFX.thud(); // entrar y salir de la Tienda y Estadísticas: el sonido del granero (pedido del dueño) // Tienda y Estadísticas: el golpe de madera del granero (pedido del dueño)
   homePage = n; $('track').style.transform = `translateY(${-100 / 3 * visPage(n)}%)`;
@@ -5274,7 +5306,7 @@ function doBreed(A, B) {
 }
 // Tienda: genes. Se le da a un monstruo y su próxima cría hereda esa parte de él sí o sí (rec.geneLock[grupo]).
 const GENE_COST = 40;
-const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola', pow: 'Poder', end: 'Aguante', agi: 'Agilidad', tec: 'Técnica' };
+const GENE_NAMES = { pal: 'Colores', head: 'Cabeza', eyes: 'Ojos', mouth: 'Boca', horns: 'Cuernos', ears: 'Orejas', antennae: 'Antenas', neck: 'Cuello', body: 'Torso', arms: 'Brazos y hombros', legs: 'Piernas', wings: 'Alas', tail: 'Cola', texture: 'Textura', plan: 'Tipo de cuerpo', pow: 'Poder', end: 'Aguante', agi: 'Agilidad', tec: 'Técnica' };
 // Rivales para el Criadero (pedido del dueño): se guardan los últimos 10 rivales adultos; se puede comprar un huevo con la semilla de cada uno (sale igual a él)
 const FOE_HIST = 10, FOE_EGG_COST = 100;
 const isAdultFoe = f => f.stage === 'adult' || f.stage === 'awakened';
@@ -5308,9 +5340,9 @@ const barnMonKey = r => [r.stage, r.level, JSON.stringify(r.pts || {}), r.ult ||
 function barnItem(r) {
   {
     if (r.stage === 'egg') return { rec: r, egg: new EggView(r) };
-    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); { const R = tpOf(r).ritmo; m.sleep = resting(r) || Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3) + 0.2 * Math.max(0, -R) - 0.15 * Math.max(0, R); } // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño); el tranquilo duerme más y el inquieto menos (tácticas)
+    const m = new Monster(r); m.resetRig(); m.sitting = true; m.sitK = 1; m.baseEmo = baseEmoFor(r); m.battered = isBattered(r); const R = tpOf(r).ritmo, doze = Math.random() < (dayInfo().dark > 0.2 ? 0.7 : 0.3) + 0.2 * Math.max(0, -R) - 0.15 * Math.max(0, R); m.sleep = resting(r) || doze; // duermen 3 de cada 10 de día y 7 de cada 10 de noche (pedido del dueño); el tranquilo duerme más y el inquieto menos (tácticas)
     for (let i = 0; i < 30; i++) { m.animate(1 / 60); m.rigStep(1 / 120); m.rigStep(1 / 120); }
-    return { rec: r, m, sz: m.estSize(), key: barnMonKey(r) };
+    return { rec: r, m, sz: m.estSize(), key: barnMonKey(r), doze };
   }
 }
 // Entrar/salir del granero al estilo "Liquid Glass" de iOS (pedido del dueño), como abrir y cerrar una app desde su ícono:
@@ -5349,7 +5381,7 @@ function barnAnim(dt) {
       if (it === F) { m.sitting = false; it.settle = true; m.lookDir = null; }
       const k = it.k || 1; m.homeStep(dt, sp * 0.4 / k, 500);
       if (it !== F && !m.held && m.z === 0 && Math.abs(m.gx) < 3) { it.settle = false; m.gx = 0; m.vx = 0; m.sitting = true; } // ya volvió a su cama: se sienta
-    } else { m.bowHead = (m.petBowT = (m.petBowT || 0) - dt) > 0; /* mientras lo acaricias baja la cabeza */ if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+    } else { { const want = resting(it.rec) || !!it.doze; if (m.sleep !== want) m.sleep = want; } /* los que acaban de criar duermen también en el granero (pedido del dueño) */ m.bowHead = (m.petBowT = (m.petBowT || 0) - dt) > 0; /* mientras lo acaricias baja la cabeza */ if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
   }
 }
 function barnMood(it, m, dt) { // despierto en su cama, se nota su forma de ser (tácticas): el inquieto se mueve, el curioso y el sociable miran a los vecinos
@@ -5388,7 +5420,7 @@ function drawBarn(c, cam) {
   const sp = barnSp(), floorY = H * 0.66, TN = performance.now() / 1000;
   // de cerca (la vista de cerca del rancho, con el granero de fondo): la cámara hace zoom hasta que su cama queda donde va el monstruo de cerca
   let Z = 1, P = [W / 2, H * 0.45], Q = P;
-  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
+  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (!it) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + 4, e = cam.pz; Z = 1 + (cam.k / 1.6 - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } /* cama libre: como un huevo (×1,6) */ else if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
     Z = 1 + (cam.k / kb - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } }
   BARN.cam = { Z, cfx: P[0], cfy: P[1] }; c.save(); c.translate(Q[0], Q[1]); c.scale(Z, Z); c.translate(-P[0], -P[1]);
   // paredes de tablas (se mueven un poco más lento que las camas: profundidad)
@@ -5461,22 +5493,23 @@ function drawBarn(c, cam) {
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const n of it.m.nodes) { x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x); y0 = Math.min(y0, n.y); y1 = Math.max(y1, n.y); } const pad = 14 * k;
       it.hit = { x0: X + x0 * k - pad, x1: X + x1 * k + pad, y0: top + y0 * k - pad, y1: Math.max(top + y1 * k + pad, bedY) }; it.k = k; it.X = X; it.top = top; }
     else if (it && it.egg) { c.save(); c.translate(X, top + 4); c.scale(1.6, 1.6); it.egg.draw(c); c.restore(); it.hit = { x0: X - bw, x1: X + bw, y0: top - 110, y1: bedY + bh }; }
+    else if (!it && cam && barnCtx && barnCtx.i === i) { c.save(); c.translate(X, top + 4); c.scale(1.6, 1.6); drawOcc(c, { vacant: true, k: 1.6 * (BARN.cam ? BARN.cam.Z : 1) }); c.restore(); } // la cama libre elegida: huevo transparente con «?»
   }
   for (const q of BARN.parts) { c.save(); c.globalAlpha = clamp(q.life * 2, 0, 1); c.fillStyle = '#ff6b9a'; heartPath(c, q.x, q.y, q.r); c.fill(); c.restore(); } // corazones de las caricias
   c.restore();
   const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.3, W / 2, H * 0.55, Math.max(W, H) * 0.8); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.55)'); c.fillStyle = vg; c.fillRect(0, 0, W, H); // bordes en penumbra
 }
 function barnEnter(i) { // tocar un monstruo del granero: la vista de cerca del rancho, tal cual (literal), con el granero de fondo
-  const it = BARN.ms[i]; if (!it || !(it.m || it.egg) || barnLeaving(it) || it.arrive) return;
+  const it = BARN.ms[i]; if (it && (!(it.m || it.egg) || barnLeaving(it) || it.arrive)) return; /* (una cama libre también se puede elegir) */
   barnSelect(i); BARN.goto = null; BARN.vx = 0; BARN.x = i; SFX.click(); // elegir: el mismo clic que en el rancho (pedido del dueño)
-  barnCtx = { i }; if (it.m) it.m.sitting = false; it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
+  barnCtx = { i }; if (it && it.m) it.m.sitting = false; if (it) it.settle = true; swipedAt = performance.now(); // (el click que sigue al toque no aprieta nada de la vista de cerca)
   scene = 'home'; ranchMode = false; homeEmpty = null; $('barnUI').classList.remove('on'); $('home').classList.add('on', 'barnctx');
   if (homePage !== 1) setPage(1);
   zoom = { t: 0, dir: 1, px: W / 2, py: H / 2 }; fx.parts = []; slide = null; renderHome();
 }
 function barnExit() { // terminó de alejarse: de vuelta en el granero
   const c = barnCtx; barnCtx = null; show = null; egg = null; ranchMode = true; homeEmpty = null; zoom = null;
-  $('home').classList.remove('barnctx', 'on'); scene = 'barn'; $('barnUI').classList.add('on');
+  $('home').classList.remove('barnctx', 'vacant', 'on'); scene = 'barn'; $('barnUI').classList.add('on');
   const it = c && BARN.ms[c.i]; if (it) it.settle = true;
   if (c && c.fling) BARN.pending.push({ i: c.i, fling: true }); // lo lanzaste: baja y se va al rancho (camina hasta la puerta)
   BARN.x = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); barnUI(true);
@@ -5489,23 +5522,23 @@ function barnFling() { // lanzarlo en el granero = mandarlo al rancho (pedido de
 }
 function barnCtxStep(dt) { BARN.x += (barnCtx.i - BARN.x) * Math.min(1, dt * 5); barnLeaveStep(dt); barnArriveStep(dt); barnAnim(dt); for (const q of BARN.parts) q.life -= dt; } // de cerca, los que entran y salen siguen caminando (pedido del dueño) // al pasar al siguiente, la cámara viaja por las camas
 function barnCtxSwitch(d) { // de cerca: el siguiente del granero (como el vecino en el rancho)
-  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } } // también los huevos (pedido del dueño)
+  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if (!it || ((it.m || it.egg) && !barnLeaving(it) && !it.arrive)) { j = q; break; } } // también los huevos y las camas libres (pedido del dueño)
   if (j == null || j === barnCtx.i) return;
   const old = BARN.ms[barnCtx.i]; if (old) old.settle = true;
   SFX.thud();
-  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; fightMenu(false); renderHome();
+  barnCtx.i = j; const it = BARN.ms[j]; barnSelect(j); BARN.goto = null; if (it && it.m) it.m.sitting = false; if (it) it.settle = true; fx.parts = []; fightMenu(false); renderHome();
 }
 function barnZoomTo(i) { if (!BARN.ms[i] || barnLeaving(BARN.ms[i])) return; barnSelect(i); BARN.focus = i; barnUI(true); }
 function barnUnzoom() { if (BARN.focus == null) return; BARN.focus = null; barnUI(true); }
 // De cerca en el granero: tocar = toque (se enoja o se asusta según su personalidad), frotar = caricia (corazones), deslizar a los lados = el siguiente, dedo hacia abajo = alejarse
 function barnToLocal(x, y) { const C = BARN.cam || { Z: 1, cfx: W / 2, cfy: H * 0.45 }; return { x: (x - W / 2) / C.Z + C.cfx, y: (y - H * 0.45) / C.Z + C.cfy }; }
-function barnPoke(it) { const m = it && it.m; if (!m) { if (it && it.egg) it.egg.vt += 8; return; } const T = it.rec.temper || {}; m.sleep = false; m.setEmo((T.valor || 0) + (T.agr || 0) * 0.5 >= 0 ? 'angry' : 'scared', 2.5, 3); for (const n of m.nodes) n.vy -= 160; }
+function barnPoke(it) { const m = it && it.m; if (!m) { if (it && it.egg) it.egg.vt += 8; return; } const T = it.rec.temper || {}; if (!resting(it.rec)) { m.sleep = false; it.doze = false; } m.setEmo((T.valor || 0) + (T.agr || 0) * 0.5 >= 0 ? 'angry' : 'scared', 2.5, 3); for (const n of m.nodes) n.vy -= 160; }
 function barnMonLocal(it, x, y) { const w = barnToLocal(x, y), k = it.k || 1; return { x: (w.x - (it.X ?? W / 2)) / k, y: (w.y - (it.top ?? H * 0.7)) / k }; } // coordenadas del monstruo (como toLocal de cerca)
 function barnPet(it, a, b) { // la misma caricia que de cerca en el rancho
   const m = it && it.m; if (!m || m.held) return;
   const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d < 0.3) return;
   for (const n of m.nodes) { const dd = Math.hypot(n.x - b.x, n.y - b.y); if (dd < 45) { const f = (1 - dd / 45) * 6; n.vx += dx * f; n.vy += dy * f; } } // las partes bajo el dedo se dejan llevar
-  if (m.sleep) { m.sleep = false; } m.setEmo('love', 0.9, 2); m.petBowT = 0.3; m.lookAt = null; // baja la cabeza mientras lo acaricias
+  if (resting(it.rec)) { it.petAcc = (it.petAcc || 0); } else if (m.sleep) { m.sleep = false; it.doze = false; } m.setEmo('love', 0.9, 2); m.petBowT = 0.3; m.lookAt = null; // baja la cabeza mientras lo acaricias (si está durmiendo tras criar, sigue durmiendo)
   it.petAcc = (it.petAcc || 0) + d; if (it.petAcc > 45) { it.petAcc = 0; SFX.heart(); const k = it.k || 1; BARN.parts.push({ x: it.X + b.x * k, y: it.top + (b.y - 8) * k, vx: (Math.random() - 0.5) * 30, vy: -60, life: 1.2, r: (5 + Math.random() * 3) * k * 1.3 }); }
   const rec = it.rec; treat(rec, 'pet'); rec.happyUntil = Date.now() + PET_HAPPY_MS; delete rec.sadUntil; m.baseEmo = 'happy';
 }
@@ -5559,7 +5592,7 @@ function openBarn(bed) { // tocar una cama libre: elegir a cuál del rancho trae
 function putInBed(rec, bed) { // un huevo nuevo (comprado, criado o del criadero) aparece en esa cama libre del granero
   save.barn = save.barn || []; if (BARN.ms[bed] || save.barn.length >= BARN_MAX) return false;
   rec.bed = bed; save.barn.push(rec); persist(); const it = BARN.ms[bed] = barnItem(rec); if (it.egg) { it.egg.sq = 0.25; it.egg.vt += 8; }
-  BARN.goto = bed; barnUI(true); return true;
+  BARN.goto = bed; barnUI(true); if (barnCtx && barnCtx.i === bed) renderHome(); /* (si la estabas mirando de cerca, ahora se ve el huevo) */ return true;
 }
 async function buyBedEgg(bed) {
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
@@ -5573,7 +5606,7 @@ function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, cami
   if (!r || BARN.ms[bed] || save.barn.length >= BARN_MAX) return; // (se pueden guardar todos, también el último: pedido del dueño)
   moodSettle(r); R.splice(i, 1); RANCH.actors.splice(i, 1); r.bed = bed; save.barn.push(r); // ya queda guardado (si sales antes de que llegue, ya está en su cama)
   if (save.sel > i || save.sel >= R.length) save.sel = Math.max(0, save.sel - 1);
-  homeEmpty = null; persist(); $('barnModal').classList.remove('on');
+  homeEmpty = null; persist(); $('barnModal').classList.remove('on'); if (barnCtx && barnCtx.i === bed && !zoom) toRanch(); // (desde la cama libre de cerca: la cámara se aleja para verlo entrar)
   const it = BARN.ms[bed] = barnItem(r); if (it.m) { it.m.sitting = false; it.m.sitK = 0; it.m.sleep = false; it.m.setEmo('happy', 3, 2); }
   it.arrive = { x: BARN_DOOR, phase: 'in', t: 0, alpha: 0 }; barnUI(true);
 }
@@ -5696,9 +5729,7 @@ $('btnFree').onclick = async () => {
     if (!await ask(`¿Liberar a ${r.name}? No vuelve.`, { ok: 'Liberar', low: true })) { if (m) { m.crying = false; m.setEmo('happy', 1.6, 7); m.vz = 230; } return; }
     if (m) await new Promise(res => setTimeout(res, 1300));
     save.barn.splice(save.barn.indexOf(r), 1); persist(); BARN.ms[i] = null; // su cama queda libre (los demás no se mueven)
-    let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = (i + st) % BARN_MAX, it = BARN.ms[q]; if (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive) { j = q; break; } }
-    if (j != null) { const it = BARN.ms[j]; barnCtx.i = j; barnSelect(j); BARN.goto = null; if (it.m) it.m.sitting = false; it.settle = true; fx.parts = []; renderHome(); return; } // como en el rancho: se queda en Estadísticas con el siguiente del granero (pedido del dueño)
-    setPage(1); barnExit(); barnBuild(); barnUI(true); return;
+    fx.parts = []; setPage(1); renderHome(); return; // la cámara se queda en su cama, ahora libre (pedido del dueño; antes pasaba al siguiente del granero)
   }
   if (save.monsters.length <= 1) { ask('Necesitas al menos un monstruo.', { ok: 'Entendido', cancel: null }); return; }
   const m = show; // el monstruo se pone triste (y llora) mientras decides
@@ -6150,7 +6181,7 @@ function friendView() { // su equipo del rancho; tocar uno muestra sus estadíst
   $('fdStatus').innerHTML = `${placeText(p)}${p ? `<span class="frrec"><b>${p.w}</b> victorias · <b>${p.l}</b> derrotas · racha más larga <b>${p.best}</b></span>` : ''}`;
   const T = $('fdTeam'), team = (p && p.team) || []; T.innerHTML = team.length ? '' : '<p class="tdesc">No tiene monstruos en su rancho.</p>';
   team.forEach(r => { const d = document.createElement('button'); d.className = 'lanp'; d.style.setProperty('--tc', 'var(--panel2)'); d.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(r.name)}</b><span>Nv.${r.level}</span>`; try { drawThumb(d.querySelector('canvas'), r); } catch (e) { } d.onclick = () => friendMon(r); T.appendChild(d); });
-  const fighting = on && p.st === 'battle'; $('fdFight').disabled = !on;
+  const fighting = on && p.st === 'battle'; $('fdFight').disabled = !on; $('fdTrade').disabled = !on || fighting; $('fdTrade').textContent = !on ? '🔄 Intercambio (desconectado)' : fighting ? '🔄 Intercambio (está peleando)' : '🔄 Intercambio';
   $('fdFight').textContent = !on ? '⚔️ Invitar a pelear (desconectado)' : fighting ? '👁️ Espectar su pelea' : '⚔️ Invitar a pelear'; // si está peleando, se puede mirar su pelea (pedido del dueño)
 }
 function friendMon(r) { // estadísticas de un monstruo de un amigo
@@ -6186,16 +6217,20 @@ $('fdRemove').onclick = async () => {
 };
 // Invitar a pelear: crea una sala y le deja la invitación (invites/{su uid}); a él le aparece un aviso y entra solo, sin código
 let invT = 0; const invSeen = new Set();
-$('fdFight').onclick = async () => {
+async function friendInvite(kind) { // invitar a un amigo: a pelear o a intercambiar (pedido del dueño)
   const f = (save.friends || []).find(x => x.uid === FR.sel); if (!f || !cloud) return;
-  const pf = FR.profs[f.uid]; if (isOnline(pf) && pf.st === 'battle') { specStart(f); return; } // está peleando: espectar
-  if (!save.monsters.length || cur().stage === 'egg' || !window.RTCPeerConnection) { $('settings').classList.remove('on'); ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
+  const pf = FR.profs[f.uid]; if (kind === 'fight' && isOnline(pf) && pf.st === 'battle') { specStart(f); return; } // está peleando: espectar
+  const pool = kind === 'trade' ? tradePool() : save.monsters.filter(r => r.stage !== 'egg');
+  if (!pool.length || (kind === 'fight' && cur().stage === 'egg') || !window.RTCPeerConnection) { $('settings').classList.remove('on'); ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
   $('settings').classList.remove('on'); if (lanLinked()) { lanSend({ t: 'bye' }); lanClose(); }
-  LAN.invited = f.name; $('lan').classList.add('on'); await lanHost('fight');
+  LAN.invited = f.name; $('lan').classList.add('on'); await lanHost(kind);
   if (!LAN.room || LAN.role !== 'host') return;
-  try { await fsReq('PATCH', `invites/${f.uid}`, { from: { stringValue: cloud.uid }, name: { stringValue: save.user }, room: { stringValue: LAN.room }, t: { integerValue: String(Date.now()) } }); lanUI('lobby'); }
-  catch (e) { LAN.invited = null; lanUI('lobby'); ask(e.message, { ok: 'Entendido', cancel: null }); }
-};
+  const view = kind === 'trade' ? 'troom' : 'lobby';
+  try { await fsReq('PATCH', `invites/${f.uid}`, { from: { stringValue: cloud.uid }, name: { stringValue: save.user }, room: { stringValue: LAN.room }, kind: { stringValue: kind }, t: { integerValue: String(Date.now()) } }); if (LAN.view === view || LAN.view === 'lobby' || LAN.view === 'troom') lanUI(view); }
+  catch (e) { LAN.invited = null; lanUI(view); ask(e.message, { ok: 'Entendido', cancel: null }); }
+}
+$('fdFight').onclick = () => friendInvite('fight');
+$('fdTrade').onclick = () => friendInvite('trade');
 // ---------- Espectar (pedido del dueño): mirar en vivo la pelea de un amigo ----------
 // El que mira escribe specs/{amigo}/w/{yo}; el que pelea (si tiene cuenta y está en combate) le responde con una conexión directa (WebRTC, como Online) y le manda el estado de la pelea.
 const SPEC = { viewers: [], sendT: 0, endSent: false, watch: null };
@@ -6286,7 +6321,7 @@ async function invitePoll() { // ¿algún amigo me invitó a pelear?
   invSeen.add(t); fsReq('DELETE', `invites/${cloud.uid}`).catch(() => { });
   if (scene === 'battle' || growAnim) return;
   ['settings', 'frStats', 'ultPick'].forEach(id => $(id).classList.remove('on'));
-  const yes = await ask(`${name} te invita a pelear. ¿Aceptas?`, { ok: '⚔️ Pelear', cancel: 'Ahora no' });
+  const trade = fGet(d, 'kind') === 'trade', yes = await ask(trade ? `${name} te invita a intercambiar monstruos. ¿Aceptas?` : `${name} te invita a pelear. ¿Aceptas?`, { ok: trade ? '🔄 Intercambiar' : '⚔️ Pelear', cancel: 'Ahora no' });
   if (!yes) return;
   if (!save.monsters.length || cur().stage === 'egg') { ask('Primero necesitas un monstruo nacido en el rancho.', { ok: 'Entendido', cancel: null }); return; }
   if (barnCtx || scene === 'barn') { try { if (barnCtx) barnExit(); closeBarnView(); } catch (e) { } }
@@ -6321,6 +6356,7 @@ function openTeamPick() { // peleas de a 4 (pedido del dueño): con 1 monstruo t
   $('tpInfo').textContent = 'Con 1 monstruo es todos contra todos; con 2, pelean juntos en 2 vs 2.';
   go.onclick = () => { $('teamPick').classList.remove('on'); goBattle(sel.size === 2 ? '2v2' : 'ffa', [...sel].map(i => save.monsters[i])); };
   $('tpNo').onclick = () => $('teamPick').classList.remove('on');
+  $('tpJoin').onclick = () => { $('teamPick').classList.remove('on'); if (!window.RTCPeerConnection) { ask('Este navegador no permite peleas online.', { ok: 'Entendido', cancel: null }); return; } $('lan').classList.add('on'); lanLinked() ? lanUI('lobby') : lanUI('join'); }; // unirse a la sala de un amigo con su código (pedido del dueño)
   refresh();
   $('teamPick').classList.add('on');
 }
@@ -6407,7 +6443,7 @@ cv.addEventListener('pointerup', e => {
     const i = clamp(Math.round(BARN.x + (e.clientX - W / 2) / barnSp()), 0, BARN_MAX - 1), it = BARN.ms[i], h = it && it.hit; // tocar: lo selecciona (va hacia él)
     const onBed = (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.06 && e.clientY < bedY + H * 0.14; })(); // la cama (paja y madera) también cuenta
     if (it && (onBed || (h && e.clientX > h.x0 && e.clientX < h.x1 && e.clientY > h.y0 && e.clientY < h.y1))) barnEnter(i); // tocar a un monstruo lo selecciona: la misma vista de cerca del rancho
-    else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { BARN.goto = i; SFX.click(); openBarn(i); } // tocar una cama libre: elegir a quién traer
+    else if (!it && (() => { const sp = barnSp(), bedY = H * 0.66 + H * 0.1, X = W / 2 + (i - BARN.x) * sp; return Math.abs(e.clientX - X) < sp * 0.5 && e.clientY > bedY - H * 0.3 && e.clientY < bedY + H * 0.14; })() /* zona de la cama libre: más grande, también el espacio de arriba donde va el monstruo (pedido del dueño) */) { barnEnter(i); } // tocar una cama libre: se elige como un monstruo (pedido del dueño); de cerca, «Poner algo aquí»
     else if (i !== Math.round(BARN.x)) { BARN.goto = i; SFX.click(); } // elegir una cama: el clic de elegir un monstruo (pedido del dueño)
     return; }
   const G = RANCH.drag;
@@ -6471,17 +6507,18 @@ const eggBaby = el => { const c = el.querySelector('canvas.bootbaby'); if (!c) r
     { const d = x.getImageData(0, 0, 160, 160).data; let y0 = 160, x0 = 160, x1 = 0; for (let y = 0; y < 160; y++) for (let i = 0; i < 160; i++) if (d[(y * 160 + i) * 4 + 3] > 20) { if (y < y0) y0 = y; if (i < x0) x0 = i; if (i > x1) x1 = i; }
       if (y0 < 156) { k *= Math.min(62 / (156 - y0), 96 / Math.max(1, x1 - x0)); draw(k); } } /* (se mide lo dibujado y se ajusta: todos del mismo alto, del tamaño de antes) */ } catch (e) { } }; // el que nace es un monstruo al azar (pedido del dueño)
 const eggHatch = el => { const n = el.querySelector('.bootnest'); if (n) { n.classList.remove('hatch'); void n.offsetWidth; n.classList.add('hatch'); } }; // el huevo nace
-const ldReset = el => { const n = el.querySelector('.bootnest'); if (n) n.classList.remove('hatch'); eggBaby(el); };
+const ldReset = el => { const n = el.querySelector('.bootnest'); if (n) n.classList.remove('hatch'); eggBaby(el); void el.offsetWidth; }; // (se arma antes de mostrarse: en el iPhone se alcanzaba a ver un instante el huevo ya roto de la vez anterior)
+const ldShow = (el, txt) => { clearTimeout(loadScreen.t); $('ldTx').textContent = txt || 'Cargando…'; if (el.hidden || el.classList.contains('out')) { el.style.transition = 'none'; el.hidden = true; ldReset(el); el.classList.remove('out'); el.hidden = false; void el.offsetWidth; el.style.transition = ''; } }; // aparece de una vez, ya armado (el huevo entero y otro bebé)
 const ldHide = el => { eggHatch(el); loadScreen.t = setTimeout(() => { el.classList.add('out'); loadScreen.t = setTimeout(() => { el.hidden = true; }, 480); }, 500); }; // nace medio segundo antes de quitarse (pedido del dueño)
 function loadScreen(txt, fn, wait = null, min = 650, max = 8000) {
-  const el = $('ld'); $('ldTx').textContent = txt || 'Cargando…'; el.hidden = false; el.classList.remove('out'); ldReset(el); clearTimeout(loadScreen.t);
+  const el = $('ld'); ldShow(el, txt);
   const sleep = ms => new Promise(r => setTimeout(r, ms)), t0 = performance.now();
   requestAnimationFrame(() => requestAnimationFrame(() => { // (que se vea la pantalla antes de cambiar nada)
     const go = () => { try { fn && fn(); } finally { requestAnimationFrame(() => requestAnimationFrame(() => ldHide(el))); } };
     if (!wait) { fn && fn(); fn = null; sleep(Math.max(0, min - (performance.now() - t0))).then(go); }
     else Promise.race([Promise.all([wait, sleep(min)]), sleep(max)]).then(go); })); }
 function ldCover(txt, min = 700) { // tapa la pantalla ya mismo y se quita sola (para cambios que no pueden esperar: Online, espectar, volver de la arena)
-  const el = $('ld'); $('ldTx').textContent = txt || 'Cargando…'; el.hidden = false; el.classList.remove('out'); ldReset(el); clearTimeout(loadScreen.t);
+  const el = $('ld'); ldShow(el, txt);
   loadScreen.t = setTimeout(() => ldHide(el), Math.max(0, min - 500)); } // (el huevo nace a los min − 0,5 s y se quita a los min)
 function goBattle(mode, team) { loadScreen('Entrando a la arena…', () => startBattle(mode, team), CLIP.preloadAll(), 750); } // espera a que estén todas las voces (como mucho 8 s)
 function startBattle(mode, team) { CAST.unlock(); if (CAST.el) CLIP.preload(CAST.lang); CROWD.preload(); REC_SFX.forEach(k => CLIP.load(k, 'sfx/')); // (viene de un toque: el iPhone deja que la voz hable)
@@ -6757,7 +6794,7 @@ function growStep(dt) {
       if (G.idx < G.parts.length) { // le aparece una parte nueva
         const key = G.parts[G.idx++], M = G.newM; M.hidden.delete(key);
         for (const i of partNodes(M, key)) { const n = M.nodes[i]; burst(n.x, n.y, 7, acc, 200, [2, 4]); n.vy -= 160; n.vx += (Math.random() - 0.5) * 200; }
-        M.vz = 170; M.mouthOpen = 1; G.nextT = G.t + 0.55;
+        M.vz = 170; M.mouthOpen = 1; G.nextT = G.t + 0.55; SFX.ko(G.idx - 1); /* cada parte nueva suena como un K.O., cada vez más agudo (pedido del dueño) */
       } else {
         G.newM.vz = 280; G.newM.setEmo('happy', 60, 3); fx.flash = 0.6;
         burst(0, -G.ne.h * 0.5, 20, '#ffe08a', 300, [2, 4]);
@@ -6915,7 +6952,7 @@ function drawCloseUp(ctx, r, onHome, pz) {
   // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
   const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
   let k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
-  if (barnCtx && E) k = 1.6 * Math.min(r.height * (onHome ? 0.64 : 0.78) / 150, r.width * 0.8 / 140, 3.2) / Math.min(H * 0.0016, barnSp() * 0.95 / 70); // (el zoom de la mayoría: sólo los monstruos muy grandes se acercan menos) // huevo del granero: la cámara hace el mismo zoom que al elegir un monstruo (pedido del dueño)
+  if (barnCtx && (E || empty)) k = 1.6 * Math.min(r.height * (onHome ? 0.64 : 0.78) / 150, r.width * 0.8 / 140, 3.2) / Math.min(H * 0.0016, barnSp() * 0.95 / 70); // (el zoom de la mayoría: sólo los monstruos muy grandes se acercan menos) // huevo del granero: la cámara hace el mismo zoom que al elegir un monstruo (pedido del dueño)
   const gy = onHome ? Math.min(r.bottom - r.height * 0.06, r.top + r.height / 2 + Math.max(sz.h, 60) * k / 2) : r.bottom - r.height * 0.06;
   homeView = { cx: r.left + r.width / 2, gy, k, adopt: onAdopt };
   const bounds = { halfW: Math.max(10, r.width / 2 / k - sz.w * (onAdopt ? 0.6 : 0.3)), maxZ: Math.max(20, (gy - r.top) * 0.95 / k - sz.h * 1.05) };
@@ -6969,7 +7006,8 @@ function loopFrame(now) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#1b1530'; ctx.fillRect(0, 0, W, H);
 
-  if (scene === 'home' && (show || egg || homeEmpty != null || ranchMode || zoom)) {
+  const barnFree = !!(barnCtx && !BARN.ms[barnCtx.i]); // de cerca en una cama libre del granero
+  if (scene === 'home' && (show || egg || homeEmpty != null || barnFree || ranchMode || zoom)) {
     if (slide && (slide.t += dt / (slide.dur || SLIDE_S)) >= 1) slide = null;
     if (zoom && (zoom.t += dt / ZOOM_S) >= 1) { const d = zoom.dir; zoom = null; if (d < 0) { homeEmpty = null; if (barnCtx) barnExit(); else if (save.monsters.length) renderHome(); } }
     acc += dt; let n = 0;
@@ -6988,7 +7026,7 @@ function loopFrame(now) {
     // Se dibuja en el área de la página que está más a la vista (Rancho o Estadísticas)
     const areas = ['showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.top + q.height / 2 - H / 2);
     const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onHome = r === areas[0];
-    const hasClose = show || egg || homeEmpty != null;
+    const hasClose = show || egg || homeEmpty != null || barnFree;
     if (onHome && zoom && hasClose) { // acercarse a un monstruo del rancho (o alejarse): la cámara viaja hasta él
       const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2;
       drawCloseUp(ctx, r, true, zoom.dir > 0 ? e : 1 - e);
@@ -7029,7 +7067,7 @@ function loopFrame(now) {
     if (battle.drawBig) { battle.drawBig.t += dt; drawDraw(battle.drawBig); }
     if (++frame % 6 === 0) { updateFighters(); updateUltBar(); }
     const RE = ['2v2', 'ffa', 'teams'].includes(battle.mode) ? 1 : 0; // en 2 vs 2 y todos contra todos el resultado sale 1 s antes (pedido del dueño)
-    if (battle.over && battle.endT > (battle.koBig ? 1.8 + KO_DELAY : battle.drawBig || battle.timeBig ? (battle.timedOut ? 3.2 : 3.2 + KO_DELAY) : 1.8) - RE && !battle.reported && (battle._annUntil !== Infinity || performance.now() - (battle._overAt || 0) > 9000 - RE * 1000)) { /* (espera el cierre del relator, como mucho 9 s) */ if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
+    if (battle.over && (!battle.koBig || battle.koBig.t >= KO_HIT[1] + 0.55) /* el «K.O.» termina de caer (y de rebotar) antes del resumen (pedido del dueño) */ && battle.endT > (battle.koBig ? 1.8 + KO_DELAY : battle.drawBig || battle.timeBig ? (battle.timedOut ? 3.2 : 3.2 + KO_DELAY) : 1.8) - RE && !battle.reported && (battle._annUntil !== Infinity || performance.now() - (battle._overAt || 0) > 9000 - RE * 1000)) { /* (espera el cierre del relator, como mucho 9 s) */ if (battle.lan) { if (!battle.puppet) lanFinish(); } else { battle.reported = true; updateFighters(); finishBattle(); } }
   }
   if (scene === 'home' && show && frame % 20 === 0) { show.baseEmo = baseEmoFor(cur()); show.battered = isBattered(cur()); } // se le pasa la felicidad, recupera corazones
   if (scene === 'home' && homePage === 1 && homeEmpty != null && frame % 120 === 0) renderSlotBtns(); // cuenta hasta el próximo huevo
@@ -7241,7 +7279,7 @@ function lanUI(st, data) {
     info.innerHTML = '';
     btns.append(B('🔄 Intercambio', () => lanHost('trade'), 'primary'), B('Crear sala', () => lanHost('fight'), 'primary'), B('Unirme', () => lanUI('join'), 'primary'), B('Cerrar', () => $('lan').classList.remove('on')));
   }
-  else if (st === 'troom') { info.innerHTML = `<span class="roomcode">${LAN.room}</span>`; btns.append(back); }
+  else if (st === 'troom') { info.innerHTML = (LAN.invited ? `Invitaste a <b>${esc(LAN.invited)}</b> a intercambiar. Esperando que acepte…<br>` : '') + `<span class="roomcode">${LAN.room}</span>`; btns.append(back); }
   else if (st === 'trade' || st === 'tpick') lanTradeUI(st, info, list, btns, B, quit);
   else if (st === 'tdone') {
     const r = LAN.tr.done; info.innerHTML = `¡Recibiste a <b>${esc(r.name)}</b>!`;
