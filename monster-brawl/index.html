@@ -4558,7 +4558,7 @@ function ranchStep(dt) {
     }
   }
   for (const a of A) if (a.toss) { // lanzado desde la vista de cerca: sigue volando con su impulso y al caer se desliza hasta frenar
-    const T = a.toss, air = a.m && a.m.z > 0; a.x += T.x * dt; a.z += T.z * dt; const f = Math.exp(-dt * (air ? 0.6 : 7)); T.x *= f; T.z *= f; a.walk = false; a.idle = Math.max(a.idle || 0, 0.8);
+    const T = a.toss, air = a.m && a.m.z > 0; if (T.skip) { T.skip = false; continue; } a.x += T.x * dt; a.z += T.z * dt; const f = Math.exp(-dt * (air ? 0.3 : 7)); T.x *= f; T.z *= f; a.walk = false; a.idle = Math.max(a.idle || 0, 0.8);
     const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX || rr < RANCH_RMIN) { const nx = a.x / rr, nz = a.z / rr, vn = T.x * nx + T.z * nz; T.x -= 1.6 * vn * nx; T.z -= 1.6 * vn * nz; } // rebota suave en la cerca
     if (Math.hypot(T.x, T.z) < 0.03 && !air) a.toss = null;
   }
@@ -4878,9 +4878,9 @@ function toRanch() {
   const a = RANCH.actors[homeEmpty ?? save.sel], h = a && a.hit, fl = !!(show && show.flung);
   zoom = { t: 0, dir: -1, px: h ? (h.x0 + h.x1) / 2 : W / 2, py: h ? (h.y0 + h.y1) / 2 : H / 2 };
   if (a && a.m && Math.abs(a.m.gx) > 1) { // lo lanzaste hacia un lado: queda en el rancho donde cayó (la cámara sigue mirando el punto de antes)
-    zoom.focus = { x: a.x, z: a.z }; const kb = RANCH.view ? RANCH.view.kb : 1, F = RANCH.view ? RANCH.view.RX / 1.15 : 300, dw = a.m.gx * kb / F, co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
+    zoom.focus = { x: a.x, z: a.z }; zoom.fling = true; zoom.dur = 1.05; /* lanzado: la cámara retrocede más despacio y lo va siguiendo (pedido del dueño: era muy brusca) */ const kb = RANCH.view ? RANCH.view.kb : 1, F = RANCH.view ? RANCH.view.RX / 1.15 : 300, dw = a.m.gx * kb / F, co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
     let nx = a.x + dw * co, nz = a.z - dw * sn; const rr = Math.hypot(nx, nz), rc = clamp(rr, RANCH_RMIN, RANCH_RMAX); if (rr > 1e-3) { nx *= rc / rr; nz *= rc / rr; }
-    const vw = clamp(a.m.vx, -2200, 2200) * kb / F; a.toss = { x: vw * co, z: -vw * sn }; // sigue con el impulso del lanzamiento (antes se frenaba de golpe al salir de la pantalla; pedido del dueño)
+    const vw = clamp(a.m.vx, -2200, 2200) * kb / F; a.toss = { x: vw * co, z: -vw * sn, skip: true }; /* (ese cuadro ya se movió en la vista de cerca) */ // sigue con el impulso del lanzamiento (antes se frenaba de golpe al salir de la pantalla; pedido del dueño)
     a.x = nx; a.z = nz; for (const n of a.m.nodes) n.x -= a.m.gx; /* el esqueleto se corre junto con él (antes volvía de golpe al centro) */ a.m.gx = 0; a.m.vx = 0; a.walk = false; a.idle = 1.5;
   }
   ranchMode = true; renderHome();
@@ -5777,7 +5777,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
+  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede despacio siguiéndolo.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
@@ -6955,7 +6955,7 @@ function travelPoint() {
 }
 function drawRanchBg(ctx, r, pz) {
   const a = RANCH.actors[homeEmpty ?? save.sel]; if (!a || !homeView) return false;
-  const C = ranchCam(r), fp = zoom && zoom.focus ? zoom.focus : a, p = C.P(fp.x, fp.z); if (!p.vis && !(slide && slide.travel && slide.prevFocus)) return false; // al alejarse tras lanzarlo, la cámara sale desde donde estaba
+  const C = ranchCam(r), fw = zoom && zoom.fling ? clamp(1 - pz, 0, 1) : 0, fs = fw * fw * (3 - 2 * fw), fp = zoom && zoom.focus ? { x: lerpN(zoom.focus.x, a.x, fs), z: lerpN(zoom.focus.z, a.z, fs) } : a, p = C.P(fp.x, fp.z); // al retroceder tras lanzarlo, la cámara pasa de a poco de donde estaba a seguirlo if (!p.vis && !(slide && slide.travel && slide.prevFocus)) return false; // al alejarse tras lanzarlo, la cámara sale desde donde estaba
   let fxp = p.X, fyp = p.Y, Z = homeView.k / (C.kb * p.sc), dd = p.d, alphaOf = null, gyT = homeView.gy;
   const T = travelFade();
   if (T && slide.prevFocus) { // al pasar a otro monstruo, la cámara viaja por el rancho de uno al otro (se aleja un poco a mitad de camino)
@@ -7074,7 +7074,7 @@ function loopFrame(now) {
     const hasClose = show || egg || homeEmpty != null || barnFree;
     if (onHome && !barnCtx) { const q = { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom, W, H }; if (!zoom) AREA[ranchMode ? 'ranch' : 'close'] = q; else AREA[zoom.dir > 0 ? 'close' : 'ranch'] = q; } // el área del rancho y la de cerca no miden lo mismo (en el rancho se ocultan el nombre y los botones)
     if (onHome && zoom && hasClose) { // acercarse a un monstruo del rancho (o alejarse): la cámara viaja hasta él
-      const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2, pz = zoom.dir > 0 ? e : 1 - e;
+      const t = clamp(zoom.t, 0, 1), e = t * t * t * (t * (t * 6 - 15) + 10), pz = zoom.dir > 0 ? e : 1 - e; // curva más suave en los extremos (antes cúbica: arrancaba y frenaba más brusco)
       const A0 = AREA.ranch, A1 = AREA.close; if (!barnCtx && A0 && A1 && A0.W === W && A1.W === W && A0.H === H && A1.H === H) { const L = k => A0[k] + (A1[k] - A0[k]) * pz; r = { left: L('left'), top: L('top'), width: L('width'), height: L('height'), right: L('right'), bottom: L('bottom') }; } // durante el zoom el área pasa de a poco de una a otra (antes la cámara daba un salto de ~12% al empezar a acercarse o alejarse; pedido del dueño)
       drawCloseUp(ctx, r, true, pz);
     } else if (onHome && ranchMode) drawRanch(ctx, r);
