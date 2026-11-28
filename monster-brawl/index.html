@@ -335,7 +335,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
       <div class="panel tpanel shop" id="shopGenes"></div>
       <div class="panel tpanel shop" id="shopArenas"></div>
     </div></div>
-    <button class="edgeLbl down" data-go="1">Rancho ▼</button>
+    <button class="edgeLbl down" id="shopBack">Pueblo ▼</button>
   </div>
   <div class="page" id="pgHome">
   <button class="edgeLbl up" id="lblTop">▲ Tienda</button>
@@ -377,6 +377,15 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
     <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
   <div class="barnInfo top"><b id="barnName"></b><span id="barnSub"></span></div>
+  <div class="spacer"></div>
+</div>
+<div id="townUI" class="screen">
+  <div class="topbar">
+    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
+    <button class="edgeLbl up" id="townUpLbl">▲ Rancho</button>
+    <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
+  </div>
+  <div class="barnInfo top"><b>Pueblo</b><span id="townSub"></span></div>
   <div class="spacer"></div>
 </div>
 <div id="battleUI" class="screen">
@@ -4339,6 +4348,42 @@ function ranchDeco() {
   RANCH.trees = d.filter(o => o.k === 'tree' && !o.out).map(o => ({ x: o.x, z: o.z, cr: 0.06 * o.s + 0.05 })); // troncos: los monstruos no los atraviesan
   return RANCH.deco = { d, flowers, path, path2, pathW: PATH_W * RANCH_RF };
 }
+// ---------- Pueblo (pedido del dueño): la misma vista del rancho (parado en el centro, deslizar a los lados para girar), con la Tienda y el Criadero ----------
+const TOWN = { th: 0, vth: 0, drag: null, deco: null, hits: [], shop: false };
+function townDeco() {
+  if (TOWN.deco) return TOWN.deco;
+  const r = rng(51723), d = [], at = (a, rr, o) => Object.assign({ x: Math.sin(a) * rr, z: -Math.cos(a) * rr }, o); // ángulo 0 = de frente al entrar; positivo = a la derecha
+  d.push(at(0, 0.62, { k: 'shop' }), at(-1.15, 0.62, { k: 'nursery' }), at(Math.PI, 0.66, { k: 'gate' }));
+  [1.15, 2.2, -2.2].forEach((a, i) => d.push(at(a, 0.64, { k: 'house', v: i + 1 })));
+  for (const a of [0.58, -0.58, 1.68, -1.68, 2.7, -2.7]) d.push(at(a + r.f(-0.06, 0.06), r.f(0.68, 0.8), { k: 'tree', s: r.f(0.8, 1.05), h: r.i(95, 150) }));
+  for (const a of [0.575, -0.575, 1.675, -1.675, 2.67, -2.67]) d.push(at(a, 0.42, { k: 'lamp' })); // faroles entre los edificios (no delante de las puertas)
+  for (let i = 0; i < 6; i++) { const a = r.f(0, TAU); d.push(at(a, r.f(0.5, 0.58), { k: 'bush', s: r.f(0.6, 0.9), h: r.i(95, 135) })); }
+  const pathPts = Array.from({ length: 81 }, (_, i) => { const t = i / 80; return { x: -0.05 * Math.sin(TAU * t), z: 0.66 * t }; }); // camino a la salida (al rancho)
+  for (let i = d.length - 1; i >= 0; i--) { const o = d[i]; if ((o.k === 'bush' || o.k === 'tree') && Math.min(...pathPts.map(q => Math.hypot(o.x - q.x, o.z - q.z))) < 0.12) d.splice(i, 1); }
+  for (const o of d) { o.x *= RANCH_RF; o.z *= RANCH_RF; }
+  return TOWN.deco = { d, flowers: [], path: pathPts.map(q => ({ x: q.x * RANCH_RF, z: q.z * RANCH_RF })), path2: [], pathW: 0.05 * RANCH_RF };
+}
+function townArea() { const A = AREA.ranch; return A && A.W === W && A.H === H ? A : { left: 16, top: 66, width: W - 32, height: H * 0.7, right: W - 16, bottom: 66 + H * 0.7 }; }
+function drawTown(c, r) { const th0 = RANCH.th, v0 = RANCH.view; RANCH.th = TOWN.th; TOWN.hits = []; drawRanch(c, r, { town: true, noNames: true }); TOWN.view = RANCH.view; RANCH.th = th0; RANCH.view = v0; }
+function enterTown() { SFX.thud(); loadScreen('Yendo al pueblo…', openTownView); }
+function leaveTown() { SFX.thud(); loadScreen('Volviendo al rancho…', closeTownView); }
+function openTownView() { fightMenu(false); RANCH.drag = null; scene = 'town'; TOWN.th = 0; TOWN.vth = 0; TOWN.drag = null; $('home').classList.remove('on'); $('townUI').classList.add('on'); }
+function closeTownView() { RANCH.th = Math.PI; RANCH.vth = 0; /* al volver, el pueblo queda al centro */ scene = 'home'; TOWN.drag = null; $('townUI').classList.remove('on'); $('home').classList.add('on'); renderHome(); }
+function townTap(x, y) {
+  let b = null; for (const h of TOWN.hits) if (x > h.x0 && x < h.x1 && y > h.y0 && y < h.y1 && (!b || h.depth > b.depth)) b = h;
+  if (!b) return; SFX.click();
+  if (b.k === 'shop') openTownShop(); else if (b.k === 'nursery') openTownNursery(); else if (b.k === 'gate') leaveTown();
+}
+function pageJump(n) { const t = $('track'), tr = t.style.transition; t.style.transition = 'none'; homePage = n; t.style.transform = `translateY(${-100 / 3 * visPage(n)}%)`; void t.offsetWidth; t.style.transition = tr; } // cambia de página sin deslizar
+function openTownShop() { // la Tienda del pueblo: la misma de antes (Ultimates, Genes y Arenas)
+  TOWN.shop = true; SFX.thud(); scene = 'home'; $('townUI').classList.remove('on'); $('home').classList.add('on'); pageJump(0); renderAdopt(); $('shopBack').textContent = 'Pueblo ▼';
+}
+function closeTownShop() { TOWN.shop = false; SFX.thud(); pageJump(1); scene = 'town'; $('home').classList.remove('on'); $('townUI').classList.add('on'); }
+function openTownNursery() { // el Criadero del pueblo: huevos de los adultos con los que ya peleaste (van a una cama libre del granero)
+  barnBuild(); const bed = BARN.ms.findIndex(q => !q);
+  if (bed < 0) { ask('El granero está lleno: libera una cama para comprar un huevo del criadero.', { ok: 'Entendido', cancel: null }); return; }
+  BARN.bedTarget = bed; openFoePick();
+}
 // Las tácticas de combate también son su forma de ser fuera de la pelea (pedido del dueño): al centro se comporta como siempre
 const tpOf = rec => { const t = (rec && rec.temper) || {}, c = v => clamp(+v || 0, -1, 1); return { agr: c(t.agr), terco: c(t.terco), valor: c(t.valor), ritmo: c(t.ritmo), def: c(t.def) }; };
 const RP = { soc: 0.85, comp: 0.3, fence: 0.75, fenceLone: 0.9, speed: 0.22, pause: 0.4, sit: 1.5, nap: 1.2, hop: 0.8, curious: 0.5, look: 0.45, plant: 0.25 }; // cuánto cambia cada rasgo con el medidor en el extremo
@@ -4618,7 +4663,7 @@ function drawRanch(c, r, opt) {
   // Perspectiva de una persona parada DENTRO del rancho, en su centro: el rancho es grande comparado con los monstruos,
   // lo cercano se ve enorme, lo lejano chico, y lo que queda detrás no se ve: hay que girar.
   const TN = performance.now() / 1000; // tiempo para que las plantas se mezan
-  const D = ranchDeco(), C = ranchCam(r), { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P } = C;
+  const TW = !!(opt && opt.town), D = TW ? townDeco() : ranchDeco(), C = ranchCam(r), { cx, Yh, CAM_D, NEAR, F, camH, kb, co, sn, P } = C; // TW: el pueblo (la misma vista del rancho, con su propio decorado)
   const V = RANCH.view = { cx, RX: F * 1.15, kb, r };
   const ghost = opt && opt.ghost != null ? opt.ghost : 1; // vista de cerca: lo demás del rancho se vuelve transparente para no estorbar
   const cut = p => opt && opt.cullD ? clamp((p.d - opt.cullD) / 0.06 + 1, 0, 1) : 1; // de cerca: lo que queda delante del elegido desaparece
@@ -4649,11 +4694,11 @@ function drawRanch(c, r, opt) {
   // pradera hasta el horizonte y, encima, el suelo del rancho (el círculo, desde el borde lejano hasta los pies)
   const gm = c.createLinearGradient(0, Yh, 0, r.bottom); gm.addColorStop(0, DI.g1); gm.addColorStop(1, DI.g2);
   c.fillStyle = gm; c.fillRect(0, Yh, W, r.bottom - Yh);
-  const a0 = Math.acos(clamp((CAM_D - NEAR) / RANCH_RF, -1, 1));
+  const RG = TW ? RANCH_RF * 0.62 : RANCH_RF, a0 = Math.acos(clamp((CAM_D - NEAR) / RG, -1, 1)); // (en el pueblo, una plaza más chica con los edificios alrededor)
   c.beginPath(); c.moveTo(-W, r.bottom + 400);
-  for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RANCH_RF * Math.cos(a); c.lineTo(cx + RANCH_RF * Math.sin(a) * F / dd, Yh + camH / dd); }
+  for (let k = 0; k <= 80; k++) { const a = a0 + (TAU - 2 * a0) * k / 80, dd = CAM_D - RG * Math.cos(a); c.lineTo(cx + RG * Math.sin(a) * F / dd, Yh + camH / dd); }
   c.lineTo(2 * W, r.bottom + 400); c.closePath();
-  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, DI.r1); gg.addColorStop(1, DI.r2); c.fillStyle = gg; c.fill();
+  const gg = c.createLinearGradient(0, Yh, 0, r.bottom); gg.addColorStop(0, TW ? mixRgb(DI.r1, '#b9ab98', 0.8) : DI.r1); gg.addColorStop(1, TW ? mixRgb(DI.r2, '#cbbda9', 0.8) : DI.r2); c.fillStyle = gg; c.fill(); // en el pueblo, una plaza de piedra
   { // camino de tierra, sobre el suelo: cada tramo se recorta contra el plano cercano antes de proyectarlo (así al girar no se ven esquinas en el extremo cercano)
     const hw = D.pathW, col = SEA === 'invierno' ? ['#b9a58e', '#cdbda8'] : ['#8b6a42', '#a8824f'], DN = 0.03;
     const cam = (x, z) => { const wx = x * co - z * sn, wz = x * sn + z * co; return [wx, CAM_D - wz]; };
@@ -4678,7 +4723,7 @@ function drawRanch(c, r, opt) {
     if (!RANCH.flies) { const fr = rng(4242); RANCH.flies = Array.from({ length: 60 }, () => { const a = fr.f(0, TAU), rr = fr.f(0.55, 1.8); return { x: Math.sin(a) * rr, z: Math.cos(a) * rr, h: fr.f(15, 110), ph: fr.f(0, TAU), sp: fr.f(0.6, 1.4) }; }); }
     for (const f of RANCH.flies) { const fx = f.x + Math.sin(TN * 0.25 * f.sp + f.ph) * 0.12, fz = f.z + Math.cos(TN * 0.2 * f.sp + f.ph * 1.3) * 0.12, p = P(fx, fz); if (p.vis) items.push({ y: p.Y, fly: f, p }); }
   }
-  for (const a of RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; a.hit = null; if (!p.vis) continue; if (a.kind === 'free' && !(opt && (a === opt.focus || a === opt.focus2))) continue; /* espacio libre: no se ve en el rancho (sólo de cerca) */ items.push({ y: p.Y + 0.1, a, p }); }
+  for (const a of TW ? [] : RANCH.actors) { const p = P(a.x, a.z); a.sc = p.sc; a.hit = null; if (!p.vis) continue; if (a.kind === 'free' && !(opt && (a === opt.focus || a === opt.focus2))) continue; /* espacio libre: no se ve en el rancho (sólo de cerca) */ items.push({ y: p.Y + 0.1, a, p }); }
   items.sort((u, v) => u.y - v.y);
   const u = kb; // tamaño: el mismo para monstruos y decorado
   for (const it of items) {
@@ -4726,6 +4771,34 @@ function drawRanch(c, r, opt) {
     } else if (d.k === 'rail') {
       c.restore(); c.save(); const q = P(d.x2, d.z2); c.globalAlpha = Math.min(near(p), near(q)); c.strokeStyle = '#a77a52'; c.lineCap = 'round';
       for (const hh of [18, 36]) { c.lineWidth = 4 * u * (p.sc + q.sc) / 2; c.beginPath(); c.moveTo(p.X, p.Y - hh * u * p.sc); c.lineTo(q.X, q.Y - hh * u * q.sc); c.stroke(); }
+    } else if (d.k === 'shop' || d.k === 'nursery' || d.k === 'house' || d.k === 'gate' || d.k === 'lamp') { // edificios del pueblo (pedido del dueño)
+      const BK = d.k === 'lamp' ? 1 : 1.8, kk = k * BK; c.scale(BK, BK);
+      const nl = clamp(DI.dark / 0.3, 0, 1), win = nl > 0.05 ? `rgba(255,205,110,${0.5 + 0.5 * nl})` : '#bfe3ff', glow = (x, y, rr, a) => { if (nl > 0.05) (RANCH.barnGlow = RANCH.barnGlow || []).push([p.X + x * kk, p.Y + y * kk, rr * kk, nl * a]); };
+      const hit = (w, h) => { if (TW && near(p) > 0.5) TOWN.hits.push({ k: d.k, x0: p.X - w * kk, x1: p.X + w * kk, y0: p.Y - h * kk, y1: p.Y + 10 * k, depth: p.Y }); };
+      const sign = (txt, y, col) => { c.fillStyle = '#5b3a22'; c.fillRect(-62, y, 124, 30); c.fillStyle = col; c.font = '900 19px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, 0, y + 16); c.textBaseline = 'alphabetic'; };
+      if (d.k !== 'lamp') { c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(0, 0, d.k === 'gate' ? 70 : 115, 20, 0, 0, TAU); c.fill(); }
+      if (d.k === 'shop') { // la Tienda: toldo a rayas, vitrina con monedas y letrero
+        hit(110, 200);
+        c.fillStyle = '#f4e3c3'; c.fillRect(-90, -125, 180, 125); c.fillStyle = '#c0453b'; c.beginPath(); c.moveTo(-104, -123); c.lineTo(0, -178); c.lineTo(104, -123); c.closePath(); c.fill();
+        for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? '#fff3e0' : '#e85d4a'; c.fillRect(-96 + i * 24, -96, 24, 16); c.beginPath(); c.arc(-84 + i * 24, -80, 12, 0, Math.PI); c.fill(); }
+        c.fillStyle = win; c.fillRect(-74, -64, 62, 46); c.fillStyle = '#ffcf4a'; for (const [x, y] of [[-58, -28], [-44, -32], [-30, -26], [-50, -40]]) { c.beginPath(); c.arc(x, y, 6, 0, TAU); c.fill(); } // monedas en la vitrina
+        c.fillStyle = '#7a5230'; c.fillRect(14, -74, 44, 74); c.fillStyle = '#ffd36b'; c.beginPath(); c.arc(50, -36, 3, 0, TAU); c.fill();
+        sign('TIENDA', -160, '#ffd36b'); glow(-43, -41, 70, 0.8); glow(36, -40, 50, 0.5);
+      } else if (d.k === 'nursery') { // el Criadero: nido con huevos y letrero
+        hit(110, 200);
+        c.fillStyle = '#e7f0dc'; c.fillRect(-90, -120, 180, 120); c.fillStyle = '#3f7d6a'; c.beginPath(); c.moveTo(-104, -118); c.lineTo(0, -172); c.lineTo(104, -118); c.closePath(); c.fill();
+        c.fillStyle = win; c.beginPath(); c.arc(-45, -62, 22, 0, TAU); c.fill(); c.fillStyle = '#7a5230'; c.fillRect(10, -76, 46, 76);
+        c.fillStyle = '#b08a4a'; c.beginPath(); c.ellipse(-46, -4, 40, 12, 0, 0, TAU); c.fill(); for (const [x, col] of [[-64, '#f6efe0'], [-46, '#ffd9a8'], [-28, '#d7ecff']]) { c.fillStyle = col; c.beginPath(); c.ellipse(x, -16, 10, 13, 0, 0, TAU); c.fill(); } // nido con huevos
+        sign('CRIADERO', -155, '#bff0c8'); glow(-45, -62, 60, 0.8);
+      } else if (d.k === 'house') {
+        hit(0, 0); const V = [['#e8d3a8', '#6c4fa0'], ['#d9e4ef', '#3f7d6a'], ['#f1e2c0', '#b9573f'], ['#f0d0d0', '#4f6fa8']][d.v % 4], w = 100, h = 90;
+        c.fillStyle = V[0]; c.fillRect(-w / 2, -h, w, h); c.fillStyle = V[1]; c.beginPath(); c.moveTo(-w / 2 - 12, -h + 2); c.lineTo(0, -h - w * 0.55); c.lineTo(w / 2 + 12, -h + 2); c.closePath(); c.fill();
+        c.fillStyle = win; c.fillRect(-w * 0.34, -h * 0.72, w * 0.22, w * 0.22); c.fillRect(w * 0.12, -h * 0.72, w * 0.22, w * 0.22); c.fillStyle = '#7a5230'; c.fillRect(-w * 0.11, -h * 0.42, w * 0.22, h * 0.42); glow(0, -h * 0.62, w * 0.7, 0.7);
+      } else if (d.k === 'gate') { // la salida al rancho
+        hit(70, 160); c.fillStyle = '#7a5230'; c.fillRect(-52, -130, 12, 130); c.fillRect(40, -130, 12, 130); c.fillRect(-60, -136, 120, 12); sign('RANCHO', -170, '#ffe9b8');
+      } else { // farol
+        c.fillStyle = '#3d3a48'; c.fillRect(-3, -95, 6, 95); c.fillStyle = nl > 0.05 ? `rgba(255,220,140,${0.6 + 0.4 * nl})` : '#e8e2cf'; c.fillRect(-8, -112, 16, 18); c.fillStyle = '#3d3a48'; c.fillRect(-10, -116, 20, 5); glow(0, -103, 50, 1);
+      }
     } else if (d.k === 'town') { // el pueblo (pedido del dueño): casitas, un pozo y un banderín; de noche, ventanas con luz
       const BK = 1.8; c.scale(BK, BK);
       if (!opt && near(p) > 0.5) { const hw = Math.max(150 * k * BK, 50), hh = Math.max(170 * k * BK, 60); RANCH.townHit = { x0: p.X - hw, x1: p.X + hw, y0: p.Y - hh, y1: p.Y + 10 * k, depth: p.Y }; } // se toca como el granero
@@ -4800,7 +4873,7 @@ function ranchHit(x, y) { // el habitante más adelante bajo el dedo
 function ranchTap(x, y, act) {
   const a = act !== undefined ? act : ranchHit(x, y), B = RANCH.barnHit;
   if (B && x > B.x0 && x < B.x1 && y > B.y0 && y < B.y1 && (!a || a.hit.depth < B.depth)) { enterBarn(); return; } // el granero (si no hay un monstruo delante)
-  const Tn = RANCH.townHit; if (Tn && x > Tn.x0 && x < Tn.x1 && y > Tn.y0 && y < Tn.y1 && (!a || a.hit.depth < Tn.depth)) { SFX.click(); ask('🏘️ El pueblo: pronto habrá cosas por hacer aquí.', { ok: 'Entendido', cancel: null }); return; } // el pueblo: por ahora vacío (pedido del dueño)
+  const Tn = RANCH.townHit; if (Tn && x > Tn.x0 && x < Tn.x1 && y > Tn.y0 && y < Tn.y1 && (!a || a.hit.depth < Tn.depth)) { enterTown(); return; } // el pueblo: por ahora vacío (pedido del dueño)
   if (a) { SFX.click(); ranchZoomTo(a); }
 }
 // Caricia en el rancho: frotar sobre el monstruo
@@ -5024,7 +5097,7 @@ function checkUltUnlock() {
   if ((save.ults || []).length) { save.ultsUnlocked = true; persist(); return; } // ya compraba ultimates: sin aviso
   if ([...save.monsters, ...(save.barn || [])].some(m => canUlt(m.stage))) {
     save.ultsUnlocked = true; persist();
-    setTimeout(() => ask('¡Ya puedes comprar ultimates! Tienes un monstruo adolescente: sube a la Tienda y compra una ultimate para tus monstruos.', { ok: 'Entendido', cancel: null }), 400);
+    setTimeout(() => ask('¡Ya puedes comprar ultimates! Tienes un monstruo adolescente: ve a la Tienda del pueblo y compra una ultimate para tus monstruos.', { ok: 'Entendido', cancel: null }), 400);
   }
 }
 // Sin cuenta en la Nube la partida sólo está en este celular: después de jugar un poco, se ofrece guardarla en la nube (pedido del dueño)
@@ -5060,7 +5133,8 @@ document.querySelectorAll('#shopTabs button').forEach(b => b.classList.add('nosn
 document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => setShopTab(+b.dataset.stab));
 function setPage(n) {
   if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
-  if (n === 0 && !ranchMode) return; // de cerca no se va a la Tienda (arriba está el rancho)
+  if (n === 0 && !TOWN.shop) return; // la Tienda está en el pueblo (pedido del dueño): desde el rancho ya no se sube a ella
+  if (TOWN.shop && n !== 0) { closeTownShop(); return; } // desde la Tienda del pueblo, bajar vuelve al pueblo
   if (n === 2 && (homeEmpty != null || (barnCtx && !BARN.ms[barnCtx.i]))) return; // los espacios libres no aparecen en Estadísticas
   if (firstEgg() && n !== 1) { nudgeEgg(); if (homePage === 1) return; n = 1; }
   if (n !== homePage) SFX.thud(); // entrar y salir de la Tienda y Estadísticas: el sonido del granero (pedido del dueño) // Tienda y Estadísticas: el golpe de madera del granero (pedido del dueño)
@@ -5072,10 +5146,12 @@ function setPage(n) {
 // Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Rancho" y "Estadísticas ▼" (dorado si hay puntos por gastar) (pedido del dueño)
 function edgeLabels(free) {
   const t = $('lblTop'), b = $('lblBot');
-  t.textContent = ranchMode ? '▲ Tienda' : barnCtx ? '▲ Granero' : '▲ Rancho';
+  t.textContent = ranchMode ? '' : barnCtx ? '▲ Granero' : '▲ Rancho'; t.style.visibility = ranchMode ? 'hidden' : ''; // la Tienda se mudó al pueblo (pedido del dueño)
   b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
-$('lblTop').onclick = () => { if (ranchMode) setPage(0); else { SFX.thud(); toRanch(); } }; // deseleccionar: el sonido del granero (pedido del dueño)
+$('lblTop').onclick = () => { if (ranchMode) return; SFX.thud(); toRanch(); }; // (en el rancho ya no hay Tienda arriba: está en el pueblo)
+$('shopBack').onclick = () => closeTownShop();
+$('townUpLbl').onclick = () => leaveTown(); // deseleccionar: el sonido del granero (pedido del dueño)
 $('lblBot').onclick = () => setPage(2);
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
@@ -5199,7 +5275,7 @@ function temperSlider(el, rec) {
 $('upNo').onclick = () => $('ultPick').classList.remove('on');
 function openUltPick(rec) {
   const eq = rec.ult && ULTS[rec.ult] ? rec.ult : null, owned = ULT_KEYS.filter(k => ownsUlt(k) || k === eq), L = $('upList');
-  $('upInfo').textContent = owned.length ? '' : 'Todavía no tienes ultimates: se compran en la Tienda.';
+  $('upInfo').textContent = owned.length ? '' : 'Todavía no tienes ultimates: se compran en la Tienda del pueblo.';
   L.innerHTML = owned.map(k => `<button class="ultc ${k === eq ? 'on' : ''}" data-up="${k}">${ultIcon(k)}<b>${ULTS[k].name}</b>${k === eq ? '<span class="pill on">Equipada</span>' : ''}<div class="tdesc">${ULTS[k].desc}</div></button>`).join('');
   L.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { $('ultPick').classList.remove('on'); if (b.dataset.up === rec.ult) return; rec.ult = b.dataset.up; persist(); renderHome(); renderTrain(); trainFx(ULTS[rec.ult].name); });
   $('ultPick').classList.add('on');
@@ -5368,7 +5444,7 @@ function leaveBarn() { SFX.thud(); loadScreen('Volviendo al rancho…', closeBar
 function openBarnView() {
   fightMenu(false); RANCH.drag = null; scene = 'barn';
   $('home').classList.remove('on'); $('barnUI').classList.add('on');
-  BARN.ms = []; barnBuild(); BARN.x = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); // (al entrar se arman de nuevo: duermen al azar cada vez) BARN.vx = 0; BARN.focus = null; BARN.z = 0; barnUI(true);
+  BARN.ms = []; barnBuild(); /* (al entrar se arman de nuevo: duermen al azar cada vez) */ BARN.x = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); BARN.vx = 0; BARN.focus = null; BARN.z = 0; barnUI(true);
 }
 function closeBarnView() {
   RANCH.th = 0; RANCH.vth = 0; // al volver al rancho, el granero queda al centro
@@ -5596,9 +5672,8 @@ function openBarn(bed) { // tocar una cama libre: elegir a cuál del rancho trae
   $('brTitle').textContent = `Cama ${bed + 1}`; BARN.bedTarget = bed; $('brCoins').textContent = save.coins; // tus monedas, para ver si te alcanza (pedido del dueño)
   const poor = save.coins < EGG_COST, open = breedOpen(), nF = adultFoes().filter(([f]) => !f.bought).length;
   $('brActs').innerHTML = `<div class="row"><button class="btn primary" id="bedBuy" ${poor ? 'disabled' : ''}>${poor ? `Te faltan ${EGG_COST - save.coins}` : `Comprar huevo · <span class="ci"></span>${EGG_COST}`}</button><button class="btn primary" id="bedBreed" ${open ? '' : 'disabled'}>${open ? `Criar · <span class="ci"></span>${BREED_COST}` : '🔒 Criar'}</button></div>
-    <button class="btn primary" id="bedFoes">🥚 Criadero${nF ? ` (${nF})` : ''}</button>
-    <small>${open ? 'Comprar: un huevo misterioso. Criar: cruza dos adultos. Criadero: huevos de los especímenes disponibles.' : `Comprar: un huevo misterioso. Criar se desbloquea con 2 monstruos adultos (${Math.min(awakenedCount(), 2)}/2). Criadero: huevos de los especímenes disponibles.`}</small>`;
-  $('bedBuy').onclick = () => buyBedEgg(bed); $('bedBreed').onclick = () => { $('barnModal').classList.remove('on'); openBreedPick(); }; $('bedFoes').onclick = () => { $('barnModal').classList.remove('on'); openFoePick(); };
+    <small>${open ? 'Comprar: un huevo misterioso. Criar: cruza dos adultos.' : `Comprar: un huevo misterioso. Criar se desbloquea con 2 monstruos adultos (${Math.min(awakenedCount(), 2)}/2).`} Los huevos de los adultos con los que peleaste están en el Criadero del pueblo.</small>`; /* (el Criadero se mudó al pueblo, pedido del dueño) */
+  $('bedBuy').onclick = () => buyBedEgg(bed); $('bedBreed').onclick = () => { $('barnModal').classList.remove('on'); openBreedPick(); };
   $('brRanchHdr').hidden = !R.length; $('brRanchHdr').textContent = 'Traer uno del rancho (entra por la puerta y se sienta aquí)';
   $('brRanchH').textContent = ''; $('brRanchH').hidden = true;
   const card = (r, why) => { const b = document.createElement('button'); b.className = 'tpc'; b.disabled = !!why;
@@ -5778,6 +5853,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: compra los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero).', 'Para volver al rancho toca «▲ Rancho», la salida «Rancho» o desliza el dedo hacia abajo.'] },
   { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede más despacio.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al lanzar a varios monstruos seguidos al rancho, ya no aparecen duplicados (uno caminando y otro en la cama).', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
@@ -6389,6 +6465,7 @@ function openTeamPick() { // peleas de a 4 (pedido del dueño): con 1 monstruo t
 let touch = null, petAcc = 0;
 const toLocal = e => ({ x: (e.clientX - homeView.cx) / homeView.k, y: (e.clientY - homeView.gy) / homeView.k });
 cv.addEventListener('pointerdown', e => {
+  if (scene === 'town') { if (document.querySelector('.modal.on')) return; TOWN.drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, lx: e.clientX, lt: performance.now(), th0: TOWN.th, v: 0, mode: null }; TOWN.vth = 0; try { cv.setPointerCapture(e.pointerId); } catch (err) { } return; } // el pueblo: como el rancho, deslizar a los lados gira
   if (scene === 'barn') { if (document.querySelector('.modal.on')) return; BARN.drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, lt: performance.now(), t0: performance.now(), v: 0, moved: false, id: e.pointerId, mode: null, zoom: BARN.focus != null, onMon: false };
     if (BARN.focus == null) { const L = barnToLocal(e.clientX, e.clientY); BARN.drag.petIt = BARN.ms.find(it => it && it.m && it.hit && !it.arrive && !barnLeaving(it) && e.clientX > it.hit.x0 && e.clientX < it.hit.x1 && e.clientY > it.hit.y0 && e.clientY < it.hit.y1 - (it.hit.y1 - it.hit.y0) * 0.12) || null; } /* sin elegirlo: frotar despacio encima lo acaricia, como en el rancho (pedido del dueño) */
     if (BARN.focus != null) { const it = BARN.ms[BARN.focus], h = it && it.hit, w = barnToLocal(e.clientX, e.clientY); BARN.drag.onMon = !!(h && w.x > h.x0 && w.x < h.x1 && w.y > h.y0 && w.y < h.y1);
@@ -6409,6 +6486,8 @@ cv.addEventListener('pointerdown', e => {
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }
 });
 cv.addEventListener('pointermove', e => {
+  if (scene === 'town') { const G = TOWN.drag; if (!G || e.pointerId !== G.id) return; const dx = e.clientX - G.x0, dy = e.clientY - G.y0; if (!G.mode && Math.hypot(dx, dy) > 10) G.mode = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    if (G.mode === 'h') { const now = performance.now(), dt = Math.max(0.008, (now - G.lt) / 1000), RX = TOWN.view ? TOWN.view.RX : W; TOWN.th = G.th0 + dx / RX * RANCH_SWIPE_K; G.v = (e.clientX - G.lx) / RX * RANCH_SWIPE_K / dt * 0.6 + G.v * 0.4; G.lx = e.clientX; G.lt = now; } return; }
   if (scene === 'barn') { const G = BARN.drag; if (!G || e.pointerId !== G.id) return; const now = performance.now(), dx = e.clientX - G.lx, tx = e.clientX - G.x0, ty = e.clientY - G.y0;
     if (!G.mode && !G.grab && Math.hypot(tx, ty) > 10) { const slow = Math.hypot(tx, ty) / Math.max(1, now - G.t0) <= 0.9; G.mode = G.zoom && G.onMon ? 'pet' : G.petIt && slow ? 'gpet' : Math.abs(ty) > Math.abs(tx) ? 'v' : 'h'; G.moved = true; } /* (rápido = recorrer camas; despacio sobre un monstruo = acariciar) */ // vertical: deslizar hacia abajo sale (al rancho, o de cerca: se aleja)
     if (G.grab) { const it = BARN.ms[BARN.focus], m = it && it.m; if (!m) return; const l = barnMonLocal(it, e.clientX, e.clientY), hw = barnSp() * 0.4 / (it.k || 1); // lo llevas colgando del dedo (sin salirte de su cama)
@@ -6453,6 +6532,7 @@ cv.addEventListener('pointermove', e => {
   touch.last = p;
 });
 cv.addEventListener('pointerup', e => {
+  if (scene === 'town') { const G = TOWN.drag; TOWN.drag = null; if (!G || e.pointerId !== G.id) return; if (!G.mode) townTap(G.x0, G.y0); else if (G.mode === 'h') TOWN.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; else if (e.clientY - G.y0 > 60) leaveTown(); return; } // dedo hacia abajo: al rancho (como en el granero)
   if (scene === 'barn') { const G = BARN.drag; BARN.drag = null; if (!G || e.pointerId !== G.id) return; clearTimeout(G.timer);
     if (G.zoom) { // de cerca
       const it = BARN.ms[BARN.focus];
@@ -6478,7 +6558,7 @@ cv.addEventListener('pointerup', e => {
   else if (!touch.pet && show) show.poke(touch.last.x, touch.last.y);
   touch = null;
 });
-cv.addEventListener('pointercancel', () => { RANCH.drag = null; if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
+cv.addEventListener('pointercancel', () => { RANCH.drag = null; TOWN.drag = null; if (touch) { clearTimeout(touch.timer); if (touch.grab) release(touch); } touch = null; });
 const GRAB_HOLD_MS = 280;
 const grabbed = t => show; // lo que tiene el dedo: el monstruo
 function grab(t) {
@@ -7073,13 +7153,15 @@ function loopFrame(now) {
     const areas = ['showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.top + q.height / 2 - H / 2);
     let r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a); const onHome = r === areas[0];
     const hasClose = show || egg || homeEmpty != null || barnFree;
-    if (onHome && !barnCtx) { const q = { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom, W, H }; if (!zoom) AREA[ranchMode ? 'ranch' : 'close'] = q; else AREA[zoom.dir > 0 ? 'close' : 'ranch'] = q; } // el área del rancho y la de cerca no miden lo mismo (en el rancho se ocultan el nombre y los botones)
+    if (onHome && !barnCtx && homePage === 1 && !TOWN.shop && Math.abs(r.top - (AREA.ranch || r).top) < 200) { const q = { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom, W, H }; if (!zoom) AREA[ranchMode ? 'ranch' : 'close'] = q; else AREA[zoom.dir > 0 ? 'close' : 'ranch'] = q; } // el área del rancho y la de cerca no miden lo mismo (en el rancho se ocultan el nombre y los botones)
     if (onHome && zoom && hasClose) { // acercarse a un monstruo del rancho (o alejarse): la cámara viaja hasta él
       const t = clamp(zoom.t, 0, 1), e = t * t * t * (t * (t * 6 - 15) + 10), pz = zoom.dir > 0 ? e : 1 - e; // curva más suave en los extremos (antes cúbica: arrancaba y frenaba más brusco)
       const A0 = AREA.ranch, A1 = AREA.close; if (!barnCtx && A0 && A1 && A0.W === W && A1.W === W && A0.H === H && A1.H === H) { const L = k => A0[k] + (A1[k] - A0[k]) * pz; r = { left: L('left'), top: L('top'), width: L('width'), height: L('height'), right: L('right'), bottom: L('bottom') }; } // durante el zoom el área pasa de a poco de una a otra (antes la cámara daba un salto de ~12% al empezar a acercarse o alejarse; pedido del dueño)
       drawCloseUp(ctx, r, true, pz);
     } else if (onHome && ranchMode) drawRanch(ctx, r);
     else if (hasClose) drawCloseUp(ctx, r, onHome, onHome && !firstEgg() ? 1 : null);
+  } else if (scene === 'town') {
+    if (!TOWN.drag) { TOWN.th += TOWN.vth * dt; TOWN.vth *= Math.exp(-dt * 3); } drawTown(ctx, townArea());
   } else if (scene === 'barn') {
     barnStep(dt); drawBarn(ctx);
   } else if (scene === 'grow' && growAnim) {
