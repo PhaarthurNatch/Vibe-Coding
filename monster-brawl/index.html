@@ -5007,7 +5007,7 @@ function renderHome() {
     if (!(it.m || it.egg) || !rec) { barnExit(); return; }
     if (it.egg) { // un huevo del granero, de cerca (pedido del dueño): se abre a toques ahí mismo
       $('home').classList.remove('vacant', 'first'); $('home').classList.add('barnctx'); homeEmpty = null; show = null; egg = it.egg;
-      if (homePage === 2) setTimeout(renderTrain);
+      if (homePage === 2) setPage(1);
       edgeLabels(0); $('rest').hidden = true; $('homePanel').style.visibility = 'hidden';
       $('mName').textContent = rec.foeOf ? `Huevo de ${rec.foeOf}` : 'Huevo misterioso'; updateEggSub(); $('hint').hidden = false; $('stats').innerHTML = '';
       return;
@@ -5132,7 +5132,8 @@ function setShopTab(n) {
 document.querySelectorAll('#shopTabs button').forEach(b => b.classList.add('nosnd'));
 document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => setShopTab(+b.dataset.stab));
 function setPage(n) {
-  if (n === 2 && ranchMode) return; // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
+  if (n === 2 && ranchMode) return;
+  if (n === 2 && cur() && cur().stage === 'egg') return; // los huevos no tienen Estadísticas (pedido del dueño) // en el rancho no hay monstruo elegido: Estadísticas recién al ver uno de cerca
   if (n === 0 && !TOWN.shop) return; // la Tienda está en el pueblo (pedido del dueño): desde el rancho ya no se sube a ella
   if (TOWN.shop && n !== 0) { closeTownShop(); return; } // desde la Tienda del pueblo, bajar vuelve al pueblo
   if (n === 2 && (homeEmpty != null || (barnCtx && !BARN.ms[barnCtx.i]))) return; // los espacios libres no aparecen en Estadísticas
@@ -5145,7 +5146,7 @@ function setPage(n) {
 }
 // Textos de los bordes (se pueden tocar): en el rancho "▲ Tienda"; de cerca "▲ Rancho" y "Estadísticas ▼" (dorado si hay puntos por gastar) (pedido del dueño)
 function edgeLabels(free) {
-  const t = $('lblTop'), b = $('lblBot');
+  const t = $('lblTop'), b = $('lblBot'), er = cur(); b.style.visibility = er && er.stage === 'egg' ? 'hidden' : ''; // los huevos no tienen Estadísticas (pedido del dueño)
   t.textContent = ranchMode ? '' : barnCtx ? '▲ Granero' : '▲ Rancho'; t.style.visibility = ranchMode ? 'hidden' : ''; // la Tienda se mudó al pueblo (pedido del dueño)
   b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
@@ -5176,7 +5177,7 @@ function swipeEnd(x, y) {
     else setPage([0, 1, 2].find(n => visPage(n) === v));
   } else if (homePage === 0 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) { // Tienda: a los lados cambia de pestaña
     swipedAt = performance.now(); setShopTab(shopTab + (dx < 0 ? 1 : -1));
-  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? (homePage === 1 ? BARN_MAX : BARN.ms.filter(q => q && (q.m || q.egg)).length) : save.monsters.length) > 1) { // de cerca o en Estadísticas
+  } else if ((homePage === 1 && !ranchMode || homePage === 2) && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && (barnCtx ? (homePage === 1 ? BARN_MAX : BARN.ms.filter(q => q && q.m).length) : save.monsters.length) > 1) { // de cerca o en Estadísticas
     swipedAt = performance.now(); if (barnCtx) barnCtxSwitch(dx < 0 ? 1 : -1); else if (firstEgg()) nudgeEgg(); else if (homePage === 1 && !ranchMode) { const nb = ranchNeighbor(dx < 0 ? 1 : -1); if (nb) switchMonster(dx < 0 ? 1 : -1, nb); } else switchMonster(dx < 0 ? 1 : -1); // de cerca: el vecino en el rancho hacia el lado al que se mueve la vista; en Estadísticas: el siguiente/anterior
   }
 }
@@ -5617,7 +5618,7 @@ function barnFling() { // lanzarlo en el granero = mandarlo al rancho (pedido de
 }
 function barnCtxStep(dt) { BARN.x += (barnCtx.i - BARN.x) * Math.min(1, dt * 5); barnLeaveStep(dt); barnArriveStep(dt); barnAnim(dt); for (const q of BARN.parts) q.life -= dt; } // de cerca, los que entran y salen siguen caminando (pedido del dueño) // al pasar al siguiente, la cámara viaja por las camas
 function barnCtxSwitch(d) { // de cerca: el siguiente del granero (como el vecino en el rancho)
-  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if ((!it && homePage === 1) || (it && (it.m || it.egg) && !barnLeaving(it) && !it.arrive)) { j = q; break; } } // también los huevos y, de cerca, las camas libres, aunque no haya ningún monstruo en el granero (pedido del dueño); en Estadísticas sólo las ocupadas
+  let j = null; for (let st = 1; st < BARN_MAX; st++) { const q = ((barnCtx.i + d * st) % BARN_MAX + BARN_MAX) % BARN_MAX, it = BARN.ms[q]; if ((!it && homePage === 1) || (it && (it.m || (it.egg && homePage === 1)) && !barnLeaving(it) && !it.arrive)) { j = q; break; } } // también los huevos y, de cerca, las camas libres, aunque no haya ningún monstruo en el granero (pedido del dueño); en Estadísticas sólo las ocupadas
   if (j == null || j === barnCtx.i) return;
   const old = BARN.ms[barnCtx.i]; if (old) old.settle = true;
   SFX.thud();
@@ -5860,7 +5861,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.91', d: '2026-11-28', items: ['Las miniaturas de los monstruos en las ventanas (granero, peleas, Criadero, amigos) se ven del tamaño de la tarjeta: ya no salen algunos muy chicos.', 'Granero: de cerca puedes pasar de una cama a otra deslizando a los lados aunque estén vacías o no tengas monstruos guardados.'] },
+  { v: '1.91', d: '2026-11-28', items: ['Las miniaturas de los monstruos en las ventanas (granero, peleas, Criadero, amigos) se ven del tamaño de la tarjeta: ya no salen algunos muy chicos.', 'Granero: de cerca puedes pasar de una cama a otra deslizando a los lados aunque estén vacías o no tengas monstruos guardados.', 'Los huevos ya no tienen página de Estadísticas.'] },
   { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: ahí se compra el huevo misterioso y los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero). En el granero ya no se compran huevos.', 'Para volver al rancho, toca la salida «Rancho» del pueblo.'] },
   { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede más despacio.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al lanzar a varios monstruos seguidos al rancho, ya no aparecen duplicados (uno caminando y otro en la cama).', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
