@@ -5670,9 +5670,9 @@ function openBarn(bed) { // tocar una cama libre: elegir a cuál del rancho trae
   swipedAt = performance.now(); // el toque que abrió la ventana no debe "tocar" también un botón de la ventana (en el celular llega un click justo después y caía en «Cerrar»)
   $('brTitle').textContent = `Cama ${bed + 1}`; BARN.bedTarget = bed; $('brCoins').textContent = save.coins; // tus monedas, para ver si te alcanza (pedido del dueño)
   const poor = save.coins < EGG_COST, open = breedOpen(), nF = adultFoes().filter(([f]) => !f.bought).length;
-  $('brActs').innerHTML = `<div class="row"><button class="btn primary" id="bedBuy" ${poor ? 'disabled' : ''}>${poor ? `Te faltan ${EGG_COST - save.coins}` : `Comprar huevo · <span class="ci"></span>${EGG_COST}`}</button><button class="btn primary" id="bedBreed" ${open ? '' : 'disabled'}>${open ? `Criar · <span class="ci"></span>${BREED_COST}` : '🔒 Criar'}</button></div>
-    <small>${open ? 'Comprar: un huevo misterioso. Criar: cruza dos adultos.' : `Comprar: un huevo misterioso. Criar se desbloquea con 2 monstruos adultos (${Math.min(awakenedCount(), 2)}/2).`} Los huevos de los adultos con los que peleaste están en el Criadero del pueblo.</small>`; /* (el Criadero se mudó al pueblo, pedido del dueño) */
-  $('bedBuy').onclick = () => buyBedEgg(bed); $('bedBreed').onclick = () => { $('barnModal').classList.remove('on'); openBreedPick(); };
+  $('brActs').innerHTML = `<button class="btn primary" id="bedBreed" ${open ? '' : 'disabled'}>${open ? `Criar · <span class="ci"></span>${BREED_COST}` : '🔒 Criar'}</button>
+    <small>${open ? 'Criar: cruza dos adultos.' : `Criar se desbloquea con 2 monstruos adultos (${Math.min(awakenedCount(), 2)}/2).`} Los huevos se compran en el Criadero del pueblo.</small>`; /* (el huevo misterioso y el Criadero se mudaron al pueblo, pedido del dueño) */
+  $('bedBreed').onclick = () => { $('barnModal').classList.remove('on'); openBreedPick(); };
   $('brRanchHdr').hidden = !R.length; $('brRanchHdr').textContent = 'Traer uno del rancho (entra por la puerta y se sienta aquí)';
   $('brRanchH').textContent = ''; $('brRanchH').hidden = true;
   const card = (r, why) => { const b = document.createElement('button'); b.className = 'tpc'; b.disabled = !!why;
@@ -5687,6 +5687,10 @@ function putInBed(rec, bed) { // un huevo nuevo (comprado, criado o del criadero
   save.barn = save.barn || []; if (BARN.ms[bed] || save.barn.length >= BARN_MAX) return false;
   rec.bed = bed; save.barn.push(rec); persist(); const it = BARN.ms[bed] = barnItem(rec); if (it.egg) { it.egg.sq = 0.25; it.egg.vt += 8; }
   BARN.goto = bed; barnUI(true); if (barnCtx && barnCtx.i === bed) renderHome(); /* (si la estabas mirando de cerca, ahora se ve el huevo) */ return true;
+}
+function buyMysteryEgg() { // huevo misterioso del Criadero del pueblo: va a una cama libre del granero
+  const bed = BARN.bedTarget; if (bed == null || BARN.ms[bed] || save.coins < EGG_COST) return;
+  save.coins -= EGG_COST; SFX.coin(); $('foePick').classList.remove('on'); putInBed(newRec(), bed);
 }
 async function buyBedEgg(bed) {
   if (BARN.ms[bed] || save.coins < EGG_COST) return;
@@ -5720,8 +5724,12 @@ function barnTake(r) { // del granero al rancho (los demás se quedan en sus cam
 $('barnUpLbl').onclick = leaveBarn; // (sin ✕: el dueño la quitó) // arriba está el rancho (también deslizando el dedo hacia abajo)
 function openFoePick() {
   const L = adultFoes(), list = $('fpList'), go = $('fpGo'); let sel = null;
-  $('fpInfo').textContent = L.length ? 'Especímenes disponibles en el criadero. Compra el huevo de uno y nacerá igual a él.' : 'Por ahora no hay especímenes disponibles en el criadero.';
+  $('fpInfo').textContent = L.length ? 'Compra un huevo misterioso o el de un espécimen con el que peleaste (nacerá igual a él).' : 'Un huevo misterioso. Los especímenes con los que pelees también aparecerán aquí.';
   list.innerHTML = '';
+  { const b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = -1; // huevo misterioso: la primera opción (se compraba en el granero; pedido del dueño)
+    b.innerHTML = `<canvas width="144" height="144"></canvas><b>Huevo misterioso</b><span>al azar</span>`;
+    { const x = b.querySelector('canvas').getContext('2d'); x.translate(72, 128); x.scale(1.5, 1.5); drawOcc(x, { vacant: true, k: 1.5 }); }
+    b.onclick = () => { sel = -1; refresh(); }; list.appendChild(b); }
   L.forEach(([f, i]) => {
     const b = document.createElement('button'); b.className = 'tpc'; b.dataset.i = i; b.disabled = !!f.bought;
     b.innerHTML = `<canvas width="144" height="144"></canvas><b>${esc(f.name)}</b><span>${f.bought ? 'ya comprado' : ''}</span>`;
@@ -5731,10 +5739,10 @@ function openFoePick() {
   });
   const refresh = () => {
     list.querySelectorAll('.tpc').forEach(c => c.classList.toggle('on', sel === +c.dataset.i));
-    const poor = save.coins < FOE_EGG_COST; go.hidden = !L.length; go.disabled = sel == null || poor;
-    go.innerHTML = sel == null ? 'Elige uno' : poor ? `Te faltan ${FOE_EGG_COST - save.coins} monedas` : `Comprar · <span class="ci"></span>${FOE_EGG_COST}`;
+    const cost = sel === -1 ? EGG_COST : FOE_EGG_COST, poor = save.coins < cost; go.hidden = false; go.disabled = sel == null || poor;
+    go.innerHTML = sel == null ? 'Elige uno' : poor ? `Te faltan ${cost - save.coins} monedas` : `Comprar · <span class="ci"></span>${cost}`;
   };
-  go.onclick = () => buyFoeEgg(sel);
+  go.onclick = () => { if (sel === -1) buyMysteryEgg(); else buyFoeEgg(sel); };
   $('fpNo').onclick = () => $('foePick').classList.remove('on');
   refresh(); $('foePick').classList.add('on');
 }
@@ -5852,7 +5860,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: compra los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero).', 'Para volver al rancho, toca la salida «Rancho» del pueblo.'] },
+  { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: ahí se compra el huevo misterioso y los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero). En el granero ya no se compran huevos.', 'Para volver al rancho, toca la salida «Rancho» del pueblo.'] },
   { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede más despacio.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al lanzar a varios monstruos seguidos al rancho, ya no aparecen duplicados (uno caminando y otro en la cama).', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
