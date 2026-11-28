@@ -5394,7 +5394,7 @@ function barnAnim(dt) {
       if (it === F) { m.sitting = false; it.settle = true; m.lookDir = null; }
       const k = it.k || 1; m.homeStep(dt, sp * 0.4 / k, 500);
       if (it !== F && !m.held && m.z === 0 && Math.abs(m.gx) < 3) { it.settle = false; m.gx = 0; m.vx = 0; m.sitting = true; } // ya volvió a su cama: se sienta
-    } else { { const want = resting(it.rec) || !!it.doze; if (m.sleep !== want) m.sleep = want; } /* los que acaban de criar duermen también en el granero (pedido del dueño) */ m.bowHead = (m.petBowT = (m.petBowT || 0) - dt) > 0; /* mientras lo acaricias baja la cabeza */ if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
+    } else { { const walking = !!(it.arrive && it.arrive.phase !== 'climb') || barnLeaving(it), want = !walking && (resting(it.rec) || !!it.doze); if (m.sleep !== want) m.sleep = want; if (walking) m.sitting = false; } /* caminando (llega o se va) nunca va sentado ni dormido (pedido del dueño) */ /* los que acaban de criar duermen también en el granero (pedido del dueño) */ m.bowHead = (m.petBowT = (m.petBowT || 0) - dt) > 0; /* mientras lo acaricias baja la cabeza */ if (!m.sleep && !m.held) barnMood(it, m, dt); m.animate(dt); m.rigStep(dt / 2); m.rigStep(dt / 2); }
   }
 }
 function barnMood(it, m, dt) { // despierto en su cama, se nota su forma de ser (tácticas): el inquieto se mueve, el curioso y el sociable miran a los vecinos
@@ -5625,8 +5625,8 @@ function barnPlace(i, bed) { // del rancho a esa cama: entra por la puerta, cami
   if (!r || BARN.ms[bed] || save.barn.length >= BARN_MAX) return; // (se pueden guardar todos, también el último: pedido del dueño)
   moodSettle(r); R.splice(i, 1); RANCH.actors.splice(i, 1); r.bed = bed; save.barn.push(r); // ya queda guardado (si sales antes de que llegue, ya está en su cama)
   if (save.sel > i || save.sel >= R.length) save.sel = Math.max(0, save.sel - 1);
-  homeEmpty = null; persist(); $('barnModal').classList.remove('on'); if (barnCtx && barnCtx.i === bed && !zoom) toRanch(); // (desde la cama libre de cerca: la cámara se aleja para verlo entrar)
-  const it = BARN.ms[bed] = barnItem(r); if (it.m) { it.m.sitting = false; it.m.sitK = 0; it.m.sleep = false; it.m.setEmo('happy', 3, 2); }
+  homeEmpty = null; persist(); $('barnModal').classList.remove('on'); if (barnCtx && barnCtx.i === bed) { zoom = null; barnExit(); } // desde la cama libre de cerca: vuelve directo al granero para verlo entrar (antes la cámara se alejaba de una cama que ya no estaba libre y se veía una pantalla vacía; pedido del dueño)
+  const it = BARN.ms[bed] = barnItem(r); it.doze = false; if (it.m) { it.m.sitting = false; it.m.sitK = 0; it.m.sleep = false; it.m.setEmo('happy', 3, 2); }
   it.arrive = { x: BARN_DOOR, phase: 'in', t: 0, alpha: 0 }; barnUI(true);
 }
 function barnDrawWalker(c, it, X, y, sc, alpha) { const a = alpha; c.save(); c.globalAlpha = a; if (it.m) { const k = barnK(it) * sc; c.translate(X, y); c.scale(k, k); const a0 = it.m.alpha; it.m.alpha = a; it.m.draw(c); it.m.alpha = a0; } /* (Monster.draw usa su propio alpha) */ else if (it.egg) { c.translate(X, y); c.scale(1.6 * sc, 1.6 * sc); it.egg.draw(c); } c.restore(); }
@@ -5777,7 +5777,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.'] },
+  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
@@ -7044,7 +7044,7 @@ function layer(i, fn) {
   const c = L.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, L.width, L.height); c.setTransform(DPR, 0, 0, DPR, 0, 0); fn(c); return L;
 }
 // el bucle nunca se detiene por un error (pedido del dueño: en la web app una pelea quedó congelada y la ✕ no respondía): si algo falla en un cuadro, se anota y sigue
-let loopErrs = 0;
+let loopErrs = 0; const AREA = {}; // últimas áreas de dibujo del rancho y de la vista de cerca
 function loop(now) { requestAnimationFrame(loop); try { loopFrame(now); } catch (e) { if (loopErrs++ < 5) console.error('[loop]', e); try { ctx.restore(); } catch (e2) { } } }
 function loopFrame(now) {
   let dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -7070,11 +7070,13 @@ function loopFrame(now) {
     }
     // Se dibuja en el área de la página que está más a la vista (Rancho o Estadísticas)
     const areas = ['showArea', 'trainArea'].map(id => $(id).getBoundingClientRect()), dc = q => Math.abs(q.top + q.height / 2 - H / 2);
-    const r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a), onHome = r === areas[0];
+    let r = areas.reduce((a, b) => dc(b) < dc(a) ? b : a); const onHome = r === areas[0];
     const hasClose = show || egg || homeEmpty != null || barnFree;
+    if (onHome && !barnCtx) { const q = { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom, W, H }; if (!zoom) AREA[ranchMode ? 'ranch' : 'close'] = q; else AREA[zoom.dir > 0 ? 'close' : 'ranch'] = q; } // el área del rancho y la de cerca no miden lo mismo (en el rancho se ocultan el nombre y los botones)
     if (onHome && zoom && hasClose) { // acercarse a un monstruo del rancho (o alejarse): la cámara viaja hasta él
-      const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2;
-      drawCloseUp(ctx, r, true, zoom.dir > 0 ? e : 1 - e);
+      const e = zoom.t < 0.5 ? 4 * zoom.t ** 3 : 1 - Math.pow(-2 * zoom.t + 2, 3) / 2, pz = zoom.dir > 0 ? e : 1 - e;
+      const A0 = AREA.ranch, A1 = AREA.close; if (!barnCtx && A0 && A1 && A0.W === W && A1.W === W && A0.H === H && A1.H === H) { const L = k => A0[k] + (A1[k] - A0[k]) * pz; r = { left: L('left'), top: L('top'), width: L('width'), height: L('height'), right: L('right'), bottom: L('bottom') }; } // durante el zoom el área pasa de a poco de una a otra (antes la cámara daba un salto de ~12% al empezar a acercarse o alejarse; pedido del dueño)
+      drawCloseUp(ctx, r, true, pz);
     } else if (onHome && ranchMode) drawRanch(ctx, r);
     else if (hasClose) drawCloseUp(ctx, r, onHome, onHome && !firstEgg() ? 1 : null);
   } else if (scene === 'barn') {
