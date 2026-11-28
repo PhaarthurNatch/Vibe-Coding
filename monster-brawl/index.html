@@ -4557,6 +4557,11 @@ function ranchStep(dt) {
       if (wp < 1) { q.x += nx * f * (1 - wp); q.z += nz * f * (1 - wp); if (qm) { const sd = side(q, nx, nz); q.x -= nz * sd * 0.12 * dt; q.z += nx * sd * 0.12 * dt; } }
     }
   }
+  for (const a of A) if (a.toss) { // lanzado desde la vista de cerca: sigue volando con su impulso y al caer se desliza hasta frenar
+    const T = a.toss, air = a.m && a.m.z > 0; a.x += T.x * dt; a.z += T.z * dt; const f = Math.exp(-dt * (air ? 0.6 : 7)); T.x *= f; T.z *= f; a.walk = false; a.idle = Math.max(a.idle || 0, 0.8);
+    const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX || rr < RANCH_RMIN) { const nx = a.x / rr, nz = a.z / rr, vn = T.x * nx + T.z * nz; T.x -= 1.6 * vn * nx; T.z -= 1.6 * vn * nz; } // rebota suave en la cerca
+    if (Math.hypot(T.x, T.z) < 0.03 && !air) a.toss = null;
+  }
   for (const a of A) { if (a.fly) continue; const rr = Math.hypot(a.x, a.z) || 1e-3; if (rr > RANCH_RMAX + 0.02) { a.x *= (RANCH_RMAX + 0.02) / rr; a.z *= (RANCH_RMAX + 0.02) / rr; } if (rr < RANCH_RMIN) { a.x *= RANCH_RMIN / rr; a.z *= RANCH_RMIN / rr; } } // en un anillo: ni muy cerca de la cámara (el centro) ni pegados a la cerca
 }
 RANCH.frame = 0;
@@ -4875,7 +4880,8 @@ function toRanch() {
   if (a && a.m && Math.abs(a.m.gx) > 1) { // lo lanzaste hacia un lado: queda en el rancho donde cayó (la cámara sigue mirando el punto de antes)
     zoom.focus = { x: a.x, z: a.z }; const kb = RANCH.view ? RANCH.view.kb : 1, F = RANCH.view ? RANCH.view.RX / 1.15 : 300, dw = a.m.gx * kb / F, co = Math.cos(RANCH.th), sn = Math.sin(RANCH.th);
     let nx = a.x + dw * co, nz = a.z - dw * sn; const rr = Math.hypot(nx, nz), rc = clamp(rr, RANCH_RMIN, RANCH_RMAX); if (rr > 1e-3) { nx *= rc / rr; nz *= rc / rr; }
-    a.x = nx; a.z = nz; a.m.gx = 0; a.m.vx = 0; a.walk = false; a.idle = 1.5;
+    const vw = clamp(a.m.vx, -2200, 2200) * kb / F; a.toss = { x: vw * co, z: -vw * sn }; // sigue con el impulso del lanzamiento (antes se frenaba de golpe al salir de la pantalla; pedido del dueño)
+    a.x = nx; a.z = nz; for (const n of a.m.nodes) n.x -= a.m.gx; /* el esqueleto se corre junto con él (antes volvía de golpe al centro) */ a.m.gx = 0; a.m.vx = 0; a.walk = false; a.idle = 1.5;
   }
   ranchMode = true; renderHome();
 }
@@ -5401,6 +5407,7 @@ function barnMood(it, m, dt) { // despierto en su cama, se nota su forma de ser 
 function barnLeaveStep(dt) { // los que van saliendo al rancho (también mientras miras a otro de cerca: no se pausan)
   for (const L of BARN.leaves.slice()) { // se para, camina hacia la izquierda hasta la puerta y sale (pedido del dueño)
     L.t += dt; const m = L.it.m;
+    if (L.v && (L.phase === 'fall' || L.phase === 'wait')) { const air = m && m.z > 0; L.x += L.v * dt; L.v *= Math.exp(-dt * (air ? 0.6 : 7)); if (L.x < BARN_DOOR + 0.2 || L.x > BARN_MAX - 0.6) { L.x = clamp(L.x, BARN_DOOR + 0.2, BARN_MAX - 0.6); L.v *= -0.4; } if (Math.abs(L.v) < 0.03 && !air) L.v = 0; if (L.phase === 'wait' && L.v) L.t = 0; } // sigue con el impulso del lanzamiento y se desliza al caer (antes se frenaba de golpe; pedido del dueño)
     if (L.phase === 'fall') { if (m) { m.vx = 0; m.vy = 0; const vz0 = m.vz; m.hop(dt); if (m.g.wings.pairs && m.z > 0 && m.vz < -WING_FALL) m.vz = -WING_FALL; if (m.z === 0 && Math.abs(m.vz) < 1) { if (vz0 < -380) m.setEmo('dizzy', 1.1, 4); L.phase = 'wait'; L.t = 0; } } else { L.phase = 'wait'; L.t = 0; } } // baja como en el rancho (con alas, despacio aleteando)
     else if (L.phase === 'wait') { if (m) { m.vx = 0; m.vy = 0; m.hop(dt); } if (L.t > 0.5) { L.phase = 'walk'; L.t = 0; } } // medio segundo después de caer...
     else if (L.phase === 'stand') { if (m) { m.sitting = false; m.sleep = false; m.vx = 0; m.vy = 0; } if (L.t > (m ? 0.7 : 0.3)) { L.phase = 'walk'; L.t = 0; } }
@@ -5577,8 +5584,8 @@ async function barnTakeAsk(i) {
 }
 function barnStartLeave(i, fling) {
   const it = BARN.ms[i]; if (!it || barnLeaving(it) || ranchBusy() >= MAX_MONSTERS) return;
-  let x = i; if (it.m) { const m = it.m; m.held = false; if (fling) x = clamp(i + m.gx * barnK(it) / barnSp(), BARN_DOOR + 0.2, BARN_MAX - 0.6); else { m.z = 0; m.vz = 0; } m.gx = 0; m.vx = 0; it.settle = false; m.sitting = false; m.sleep = false; } // lanzado: cae desde donde iba
-  BARN.leaves.push({ i, it, x, t: 0, phase: fling ? 'fall' : 'stand', alpha: 1 }); BARN.goto = null; BARN.vx = 0; if (it.m) it.m.setEmo('happy', 3, 2); barnUI(true); // se va caminando hasta la puerta
+  let x = i, v = 0; if (it.m) { const m = it.m; m.held = false; if (fling) { x = clamp(i + m.gx * barnK(it) / barnSp(), BARN_DOOR + 0.2, BARN_MAX - 0.6); v = clamp(m.vx, -2200, 2200) * barnK(it) / barnSp(); } else { m.z = 0; m.vz = 0; } for (const n of m.nodes) n.x -= m.gx; m.gx = 0; m.vx = 0; it.settle = false; m.sitting = false; m.sleep = false; } // lanzado: cae desde donde iba
+  BARN.leaves.push({ i, it, x, v, t: 0, phase: fling ? 'fall' : 'stand', alpha: 1 }); BARN.goto = null; BARN.vx = 0; if (it.m) it.m.setEmo('happy', 3, 2); barnUI(true); // se va caminando hasta la puerta
 }
 // Guardar uno del rancho: se elige en una ventana
 function openBarn(bed) { // tocar una cama libre: elegir a cuál del rancho traer a esa cama (pedido del dueño)
@@ -5770,6 +5777,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
