@@ -1983,6 +1983,8 @@ class Monster {
     return { h: h + (g.tents && !g.tents.oct ? g.tents.len * 0.6 : 0), w: Math.max(w, ww, tw, sw) };
   }
 
+  viewSize() { return viewSizeOf(this); } // tamaño real dibujado (para el encuadre de cerca)
+
   rootTarget() {
     const lo = this.seg.lo;
     let base = this.g.legs.pairs ? this.gy - (this.legSum * 0.9 - lo.h * 0.15) * this.s : this.gy - this.hover * this.s;
@@ -5115,7 +5117,7 @@ function ranchNeighbor(side) {
 function switchMonster(d, nb) { // de cerca recorre también los espacios libres (nb: ir directo a ese espacio del rancho); en Estadísticas sólo los monstruos y huevos
   const tot = save.monsters.length, p = nb ? nb.slot : ((homeEmpty ?? save.sel) + d + tot) % tot;
   const pf = RANCH.actors[homeEmpty ?? save.sel], prevFocus = pf ? { a: pf, x: pf.x, z: pf.z } : null;
-  const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
+  const prev = { E: egg, show: egg ? null : show, vacant: !show && !egg, k: homeView ? homeView.k : 1, gy: homeView ? homeView.gy : null, pal: egg ? egg.pal : show ? show.g.pal : { body: { h: 30, s: 45, l: 45 } } };
   if (p < save.monsters.length) { save.sel = p; homeEmpty = null; } else homeEmpty = p;
   SFX.thud(); // cambiar de monstruo (de cerca o en Estadísticas): el sonido del granero (pedido del dueño)
   fx.parts = []; // corazones y chispas del anterior no pasan al siguiente
@@ -5425,8 +5427,13 @@ function drawBarn(c, cam) {
   const sp = barnSp(), floorY = H * 0.66, TN = performance.now() / 1000;
   // de cerca (la vista de cerca del rancho, con el granero de fondo): la cámara hace zoom hasta que su cama queda donde va el monstruo de cerca
   let Z = 1, P = [W / 2, H * 0.45], Q = P;
-  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (!it) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + 4, e = cam.pz; Z = 1 + (cam.k / 1.6 - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } /* cama libre: como un huevo (×1,6) */ else if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
-    Z = 1 + (cam.k / kb - 1) * e; P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } }
+  if (cam && barnCtx) { const it = BARN.ms[barnCtx.i]; if (!it) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + 4, e = cam.pz; Z = Math.pow(cam.k / 1.6, e); P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; } /* cama libre: como un huevo (×1,6) */ else if (it && (it.m || it.egg)) { const top = floorY + H * 0.1 - H * 0.06 * 0.55 + (it.egg ? 4 : 0), kb = it.egg ? 1.6 : Math.min(H * 0.0016, sp * 0.95 / Math.max(it.sz.w, 70)), e = cam.pz; /* (el huevo se dibuja en su cama a ×1,6) */
+    Z = Math.pow(cam.k / kb, e); P = [W / 2, top]; Q = [W / 2 + (cam.cx - W / 2) * e, top + (cam.gy - top) * e]; if (zoom && !zoom.dur) zoom.dur = clamp(ZOOM_S * (0.85 + 0.3 * Math.log(Math.max(1, cam.k / kb))), ZOOM_S, 0.8); } }
+  { // al pasar de una cama a otra el zoom y la altura cambian de a poco (antes saltaban si los monstruos eran de distinto tamaño; pedido del dueño)
+    const now = performance.now(), S = BARN.zs, dt = S ? Math.min(0.1, (now - S.t) / 1000) : 0;
+    if (cam && barnCtx && cam.pz >= 1 && !zoom && S && S.ctx) { const f = 1 - Math.exp(-dt * 6); S.Z = Math.exp(Math.log(S.Z) + (Math.log(Z) - Math.log(S.Z)) * f); S.Q = [S.Q[0] + (Q[0] - S.Q[0]) * f, S.Q[1] + (Q[1] - S.Q[1]) * f]; S.P = [S.P[0] + (P[0] - S.P[0]) * f, S.P[1] + (P[1] - S.P[1]) * f]; Z = S.Z; Q = S.Q; P = S.P; S.t = now; }
+    else BARN.zs = { Z, Q, P, t: now, ctx: !!(cam && barnCtx && cam.pz >= 1 && !zoom) };
+  }
   BARN.cam = { Z, cfx: P[0], cfy: P[1] }; c.save(); c.translate(Q[0], Q[1]); c.scale(Z, Z); c.translate(-P[0], -P[1]);
   // paredes de tablas (se mueven un poco más lento que las camas: profundidad)
   c.fillStyle = '#4e321d'; c.fillRect(0, 0, W, floorY);
@@ -5763,6 +5770,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
+  { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
   { v: '1.85', d: '2026-11-25', items: ['En la arena, arriba aparece un 👁️ con el número de amigos que están mirando tu pelea.', 'Online y al espectar: los disparos se ven fluidos (antes se movían a saltos).'] },
@@ -6940,25 +6948,47 @@ function travelPoint() {
 function drawRanchBg(ctx, r, pz) {
   const a = RANCH.actors[homeEmpty ?? save.sel]; if (!a || !homeView) return false;
   const C = ranchCam(r), fp = zoom && zoom.focus ? zoom.focus : a, p = C.P(fp.x, fp.z); if (!p.vis && !(slide && slide.travel && slide.prevFocus)) return false; // al alejarse tras lanzarlo, la cámara sale desde donde estaba
-  let fxp = p.X, fyp = p.Y, Z = homeView.k / (C.kb * p.sc), dd = p.d, alphaOf = null;
+  let fxp = p.X, fyp = p.Y, Z = homeView.k / (C.kb * p.sc), dd = p.d, alphaOf = null, gyT = homeView.gy;
   const T = travelFade();
   if (T && slide.prevFocus) { // al pasar a otro monstruo, la cámara viaja por el rancho de uno al otro (se aleja un poco a mitad de camino)
     const pf = slide.prevFocus, fw = travelPoint(), q = C.P(fw.x, fw.z);
-    fxp = q.X; fyp = q.Y; Z = homeView.k / (C.kb * q.sc) * (1 - 0.45 * Math.sin(Math.PI * T.e)); dd = q.d;
+    const k0 = slide.prev && slide.prev.k || homeView.k, kk = Math.pow(k0, 1 - T.e) * Math.pow(homeView.k, T.e); // el tamaño pasa de a poco del anterior al nuevo (antes saltaba de golpe si eran de distinto tamaño; pedido del dueño)
+    fxp = q.X; fyp = q.Y; Z = kk / (C.kb * q.sc) * (1 - 0.45 * Math.sin(Math.PI * T.e)); dd = q.d;
+    if (slide.prev && slide.prev.gy != null) gyT = lerpN(slide.prev.gy, homeView.gy, T.e);
   }
-  const Zp = Math.max(1, 1 + (Z - 1) * pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, homeView.gy, pz);
+  if (zoom && !zoom.dur && !T) zoom.dur = clamp(ZOOM_S * (0.85 + 0.3 * Math.log(Math.max(1, Z))), ZOOM_S, 0.8); // los lejanos (más zoom) se acercan un poco más despacio
+  const Zp = Math.pow(Math.max(Z, 1e-3), pz), tx = lerpN(fxp, homeView.cx, pz), ty = lerpN(fyp, gyT, pz); // zoom geométrico: la cámara se acerca a ritmo parejo (antes el zoom era lineal y con los lejanos casi todo el acercamiento pasaba al final, de golpe; pedido del dueño)
   ctx.save(); ctx.translate(tx, ty); ctx.scale(Zp, Zp); ctx.translate(-fxp, -fyp);
   drawRanch(ctx, r, { alphaOf, focus: a, focus2: T && slide.prevFocus ? slide.prevFocus.a : null, ghost: 1 - 0.65 * Math.min(1, pz * 1.6), cullD: Math.max(0, dd - 0.05) * Math.min(1, pz * 4) /* todo lo que está delante del monstruo se quita para que no lo tape */, noNames: pz > 0.4, dotK: 1 / Zp }); // flores y estrellas no crecen con el zoom
   ctx.restore();
   return true;
+}
+// Tamaño real de un monstruo para encuadrarlo de cerca (pedido del dueño: con algunos cuerpos, p. ej. pulpos, cangrejos o slimes, la estimación
+// estSize se equivocaba hasta ×1,7 y la cámara no se acercaba igual que a los demás). Se dibuja una copia de pie, quieta, fuera de pantalla y se mide
+// lo pintado (×VIEW_K de margen); con el tamaño real, de cerca puede ocupar hasta el 92% del ancho (antes 80%, con un tamaño estimado). Se guarda por monstruo (semilla, etapa, puntos y genes).
+const VIEW_K = 1.05, VSZ = new Map();
+function viewSizeOf(m) {
+  const r = m.rec; if (!r || r.noArms || r.broad) return m.estSize();
+  const key = [r.seed, r.stage, r.gen || 0, JSON.stringify(r.pts || null), JSON.stringify(r.genes || null), JSON.stringify(r.statGenes || null)].join('|');
+  let v = VSZ.get(key); if (v) return v;
+  try {
+    const c = new Monster(r); c.resetRig(); for (let i = 0; i < 40; i++) { c.homeStep(1 / 60, 300, 0); c.z = 0; c.vz = 0; }
+    const N = 640, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d');
+    let nx0 = 1e9, nx1 = -1e9, ny0 = 1e9, ny1 = -1e9; for (const n of c.nodes) { nx0 = Math.min(nx0, n.x); nx1 = Math.max(nx1, n.x); ny0 = Math.min(ny0, n.y); ny1 = Math.max(ny1, n.y); }
+    x.translate(N / 2 - (nx0 + nx1) / 2, N / 2 - (ny0 + ny1) / 2); c.draw(x);
+    const d = x.getImageData(0, 0, N, N).data; let x0 = N, x1 = -1, y0 = N, y1 = -1;
+    for (let y = 0; y < N; y += 2) for (let q = 0; q < N; q += 2) if (d[(y * N + q) * 4 + 3] > 40) { if (q < x0) x0 = q; if (q > x1) x1 = q; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    v = x1 > x0 && y1 > y0 ? { w: (x1 - x0) * VIEW_K, h: (y1 - y0) * VIEW_K } : m.estSize();
+  } catch (e) { v = m.estSize(); }
+  VSZ.set(key, v); return v;
 }
 // Vista de cerca (un monstruo, su huevo o un espacio libre) en el área r; onHome = página del Rancho (centrado)
 function drawCloseUp(ctx, r, onHome, pz) {
   const onAdopt = false;
   const E = egg, vacant = !onAdopt && !egg && !show, empty = vacant; // espacio libre: huevo fantasma con un ?
   // Escala fija de referencia: así los bebés se ven chicos y los adultos grandes
-  const sz = E || empty ? { w: 50, h: 62 } : show.estSize();
-  let k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * 0.8 / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
+  const sz = E || empty ? { w: 50, h: 62 } : show.viewSize();
+  let k = Math.min(r.height * (onHome ? 0.64 : 0.78) / Math.max(sz.h, 150), r.width * (E || empty ? 0.8 : 0.92) / Math.max(sz.w, 140), E || empty ? 1.6 : 3.2); // el huevo no crece tanto en Estadísticas
   if (barnCtx && (E || empty)) k = 1.6 * Math.min(r.height * (onHome ? 0.64 : 0.78) / 150, r.width * 0.8 / 140, 3.2) / Math.min(H * 0.0016, barnSp() * 0.95 / 70); // (el zoom de la mayoría: sólo los monstruos muy grandes se acercan menos) // huevo del granero: la cámara hace el mismo zoom que al elegir un monstruo (pedido del dueño)
   const gy = onHome ? Math.min(r.bottom - r.height * 0.06, r.top + r.height / 2 + Math.max(sz.h, 60) * k / 2) : r.bottom - r.height * 0.06;
   homeView = { cx: r.left + r.width / 2, gy, k, adopt: onAdopt };
@@ -7016,7 +7046,7 @@ function loopFrame(now) {
   const barnFree = !!(barnCtx && !BARN.ms[barnCtx.i]); // de cerca en una cama libre del granero
   if (scene === 'home' && (show || egg || homeEmpty != null || barnFree || ranchMode || zoom)) {
     if (slide && (slide.t += dt / (slide.dur || SLIDE_S)) >= 1) slide = null;
-    if (zoom && (zoom.t += dt / ZOOM_S) >= 1) { const d = zoom.dir; zoom = null; if (d < 0) { homeEmpty = null; if (barnCtx) barnExit(); else if (save.monsters.length) renderHome(); } }
+    if (zoom && (zoom.t += dt / (zoom.dur || ZOOM_S)) >= 1) { const d = zoom.dir; zoom = null; if (d < 0) { homeEmpty = null; if (barnCtx) barnExit(); else if (save.monsters.length) renderHome(); } }
     acc += dt; let n = 0;
     while (acc >= STEP && n++ < 5) {
       acc -= STEP; fxStep(STEP);
