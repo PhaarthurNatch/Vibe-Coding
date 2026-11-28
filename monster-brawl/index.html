@@ -382,7 +382,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 <div id="townUI" class="screen">
   <div class="topbar">
     <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
-    <button class="edgeLbl up" id="townUpLbl">▲ Rancho</button>
+    <span></span><!-- (sin «▲ Rancho»: al rancho se vuelve sólo por la salida, pedido del dueño) -->
     <span class="roundbtn" style="visibility:hidden" aria-hidden="true"></span>
   </div>
   <div class="barnInfo top"><b>Pueblo</b><span id="townSub"></span></div>
@@ -5150,8 +5150,7 @@ function edgeLabels(free) {
   b.textContent = free > 0 ? `Estadísticas (${free}) ▼` : 'Estadísticas ▼'; b.classList.toggle('glow', !ranchMode && free > 0);
 }
 $('lblTop').onclick = () => { if (ranchMode) return; SFX.thud(); toRanch(); }; // (en el rancho ya no hay Tienda arriba: está en el pueblo)
-$('shopBack').onclick = () => closeTownShop();
-$('townUpLbl').onclick = () => leaveTown(); // deseleccionar: el sonido del granero (pedido del dueño)
+$('shopBack').onclick = () => closeTownShop(); // deseleccionar: el sonido del granero (pedido del dueño)
 $('lblBot').onclick = () => setPage(2);
 document.querySelectorAll('.edgeLbl[data-go]').forEach(b => b.onclick = () => setPage(+b.dataset.go));
 // Deslizar arriba/abajo en cualquier parte cambia de página: Tienda (arriba) · Rancho · Estadísticas (abajo); el contenido sigue al dedo.
@@ -5853,7 +5852,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: compra los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero).', 'Para volver al rancho toca «▲ Rancho», la salida «Rancho» o desliza el dedo hacia abajo.'] },
+  { v: '1.90', d: '2026-11-28', items: ['¡Ya se puede ir al pueblo! Toca el pueblo en el rancho: estás parado en su plaza y deslizas a los lados para mirar alrededor, como en el rancho.', 'La Tienda se mudó al pueblo: ahí están las ultimates, los genes y las arenas.', 'El Criadero también está en el pueblo: compra los huevos de los adultos con los que ya peleaste (quedan en una cama libre del granero).', 'Para volver al rancho, toca la salida «Rancho» del pueblo.'] },
   { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede más despacio.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al lanzar a varios monstruos seguidos al rancho, ya no aparecen duplicados (uno caminando y otro en la cama).', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
@@ -6532,7 +6531,7 @@ cv.addEventListener('pointermove', e => {
   touch.last = p;
 });
 cv.addEventListener('pointerup', e => {
-  if (scene === 'town') { const G = TOWN.drag; TOWN.drag = null; if (!G || e.pointerId !== G.id) return; if (!G.mode) townTap(G.x0, G.y0); else if (G.mode === 'h') TOWN.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; else if (e.clientY - G.y0 > 60) leaveTown(); return; } // dedo hacia abajo: al rancho (como en el granero)
+  if (scene === 'town') { const G = TOWN.drag; TOWN.drag = null; if (!G || e.pointerId !== G.id) return; if (!G.mode) townTap(G.x0, G.y0); else if (G.mode === 'h') TOWN.vth = performance.now() - G.lt < 120 ? clamp(G.v * 0.6, -3, 3) : 0; return; } // (al rancho se vuelve sólo tocando la salida «RANCHO», pedido del dueño)
   if (scene === 'barn') { const G = BARN.drag; BARN.drag = null; if (!G || e.pointerId !== G.id) return; clearTimeout(G.timer);
     if (G.zoom) { // de cerca
       const it = BARN.ms[BARN.focus];
