@@ -5341,10 +5341,11 @@ const BARN_DOOR = -0.78; // la puerta: a la izquierda de la primera cama (en cam
 const RANCH_WALK_ANIM = 42, RANCH_WALK_PX = 42; // caminando como en el rancho: piernas a 42 y avanza 42 unidades del monstruo por segundo
 const barnK = it => it && it.sz ? Math.min(H * 0.0016, barnSp() * 0.95 / Math.max(it.sz.w, 70)) : 1;
 function barnBuild() {
+  const old = new Map(); for (const it of BARN.ms || []) if (it) old.set(it.rec, it); for (const L of BARN.leaves || []) old.set(L.it.rec, L.it);
   BARN.ms = new Array(BARN_MAX).fill(null); let ch = false;
   for (const r of save.barn || []) { // cada uno tiene su cama (rec.bed) y se queda en ella aunque se vaya otro (pedido del dueño)
     if (!(r.bed >= 0 && r.bed < BARN_MAX) || BARN.ms[r.bed]) { r.bed = BARN.ms.findIndex(q => !q); ch = true; }
-    BARN.ms[r.bed] = barnItem(r);
+    BARN.ms[r.bed] = old.get(r) || barnItem(r); // los que ya estaban se reutilizan: antes, al llegar al rancho el primero de varios lanzados, los demás que iban caminando reaparecían sentados en su cama (duplicados; pedido del dueño)
   }
   if (ch) persist();
   BARN.last = -1;
@@ -5367,7 +5368,7 @@ function leaveBarn() { SFX.thud(); loadScreen('Volviendo al rancho…', closeBar
 function openBarnView() {
   fightMenu(false); RANCH.drag = null; scene = 'barn';
   $('home').classList.remove('on'); $('barnUI').classList.add('on');
-  barnBuild(); BARN.x = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); BARN.vx = 0; BARN.focus = null; BARN.z = 0; barnUI(true);
+  BARN.ms = []; barnBuild(); BARN.x = clamp(Math.round(BARN.x), 0, BARN_MAX - 1); // (al entrar se arman de nuevo: duermen al azar cada vez) BARN.vx = 0; BARN.focus = null; BARN.z = 0; barnUI(true);
 }
 function closeBarnView() {
   RANCH.th = 0; RANCH.vth = 0; // al volver al rancho, el granero queda al centro
@@ -5777,7 +5778,7 @@ setTimeout(ranchGreetAll, 700); // al entrar a la app
 const saveSummary = o => { const n = saveCount(o); /* también cuenta los del granero */ return `${n} ${n === 1 ? 'monstruo' : 'monstruos'} y ${o.coins || 0} monedas`; };
 // Novedades: cada versión que pasa a main (la de arriba es la actual). Al pasar algo a main, agregar sus cambios aquí.
 const CHANGELOG = [
-  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede despacio siguiéndolo.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
+  { v: '1.89', d: '2026-11-28', items: ['Al lanzar a un monstruo fuera de la pantalla, en el rancho o en el granero, sigue volando con su impulso y se desliza al caer, sin frenarse ni dar saltos.', 'La cámara ya no da un salto al empezar a acercarse o alejarse de un monstruo en el rancho, y al lanzarlo retrocede despacio siguiéndolo.', 'Granero: los monstruos que llegan o se van ya no caminan sentados.', 'Granero: al lanzar a varios monstruos seguidos al rancho, ya no aparecen duplicados (uno caminando y otro en la cama).', 'Granero: al poner un monstruo en una cama ya no se ve una pantalla vacía; vuelves directo al granero para verlo entrar.'] },
   { v: '1.88', d: '2026-11-28', items: ['Al acercarte a un monstruo, todos se ven del mismo tamaño en pantalla, sin importar su tipo de cuerpo (antes, por ejemplo, los pulpos se veían chicos), en el rancho y en el granero.', 'El acercamiento de la cámara y el paso de un monstruo a otro son más suaves, también con los que están lejos y en el granero.'] },
   { v: '1.87', d: '2026-11-27', items: ['Las crías tienen siempre el tipo de cuerpo de uno de sus padres (antes podía salir, por ejemplo, un slime de padres que no lo eran). También se corrigen las crías que ya tenías.'] },
   { v: '1.86', d: '2026-11-27', items: ['Arreglado: algunas crías se quedaban sin cuerpo al crecer (sólo se veían los ojos y la boca).', 'Las crías ahora también heredan la textura y el tipo de cuerpo (serpiente, slime, araña, ave…) de sus padres. En la Tienda hay genes nuevos para eso. El cuerpo de serpiente cuenta como su cola: nunca tiene otra cola.', 'Granero: las camas vacías también se eligen y se ven de cerca, con «Poner algo aquí». Al liberar a un monstruo te quedas en su cama, ahora libre.', 'Granero: los monstruos que acaban de criar también duermen ahí.', 'En el rancho, al otro lado del granero, hay un pueblo con su camino. Por ahora está vacío.', 'El «K.O.» termina de caer antes de que salga el resumen de la pelea.', 'Al crecer, cada parte nueva suena como un K.O., cada vez más agudo.', 'Las voces de la despedida al final de la pelea se escuchan más fuerte.', 'Online: ya no está en el menú «Luchar». Para unirte a la sala de un amigo toca «Unirse a una sala» arriba en «¡A pelear!».', 'En el perfil de un amigo hay un botón «Intercambio» que lo invita a intercambiar monstruos.', 'Online: si todos eligen el mismo color, pelean juntos contra rivales del juego (por ejemplo 2 vs 2) y ganan XP y monedas como en un 2 vs 2.', 'Online y al espectar: toda la pelea se ve más fluida (monstruos, saltos, ondas y bombas), no sólo los disparos.', 'La estela de la ultimate ya no gira con los monstruos de una pieza cuando ruedan.', 'Pantallas de carga más estables en iPhone.'] },
